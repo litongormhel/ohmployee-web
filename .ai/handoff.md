@@ -1,5 +1,56 @@
 # AI Handoff
 
+## Execution Report — Harden User Management Role/Scope Updates & Auto-Sync HRCO Tags (ohm#h7k9v4s2)
+
+**Status: COMPLETE ON MAIN; RESOLVED DEFECT WHERE VACANCY MANAGEMENT (`/vacancy`) OPEN TAB DISPLAYED HRCO AS `Unassigned` FOR ALL 14 APEX VACANCIES (`PG-2026%`) DESPITE ALVIN REY BEING CONFIGURED AS HRCO FOR GROUP 4 / APEX IN USER MANAGEMENT; ROOT CAUSE IDENTIFIED IN `public.users_profile` AND `public.upsert_user_profile_and_scopes`: ALVIN REY HAD BEEN SOFT-ARCHIVED ON 2026-10-20; WHEN THE ADMIN CHANGED HIS ROLE AND SCOPES TO HRCO FOR APEX, `upsert_user_profile_and_scopes` UPDATED HIS `role_id` AND `user_scopes` BUT LEFT `is_active = false` AND `archived_at` POPULATED; BOTH `public.vw_vacancy_list` AND `public.fn_reevaluate_hrco_auto_tags` STRICTLY FILTER `up.is_active = true AND up.archived_at IS NULL`, CAUSING THEM TO IGNORE HIM AND RETURN `Unassigned`; SHIPPED MIGRATION `20262606000102_harden_user_management_activation_and_hrco_sync.sql` TO STAGING (`qqiiznmqxfoamqytjica`), HARDENING `upsert_user_profile_and_scopes` TO RESTORE `is_active = TRUE, archived_at = NULL, archived_by = NULL` AND TRIGGER `fn_reevaluate_hrco_auto_tags` FOR AFFECTED ACCOUNTS ON EVERY ROLE/SCOPE UPDATE; HARDENED `set_user_active` TO CLEAR ARCHIVED TIMESTAMPS ON ACTIVATION; AND REACTIVATED ALVIN REY WHILE SYNCING `accounts.hrco_user_id` FOR APEX; LIVE INSPECTION CONFIRMED 100% PARITY: `list_web_vacancies` IMMEDIATELY RETURNS `hrco_name: 'Alvin Rey'` ACROSS ALL 14 APEX VACANCIES; VERIFIED CLEAN VIA `npm run lint` (0 ERRORS 0 WARNINGS), `npm test` (211/211 PASSED), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Root Cause Analysis
+- **Bug Manifestation**:
+  - In Vacancy Management (`/vacancy`), filtering by account `APEX` showed 14 Open vacancies (`PG-2026-006` through `PG-2026-019`) with `HRCO: Unassigned`.
+  - In User Management (`/users`), Alvin Rey (`g1hrcoalvin@ohmployee.com`) was assigned `Role: HRCO`, `Group: Group 4`, `Account: APEX`.
+- **Underlying Cause**:
+  1. On 2026-10-20, Alvin Rey was archived (`is_active = false`, `archived_at = '2026-10-20 08:11:05.9483+00'`).
+  2. In User Management, when the admin assigned him to APEX as HRCO, `upsert_user_profile_and_scopes` only updated `role_id` and replaced `user_scopes` without resetting `is_active` or `archived_at`.
+  3. View `public.vw_vacancy_list` resolves HRCO via User Management (migration 96):
+     ```sql
+     SELECT up_sc.full_name
+     FROM public.user_scopes us_acc
+     JOIN public.users_profile up_sc ON up_sc.id = us_acc.user_id
+     JOIN public.roles r_sc ON r_sc.id = up_sc.role_id
+     WHERE us_acc.account_id = COALESCE(v.account_id, a.id)
+       AND r_sc.role_name = 'HRCO'::text
+       AND up_sc.is_active = true
+       AND up_sc.archived_at IS NULL
+     ```
+     Because `up_sc.is_active` was `false` and `up_sc.archived_at` was populated, the subquery returned `NULL`, defaulting to `Unassigned`.
+  4. Additionally, neither `upsert_user_profile_and_scopes` nor `set_user_active` automatically called `fn_reevaluate_hrco_auto_tags` to synchronize `accounts.hrco_user_id`.
+
+### 2. Changes Made
+- **Database Migration `20262606000102_harden_user_management_activation_and_hrco_sync.sql`**:
+  - **`upsert_user_profile_and_scopes`**:
+    - When updating existing user profiles, auto-restores active state: `is_active = TRUE, archived_at = NULL, archived_by = NULL, updated_at = NOW()`.
+    - Automatically executes `fn_reevaluate_hrco_auto_tags(account_id)` for all accounts in `p_account_ids` and groups in `p_group_ids` whenever role/scopes are modified.
+  - **`set_user_active`**:
+    - When `p_is_active = TRUE`, clears `archived_at = NULL` and `archived_by = NULL`.
+    - If user has HRCO role, iterates their scoped accounts and runs `fn_reevaluate_hrco_auto_tags`.
+  - **Data Healing on Staging**:
+    - Set Alvin Rey (`885810b8-7b62-4eb6-8b2c-2db77a0e7289`): `is_active = TRUE, archived_at = NULL, archived_by = NULL`.
+    - Re-evaluated HRCO auto tags for APEX (`42a3cec9-a5eb-4c90-ac45-45669c212b12`), setting `accounts.hrco_user_id = '885810b8-7b62-4eb6-8b2c-2db77a0e7289'`.
+
+### 3. Verification & Live Parity
+- **Live Staging SQL Probe**:
+  - `accounts.hrco_user_id` for APEX: `'885810b8-7b62-4eb6-8b2c-2db77a0e7289'`.
+  - `list_web_vacancies(p_status => 'Open', p_account_id => '42a3cec9-a5eb-4c90-ac45-45669c212b12')`:
+    - All 14 open vacancies (`PG-2026-014`, `PG-2026-008`, `PG-2026-018`, `PG-2026-019`, `PG-2026-006`, etc.) immediately return `hrco_name: 'Alvin Rey'`.
+- **Post-Migration Function Parity**:
+  - `pg_get_functiondef` for `upsert_user_profile_and_scopes` and `set_user_active` matches committed migration file with 100% parity.
+- **Quality Gates**:
+  - `npm run lint`: 0 errors, 0 warnings.
+  - `npm test`: 211/211 tests passing.
+  - `npm run build`: Next.js 16.2.4 compiled cleanly with exit code 0.
+
+---
+
 ## Execution Report — Eliminate Unpaginated Inactive Parity Fallback from Vacancy Open Tab (ohm#p9k4v2s8)
 
 **Status: COMPLETE ON MAIN; RESOLVED CRITICAL UI DEFECT WHERE VACANCY MANAGEMENT (`/vacancy`) OPEN TAB DISPLAYED >10 ROWS ON PAGE 1 (RENDERING ~31 ROWS) DESPITE `Rows per page: 10` FOOTER; ROOT CAUSE IDENTIFIED IN `src/lib/queries/vacancy.ts` (LINES 2573–2687): A LEGACY CLIENT-SIDE FALLBACK ("Parity fallback: ensure vacated slots from inactive plantilla personnel are included") QUERIED INACTIVE PERSONNEL VIA `list_web_plantilla_employees` AND EVALUATED `!existingVcodes.has(vk)` AGAINST ONLY THE CURRENT PAGE'S 10 ROWS, CAUSING IT TO SYNTHESIZE AND BLINDLY `.push(...)` ~21 VACATED ROWS ONTO PAGE 1 WITHOUT APPLYING PAGINATION SLICING; THIS ALSO WRONGLY RE-CREATED A SYNTHETIC OPEN VACANCY ROW FOR `TEST005` (SUPER 5) DUE TO AN INACTIVE HISTORICAL PLANTILLA RECORD (AIDA DELA CRUZ) DESPITE JUSTIN BIEBER BEING ACTIVELY ONBOARDED AS HIRED IN `hr_emploc`; REMOVED THE OBSOLETE CLIENT-SIDE FALLBACK IN FAVOR OF THE CANONICAL POSTGRESQL RPC `list_web_vacancies` (WHICH ALREADY HANDLES REOPENED INACTIVE SLOTS VIA MIGRATIONS 79 & 101); CONFIRMED 100% CLEAN LOCAL QUALITY GATES (`npm run lint` 0 ERRORS 0 WARNINGS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

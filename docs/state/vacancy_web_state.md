@@ -8,6 +8,15 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Harden User Management Role/Scope Updates & Auto-Sync HRCO Tags (`ohm#h7k9v4s2` — 2026-11-12)**:
+  - **The Defect**: Vacancy Management (`/vacancy`) Open tab displayed `HRCO: Unassigned` across all 14 vacancies for APEX (`PG-2026%`), despite user Alvin Rey having been configured as HRCO for Group 4 / APEX in User Management (`/users`).
+  - **Root Cause**: Alvin Rey had been soft-archived on 2026-10-20. When an Admin updated his role and scopes via `upsert_user_profile_and_scopes`, the database function modified `role_id` and `user_scopes` but left `is_active = false` and `archived_at` populated. Both `vw_vacancy_list` and `fn_reevaluate_hrco_auto_tags` strictly check `up.is_active = true AND up.archived_at IS NULL`, causing them to bypass him and report `Unassigned`. Additionally, `upsert_user_profile_and_scopes` and `set_user_active` did not automatically sync `accounts.hrco_user_id`.
+  - **Database Migration 102 (`20262606000102_harden_user_management_activation_and_hrco_sync.sql`)**:
+    - Hardened `upsert_user_profile_and_scopes` to restore `is_active = TRUE, archived_at = NULL, archived_by = NULL` and trigger `fn_reevaluate_hrco_auto_tags` across affected account scopes.
+    - Hardened `set_user_active` to clear `archived_at` and `archived_by` upon activation and trigger `fn_reevaluate_hrco_auto_tags` if the user is an HRCO.
+    - Reactivated Alvin Rey on Staging (`qqiiznmqxfoamqytjica`) and synced APEX (`accounts.hrco_user_id = '885810b8-7b62-4eb6-8b2c-2db77a0e7289'`).
+    - Verified live: all 14 APEX open vacancies in `list_web_vacancies` immediately reflect `hrco_name: 'Alvin Rey'`.
+
 - **Elimination of Unpaginated Inactive Parity Fallback in Open Tab (`ohm#p9k4v2s8` — 2026-11-12)**:
   - **The Defect**: The Vacancy Open tab table rendered >10 records on page 1 (rendering ~31 records) despite `Rows per page: 10` and `Showing 1-10 of 31 records`. Additionally, `TEST005` (Super 5) re-appeared on the Open tab table as row 17.
   - **Root Cause**: `src/lib/queries/vacancy.ts` contained a legacy client-side fallback block ("Parity fallback: ensure vacated slots from inactive plantilla personnel are included") that fetched inactive employees from `list_web_plantilla_employees` and appended all matching candidates into `finalRows` on page 1 without applying pagination slicing (`finalRows.push(...)`). Because `existingVcodes` only checked the 10 rows on page 1, any inactive personnel on other pages or already hired in `hr_emploc` (such as `TEST005`) were artificially injected into page 1 with synthesized open status.
