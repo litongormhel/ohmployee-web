@@ -1,5 +1,38 @@
 # AI Handoff
 
+## Execution Report — Custom Report Builder: Custom Date Range & Semi-Monthly Cut-off Selection (ohm#d4r9k2c7)
+
+**Status: COMPLETE ON MAIN; ADDED COMPREHENSIVE CUT-OFF PRESETS AND CUSTOM DATE RANGE SELECTION TO CUSTOM REPORT BUILDER (`CustomReportTab.tsx`); USERS CAN NOW SELECT STANDARD RANGES (LAST 7D, LAST 30D, LAST 90D, THIS MONTH), PRECISE SEMI-MONTHLY CUT-OFFS (CURRENT MONTH: 1ST–15TH, CURRENT MONTH: 16TH–END, PREVIOUS MONTH: 1ST–15TH, PREVIOUS MONTH: 16TH–END), OR ARBITRARY CUSTOM RANGES VIA DUAL "FROM DATE" AND "TO DATE" PICKERS; INTRODUCED DYNAMIC DATE RANGE COMPUTATION WITH MONTH-END BOUNDARY AWARENESS (28/29/30/31 DAYS); RENDERED ACTIVE WINDOW SUB-LABEL AND HIGH-VISIBILITY PERIOD PREVIEW BADGES IN RESULTS; ENRICHED XLSX AND CSV EXPORT FILENAMES WITH THE ACTIVE DATE WINDOW SUFFIX (`Custom_<source>_Report_<start>_to_<end>.xlsx`); PREVENTED INVALID RANGE EXECUTION (TO DATE < FROM DATE); ZERO REGRESSION; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Requirements & Problem Solved
+- In the Custom Report Builder (`/reports` -> Custom Report Builder tab), users previously only had static presets (`Last 7 Days`, `Last 30 Days`, `Last 90 Days`, `This Month`) for date-ranged datasets like HR Emploc Pipeline (`hr_emploc`).
+- Operations and HR coordinators follow strict semi-monthly payroll and billing cut-off schedules (e.g. 1st to 15th, or 16th to end of month), which were impossible to query accurately with rolling day presets.
+- Additionally, state variables `customStart` and `customEnd` existed in `CustomReportTab.tsx` but had no corresponding UI input controls or validation.
+
+### 2. Implementation Details
+- **Type Definitions & Date Math (`src/components/reports/CustomReportTab.tsx`)**:
+  - Defined `CustomReportDateOption`:
+    `"last7" | "last30" | "last90" | "thisMonth" | "currCutoff1" | "currCutoff2" | "prevCutoff1" | "prevCutoff2" | "custom"`.
+  - Added robust date math helper `getLastDayOfMonth(year, monthIndex)` using `new Date(year, monthIndex + 1, 0).getDate()` to guarantee accurate end dates for February (leap/non-leap) and 30/31-day months.
+  - Implemented `formatDateStr` formatting local dates directly (`YYYY-MM-DD`) without UTC conversion shifts.
+- **Dynamic Scope & Condition UI**:
+  - Grouped `<select>` options using `<optgroup>`: "Standard Ranges", "Semi-Monthly Cut-offs", and "Custom Range".
+  - Displays real-time resolved date window beneath the selector: `Active window: YYYY-MM-DD to YYYY-MM-DD`.
+  - When `custom` is chosen, renders side-by-side `<input type="date" />` controls for "From Date" and "To Date", defaulting to the 1st of the current month and today.
+  - Added validation check: `isDateInvalid = customStart > customEnd`, disabling the "Execute & Generate Preview" button and displaying inline error messaging.
+- **Preview & Export Enrichment**:
+  - Rendered active period badge in the results preview bar (`Report Preview (N Rows)`):
+    `<Calendar /> [Label]: YYYY-MM-DD → YYYY-MM-DD`.
+  - Updated `handleExportXlsx` and `handleExportCsv` to append the active date range to the exported file names:
+    `Custom_hr_emploc_Report_2026-11-01_to_2026-11-15.xlsx`.
+
+### 3. Verification Results
+- `npm run lint`: Clean (0 errors).
+- `npm test`: Clean (211/211 tests passed).
+- `npm run build`: Clean (Next.js 16.2.4 exit code 0, 20/20 routes compiled).
+
+---
+
 ## Execution Report — Settings: Fix Default Font to Inter & Persist Font Preference (ohm#f4k8v2q9)
 
 **Status: COMPLETE ON MAIN; RESOLVED ISSUE WHERE CHANGING AND REFRESHING THE BROWSER REVERTED THE UI FONT FAMILY BACK TO "Plus Jakarta Sans"; SET INTER AS DEFAULT SYSTEM FONT; ROOT CAUSES IDENTIFIED: (1) OHM'S RECORD IN `user_settings` ON STAGING (`qqiiznmqxfoamqytjica`) HAD `font_family = 'Plus Jakarta Sans'` PERSISTED FROM MAY 2026, WHICH `ThemeProvider.tsx` RETRIEVED ON EVERY MOUNT AND APPLIED TO `document.documentElement.setAttribute('data-font', activeFont)`; (2) `updateUserSettings` IN `src/lib/queries/settings.ts` USED A RAW SINGLE-COLUMN `.upsert(payload, { onConflict: "user_id" })` THAT FAILED TO UPDATE EXISTING RECORDS IN POSTGREST; (3) POSTGRESQL CHECK CONSTRAINT `chk_font_family` STRICTLY ENFORCED AN OUTDATED LIST OF STRINGS OMITTING OPTIONS LIKE `'Geist Sans'` AND `'DM Sans'`; APPLIED STAGING DATABASE UPDATE CHANGING OHM'S FONT TO `'Inter'` AND UPDATING `chk_font_family` CONSTRAINT; REFACTORED `updateUserSettings` WITH EXPLICIT CHECK-AND-UPDATE TO RELIABLY PERSIST SAVED FONT PREFERENCES TO SUPABASE; SYNCHRONIZED `localStorage.ohm_font_preference` IN `ThemeProvider.tsx` TO PREVENT REHYDRATION RACE CONDITIONS; ZERO REGRESSION; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

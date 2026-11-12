@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  Calendar,
   CheckSquare,
   Download,
   FileSpreadsheet,
@@ -26,6 +27,28 @@ type CustomReportSource =
   | "deployment"
   | "data_integrity"
   | "team_performance";
+
+export type CustomReportDateOption =
+  | "last7"
+  | "last30"
+  | "last90"
+  | "thisMonth"
+  | "currCutoff1"
+  | "currCutoff2"
+  | "prevCutoff1"
+  | "prevCutoff2"
+  | "custom";
+
+const formatDateStr = (d: Date) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getLastDayOfMonth = (year: number, monthIndex: number) => {
+  return new Date(year, monthIndex + 1, 0).getDate();
+};
 
 interface SourceConfig {
   id: CustomReportSource;
@@ -135,7 +158,7 @@ const SOURCES: Record<CustomReportSource, SourceConfig> = {
 
 export function CustomReportTab() {
   const [selectedSource, setSelectedSource] = useState<CustomReportSource>("vacancy");
-  const [datePreset, setDatePreset] = useState<"last7" | "last30" | "last90" | "thisMonth">("last30");
+  const [datePreset, setDatePreset] = useState<CustomReportDateOption>("last30");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
 
@@ -183,32 +206,93 @@ export function CustomReportTab() {
   const [results, setResults] = useState<Record<string, unknown>[]>([]);
   const [genError, setGenError] = useState<string | null>(null);
 
-  // Compute Active Dates
+  // Compute Active Dates & Cut-offs
   const computedDateRange = useMemo(() => {
     const now = new Date();
-    const today = now.toISOString().split("T")[0];
+    const today = formatDateStr(now);
 
-    if (customStart && customEnd) {
-      return { start: customStart, end: customEnd };
+    if (datePreset === "custom") {
+      const start = customStart || formatDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+      const end = customEnd || today;
+      return { start, end };
     }
     if (datePreset === "last7") {
       const d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      return { start: d.toISOString().split("T")[0], end: today };
+      return { start: formatDateStr(d), end: today };
     }
     if (datePreset === "last30") {
       const d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      return { start: d.toISOString().split("T")[0], end: today };
+      return { start: formatDateStr(d), end: today };
     }
     if (datePreset === "last90") {
       const d = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      return { start: d.toISOString().split("T")[0], end: today };
+      return { start: formatDateStr(d), end: today };
     }
     if (datePreset === "thisMonth") {
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { start: start.toISOString().split("T")[0], end: today };
+      return { start: formatDateStr(start), end: today };
+    }
+    if (datePreset === "currCutoff1") {
+      // Current Month: 1st - 15th
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 15);
+      return { start: formatDateStr(start), end: formatDateStr(end) };
+    }
+    if (datePreset === "currCutoff2") {
+      // Current Month: 16th - End
+      const lastDay = getLastDayOfMonth(now.getFullYear(), now.getMonth());
+      const start = new Date(now.getFullYear(), now.getMonth(), 16);
+      const end = new Date(now.getFullYear(), now.getMonth(), lastDay);
+      return { start: formatDateStr(start), end: formatDateStr(end) };
+    }
+    if (datePreset === "prevCutoff1") {
+      // Previous Month: 1st - 15th
+      const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+      const start = new Date(prevYear, prevMonth, 1);
+      const end = new Date(prevYear, prevMonth, 15);
+      return { start: formatDateStr(start), end: formatDateStr(end) };
+    }
+    if (datePreset === "prevCutoff2") {
+      // Previous Month: 16th - End
+      const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+      const lastDay = getLastDayOfMonth(prevYear, prevMonth);
+      const start = new Date(prevYear, prevMonth, 16);
+      const end = new Date(prevYear, prevMonth, lastDay);
+      return { start: formatDateStr(start), end: formatDateStr(end) };
     }
     return { start: today, end: today };
   }, [datePreset, customStart, customEnd]);
+
+  const activeRangeLabel = useMemo(() => {
+    switch (datePreset) {
+      case "last7":
+        return "Last 7 Days";
+      case "last30":
+        return "Last 30 Days";
+      case "last90":
+        return "Last 90 Days";
+      case "thisMonth":
+        return "This Month";
+      case "currCutoff1":
+        return "Current Month: 1st – 15th Cut-off";
+      case "currCutoff2":
+        return "Current Month: 16th – End Cut-off";
+      case "prevCutoff1":
+        return "Previous Month: 1st – 15th Cut-off";
+      case "prevCutoff2":
+        return "Previous Month: 16th – End Cut-off";
+      case "custom":
+        return "Custom Cut-off / Date Range";
+      default:
+        return "Date Range";
+    }
+  }, [datePreset]);
+
+  const isDateInvalid = Boolean(
+    datePreset === "custom" && customStart && customEnd && customStart > customEnd
+  );
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -263,7 +347,10 @@ export function CustomReportTab() {
       return row;
     });
 
-    exportToXlsx(exportRows, `Custom_${selectedSource}_Report_${new Date().toISOString().split("T")[0]}`);
+    const dateSuffix = activeConfig.hasDateRange
+      ? `_${computedDateRange.start}_to_${computedDateRange.end}`
+      : `_${formatDateStr(new Date())}`;
+    exportToXlsx(exportRows, `Custom_${selectedSource}_Report${dateSuffix}`);
   };
 
   const handleExportCsv = () => {
@@ -281,7 +368,10 @@ export function CustomReportTab() {
       return row;
     });
 
-    exportToCsv(exportRows, `Custom_${selectedSource}_Report_${new Date().toISOString().split("T")[0]}`);
+    const dateSuffix = activeConfig.hasDateRange
+      ? `_${computedDateRange.start}_to_${computedDateRange.end}`
+      : `_${formatDateStr(new Date())}`;
+    exportToCsv(exportRows, `Custom_${selectedSource}_Report${dateSuffix}`);
   };
 
   return (
@@ -417,24 +507,82 @@ export function CustomReportTab() {
           )}
 
           {activeConfig.hasDateRange && (
-            <div>
-              <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                Date Range Preset
-              </label>
-              <select
-                value={datePreset}
-                onChange={(e) => {
-                  setDatePreset(e.target.value as "last7" | "last30" | "last90" | "thisMonth");
-                  setCustomStart("");
-                  setCustomEnd("");
-                }}
-                className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer"
-              >
-                <option value="last7">Last 7 Days</option>
-                <option value="last30">Last 30 Days</option>
-                <option value="last90">Last 90 Days</option>
-                <option value="thisMonth">This Month</option>
-              </select>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-[11px] font-semibold text-text-secondary mb-1">
+                  Date Range &amp; Cut-off
+                </label>
+                <select
+                  value={datePreset}
+                  onChange={(e) => {
+                    const val = e.target.value as CustomReportDateOption;
+                    setDatePreset(val);
+                    if (val === "custom") {
+                      if (!customStart) {
+                        const now = new Date();
+                        setCustomStart(formatDateStr(new Date(now.getFullYear(), now.getMonth(), 1)));
+                      }
+                      if (!customEnd) {
+                        setCustomEnd(formatDateStr(new Date()));
+                      }
+                    }
+                  }}
+                  className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer font-medium text-text-primary"
+                >
+                  <optgroup label="Standard Ranges">
+                    <option value="last7">Last 7 Days</option>
+                    <option value="last30">Last 30 Days</option>
+                    <option value="last90">Last 90 Days</option>
+                    <option value="thisMonth">This Month</option>
+                  </optgroup>
+                  <optgroup label="Semi-Monthly Cut-offs">
+                    <option value="currCutoff1">Current Month: 1st – 15th</option>
+                    <option value="currCutoff2">Current Month: 16th – End</option>
+                    <option value="prevCutoff1">Previous Month: 1st – 15th</option>
+                    <option value="prevCutoff2">Previous Month: 16th – End</option>
+                  </optgroup>
+                  <optgroup label="Custom Range">
+                    <option value="custom">Custom Date Range...</option>
+                  </optgroup>
+                </select>
+                <span className="text-[10px] text-text-muted mt-1 block">
+                  Active window: {computedDateRange.start} to {computedDateRange.end}
+                </span>
+              </div>
+
+              {datePreset === "custom" && (
+                <div className="space-y-1 pt-1 border-t border-border-subtle">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-text-secondary mb-0.5">
+                        From Date
+                      </label>
+                      <input
+                        type="date"
+                        value={customStart}
+                        onChange={(e) => setCustomStart(e.target.value)}
+                        className="w-full h-8 px-2 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 text-text-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-text-secondary mb-0.5">
+                        To Date
+                      </label>
+                      <input
+                        type="date"
+                        value={customEnd}
+                        onChange={(e) => setCustomEnd(e.target.value)}
+                        className="w-full h-8 px-2 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 text-text-primary"
+                      />
+                    </div>
+                  </div>
+                  {isDateInvalid && (
+                    <p className="text-[10px] text-danger-text font-medium pt-0.5">
+                      To Date cannot be earlier than From Date.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -503,24 +651,31 @@ export function CustomReportTab() {
 
       {/* 4. Action Trigger */}
       <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-lg transition cursor-pointer shadow-sm"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Generating Custom Report...
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4 fill-white" />
-              Execute &amp; Generate Preview
-            </>
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={isGenerating || isDateInvalid}
+            className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition cursor-pointer shadow-sm"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating Custom Report...
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 fill-white" />
+                Execute &amp; Generate Preview
+              </>
+            )}
+          </button>
+          {isDateInvalid && (
+            <p className="text-[11px] text-danger-text font-medium">
+              Please correct the date range before executing preview.
+            </p>
           )}
-        </button>
+        </div>
 
         {hasGenerated && (
           <div className="text-xs text-text-secondary">
@@ -540,11 +695,22 @@ export function CustomReportTab() {
       {hasGenerated && (
         <div className="rounded-xl border border-border-default bg-surface-base shadow-2xs overflow-hidden space-y-0">
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-border-subtle bg-surface-muted/40">
-            <div className="flex items-center gap-2">
-              <Table className="w-4 h-4 text-brand-600" />
-              <span className="text-xs font-bold text-text-primary">
-                Report Preview ({filteredResults.length} Rows)
-              </span>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center gap-2">
+                <Table className="w-4 h-4 text-brand-600" />
+                <span className="text-xs font-bold text-text-primary">
+                  Report Preview ({filteredResults.length} Rows)
+                </span>
+              </div>
+              {activeConfig.hasDateRange && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-semibold text-brand-700 bg-brand-50 border border-brand-200 rounded-md">
+                  <Calendar className="w-3 h-3 text-brand-600" />
+                  <span>{activeRangeLabel}:</span>
+                  <span className="font-mono text-[10px] text-brand-800">
+                    {computedDateRange.start} → {computedDateRange.end}
+                  </span>
+                </span>
+              )}
             </div>
 
             <div className="relative">
