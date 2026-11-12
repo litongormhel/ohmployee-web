@@ -22,6 +22,18 @@
 - Approval & Regression Gate: before any code, schema, or migration change, present a short
   plan + regression risk assessment, then STOP and WAIT for explicit user approval. Do not
   implement in the same turn.
+- Uncertainty & Clarification Gate: If requirements, user intent, edge cases, or scope boundaries
+  are unclear or ambiguous, NEVER make assumptions or proceed blindly. Always STOP, ask clarifying
+  questions, and explicitly provide 1–3 concrete recommendations with rationale.
+- ADR & Architecture Conflict Gate: If a user instruction directly conflicts with ADR-001/ADR-002
+  architectural locks, permanent rule locks, or database contracts, NEVER implement it silently.
+  STOP immediately, cite the conflicting ADR section/rule, explain the specific risks and breakages
+  if implemented as requested, and provide a safe recommendation that satisfies the objective without
+  violating architectural integrity. Wait for explicit confirmation or override.
+- Workflow & Visibility Regression Guard: If any proposed change risks breaking an existing workflow,
+  regressing visibility (e.g., role-scoped action buttons, tab rosters, historical separation logs),
+  or corrupting state transitions, STOP immediately. Detail what breaks, ask the user, and present
+  a safe recommendation that avoids regression.
 - Work on `main` only. Never create a branch unless the prompt says "create a branch". Never
   merge, push, or delete a branch on your own. If the environment created a branch, report it
   in the handoff entry; Ohm verifies (`npm run lint` / `npm run build` / manual test), merges

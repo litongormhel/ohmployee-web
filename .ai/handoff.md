@@ -1,5 +1,28 @@
 # AI Handoff
 
+## Execution Report — Workflow: Uncertainty, ADR Conflict & Regression Safety Gates (ohm#q4n7v2m9)
+
+**Status: COMPLETE ON MAIN; DOCS ONLY; LOCAL COMMIT ON MAIN.**
+
+- **Request**: 
+  1. Kapag hindi sure ang agent, dapat lagi muna magtanong at magbigay ng recommendation.
+  2. Kapag may inutos ang user na may conflict sa nabasa sa ADR, i-ask ulit sa user if approved ba, sabihin ang risk if tinuloy, at mag-recommend ng safe alternative.
+  3. Kapag may workflow o visibility na masisira o hindi gagana, STOP, ask the user, at magbigay ng recommendation.
+- **Updates**:
+  - `AGENTS.md`: Added three explicit gates under Core Workflow Rules:
+    1. `Uncertainty & Clarification Gate`: Never assume or proceed blindly on ambiguous requirements; STOP and provide 1–3 concrete recommendations.
+    2. `ADR & Architecture Conflict Gate`: When user directives contradict ADR-001/002 rules or permanent locks, STOP, cite the conflict, explain risks, and recommend safe paths.
+    3. `Workflow & Visibility Regression Guard`: When changes threaten existing workflows, role-scoped visibility, rosters, or state integrity, STOP, report risks, and recommend safe alternatives.
+  - `.ai/briefing.md`: Added matching subsections under Mandatory Workflow Rules:
+    - `### Uncertainty, Clarification & Recommendation Standard`
+    - `### ADR Conflict & Architecture Safety Gate`
+    - `### Workflow & Visibility Regression Guard`
+  - Cleaned up duplicated lines in briefing's "Last Completed Tasks" table.
+- **Verification**: `npm run check:adr` → `FRESH — 3729ccb`. Docs-only (no app code changes).
+- **ADR updates needed**: None.
+
+---
+
 ## Execution Report — Workflow: Auto Context Loading in AGENTS.md (ohm#k6p2w8n4)
 
 **Status: COMPLETE ON MAIN; DOCS ONLY; LOCAL COMMIT ON MAIN.**
