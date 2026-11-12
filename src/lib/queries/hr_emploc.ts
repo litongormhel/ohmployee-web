@@ -278,6 +278,16 @@ const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 100;
 
 function asObject(value: unknown): Record<string, unknown> {
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {};
+    }
+  }
   return value && !Array.isArray(value) && typeof value === "object"
     ? (value as Record<string, unknown>)
     : {};
@@ -465,7 +475,11 @@ export function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
 
   const attachmentMetadata = (row.attachment_metadata ?? row.attachmentMetadata ?? caps.attachment_metadata ?? caps.attachmentMetadata) as Record<string, unknown> | null;
 
-  const rawAttachments = Array.isArray(row.attachments) ? row.attachments : [];
+  const rawAttachments = Array.isArray(row.attachments)
+    ? row.attachments
+    : Array.isArray(caps.attachments)
+    ? (caps.attachments as unknown[])
+    : [];
   const attachments: HrEmplocAttachment[] = rawAttachments.map((att) => {
     const a = asObject(att);
     const storagePath = asString(a.storage_path) || "";
@@ -483,7 +497,7 @@ export function normalizeListRow(row: HrEmplocRpcRow): HrEmplocListItem | null {
       can_remove: a.can_remove === true,
     };
   });
-  const docCount = asCount(row.doc_count ?? attachments.length);
+  const docCount = asCount(row.doc_count ?? caps.doc_count ?? attachments.length);
 
   return {
     id,
@@ -588,10 +602,14 @@ export function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | nu
   const rawCovered = Array.isArray(row.covered_stores) ? row.covered_stores : [];
   const coveredStores = rawCovered.map(normalizeCoveredStore);
 
+  const caps = asObject(row.row_capabilities ?? row.rowCapabilities ?? row.capabilities);
+
   const rawAttachments: unknown[] = Array.isArray(row.attachments)
     ? (row.attachments as unknown[])
     : Array.isArray(row.correction_attachments)
     ? (row.correction_attachments as unknown[])
+    : Array.isArray(caps.attachments)
+    ? (caps.attachments as unknown[])
     : [];
   const uploadedAttachments = rawAttachments.map(normalizeAttachment);
 
@@ -612,7 +630,7 @@ export function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | nu
       can_remove: a.can_remove === true,
     };
   });
-  const docCount = asCount(row.doc_count ?? attachments.length);
+  const docCount = asCount(row.doc_count ?? caps.doc_count ?? attachments.length);
 
   const rawTimeline = Array.isArray(row.timeline) ? row.timeline : [];
   const auditLogsTimeline = rawTimeline.map(normalizeAuditLog);
@@ -624,7 +642,6 @@ export function normalizeDetailRow(row: HrEmplocRpcRow): HrEmplocDetailItem | nu
       ? latestDeletionRequest
       : null;
 
-  const caps = asObject(row.row_capabilities ?? row.rowCapabilities);
   const opsRemarks = normalizeHrEmplocRemarks(row, caps);
 
   return {

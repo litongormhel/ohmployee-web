@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — HR Emploc: Normalize Document Counts, Hide Actions for Ops/Recruitment & Compact SLA Badges (ohm#c3m8v4q7)
+
+**Status: COMPLETE ON MAIN; RESOLVED PERSISTENT `0 DOCS` ISSUE BY SYNCHRONIZING `normalizeListRow` AND `normalizeDetailRow` DIRECTLY IN `src/lib/queries/hr_emploc.ts` AND `hr_emploc_normalizers.ts` WITH SAFE STRINGIFIED JSON PARSING IN `asObject()` AND READING `caps.attachments` AND `caps.doc_count` (NOW RENDERING `View (3)`); ENFORCED ROLE-SCOPED ACTIONS COLUMN VISIBILITY IN `HrEmplocTable.tsx`: COMPLETELY REMOVED ACTIONS COLUMN FOR RECRUITMENT ACROSS ALL TABS, AND REMOVED ACTIONS FOR OPS (OM, TL, ATL, HRCO) ON TABS WHERE OPS HAS NO ALLOWED ACTIONS (`for_emploc`, `review`, `deployed`), PRESERVING ACTIONS COLUMN FOR OPS EXCLUSIVELY ON `pending` AND `correction` WHERE `Upload Docs` IS NEEDED; STANDARDIZED SLA BADGE TEXT TO COMPACT `${days}d` FORMAT (e.g. `0d`, `1d`, `2d`) WITHOUT EXPANDED "DAY/DAYS" TEXT; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 TURBOPACK EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Requirements & Defect
+- **User Prompt**: "0 docs pa din. For Ops + Recruitment hide action column hindi naman nila yan need makita. For SLA it should be 0d 1d 2d wag na i complete"
+- **Defects & Fixes**:
+  1. **`0 docs` display in list table**:
+     - `src/app/(dashboard)/hr-emploc/page.tsx` calls `listWebHrEmplocs` in `src/lib/queries/hr_emploc.ts`, which had its own local copies of `normalizeListRow` and `normalizeDetailRow`. In prompt `ohm#d8v3m5k1`, only `hr_emploc_normalizers.ts` had been updated. Updated `src/lib/queries/hr_emploc.ts` and `hr_emploc_normalizers.ts` to inspect `caps.attachments` and `caps.doc_count` and added resilient JSON parsing to `asObject()`. `row.docCount` now resolves to 3, rendering `[Eye] View (3)`.
+  2. **Empty Actions column for Ops & Recruitment**:
+     - In `For Emploc` queue, Ops coordinators and Recruitment users have no actionable operations (`Add Emploc` and `Tag Deficiency` are restricted to Super Admin / HR / Admin per ADR-001 § 5).
+     - Added role detection helper `isOpsRole` and `isRecruitmentRole` using `useCurrentUser()`.
+     - In `HrEmplocTable.tsx`:
+       - Recruitment: `shouldHideActions` is true on all queues.
+       - Ops (OM, TL, ATL, HRCO): `shouldHideActions` is true on `for_emploc`, `review`, and `deployed` (actions hidden); false on `pending` and `correction` (`Upload Docs` preserved).
+       - Header `<th>` and body `<td>` for Actions are completely excluded when `shouldHideActions` is true, ensuring 100% column alignment and eliminating empty column whitespace.
+  3. **Compact SLA badge formatting**:
+     - Standardized SLA badge render across `pending`, `for_emploc`, `correction`, and `review` queues to `{row.slaElapsedDays}d` (e.g., `0d`, `1d`, `2d`).
+
+### 2. Implementation Details
+- **`src/lib/queries/hr_emploc.ts` & `src/lib/queries/hr_emploc_normalizers.ts`**:
+  - Enhanced `asObject(value)` to attempt `JSON.parse(value)` if value is a string, preventing empty objects on stringified PostgREST payloads.
+  - In `normalizeListRow` and `normalizeDetailRow`: fall back to `caps.attachments` and `caps.doc_count ?? attachments.length`.
+- **`src/components/hr-emploc/HrEmplocTable.tsx`**:
+  - Added `useCurrentUser` import and role checkers (`isOpsRole`, `isRecruitmentRole`).
+  - Added `shouldHideActions` conditional column filtering in `getTableColumns(queue, shouldHideActions)`.
+  - Conditioned body row Actions `<td>` with `{!shouldHideActions && ( ... )}`.
+  - Updated SLA badges from `{row.slaElapsedDays} {row.slaElapsedDays === 1 ? "day" : "days"}` to `{row.slaElapsedDays}d`.
+
+### 3. Verification Results
+- `npm test`: 211/211 tests passed.
+- `npm run lint`: Clean (0 errors).
+- `npm run build`: Production build succeeded in Turbopack (20/20 routes static/dynamic compiled with 0 errors).
+
+---
+
 ## Execution Report — HR Emploc: Fix Document Count Normalization & Ops Role Restriction (ohm#d8v3m5k1)
 
 **Status: COMPLETE ON MAIN; RESOLVED ISSUE WHERE CANDIDATE `LUCA, GRACE POE` IN THE `FOR EMPLOC` QUEUE DISPLAYED `0 DOCS` DESPITE HAVING 3 VALID UPLOADED COMPLIANCE DOCUMENTS; ROOT CAUSE: `normalizeListRow` AND `normalizeDetailRow` IN `src/lib/queries/hr_emploc_normalizers.ts` READ `row.attachments` AND `row.doc_count` FROM ROOT LEVEL ONLY, FAILING TO INSPECT `caps.attachments` AND `caps.doc_count` PROJECTED WITHIN `row_capabilities`; UPDATED NORMALIZERS TO FALL BACK TO `caps.attachments` AND `caps.doc_count`; TABLE NOW RENDERS `[Eye] View (3)` OPENING `DocumentPreviewModal`; RE-ASSERTED STRICT OPS ROLE RESTRICTIONS: OPS COORDINATORS (OM, TL, ATL, HRCO) REMAIN STRICTLY RESTRICTED FROM ADDING EMPLOC IDS OR TAGGING DEFICIENCIES IN `FOR EMPLOC` PER ADR-001 § 5; ACTIONS REMAIN EXCLUSIVELY RESERVED FOR SUPER ADMIN, HR PERSONNEL, HEAD ADMIN, AND ENCODER; ZERO REGRESSION; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

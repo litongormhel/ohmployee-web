@@ -515,6 +515,12 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - Updated `normalizeListRow` and `normalizeDetailRow` to fall back to `caps.attachments` and `caps.doc_count`. Table now renders `[Eye] View (3)` opening `DocumentPreviewModal`.
 - Re-confirmed Ops action restriction: Ops coordinators (OM, TL, ATL, HRCO) are strictly restricted from adding Emploc IDs or tagging deficiency in `For Emploc` queue; these actions remain strictly reserved for Super Admin, HR Personnel, Head Admin, and Encoder per ADR-001 § 5.
 
+## Query Layer Document Normalization, Role-Scoped Actions Hiding & Compact SLA Badges (ohm#c3m8v4q7)
+- Synchronized `normalizeListRow` and `normalizeDetailRow` directly in `src/lib/queries/hr_emploc.ts` and `hr_emploc_normalizers.ts` to inspect `caps.attachments` and `caps.doc_count`, and enhanced `asObject()` with safe stringified JSON parsing. Resolves `0 docs` to `View (3)`.
+- Enforced role-scoped Actions column visibility in `HrEmplocTable.tsx`: completely hid Actions column for Recruitment across all queues, and hid Actions column for Ops (OM, TL, ATL, HRCO) on queues where Ops has no actions (`for_emploc`, `review`, `deployed`), keeping `Actions` visible for Ops on `pending` and `correction` for `Upload Docs`.
+- Standardized SLA badge display to compact `${days}d` format (e.g. `0d`, `1d`, `2d`).
+
+
 
 
 

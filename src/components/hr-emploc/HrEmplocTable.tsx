@@ -1,7 +1,7 @@
 // components/hr-emploc/HrEmplocTable.tsx
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   LockKeyhole,
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
   Eye,
   MoreVertical,
 } from "lucide-react";
+import { useCurrentUser } from "@/lib/auth";
 import { DataState } from "@/components/shared/DataState";
 import { TablePagination } from "@/components/shared/TablePagination";
 import {
@@ -44,6 +45,7 @@ type HrEmplocTableProps = {
   pageSize: number;
   isLoading: boolean;
   errorKind: HrEmplocDataErrorKind | null;
+  hideActions?: boolean;
   onSelect: (row: HrEmplocListItem) => void;
   onRetry: () => void;
   onPageChange: (page: number) => void;
@@ -58,10 +60,38 @@ type HrEmplocTableProps = {
   onEditEmploc?: (row: HrEmplocListItem) => void;
 };
 
-function getTableColumns(queue: HrEmplocQueue): string[] {
+function isOpsRole(role?: string | null): boolean {
+  if (!role) return false;
+  const n = role.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return (
+    n === "hrco" ||
+    n === "om" ||
+    n === "operations_manager" ||
+    n === "operations" ||
+    n === "tl" ||
+    n === "atl" ||
+    n === "atl_tl" ||
+    n === "team_lead" ||
+    n === "assistant_team_lead"
+  );
+}
+
+function isRecruitmentRole(role?: string | null): boolean {
+  if (!role) return false;
+  const n = role.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return (
+    n === "recruitment" ||
+    n === "recruitment_team" ||
+    n === "recruiter" ||
+    n.includes("recruitment")
+  );
+}
+
+function getTableColumns(queue: HrEmplocQueue, hideActions: boolean = false): string[] {
+  let cols: string[];
   switch (queue) {
     case "pending":
-      return [
+      cols = [
         "Applicant",
         "Account / Store",
         "Position",
@@ -70,8 +100,9 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Docs",
         "Actions",
       ];
+      break;
     case "for_emploc":
-      return [
+      cols = [
         "Group",
         "Account",
         "Applicant",
@@ -81,8 +112,9 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Docs",
         "Actions",
       ];
+      break;
     case "correction":
-      return [
+      cols = [
         "Group",
         "Account",
         "Applicant",
@@ -92,8 +124,9 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Docs",
         "Actions",
       ];
+      break;
     case "review":
-      return [
+      cols = [
         "Group",
         "Account",
         "Applicant",
@@ -103,9 +136,10 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Attachment",
         "Actions",
       ];
+      break;
     case "deployed":
     case "ready":
-      return [
+      cols = [
         "Employee #",
         "Applicant",
         "Store / Position",
@@ -113,8 +147,9 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Deployed Date",
         "Actions",
       ];
+      break;
     default:
-      return [
+      cols = [
         "Group",
         "Account",
         "Applicant",
@@ -124,7 +159,9 @@ function getTableColumns(queue: HrEmplocQueue): string[] {
         "Docs",
         "Actions",
       ];
+      break;
   }
+  return hideActions ? cols.filter((c) => c !== "Actions") : cols;
 }
 
 const SLA_BADGE_CLASS =
@@ -139,6 +176,7 @@ export function HrEmplocTable({
   pageSize,
   isLoading,
   errorKind,
+  hideActions,
   onSelect,
   onRetry,
   onPageChange,
@@ -152,7 +190,20 @@ export function HrEmplocTable({
   onViewDocs,
   onEditEmploc,
 }: HrEmplocTableProps) {
-  const columns = getTableColumns(queue);
+  const currentUser = useCurrentUser();
+  const role = currentUser?.roleKey ?? currentUser?.roleName;
+  const isRecruitment = isRecruitmentRole(role);
+  const isOps = isOpsRole(role);
+
+  // Recruitment has zero actions in HR Emploc; Ops has no actions on for_emploc, review, or deployed queues
+  const shouldHideActions =
+    hideActions ??
+    (isRecruitment || (isOps && queue !== "pending" && queue !== "correction"));
+
+  const columns = useMemo(
+    () => getTableColumns(queue, shouldHideActions),
+    [queue, shouldHideActions]
+  );
   const { getHrcosForRecord } = useInheritedHrcoMap();
   const [openOverflowId, setOpenOverflowId] = useState<string | null>(null);
 
@@ -293,7 +344,7 @@ export function HrEmplocTable({
                         {/* 5. SLA */}
                         <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
                           <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-2xs ${SLA_BADGE_CLASS}`}>
-                            {row.slaElapsedDays} {row.slaElapsedDays === 1 ? "day" : "days"}
+                            {row.slaElapsedDays}d
                           </span>
                         </td>
 
@@ -362,7 +413,7 @@ export function HrEmplocTable({
                         {/* 6. SLA */}
                         <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
                           <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-2xs ${SLA_BADGE_CLASS}`}>
-                            {row.slaElapsedDays} {row.slaElapsedDays === 1 ? "day" : "days"}
+                            {row.slaElapsedDays}d
                           </span>
                         </td>
 
@@ -418,7 +469,7 @@ export function HrEmplocTable({
                         {/* 4. SLA */}
                         <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
                           <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-2xs ${SLA_BADGE_CLASS}`}>
-                            {row.slaElapsedDays} {row.slaElapsedDays === 1 ? "day" : "days"}
+                            {row.slaElapsedDays}d
                           </span>
                         </td>
 
@@ -524,7 +575,8 @@ export function HrEmplocTable({
                     )}
 
                     {/* ── Sticky Right Actions Column ─────────────────── */}
-                    <td className="sticky right-0 z-10 border-b border-table-rule bg-table-row group-hover:bg-table-row-hover px-4 py-2.5 text-right whitespace-nowrap shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)]">
+                    {!shouldHideActions && (
+                      <td className="sticky right-0 z-10 border-b border-table-rule bg-table-row group-hover:bg-table-row-hover px-4 py-2.5 text-right whitespace-nowrap shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)]">
                       <div className="flex items-center justify-end gap-1.5">
                         {/* Pending Tab Primary Action: Upload Docs */}
                         {queue === "pending" && (
@@ -717,7 +769,8 @@ export function HrEmplocTable({
                         )}
                       </div>
                     </td>
-                  </tr>
+                  )}
+                </tr>
                 );
               })
             )}

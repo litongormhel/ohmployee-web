@@ -264,6 +264,16 @@ export type HrEmplocSummary = {
 export type HrEmplocRpcRow = Record<string, unknown>;
 
 export function asObject(value: unknown): Record<string, unknown> {
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {};
+    }
+  }
   return value && !Array.isArray(value) && typeof value === "object"
     ? (value as Record<string, unknown>)
     : {};
