@@ -8,6 +8,12 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Lock User Management as HRCO Single Source of Truth & Active Status Enforcement (`ohm#w3k8r9v1` — 2026-11-12)**:
+  - **The Invariant**: User Management (`public.user_scopes` + `public.users_profile`) is the single authoritative source of truth for HR Coordinator assignments across Vacancy, Plantilla, HR Emploc, Dashboard, and Accounts.
+  - **Archived Profile Protection**: Only active, non-archived user profiles (`is_active = TRUE AND archived_at IS NULL`) are recognized and projected as HRCOs. Inactive or soft-archived profiles are strictly suppressed and render as `Unassigned`.
+  - **Live Verification**: Confirmed on Staging (`qqiiznmqxfoamqytjica`) that Weng Cornejo was legitimately excluded while soft-archived, and upon reactivation by Ohm via User Management, Migration 102 (`set_user_active`) automatically cleared `archived_at` and triggered `fn_reevaluate_hrco_auto_tags`. Perfect SM vacancies (`VPSMG3_0008`) and accounts immediately updated to `hrco_name: 'Cornejo, Weng'` and `accounts.hrco_user_id = 'c2f3d4e5-f6a7-8901-bcde-f12345678901'` without manual patching.
+  - **ADR-001 Lock**: Documented in `.ai/handoff.md` under "ADR updates needed (Ohm applies in mobile repo)".
+
 - **Harden User Management Role/Scope Updates & Auto-Sync HRCO Tags (`ohm#h7k9v4s2` — 2026-11-12)**:
   - **The Defect**: Vacancy Management (`/vacancy`) Open tab displayed `HRCO: Unassigned` across all 14 vacancies for APEX (`PG-2026%`), despite user Alvin Rey having been configured as HRCO for Group 4 / APEX in User Management (`/users`).
   - **Root Cause**: Alvin Rey had been soft-archived on 2026-10-20. When an Admin updated his role and scopes via `upsert_user_profile_and_scopes`, the database function modified `role_id` and `user_scopes` but left `is_active = false` and `archived_at` populated. Both `vw_vacancy_list` and `fn_reevaluate_hrco_auto_tags` strictly check `up.is_active = true AND up.archived_at IS NULL`, causing them to bypass him and report `Unassigned`. Additionally, `upsert_user_profile_and_scopes` and `set_user_active` did not automatically sync `accounts.hrco_user_id`.

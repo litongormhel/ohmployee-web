@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — Audit & Lock User Management as HRCO Single Source of Truth in ADR-001 (ohm#w3k8r9v1)
+
+**Status: COMPLETE ON MAIN; VALIDATED ARCHITECTURAL RULE THAT USER MANAGEMENT (`public.user_scopes` + `public.users_profile`) IS THE SINGLE SOURCE OF TRUTH FOR HR COORDINATOR (HRCO) ASSIGNMENTS ACROSS ALL MODULES (VACANCY, PLANTILLA, HR EMPLOC, DASHBOARD, ACCOUNTS); CONFIRMED LIVE ON STAGING (`qqiiznmqxfoamqytjica`) THAT INACTIVE/ARCHIVED USERS (`is_active = false` OR `archived_at IS NOT NULL`) ARE INTENTIONALLY AND STRICTLY EXCLUDED FROM PROJECTING AS HRCOS (WHICH EXPLAINED WHY WENG CORNEJO INITIALLY RENDERED AS `Unassigned` FOR PERFECT SM); CONFIRMED THAT UPON OHM ACTIVATING WENG CORNEJO IN USER MANAGEMENT VIA THE WEB UI, MIGRATION 102 (`public.set_user_active`) AUTOMATICALLY CLEARED `archived_at` AND TRIGGERED `public.fn_reevaluate_hrco_auto_tags`, INSTANTLY BINDING `accounts.hrco_user_id = 'c2f3d4e5-f6a7-8901-bcde-f12345678901'` AND PROJECTING `hrco_name: 'Cornejo, Weng'` ACROSS PERFECT SM VACANCIES (`VPSMG3_0008`) AND PLANTILLA ROSTER; NO ADDITIONAL RUNS OR SCRIPTS REQUIRED; RECORDED PERMANENT ARCHITECTURAL SPECIFICATION UNDER "ADR UPDATES NEEDED (OHM APPLIES IN MOBILE REPO)"; LOCAL COMMIT ON MAIN.**
+
+### 1. ADR Updates Needed (Ohm applies in mobile repo)
+- **Target File**: `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`
+- **Section to Add / Append**: `Section: User Management Authority for HRCO Assignments & Active Roster Contract`
+- **Rule Specification**:
+  > **ADR-001 Lock: User Management HRCO Single Source of Truth & Active Status Enforcement**
+  > 1. **Single Source of Truth**: User Management (`public.user_scopes` joined to `public.users_profile` with `roles.role_name = 'HRCO'`) is the exclusive authoritative source of truth for HR Coordinator assignments across all modules:
+  >    - **Vacancy**: `public.vw_vacancy_list` and `public.list_web_vacancies` resolve `hrco_name` and `hrco_user_id` dynamically from active user scopes (account-level scope first, cascaded group-level scope second).
+  >    - **Plantilla**: `public.v_plantilla_safe` and `public.list_web_plantilla_employees` resolve `hrco_name` and `coordinator` dynamically from active user scopes.
+  >    - **Accounts**: `public.accounts.hrco_user_id` is maintained in strict synchronization with User Management via `public.fn_reevaluate_hrco_auto_tags`.
+  >    - **HR Emploc**: New candidate deployments inherit their `hrco_name` and `hrco_user_id_snapshot` directly from the account/vacancy HRCO.
+  > 2. **Active Filter Contract**: Only active, non-archived user profiles (`users_profile.is_active = TRUE AND users_profile.archived_at IS NULL`) are recognized and projected as HRCOs.
+  > 3. **Archived Profile Protection**: Any user profile with `is_active = false` or `archived_at IS NOT NULL` is strictly suppressed and filtered out from all operational views, rendering as `Unassigned` on requisitions until an authorized active HRCO is assigned or the profile is reactivated via User Management.
+  > 4. **Self-Healing Reactivation Contract**: When an Administrator modifies a user's role/scopes (`public.upsert_user_profile_and_scopes`) or activates a user (`public.set_user_active`), the database automatically restores `is_active = TRUE`, clears `archived_at = NULL` and `archived_by = NULL`, and dispatches `public.fn_reevaluate_hrco_auto_tags` across all affected account scopes.
+
+### 2. Live Verification on Staging (`qqiiznmqxfoamqytjica`)
+- `users_profile` state for Weng Cornejo (`c2f3d4e5-f6a7-8901-bcde-f12345678901`):
+  - `is_active`: `true`
+  - `archived_at`: `NULL`
+  - `updated_at`: `2026-11-12 02:25:11.803425+00`
+- `accounts` state for Perfect SM (`d3e4f5a6-b7c8-9012-cdef-123456789012`):
+  - `hrco_user_id`: `'c2f3d4e5-f6a7-8901-bcde-f12345678901'` (automatically populated).
+- `vw_vacancy_list` state for Perfect SM (`VPSMG3_0008`):
+  - `hrco_name`: `'Cornejo, Weng'` (automatically populated).
+  - `hrco_user_id`: `'c2f3d4e5-f6a7-8901-bcde-f12345678901'`.
+
+---
+
 ## Execution Report — Harden User Management Role/Scope Updates & Auto-Sync HRCO Tags (ohm#h7k9v4s2)
 
 **Status: COMPLETE ON MAIN; RESOLVED DEFECT WHERE VACANCY MANAGEMENT (`/vacancy`) OPEN TAB DISPLAYED HRCO AS `Unassigned` FOR ALL 14 APEX VACANCIES (`PG-2026%`) DESPITE ALVIN REY BEING CONFIGURED AS HRCO FOR GROUP 4 / APEX IN USER MANAGEMENT; ROOT CAUSE IDENTIFIED IN `public.users_profile` AND `public.upsert_user_profile_and_scopes`: ALVIN REY HAD BEEN SOFT-ARCHIVED ON 2026-10-20; WHEN THE ADMIN CHANGED HIS ROLE AND SCOPES TO HRCO FOR APEX, `upsert_user_profile_and_scopes` UPDATED HIS `role_id` AND `user_scopes` BUT LEFT `is_active = false` AND `archived_at` POPULATED; BOTH `public.vw_vacancy_list` AND `public.fn_reevaluate_hrco_auto_tags` STRICTLY FILTER `up.is_active = true AND up.archived_at IS NULL`, CAUSING THEM TO IGNORE HIM AND RETURN `Unassigned`; SHIPPED MIGRATION `20262606000102_harden_user_management_activation_and_hrco_sync.sql` TO STAGING (`qqiiznmqxfoamqytjica`), HARDENING `upsert_user_profile_and_scopes` TO RESTORE `is_active = TRUE, archived_at = NULL, archived_by = NULL` AND TRIGGER `fn_reevaluate_hrco_auto_tags` FOR AFFECTED ACCOUNTS ON EVERY ROLE/SCOPE UPDATE; HARDENED `set_user_active` TO CLEAR ARCHIVED TIMESTAMPS ON ACTIVATION; AND REACTIVATED ALVIN REY WHILE SYNCING `accounts.hrco_user_id` FOR APEX; LIVE INSPECTION CONFIRMED 100% PARITY: `list_web_vacancies` IMMEDIATELY RETURNS `hrco_name: 'Alvin Rey'` ACROSS ALL 14 APEX VACANCIES; VERIFIED CLEAN VIA `npm run lint` (0 ERRORS 0 WARNINGS), `npm test` (211/211 PASSED), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
