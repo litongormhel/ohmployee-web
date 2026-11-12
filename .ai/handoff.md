@@ -1,5 +1,60 @@
 # AI Handoff
 
+## Execution Report — Investigate & Restore TEST005 Vacancy and Justin Bieber Applicant State (ohm#t5b8j2s1)
+
+**Status: COMPLETE ON MAIN; INVESTIGATED WHY VCODE `TEST005` REMAINED IN VACANCY WHEN CANDIDATE `BIEBER, JUSTIN SANTOS` WAS ALREADY IN HR EMPLOC; ROOT CAUSE UNCOVERED: ON 2026-11-05 UTC, MIGRATION `20262606000091` EXECUTED A SWEEPING CLEANUP TARGETING BACKFILL VACANCIES WITH INACTIVE SOURCE PLANTILLA THAT ERRONEOUSLY FLAGGED JUSTIN BIEBER'S APPLICANT RECORD (`f3ed88ff-7715-4a07-b4d9-6fe3ea266595`) WITH `is_archived = true`, CAUSING `confirmed_onboard_count` IN `vw_vacancy_list` TO DROP FROM 1 TO 0 AND REVERTING `derived_status` BACK TO `'Open'`; CANDIDATE IS CURRENTLY IN `public.hr_emploc` (`d9e670c5-948e-412e-94b9-46b5ce7d39b2`) WITH STATUS `For Compliance` / `For Review` (SLOT STATUS `'hr_processing'`) AND HAS NOT YET BEEN MOVED TO PLANTILLA; UNDER APPROVAL & REGRESSION GATE, SURGICALLY UNARCHIVED JUSTIN BIEBER'S RECORD (`is_archived = false, archived_at = NULL`) ON REMOTE STAGING (`qqiiznmqxfoamqytjica`); LIVE RE-EVALUATION CONFIRMS `vw_vacancy_list.derived_status` TRANSITIONED TO `'Hired'`, `confirmed_onboard_count` RESTORED TO 1, AND `get_web_vacancy_summary.total_open` RETURNED 0 FOR TEST005; NO CODEBASE FILES MUTATED; VERIFIED CLI AND RUNTIME REMAIN SECURELY LINKED TO STAGING (`qqiiznmqxfoamqytjica`); LOCAL COMMIT ON MAIN.**
+
+### 1. Investigation & Root Cause Findings
+- **Target Record**: VCode `TEST005`, Account `BANKO`, Store `SUPER 5` (`256b4949-065b-4db6-8edb-ac638b27f470`), Position `Merchandiser`.
+- **Source Origin**: Backfill requisition opened on separation of `DELA CRUZ, AIDA SANTOS` (`8da85320-8cbe-4c37-b927-18529344ae5b`, status `Inactive`).
+- **Onboarding Pipeline Timeline**:
+  - `2026-10-20`: Candidate `BIEBER, JUSTIN SANTOS` created in `public.applicants` (`f3ed88ff-7715-4a07-b4d9-6fe3ea266595`).
+  - `2026-10-27`: Candidate confirmed onboard (`status = 'Confirmed Onboard'`), creating `public.hr_emploc` record `d9e670c5-948e-412e-94b9-46b5ce7d39b2` and binding `plantilla_slots` record `227ee072-baba-41e7-acc1-46cb731f93f4` (`slot_status = 'hr_processing'`).
+  - `2026-10-28` to `2026-11-04`: HR review flagged requirement discrepancy (`INVALID_PAGIBIG`, `'Wrong pa din'`). Ops resubmitted (`'26648855'`); HR review remains pending (`hr_status = 'For Review'`, `status = 'For Compliance'`). Justin Bieber has not yet been assigned an employee number or moved to Plantilla.
+- **Root Cause of Vacancy Reappearance**:
+  - `2026-11-05 03:25:53 UTC`: Migration `20262606000091_archive_previous_applicants_on_vacancy_reopen.sql` (Section 3.B) executed a backfill update query:
+    ```sql
+    UPDATE public.applicants a
+       SET is_archived = true, archived_at = NOW()
+      FROM public.vacancies v
+      JOIN public.plantilla p ON p.id = v.source_plantilla_id
+     WHERE a.vacancy_vcode = v.vcode
+       AND COALESCE(a.is_archived, false) = false
+       AND v.status = 'Open'
+       AND v.vacancy_type = 'Backfill'
+       AND (p.status = 'Inactive' OR p.separation_status IS NOT NULL);
+    ```
+  - Because `TEST005` was a Backfill vacancy referencing inactive Aida Dela Cruz, and `vacancies.status` was still `'Open'` (candidate was in HR Emploc compliance, not yet in Plantilla), this query matched Justin Bieber's record and set `is_archived = true` (audit log `70954e83-0658-42aa-84bc-735ded96f4a0`).
+  - In `public.vw_vacancy_list`, `confirmed_onboard_count` filters strictly for `COALESCE(is_archived, false) = false AND status = 'Confirmed Onboard'`. With `is_archived = true`, `confirmed_onboard_count` dropped from 1 to 0.
+  - Since `active_plantilla_count` is 0 (candidate has not been moved to Plantilla) and `confirmed_onboard_count` was 0, `vw_vacancy_list.derived_status` reverted to `'Open'`.
+  - In `/plantilla` (Plantilla Vacancy tab) and `/vacancy` (Vacancy Open tab), `TEST005` resurfaced as an open vacancy requisition.
+
+### 2. Remediation Executed (Under Approval Gate)
+- Following explicit user approval, executed surgical restoration against remote Staging (`qqiiznmqxfoamqytjica`):
+  ```sql
+  UPDATE public.applicants
+     SET is_archived = false,
+         archived_at = NULL,
+         updated_at  = NOW()
+   WHERE id = 'f3ed88ff-7715-4a07-b4d9-6fe3ea266595';
+  ```
+- **Post-Remediation Live Data Verification (Staging `qqiiznmqxfoamqytjica`)**:
+  - `public.applicants` row (`f3ed88ff-7715-4a07-b4d9-6fe3ea266595`): `is_archived = false`, `archived_at = NULL`.
+  - `public.vw_vacancy_list` (`vcode = 'TEST005'`):
+    - `derived_status`: `'Hired'` (was `'Open'`)
+    - `confirmed_onboard_count`: `1` (was `0`)
+    - `active_applicant_count`: `0`
+    - `hr_processing_count`: `1`
+    - `hc_filled`: `0`
+    - `hc_total`: `1`
+    - `hc_display`: `'0/1'`
+  - `public.get_web_vacancy_summary(p_search => 'TEST005')`:
+    - `total_open`: `0` (cleanly removed from open badge and counter)
+  - Plantilla Vacancy Tab (`src/app/(dashboard)/plantilla/page.tsx`):
+    - Filters out rows with `derivedStatus === 'Hired'`. `TEST005` is no longer presented as an available open slot.
+
+---
+
 ## Execution Report — Audit Migration Parity Across Local, Staging, and Production (ohm#m2p9v4k1)
 
 **Status: COMPLETE ON MAIN; AUDITED AND VERIFIED MIGRATION PARITY ACROSS LOCAL REPOSITORY (`supabase/migrations/*.sql`), STAGING (`qqiiznmqxfoamqytjica`), AND PRODUCTION (`rwxelulyapjgaarlwkus`); CONFIRMED LOCAL (523) AND STAGING (523) IN 100% PERFECT PARITY (0 MISSING); IDENTIFIED EXACTLY 6 MIGRATIONS APPLIED ON STAGING THAT ARE PENDING APPLICATION TO PRODUCTION (517 TOTAL ON PROD); 0 MIGRATIONS EXIST ON PRODUCTION THAT ARE MISSING ON STAGING; NO CODE OR DATABASE MUTATIONS PERFORMED; VERIFIED CLI AND RUNTIME REMAIN SECURELY LINKED TO STAGING (`qqiiznmqxfoamqytjica`); LOCAL COMMIT ON MAIN.**

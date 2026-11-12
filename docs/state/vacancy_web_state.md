@@ -8,6 +8,11 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Resolution of `TEST005` Vacancy Reappearance & Justin Bieber Applicant Restoration (`ohm#t5b8j2s1` — 2026-11-12)**:
+  - **Root Cause Identified**: Discovered that migration `20262606000091` Section 3.B executed an automated backfill query on 2026-11-05 UTC intended to archive previous separated workers' applicants, but its `WHERE` filter (`v.status = 'Open' AND v.vacancy_type = 'Backfill' AND p.status = 'Inactive'`) matched active onboarding candidate `BIEBER, JUSTIN SANTOS` (`f3ed88ff-7715-4a07-b4d9-6fe3ea266595`) under `TEST005`, setting `is_archived = true`.
+  - **Surgical Database Restoration on Staging (`qqiiznmqxfoamqytjica`)**: Restored `public.applicants` record `f3ed88ff-7715-4a07-b4d9-6fe3ea266595` (`is_archived = false, archived_at = NULL`).
+  - **Immediate Parity**: `vw_vacancy_list.confirmed_onboard_count` immediately recalculated from 0 to 1, transitioning `derived_status` to `'Hired'` and removing `TEST005` from the Open Vacancy roster and Plantilla Vacancy tab. Candidate remains active in `public.hr_emploc` (`d9e670c5-948e-412e-94b9-46b5ce7d39b2`) with slot `227ee072-baba-41e7-acc1-46cb731f93f4` in `hr_processing`.
+
 - **Elimination of Hardcoded Overrides & Artificial Badge Inflation (`ohm#h4p9m2k8` — 2026-11-12)**:
   - **Removed Artificial `+2` Badge Inflation**: In `src/lib/queries/vacancy.ts` (`getVacancySummary`), removed `const isAlturasScoped = !params.accountId || params.accountId === "3126b9a8..."; const adjustedOpenCount = baseSummary.open + (isAlturasScoped ? 2 : 0);`. Open summary badge now directly reflects true database open vacancies.
   - **Removed Hardcoded Fallback Account ID**: In `src/lib/queries/vacancy.ts` (`listVacancies`), replaced `const targetAccountId = params.accountId || "3126b9a8-29a6-4917-8b49-82e937d7cf88";` with `const targetAccountId = params.accountId || null;` so unconstrained searches do not artificially narrow to Alturas.
