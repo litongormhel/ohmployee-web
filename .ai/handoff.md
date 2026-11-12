@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — RBAC: Fix `get_my_allowed_accounts` to Union Group and Account Scopes (ohm#s4k9v2q8)
+
+**Status: COMPLETE ON MAIN; RESOLVED ISSUE WHERE `uat1@ohmployee.com` (HRCO) WAS BLOCKED WITH "Vacancy with VCode VCTG2_0006 not found." WHEN ENDORSING APPLICANTS TO STORE ASENSO PINOY HEAD OFFICE (ACCOUNT `THREE`, GROUP 2); ROOT CAUSE: `public.get_my_allowed_accounts()` USED A MUTUALLY EXCLUSIVE `IF v_account_count > 0` BRANCH THAT RETURNED ONLY EXPLICIT `user_scopes.account_id` ROWS AND DROPPED GROUP-ASSIGNED ACCOUNTS (`user_scopes.group_id`), CAUSING DIRECT POSTGREST RLS ON `public.vacancies` (`vacancies_read_scoped`) AND `public.applicants` (`applicants_insert_ops_only`) TO OMIT ACCOUNT `THREE` AND HIDE THE REQUISITION; CREATED DATABASE MIGRATION 103 (`20262606000103_fix_get_my_allowed_accounts_union_group_scopes.sql`) REPLACING THE CONDITIONAL BRANCH WITH AN ADDITIVE `UNION` ACROSS EXPLICIT ACCOUNT SCOPES, GROUP-DERIVED ACCOUNTS, USER PROFILE FALLBACKS, AND TEMPORARY OVERRIDES (`tpo`); APPLIED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 100% LIVE `pg_get_functiondef` PARITY; VERIFIED LIVE UNDER `uat1@ohmployee.com` SESSION: `THREE = ANY(get_my_allowed_accounts())` RETURNS `TRUE`, AND DIRECT SELECT ON `public.vacancies` FOR `VCTG2_0006` SUCCEEDS AND RETURNS THE RECORD; ZERO REGRESSION; LOCAL COMMIT ON MAIN.**
+
+### 1. Requirements & Defect
+- **User Prompt**: "investigate this im using uat1@ohmployee.com" (with screenshot showing Add / Endorse Applicant modal failing with `"Vacancy with VCode VCTG2_0006 not found."`).
+- **Context**: `VCTG2_0006` is a Merchandiser vacancy for store `ASENSO PINOY HEAD OFFICE`, under account `THREE` (Group 2). `uat1@ohmployee.com` is an active HRCO with Group 2 assigned in `user_scopes` plus 19 explicit individual accounts.
+- **Root Cause**: In `public.get_my_allowed_accounts()`, an `IF v_account_count > 0` condition caused users with both explicit account scopes and group scopes to drop all accounts under their assigned group(s). Because `THREE` was covered via Group 2, `get_my_allowed_accounts()` excluded `THREE`, causing RLS policy `vacancies_read_scoped` to hide `VCTG2_0006` when `endorseApplicant` queried `public.vacancies` via PostgREST.
+
+### 2. Implementation Details
+- **Migration 103 (`supabase/migrations/20262606000103_fix_get_my_allowed_accounts_union_group_scopes.sql`)**:
+  - Unified `public.get_my_allowed_accounts()` return statement to an additive `UNION` across:
+    1. Explicit account scopes: `us.account_id = a.id`
+    2. Group-derived accounts: `us.group_id = a.group_id`
+    3. Profile fallback: `(up.account_id = a.id OR up.group_id = a.group_id)` when `user_scopes` is empty
+    4. Temporary permission overrides (`tpo`)
+  - Granted `EXECUTE` on `public.get_my_allowed_accounts()` to `PUBLIC`, `authenticated`, and `service_role`.
+  - Applied to Staging (`qqiiznmqxfoamqytjica`); confirmed live `pg_get_functiondef` diff matches 100%.
+
+### 3. Verification Results
+- **Live Session Simulation on Staging (`qqiiznmqxfoamqytjica`)**:
+  - `SET LOCAL ROLE authenticated; SET LOCAL "request.jwt.claim.sub" TO '684cfb9d-0dbc-4826-9744-2ea6161c5c70';` (`uat1@ohmployee.com`).
+  - `SELECT 'THREE' = ANY(public.get_my_allowed_accounts())` evaluates to **`TRUE`**.
+  - `SELECT id, vcode, account, status FROM public.vacancies WHERE vcode = 'VCTG2_0006'` returns row **`f29987a9-25e5-432a-8c62-72d8ca768719`** (`status: 'Open'`).
+- `npm run lint`: Clean (0 errors).
+- `npm test`: Clean (211/211 passed).
+
+---
+
 ## Execution Report — Vacancy: Pipeline Tab Count Per Person Headcount Parity (ohm#p6k2v9q4)
 
 **Status: COMPLETE ON MAIN; ALIGNED VACANCY MANAGEMENT PIPELINE TAB BADGE COUNT STRICTLY TO INDIVIDUAL CANDIDATE HEADCOUNT (PER TAO ANG BILANG DITO REGARDLESS IF SAME SILA NG STORE); PREVIOUSLY, `getVacancySummary` IN `src/lib/queries/vacancy.ts` RELIED EXCLUSIVELY ON `baseSummary.pipeline` RETURNED BY RPC `get_web_vacancy_summary`, WHICH COUNTED DISTINCT STORE REQUISITIONS (5 VACANCIES) INSTEAD OF ACTIVE APPLICANTS, PRODUCING A MISMATCH AGAINST THE 6 EXPANDED CANDIDATE ROWS (E.G. TWO CANDIDATES UNDER `ACT-G5-008` ALI MALL); INTRODUCED DEDICATED `pipelinePromise` IN `getVacancySummary` THAT RESOLVES IN PARALLEL AND COUNTS ACTIVE NON-TERMINAL APPLICANTS TIED TO ACTIVE NON-CLOSED VACANCIES; FULLY PRESERVED COMPREHENSIVE FILTER SCOPING (`accountId`, `groupId`, `urgency`, `vacantFrom`, `vacantTo`, `search`, AND `agingBucket`); TAB BADGE NOW MATCHES TABLE ROWS AT 6; ZERO REGRESSION; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

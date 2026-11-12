@@ -8,6 +8,14 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Fix `public.get_my_allowed_accounts()` Union for Hybrid Group & Account Scopes (`ohm#s4k9v2q8` — 2026-11-12)**:
+  - **The Defect**: When an HR Coordinator (`uat1@ohmployee.com`) attempted to endorse an applicant to vacancy `VCTG2_0006` (account `THREE`, Group 2), the modal threw error `"Vacancy with VCode VCTG2_0006 not found."`.
+  - **Root Cause**: `get_my_allowed_accounts()` had an `IF v_account_count > 0 THEN` early-return branch that returned *only* explicit accounts (`us.account_id = a.id`) and dropped assigned group accounts (`us.group_id = a.group_id`). Because `uat1` had both explicit accounts and Group 2 assigned, `THREE` was dropped from `get_my_allowed_accounts()`, causing direct PostgREST RLS checks on `public.vacancies` (`vacancies_read_scoped`) and `public.applicants` (`applicants_insert_ops_only`) to evaluate to false and hide the vacancy.
+  - **Database Migration 103 (`20262606000103_fix_get_my_allowed_accounts_union_group_scopes.sql`)**:
+    - Replaced the branching logic in `public.get_my_allowed_accounts()` with an additive `UNION` across: (1) explicit account scopes, (2) group-derived account scopes, (3) `users_profile` fallback scopes, and (4) temporary permission overrides (`tpo`).
+    - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`); confirmed live `pg_get_functiondef` parity (100% diff match).
+    - Verified live as `uat1@ohmployee.com`: `THREE = ANY(get_my_allowed_accounts())` returns `TRUE`, and `SELECT ... FROM public.vacancies WHERE vcode = 'VCTG2_0006'` returns the vacancy record cleanly without RLS blockage.
+
 - **Pipeline Tab Count Per Person Headcount Parity (`ohm#p6k2v9q4` — 2026-11-12)**:
   - **The Requirement**: In Vacancy Management (`/vacancy`), the Pipeline tab count must represent individual applicants/candidates in the pipeline (**per tao ang bilang**), regardless of whether multiple applicants share the same store/vacancy.
   - **The Defect**: The Pipeline tab roster displayed 6 applicants (including 2 candidates for Cashier at Ali Mall, `ACT-G5-008`), but the tab badge displayed `5`.
