@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — Ecosystem-Wide SQL Schema & RPC Anti-Regression Gate + Canonical Migration 105 Slot/Link Restoration (ohm#g9s4k2v8)
+
+**Status: COMPLETE ON MAIN; BUILT ECOSYSTEM-WIDE AUTOMATED SQL SCHEMA & RPC CONTRACT GUARD `scripts/check-sql-contracts.mjs` AND WIRED INTO `npm test`, `npm run lint`, AND `npm run check:sql`; RESTORED FULL CANONICAL MIGRATION `086` BODY (`plantilla_slots` PROVISIONING/CLAIMING, `plantilla_store_links` SYNC, `vacancies` SHADOW SYNC, `slot_history`, AND `import_row_id` SNAPSHOTS) + ADR-002 RULE #17 LAST-ROW-WINS COALESCING INTO `supabase/migrations/20262606000105_fix_approve_plantilla_import_batch_store_columns.sql`; ADDED MANDATORY SQL FUNCTION SURGICAL-DIFF & CONTRACT GATE TO `AGENTS.md` AND `.ai/briefing.md`; ALL VERIFICATION GATES PASSED CLEAN (`npm run check:sql` 28 CORE TABLES & 19 CROSS-MODULE RPCS OK, `npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+- **Request / Problem**: Ohm asked how to permanently prevent recurring cross-module SQL regressions (e.g. Plantilla Import working in Migration `086`, then breaking after a subsequent prompt rewrote `approve_plantilla_import_batch` for another feature) across the entire OHMployee ecosystem.
+- **Root Cause Identified**:
+  1. **Full-Function Overwrite in SQL (`CREATE OR REPLACE FUNCTION`)**: When `20261111000002` added Last-Row-Wins coalescing, it rewrote `approve_plantilla_import_batch` from scratch instead of surgically editing Migration `086` — hallucinating `stores.city`, `stores.source_import_batch_id`, and `plantilla_import_batches.approval_notes`, while also dropping `086`'s `plantilla_slots` creation/claiming and `plantilla_store_links` sync.
+  2. **No SQL Schema/Contract Linter in `npm test` / `npm run lint`**: Previously, `npm test` only checked TypeScript/JS unit tests, so broken SQL migrations passed CI/local checks undetected.
+- **Actions & Results**:
+  1. **Restored Complete Migration `086` + Coalescing in Migration `105` (`supabase/migrations/20262606000105_fix_approve_plantilla_import_batch_store_columns.sql`)**:
+     - Used the exact working Migration `086` body as base and applied only the ADR-002 Rule #17 `ORDER BY row_number DESC` coalescing on employee fields (plus populating both `area_province` and `province` on `public.stores`).
+     - Restored Phase B1 `plantilla_slots` creation + `vacancies` upsert + `slot_history` + `'slot'` snapshot, and Phase B2 `plantilla_store_links` sync + 3-step `plantilla_slots` reuse/claiming/creation + `vacancies` `'Filled'` transition + `'slot'` snapshots.
+  2. **Built Ecosystem-Wide SQL Contract & Anti-Regression Gate (`scripts/check-sql-contracts.mjs` + `package.json`)**:
+     - Parses all 528 migrations (`CREATE TABLE`, `ALTER TABLE ... ADD COLUMN`, and dynamic `EXECUTE format('ALTER TABLE public.%I ADD COLUMN ...')`) to build the live column dictionary for **28 core tables across the entire OHMployee ecosystem** (`stores`, `plantilla`, `plantilla_slots`, `plantilla_store_links`, `employee_store_allocations`, `plantilla_import_batches`, `plantilla_import_rows`, `plantilla_import_commit_snapshots`, `vacancies`, `applicants`, `hr_emploc`, `hr_emploc_import_batches`, `hr_emploc_import_rows`, `headcount_requests`, `coverage_groups`, `coverage_group_stores`, `coverage_requests`, `workforce_assignments`, `workforce_assignment_requests`, `workforce_pool_slots`, `new_store_requests`, `deactivation_requests`, `account_group_transfer_requests`, `users_profile`, `accounts`, `groups`, `audit_logs`, `slot_history`).
+     - Validates every `INSERT INTO public.<table>` and `UPDATE public.<table> SET` in active migrations against the physical table columns.
+     - Enforces mandatory invariant footprints on **19 critical cross-module RPCs** across Plantilla, Vacancy, HR Emploc, Approvals, Coverage, Users/RBAC, and Audit Logs so no future `CREATE OR REPLACE FUNCTION` can silently drop required table operations or locks.
+     - Wired directly into `npm test`, `npm run lint`, and `npm run check:sql`.
+  3. **Workflow Governance (`AGENTS.md`, `.ai/briefing.md`, `docs/state/plantilla_web_state.md`)**:
+     - Added the **SQL Function Surgical-Diff & Contract Gate (Anti-Overwrite Lock)** requiring every agent to locate the latest migration of any SQL function before editing, apply only a minimal surgical diff, and pass `npm run check:sql`.
+- **Verification**:
+  - `npm run check:adr` → `FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40)`.
+  - `npm run check:sql` → `SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 528 migrations`.
+  - `npm test` → 211/211 passed.
+  - `npm run lint` → 0 errors.
+  - `npm run build` → Next.js 16.2.4 exit code 0.
+- **ADR updates needed**: None.
+
+---
+
 ## Execution Report — Fix approve_plantilla_import_batch Store Relation Column Errors (ohm#c4k9m2v7)
 
 **Status: COMPLETE ON MAIN; CREATED DEDICATED FORWARD MIGRATION `20262606000105_fix_approve_plantilla_import_batch_store_columns.sql`; RESOLVED POSTGRES ERROR `[42703] column "city" of relation "stores" does not exist` TRIGGERED UPON "APPROVE & APPLY" IN PLANTILLA BASELINE BATCH IMPORT REVIEW QUEUE (`/more?tab=data_control&subtab=batch_imports&import=plantilla`); AUDITED DATABASE SCHEMA FOR `public.stores` AND REPLACED HALLUCINATED COLUMNS `city` -> `area_city` AND `source_import_batch_id` -> `source_import_id`; POPULATED BOTH `area_province` AND `province` FROM `v_srow.area_province`; PRESERVED 100% PARITY WITH ADR-002 ROLLBACK SNAPSHOTS, COMMIT METRICS, STATUS MACHINE (`approved` / `commit_failed`), AND STATEMENT TIMEOUT (60s); UPDATED ARCHITECTURE SPECIFICATION IN `docs/state/plantilla_web_state.md`; ALL VERIFICATION GATES PASSED CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

@@ -994,14 +994,16 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Tests roving validation (14 rows -> valid, 0 flags, pending_approval), approval (14 stores, 14 slots, 14 allocations, 4 plantilla employees, 14 links), server-side blocking (`BATCH_BLOCKED: ...`), rejection state machine + audit trail, and rolls back 100% via `RAISE EXCEPTION`.
     - Proved idempotency on staging: re-submitting and re-approving the same 14 roving rows detects 14 existing stores, 0 new stores, and yields identical counts without duplication.
 
-- **Plantilla Baseline Import Approval Store Columns Fix (`ohm#c4k9m2v7` — 2026-11-12)**:
-  - **Root Cause Resolved**: In `approve_plantilla_import_batch`, Phase A store creation and update referenced non-existent column `city` (`column "city" of relation "stores" does not exist`, PostgreSQL error `42703`) and non-existent column `source_import_batch_id`. This caused the "Approve & Apply" action on valid or flagged batches in the Plantilla Import Review Queue (`/more?tab=data_control&subtab=batch_imports&import=plantilla`) to abort into status `commit_failed` with `COMMIT_FAILED: [42703] column "city" of relation "stores" does not exist`.
+- **Plantilla Baseline Import Approval Store Columns, Slot/Link Restoration & Ecosystem SQL Anti-Regression Gate (`ohm#c4k9m2v7` / `ohm#g9s4k2v8` — 2026-11-12)**:
+  - **Root Cause Resolved**: In `20261111000002_adr002_addendum_import_coalescing_and_invariants.sql` (and carried into `093`), `approve_plantilla_import_batch` was rewritten from scratch rather than surgically editing Migration `086`. That rewrite introduced non-existent columns (`stores.city`, `stores.source_import_batch_id`, `plantilla_import_batches.approval_notes`) and dropped `086`'s `plantilla_slots` provisioning/claiming and `plantilla_store_links` sync.
   - **Dedicated Forward Migration 105 (`20262606000105_fix_approve_plantilla_import_batch_store_columns.sql`)**:
-    - Re-declared `public.approve_plantilla_import_batch` to strictly target the canonical columns on `public.stores`:
-      - Replaced `city` with `area_city` on both `INSERT INTO public.stores` and `UPDATE public.stores`.
-      - Populated both `area_province` and `province` from `v_srow.area_province`.
-      - Replaced `source_import_batch_id` with `source_import_id` on `INSERT INTO public.stores` (preserving `source_import_batch_id` for `employee_store_allocations`).
-    - Maintained 100% parity with ADR-002 rollback governance, commit snapshots, and status transitions (`approved` / `commit_failed`).
+    - Restored the complete working Migration `086` body of `public.approve_plantilla_import_batch(uuid)` while preserving ADR-002 Rule #17 Last-Row-Wins coalescing (`ORDER BY row_number DESC`):
+      - **Phase A**: Uses canonical `public.stores` columns (`area_province`, `province`, `area_city`, `employment_type`, `with_penalty`, `schedule_days`, `schedule_time`, `hrco_user_id`, `source_import_id`) and captures `store` snapshots with `import_row_id`.
+      - **Phase B1**: Provisions vacant slots in `public.plantilla_slots` (`slot_ordinal`), synchronizes `public.vacancies` (`ON CONFLICT (vcode) DO UPDATE`), records `public.slot_history`, and captures `'slot'` snapshots.
+      - **Phase B2**: Upserts `public.plantilla` with Last-Row-Wins coalescing, manages `public.employee_store_allocations` + snapshots, synchronizes `public.plantilla_store_links`, and executes 3-step `public.plantilla_slots` reuse / pre-existing open slot claiming (marking linked `vacancies` `'Filled'`) / new occupied slot creation with `slot_history` and `'slot'` snapshots.
+  - **Ecosystem-Wide Automated SQL Schema & RPC Anti-Regression Gate (`scripts/check-sql-contracts.mjs`)**:
+    - Chained automatically into `npm test`, `npm run lint`, and `npm run check:sql`.
+    - Dynamically builds the authoritative column dictionary across all 528 migrations (`CREATE TABLE`, `ALTER TABLE ... ADD COLUMN`, and dynamic `EXECUTE format('ALTER TABLE public.%I ADD COLUMN ...')`), validates every `INSERT`/`UPDATE` statement across 28 core tables in the OHMployee ecosystem, and locks required invariants across 19 critical cross-module RPCs so partial function rewrites or invalid columns fail `npm test` in `< 0.3s` before any commit.
 
 
   - **ADR-002 Invariant 10 Rollback Lineage & Migration 086 (`20262606000086_fix_plantilla_import_rollback_ready_and_store_closure_trigger.sql`)**:

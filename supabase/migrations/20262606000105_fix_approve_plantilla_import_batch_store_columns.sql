@@ -1,9 +1,23 @@
 -- ============================================================================
 -- Migration: 20262606000105_fix_approve_plantilla_import_batch_store_columns.sql
--- Fix: Correct store column references in public.approve_plantilla_import_batch:
---      - Replace non-existent column "city" with canonical "area_city" on stores
---      - Populate both area_province and province from area_province
---      - Replace non-existent "source_import_batch_id" with "source_import_id" on stores
+-- Purpose:
+--   Restore the full canonical Migration 086 implementation of
+--   public.approve_plantilla_import_batch(uuid) while preserving ADR-002
+--   Addendum Rule #17 (Last-Row-Wins employee field coalescing):
+--     1. Phase A: Canonical public.stores columns (area_province, province,
+--        area_city, employment_type, with_penalty, schedule_days, schedule_time,
+--        hrco_user_id, source_import_id) + store snapshots with import_row_id.
+--     2. Phase B1: Vacant store slot creation in public.plantilla_slots,
+--        shadow view sync in public.vacancies (ON CONFLICT (vcode) DO UPDATE),
+--        public.slot_history audit entry, and slot commit snapshot.
+--     3. Phase B2: Employee upsert with LAST-ROW-WINS coalescing (ORDER BY
+--        row_number DESC), employee_store_allocations lifecycle + snapshots,
+--        public.plantilla_store_links sync, and 3-step public.plantilla_slots
+--        idempotent reuse / pre-existing open slot claiming / new occupied slot
+--        provisioning with slot_history and rollback snapshots.
+--     4. Batch finalization: status = 'approved', rollback_ready = true,
+--        committed_stores, committed_employees, allocations_created, and
+--        commit_failed exception capture into commit_error.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.approve_plantilla_import_batch(p_batch_id uuid)
@@ -102,153 +116,192 @@ BEGIN
   -- Pre-commit guard 1: Block approval strictly if there are hard-blocked rows
   SELECT count(*) INTO v_blocked_cnt
     FROM public.plantilla_import_rows
-   WHERE batch_id = p_batch_id AND validation_status = 'blocked';
+   WHERE batch_id = p_batch_id
+     AND validation_status = 'blocked';
+
   IF v_blocked_cnt > 0 THEN
-    RAISE EXCEPTION 'BATCH_CONTAINS_BLOCKED_ROWS: % row(s) have blocking errors', v_blocked_cnt USING ERRCODE = '22023';
+    RAISE EXCEPTION 'Cannot approve batch: % blocked rows must be resolved or removed first', v_blocked_cnt USING ERRCODE = '22023';
   END IF;
 
-  -- Pre-commit guard 2: Require at least one committable row
+  -- Pre-commit guard 2: Committable includes valid and flagged rows with vcode
   SELECT count(*) INTO v_committable
     FROM public.plantilla_import_rows
-   WHERE batch_id = p_batch_id AND validation_status IN ('valid', 'flagged');
-  IF v_committable = 0 THEN
-    RAISE EXCEPTION 'NO_COMMITTABLE_ROWS: no valid or flagged rows to commit' USING ERRCODE = '22023';
-  END IF;
+   WHERE batch_id = p_batch_id
+     AND validation_status IN ('valid', 'flagged')
+     AND vcode IS NOT NULL;
 
-  v_approved_timestamp := clock_timestamp();
+  IF v_committable = 0 THEN
+    RAISE EXCEPTION 'COMMIT_EMPTY: no committable rows in batch' USING ERRCODE = '22023';
+  END IF;
 
   BEGIN
     -- ========================================================================
-    -- PHASE A: Store Creation / Activation / Snapshot
+    -- Phase A: Store upsert for all committable rows (valid + flagged)
     -- ========================================================================
     FOR v_srow IN
       SELECT DISTINCT ON (vcode)
-        vcode, store_name, mother_account, area_province, area_city,
-        schedule_days, schedule_time, with_penalty_raw
-      FROM public.plantilla_import_rows
-      WHERE batch_id = p_batch_id AND validation_status IN ('valid', 'flagged')
-      ORDER BY vcode, row_number
+             vcode, store_name, mother_account, area_province, area_city,
+             employment_type, with_penalty_raw, schedule_days, schedule_time,
+             row_number, id AS row_id
+        FROM public.plantilla_import_rows
+       WHERE batch_id = p_batch_id
+         AND validation_status IN ('valid', 'flagged')
+         AND vcode IS NOT NULL
+       ORDER BY vcode, row_number
     LOOP
-      v_existing_store_id := NULL;
-      SELECT id INTO v_existing_store_id
-        FROM public.stores
-       WHERE upper(vcode) = upper(v_srow.vcode) AND status = 'active'
-       ORDER BY created_at LIMIT 1;
+      v_pen_bool := (lower(COALESCE(v_srow.with_penalty_raw,'')) IN ('yes','y','true','1'));
 
-      v_pen_bool := (lower(COALESCE(v_srow.with_penalty_raw, 'no')) IN ('yes', 'true', '1'));
+      SELECT to_jsonb(s.*) INTO v_old_store_snap
+        FROM public.stores s
+       WHERE upper(s.vcode) = upper(v_srow.vcode) AND s.status = 'active'
+       ORDER BY s.created_at LIMIT 1;
 
-      IF v_existing_store_id IS NULL THEN
-        -- Insert new store (stores table uses area_city and source_import_id)
+      IF v_old_store_snap IS NULL THEN
         INSERT INTO public.stores (
-          store_name, vcode, account_id, group_id, mother_account,
-          area_province, province, area_city, schedule_days, schedule_time, with_penalty,
-          status, source_import_id, created_by
+          vcode, store_name, mother_account, area_province, province, area_city,
+          employment_type, with_penalty, schedule_days, schedule_time,
+          group_id, account_id, status, hrco_user_id,
+          created_by, updated_by, approved_by, approved_at, source_import_id
         ) VALUES (
-          v_srow.store_name, v_srow.vcode,
-          v_batch.selected_account_id, v_batch.selected_group_id,
-          v_srow.mother_account, v_srow.area_province, v_srow.area_province, v_srow.area_city,
-          v_srow.schedule_days, v_srow.schedule_time, v_pen_bool,
-          'active', p_batch_id, v_actor
+          v_srow.vcode, v_srow.store_name, v_srow.mother_account,
+          v_srow.area_province, v_srow.area_province, v_srow.area_city,
+          COALESCE(v_srow.employment_type, 'stationary'), v_pen_bool, v_srow.schedule_days, v_srow.schedule_time,
+          v_batch.selected_group_id, v_batch.selected_account_id, 'active', v_acct_hrco_id,
+          v_uid, v_uid, v_uid, now(), p_batch_id
         ) RETURNING id INTO v_new_store_id;
 
         INSERT INTO public.plantilla_import_commit_snapshots
-          (batch_id, entity_type, entity_id, action, previous_snapshot, committed_by)
-        VALUES (p_batch_id, 'store', v_new_store_id, 'insert', NULL, v_uid);
-
-        v_stores_done := v_stores_done + 1;
+          (batch_id, import_row_id, entity_type, entity_id, action, previous_snapshot, committed_by)
+        VALUES (p_batch_id, v_srow.row_id, 'store', v_new_store_id, 'insert', NULL, v_uid);
       ELSE
-        -- Snapshot existing active store for rollback restoration
-        SELECT to_jsonb(s.*) INTO v_old_store_snap
-          FROM public.stores s WHERE id = v_existing_store_id;
+        v_existing_store_id := (v_old_store_snap->>'id')::uuid;
 
         UPDATE public.stores
-           SET store_name = v_srow.store_name,
-               mother_account = COALESCE(v_srow.mother_account, mother_account),
-               area_province = COALESCE(v_srow.area_province, area_province),
-               province = COALESCE(v_srow.area_province, province),
-               area_city = COALESCE(v_srow.area_city, area_city),
-               schedule_days = COALESCE(v_srow.schedule_days, schedule_days),
-               schedule_time = COALESCE(v_srow.schedule_time, schedule_time),
-               with_penalty = v_pen_bool,
-               status = 'active',
-               updated_at = now()
+           SET store_name       = v_srow.store_name,
+               mother_account   = COALESCE(v_srow.mother_account, mother_account),
+               area_province    = COALESCE(v_srow.area_province, area_province),
+               province         = COALESCE(v_srow.area_province, province),
+               area_city        = COALESCE(v_srow.area_city, area_city),
+               employment_type  = COALESCE(v_srow.employment_type, employment_type),
+               with_penalty     = COALESCE(v_pen_bool, with_penalty),
+               schedule_days    = COALESCE(v_srow.schedule_days, schedule_days),
+               schedule_time    = COALESCE(v_srow.schedule_time, schedule_time),
+               account_id       = COALESCE(stores.account_id, v_batch.selected_account_id),
+               group_id         = COALESCE(stores.group_id, v_batch.selected_group_id),
+               hrco_user_id     = COALESCE(v_acct_hrco_id, hrco_user_id),
+               status           = 'active',
+               updated_at       = now(),
+               updated_by       = v_uid,
+               approved_by      = v_uid,
+               approved_at      = now(),
+               source_import_id = p_batch_id
          WHERE id = v_existing_store_id;
 
         INSERT INTO public.plantilla_import_commit_snapshots
-          (batch_id, entity_type, entity_id, action, previous_snapshot, committed_by)
-        VALUES (p_batch_id, 'store', v_existing_store_id, 'update', v_old_store_snap, v_uid);
-
-        v_stores_done := v_stores_done + 1;
+          (batch_id, import_row_id, entity_type, entity_id, action, previous_snapshot, committed_by)
+        VALUES (p_batch_id, v_srow.row_id, 'store', v_existing_store_id, 'update', v_old_store_snap, v_uid);
       END IF;
+
+      v_stores_done := v_stores_done + 1;
     END LOOP;
 
     -- ========================================================================
-    -- PHASE B: Employee & Slot Provisioning
+    -- Phase B1: Vacant Store Slot Creation (committable rows where employee_no IS NULL)
     -- ========================================================================
-
-    -- Phase B1: Vacant Baseline Slot Provisioning (valid + flagged vacant rows)
     FOR v_vrow IN
-      SELECT
-        id AS row_id, vcode, store_name, position, mother_account,
-        area_province, area_city, schedule_days, schedule_time, dayoff_raw,
-        coordinator_raw, resolved_hrco_user_id, needs_hrco
-      FROM public.plantilla_import_rows
-      WHERE batch_id = p_batch_id
-        AND validation_status IN ('valid', 'flagged')
-        AND employee_no IS NULL
-      ORDER BY row_number
+      SELECT vcode, store_name, position, area_province, area_city, id AS row_id
+        FROM public.plantilla_import_rows
+       WHERE batch_id = p_batch_id
+         AND validation_status IN ('valid', 'flagged')
+         AND employee_no IS NULL
+         AND vcode IS NOT NULL
+       ORDER BY vcode, row_number
     LOOP
-      v_primary_store_id := NULL;
-      SELECT id INTO v_primary_store_id
+      v_new_store_id := NULL;
+      v_store_acct_id := NULL;
+      v_store_grp_id := NULL;
+
+      SELECT id, account_id, group_id
+        INTO v_new_store_id, v_store_acct_id, v_store_grp_id
         FROM public.stores
        WHERE upper(vcode) = upper(v_vrow.vcode) AND status = 'active'
        ORDER BY created_at LIMIT 1;
 
-      v_final_hrco_id := COALESCE(v_vrow.resolved_hrco_user_id, v_acct_hrco_id);
-      IF v_final_hrco_id IS NOT NULL THEN
-        IF v_final_hrco_id = v_acct_hrco_id AND v_acct_hrco_name IS NOT NULL THEN
-          v_final_hrco_name := v_acct_hrco_name;
-        ELSE
-          SELECT full_name INTO v_final_hrco_name
-            FROM public.users_profile WHERE id = v_final_hrco_id;
-        END IF;
-        v_needs_hrco := false;
+      v_target_account_id := COALESCE(v_batch.selected_account_id, v_store_acct_id);
+      v_target_group_id   := COALESCE(v_batch.selected_group_id, v_store_grp_id);
+
+      IF v_target_account_id IS NOT NULL AND (v_acct_name IS NULL OR v_acct_name = 'Unknown Account') THEN
+        SELECT account_name INTO v_target_acct_name FROM public.accounts WHERE id = v_target_account_id;
       ELSE
-        v_final_hrco_name := NULL;
-        v_needs_hrco := true;
+        v_target_acct_name := v_acct_name;
       END IF;
 
-      INSERT INTO public.plantilla (
-        employee_name, employee_no, emploc_no, account, status,
-        account_id, last_name, first_name, middle_name,
-        mother_account, position, deployment_type,
-        store_id, store_name, vcode,
-        area, area_name_snapshot,
-        schedule, schedule_days, schedule_time, dayoff, coordinator,
-        hrco_user_id_snapshot, hrco_name, needs_hrco,
-        source_baseline_import_batch_id, created_by
+      -- Calculate next available ordinal for this store
+      SELECT COALESCE(MAX(slot_ordinal), 0) + 1 INTO v_next_ordinal
+        FROM public.plantilla_slots
+       WHERE store_id = v_new_store_id OR (store_id IS NULL AND upper(legacy_vcode) = upper(v_vrow.vcode));
+
+      INSERT INTO public.plantilla_slots (
+        store_id, account_id, group_id,
+        position, employment_type, is_roving,
+        slot_status, slot_ordinal, legacy_vcode,
+        current_occupant_plantilla_id,
+        created_at, updated_at, created_by, updated_by
       ) VALUES (
-        'VACANT', NULL, NULL, v_acct_name, 'Vacant',
-        v_batch.selected_account_id, NULL, NULL, NULL,
-        v_vrow.mother_account, v_vrow.position, 'Stationary',
-        v_primary_store_id, v_vrow.store_name, v_vrow.vcode,
-        COALESCE(v_vrow.area_city, v_vrow.area_province),
-        COALESCE(v_vrow.area_city, v_vrow.area_province),
-        v_vrow.schedule_days, v_vrow.schedule_days, v_vrow.schedule_time,
-        v_vrow.dayoff_raw, v_vrow.coordinator_raw,
-        v_final_hrco_id, v_final_hrco_name, v_needs_hrco,
-        p_batch_id, v_actor
+        v_new_store_id, v_target_account_id, v_target_group_id,
+        COALESCE(v_vrow.position, 'Merchandiser'), 'stationary', false,
+        'open', v_next_ordinal::smallint, v_vrow.vcode, NULL,
+        now(), now(), v_actor, v_actor
       ) RETURNING id INTO v_target_slot_id;
 
       v_batch_created_slot_ids := array_append(v_batch_created_slot_ids, v_target_slot_id);
 
-      -- Add corresponding vacancies row
+      -- Sync vacancies record for shadow view
       INSERT INTO public.vacancies (
-        plantilla_id, store_id, position, status,
-        account_id, group_id, notes, created_at
+        vcode, account, position, store_name, area_city, province, area_name,
+        required_headcount, status, store_id, account_id, group_id,
+        hrco_user_id, hrco_name,
+        created_at, updated_at, created_by
       ) VALUES (
-        v_target_slot_id, v_primary_store_id, v_vrow.position, 'Open',
-        v_batch.selected_account_id, v_batch.selected_group_id,
+        v_vrow.vcode,
+        COALESCE(v_target_acct_name, v_acct_name, 'Unknown Account'),
+        COALESCE(v_vrow.position, 'Merchandiser'),
+        v_vrow.store_name,
+        v_vrow.area_city,
+        v_vrow.area_province,
+        v_vrow.area_province || ' - ' || v_vrow.area_city,
+        1, 'Open', v_new_store_id, v_target_account_id, v_target_group_id,
+        v_acct_hrco_id, v_acct_hrco_name,
+        now(), now(), v_actor
+      ) ON CONFLICT (vcode) DO UPDATE
+      SET status = 'Open',
+          account = CASE
+            WHEN EXCLUDED.account IS NOT NULL AND EXCLUDED.account <> 'Unknown Account' THEN EXCLUDED.account
+            ELSE COALESCE(NULLIF(vacancies.account, 'Unknown Account'), EXCLUDED.account)
+          END,
+          position = EXCLUDED.position,
+          store_name = EXCLUDED.store_name,
+          area_city = EXCLUDED.area_city,
+          province = EXCLUDED.province,
+          area_name = EXCLUDED.area_name,
+          store_id = COALESCE(EXCLUDED.store_id, vacancies.store_id),
+          account_id = COALESCE(EXCLUDED.account_id, vacancies.account_id),
+          group_id = COALESCE(EXCLUDED.group_id, vacancies.group_id),
+          required_headcount = GREATEST(vacancies.required_headcount, 1),
+          hrco_user_id = COALESCE(EXCLUDED.hrco_user_id, vacancies.hrco_user_id),
+          hrco_name = COALESCE(EXCLUDED.hrco_name, vacancies.hrco_name),
+          deleted_at = NULL,
+          is_archived = false,
+          updated_at = now();
+
+      INSERT INTO public.slot_history (
+        slot_id, account_id, action_type, old_value, new_value,
+        reason_code, performed_by, remarks, created_at
+      ) VALUES (
+        v_target_slot_id, v_target_account_id, 'created',
+        NULL, 'open',
+        CASE WHEN EXISTS (SELECT 1 FROM public.slot_reason_codes WHERE code = 'IMPORT_VACANT_SLOT') THEN 'IMPORT_VACANT_SLOT' ELSE NULL END,
+        v_actor,
         format('Vacant slot created by baseline import batch %s', p_batch_id), now()
       );
 
@@ -259,8 +312,10 @@ BEGIN
       v_vacant_slots := v_vacant_slots + 1;
     END LOOP;
 
+    -- ========================================================================
     -- Phase B2: Assigned Employee Upsert & Slot Provisioning (valid + flagged)
     -- Enforces LAST-ROW-WINS persistence for coalesced demographic, compensation & rest-day fields
+    -- ========================================================================
     FOR v_emp_rec IN
       SELECT
         employee_no,
@@ -425,9 +480,9 @@ BEGIN
       -- Deactivate old allocations
       UPDATE public.employee_store_allocations
          SET is_active = false, effective_end = CURRENT_DATE
-       WHERE employee_no = v_emp_rec.employee_no
-         AND is_active
-         AND account_id = v_batch.selected_account_id;
+        WHERE employee_no = v_emp_rec.employee_no
+          AND is_active
+          AND account_id = v_batch.selected_account_id;
 
       -- Store allocations loop (committable valid + flagged)
       FOR v_store_rec IN
@@ -475,7 +530,138 @@ BEGIN
         VALUES (p_batch_id, 'allocation', v_new_alloc_id, 'insert', NULL, v_uid);
 
         v_alloc_done := v_alloc_done + 1;
+
+        -- Sync active roving link in plantilla_store_links for safe view consistency
+        INSERT INTO public.plantilla_store_links (
+          plantilla_id, vcode, store_name, account, status, linked_at
+        ) VALUES (
+          v_plantilla_id, v_store_rec.vcode, v_store_rec.store_name, v_acct_name, 'Active', now()
+        ) ON CONFLICT (plantilla_id, vcode) WHERE (deleted_at IS NULL)
+        DO UPDATE SET
+          store_name = EXCLUDED.store_name,
+          account = EXCLUDED.account,
+          status = 'Active';
+
+        -- Store-level idempotent slot reuse, pre-existing vacant claiming, or slot provisioning
+        v_target_slot_id := NULL;
+
+        -- Step 1: Check if employee already occupies an active slot in this store
+        SELECT id INTO v_target_slot_id
+          FROM public.plantilla_slots
+         WHERE (store_id = v_new_store_id OR (store_id IS NULL AND upper(legacy_vcode) = upper(v_store_rec.vcode)))
+           AND current_occupant_plantilla_id = v_plantilla_id
+           AND slot_status IN ('occupied', 'filled')
+         LIMIT 1;
+
+        IF v_target_slot_id IS NOT NULL THEN
+          -- Re-import / idempotent update of existing active slot for this employee in this store
+          UPDATE public.plantilla_slots
+             SET store_id        = COALESCE(store_id, v_new_store_id),
+                 account_id      = COALESCE(account_id, v_target_account_id),
+                 group_id        = COALESCE(group_id, v_target_group_id),
+                 position        = COALESCE(v_emp_rec.position, position),
+                 is_roving       = (v_store_cnt > 1),
+                 employment_type = CASE WHEN v_store_cnt > 1 THEN 'roving' ELSE 'stationary' END,
+                 updated_at      = now(),
+                 updated_by      = v_actor
+           WHERE id = v_target_slot_id;
+
+        ELSE
+          -- Step 2: Employee does NOT already have an active slot here.
+          -- Can we claim an open vacant slot that existed prior to this import (NOT created in Phase B1 of this batch)?
+          SELECT id INTO v_target_slot_id
+            FROM public.plantilla_slots
+           WHERE (store_id = v_new_store_id OR (store_id IS NULL AND upper(legacy_vcode) = upper(v_store_rec.vcode)))
+             AND slot_status = 'open'
+             AND (v_batch_created_slot_ids IS NULL OR id <> ALL(v_batch_created_slot_ids))
+           ORDER BY slot_ordinal ASC
+           LIMIT 1;
+
+          IF v_target_slot_id IS NOT NULL THEN
+            -- Capture snapshot before claiming pre-existing slot
+            SELECT to_jsonb(ps.*) INTO v_old_slot_snap
+              FROM public.plantilla_slots ps
+             WHERE id = v_target_slot_id;
+
+            -- Claim pre-existing vacant slot
+            UPDATE public.plantilla_slots
+               SET slot_status = 'occupied',
+                   store_id = COALESCE(store_id, v_new_store_id),
+                   account_id = COALESCE(account_id, v_target_account_id),
+                   group_id = COALESCE(group_id, v_target_group_id),
+                   position = COALESCE(v_emp_rec.position, position),
+                   is_roving = (v_store_cnt > 1),
+                   employment_type = CASE WHEN v_store_cnt > 1 THEN 'roving' ELSE 'stationary' END,
+                   current_occupant_plantilla_id = v_plantilla_id,
+                   updated_at = now(),
+                   updated_by = v_actor
+             WHERE id = v_target_slot_id;
+
+            -- Close / mark linked vacancies as Filled
+            UPDATE public.vacancies
+               SET status = 'Filled',
+                   updated_at = now()
+             WHERE upper(vcode) = upper(v_store_rec.vcode)
+               AND status = 'Open';
+
+            INSERT INTO public.slot_history (
+              slot_id, account_id, action_type, old_value, new_value,
+              reason_code, performed_by, remarks, created_at
+            ) VALUES (
+              v_target_slot_id, v_target_account_id, 'occupied',
+              'open', 'occupied',
+              CASE WHEN EXISTS (SELECT 1 FROM public.slot_reason_codes WHERE code = 'IMPORT_CLAIM_VACANT') THEN 'IMPORT_CLAIM_VACANT' ELSE NULL END,
+              v_actor,
+              format('Claimed vacant slot for employee %s via batch %s', v_emp_rec.employee_no, p_batch_id),
+              now()
+            );
+
+            INSERT INTO public.plantilla_import_commit_snapshots
+              (batch_id, entity_type, entity_id, action, previous_snapshot, committed_by)
+            VALUES (p_batch_id, 'slot', v_target_slot_id, 'update', v_old_slot_snap, v_uid);
+
+          ELSE
+            -- Step 3: No pre-existing open slot exists. Create a new occupied slot with incremented ordinal
+            SELECT COALESCE(MAX(slot_ordinal), 0) + 1 INTO v_next_ordinal
+              FROM public.plantilla_slots
+             WHERE store_id = v_new_store_id OR (store_id IS NULL AND upper(legacy_vcode) = upper(v_store_rec.vcode));
+
+            INSERT INTO public.plantilla_slots (
+              store_id, account_id, group_id,
+              position, employment_type, is_roving,
+              slot_status, slot_ordinal, legacy_vcode,
+              current_occupant_plantilla_id,
+              created_at, updated_at, created_by, updated_by
+            ) VALUES (
+              v_new_store_id, v_target_account_id, v_target_group_id,
+              COALESCE(v_emp_rec.position, 'Unknown'),
+              CASE WHEN v_store_cnt > 1 THEN 'roving' ELSE 'stationary' END,
+              (v_store_cnt > 1),
+              'occupied', v_next_ordinal::smallint, v_store_rec.vcode,
+              v_plantilla_id,
+              now(), now(), v_actor, v_actor
+            ) RETURNING id INTO v_target_slot_id;
+
+            INSERT INTO public.slot_history (
+              slot_id, account_id, action_type, old_value, new_value,
+              reason_code, performed_by, remarks, created_at
+            ) VALUES (
+              v_target_slot_id, v_target_account_id, 'occupied',
+              NULL, 'occupied',
+              CASE WHEN EXISTS (SELECT 1 FROM public.slot_reason_codes WHERE code = 'IMPORT_OCCUPIED') THEN 'IMPORT_OCCUPIED' ELSE NULL END,
+              v_actor,
+              format('New occupied slot ordinal %s for employee %s', v_next_ordinal, v_emp_rec.employee_no),
+              now()
+            );
+
+            INSERT INTO public.plantilla_import_commit_snapshots
+              (batch_id, entity_type, entity_id, action, previous_snapshot, committed_by)
+            VALUES (p_batch_id, 'slot', v_target_slot_id, 'insert', NULL, v_uid);
+          END IF;
+        END IF;
+
       END LOOP;
+
     END LOOP;
 
     -- Update batch status with ADR-002 rollback governance metadata
@@ -528,4 +714,4 @@ REVOKE ALL ON FUNCTION public.approve_plantilla_import_batch(uuid) FROM PUBLIC, 
 GRANT EXECUTE ON FUNCTION public.approve_plantilla_import_batch(uuid) TO authenticated, service_role;
 
 COMMENT ON FUNCTION public.approve_plantilla_import_batch(uuid) IS
-  'OHM2026_1052: Fix store table column references (area_city, area_province, province, source_import_id) in approve_plantilla_import_batch';
+  'OHM2026_1053: Canonical merge of Migration 086 (stores, plantilla_slots, plantilla_store_links, vacancies, slot_history, rollback snapshots) + ADR-002 Rule #17 Last-Row-Wins employee field coalescing.';

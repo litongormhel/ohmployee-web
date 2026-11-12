@@ -34,6 +34,15 @@
   regressing visibility (e.g., role-scoped action buttons, tab rosters, historical separation logs),
   or corrupting state transitions, STOP immediately. Detail what breaks, ask the user, and present
   a safe recommendation that avoids regression.
+- SQL Function Surgical-Diff & Contract Gate (Anti-Overwrite Lock): NEVER rewrite a SQL function
+  (`CREATE OR REPLACE FUNCTION`) from memory or from an older migration template. Before authoring
+  any migration that modifies an existing RPC or trigger function:
+  1. Locate the latest migration defining that function (`git grep -l "FUNCTION public.<name>" supabase/migrations/`).
+  2. Copy that exact latest function body as the base and apply ONLY the minimal surgical diff required.
+  3. Run `npm run check:sql` (also chained into `npm test` and `npm run lint` via `scripts/check-sql-contracts.mjs`)
+     to verify that all `INSERT`/`UPDATE` table columns exist in the physical schema and that no
+     cross-module RPC invariants (e.g., `plantilla_slots`, `plantilla_store_links`, rollback snapshots,
+     `row_capabilities`, `user_scopes`) were dropped.
 - Task Decomposition & Subagent Delegation Gate: When a prompt or task is heavy, multi-surface, or
   architecturally complex (e.g., spans multiple modules, involves large refactoring, requires deep
   codebase or RPC tracing, or carries high regression risk), the agent MUST decompose the problem.
