@@ -554,7 +554,7 @@ export function NewStoreDataTable({
                                   disabled={isBusy}
                                   className="inline-flex h-7 items-center justify-center rounded-lg border border-border-brand bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
                                 >
-                                  <span>Approve Store</span>
+                                  <span>Approve</span>
                                 </button>
                               </>
                             ) : (
@@ -587,7 +587,7 @@ export function NewStoreDataTable({
                                 disabled={isBusy}
                                 className="inline-flex h-7 items-center justify-center rounded-lg border border-border-brand bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
                               >
-                                <span>Approve Store</span>
+                                <span>Approve</span>
                               </button>
                             </>
                           )}

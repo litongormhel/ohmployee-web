@@ -196,7 +196,7 @@ export function ApplicantMovementApprovalCard({
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand-500 bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
           >
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Approve Movement</span>
+            <span>Approve</span>
           </button>
         </div>
       </div>

@@ -197,7 +197,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
                   className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand-500 bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Approve Store</span>
+                  <span>Approve</span>
                 </button>
               </>
             ) : (
@@ -223,7 +223,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
                 className="inline-flex h-8 items-center gap-1.5 rounded-md border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 text-xs font-medium shadow-2xs disabled:opacity-50 transition cursor-pointer"
               >
                 <Send className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Approve &amp; Forward</span>
+                <span>Forward</span>
               </button>
               <button
                 type="button"
@@ -232,7 +232,7 @@ export function NewStoreApprovalCard({ request }: NewStoreApprovalCardProps) {
                 className="inline-flex h-8 items-center gap-1.5 rounded-md border border-brand-500 bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Approve Store</span>
+                <span>Approve</span>
               </button>
             </>
           ) : null}

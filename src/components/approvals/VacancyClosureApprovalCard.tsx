@@ -160,7 +160,7 @@ export function VacancyClosureApprovalCard({
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-transparent bg-brand-500 px-3 text-xs font-medium text-white shadow-2xs hover:bg-brand-600 disabled:opacity-50 transition"
           >
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Approve Closure</span>
+            <span>Approve</span>
           </button>
         </div>
       </div>

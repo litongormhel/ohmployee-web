@@ -1,5 +1,31 @@
 # AI Handoff
 
+## Execution Report — Approvals Action Buttons Standardization & Database Sanity Check (ohm#b8k2v5q1)
+
+**Status: COMPLETE ON MAIN; STANDARDIZED ALL ACTION BUTTONS ACROSS ALL APPROVALS DATA TABLES AND CORRESPONDING APPROVAL CARDS STRICTLY TO "APPROVE" AND "REJECT" (REMOVING REDUNDANT CATEGORY SUFFIXES LIKE *Approve Deactivation*, *Approve Store*, *Approve Closure*, *Approve Deletion*, *Approve Archive*, *Approve Reliever*, *Approve Movement*, *Approve Structure*); CONDUCTED LIVE DATABASE SANITY CHECK AGAINST STAGING (`qqiiznmqxfoamqytjica`), CONFIRMING THAT ALL 24 APPROVAL AND REJECTION RPCS (`approve_deactivation_requests_batch`, `reject_deactivation_requests_batch`, `complete_employee_deactivation`, `approve_headcount_request`, `reject_headcount_request`, `review_vacancy_closure_request`, `fn_approve_emploc_deletion_request`, `fn_reject_emploc_deletion_request`, ETC.) ARE FULLY DEFINED, ACTIVE, AND IN SYNCHRONIZATION WITH LIVE PENDING ITEMS IN `public`; VERIFIED CLEAN VIA `npm run lint` (0 ERRORS), `npm test` (211/211 PASSED), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Changes Made
+- **Action Button Standardization**:
+  - `src/components/approvals/DeactivationDataTable.tsx`: Changed button from `Approve Deactivation` to `Approve`.
+  - `src/components/approvals/AccountArchiveDataTable.tsx`: Changed button from `Approve Archive` to `Approve`.
+  - `src/components/approvals/HrEmplocDeletionDataTable.tsx`: Changed button from `Approve Deletion` to `Approve`.
+  - `src/components/approvals/NewStoreDataTable.tsx`: Changed buttons from `Approve Store` to `Approve`.
+  - `src/components/approvals/RelieverDataTable.tsx`: Changed button from `Approve Reliever` to `Approve`.
+  - `src/components/approvals/VacancyClosureDataTable.tsx`: Changed button from `Approve Closure` to `Approve`.
+  - Corresponding cards (`ApplicantMovementApprovalCard.tsx`, `CoverageGroupApprovalCard.tsx`, `DeactivationApprovalCard.tsx`, `NewStoreApprovalCard.tsx`, `RelieverCoverageApprovalCard.tsx`, `StoreTransferApprovalCard.tsx`, `VacancyClosureApprovalCard.tsx`): Standardized all primary action button labels strictly to `Approve` and `Reject`.
+- **Database Sanity Check on Staging (`qqiiznmqxfoamqytjica`)**:
+  - Live inspection of `information_schema.routines` confirmed 24/24 RPCs exist and are active in `public`.
+  - Live pending counts verified: `v_deactivation_requests` (8 Pending, 5 Approved, 2 Rejected), `new_store_requests` (2 Pending).
+  - Validated that `approve_deactivation_requests_batch` handles `Approved` status update, plantilla deactivation timestamps, audit logging (`employee_deactivation_audit_log`), slot reopen dispatch via `fn_sync_slot_to_open`, and requester notification insertion.
+  - Validated that `reject_deactivation_requests_batch` handles `Rejected` status update, sets `plantilla.status = 'Rejected Deactivation'`, logs to audit log, and notifies requester.
+
+### 2. Verification Results
+- `npm run lint`: Clean (0 errors).
+- `npm test`: Clean (211/211 tests passed).
+- `npm run build`: Clean (Next.js 16.2.4 exit code 0, 20/20 routes built).
+
+---
+
 ## Execution Report — Approvals Layout & Queue Visibility: Wrap Category Tabs & Uncap/Expand All Requests (ohm#a7m4q9k2)
 
 **Status: COMPLETE ON MAIN; RESOLVED ISSUE WHERE APPROVALS HUB (`/approvals`) CLIPPED REAR CATEGORY TABS (*New Stores*, *Relievers*, *Rollbacks*, *Vacancy Closures*) AND TABLE ACTION BUTTONS DUE TO SINGLE-LINE OVERFLOW (`no-scrollbar scrollbar-none`), FORCING THE USER TO ZOOM OUT TO SEE THEM; RESOLVED ISSUE WHERE ALL REQUESTS TRUNCATED ITEMS AT 5 AND AUTO-COLLAPSED CATEGORIES; TRANSITIONED `RequestCategoryNavigation` TO RESPONSIVE `flex-wrap gap-2` WITH COMPACT `h-8.5` PILLS SO ALL 13 CATEGORY TABS REMAIN 100% VISIBLE AND ACCESSIBLE AT NORMAL 100% ZOOM; ELIMINATED PREVIEW CAPPING (`PREVIEW_CAP`) IN `AllRequestsUnifiedQueue` SO ALL PENDING REQUESTS RENDER DIRECTLY WITHOUT BEING TRUNCATED BEHIND "SHOW ALL REQUESTS"; SET CATEGORY SECTIONS TO DEFAULT EXPANDED (`isOpen = true`); ADDED "COLLAPSE ALL / EXPAND ALL" MASTER TOOLBAR TOGGLE; OPTIMIZED CONTAINER PADDING IN `approvals/page.tsx` (`p-4 sm:p-5 lg:p-6`) GIVING MAXIMUM HORIZONTAL ROOM FOR TABLES; ZERO DATABASE CHANGES; VERIFIED CLEAN VIA `npm run lint` (0 ERRORS), `npm test` (211/211 PASSED), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

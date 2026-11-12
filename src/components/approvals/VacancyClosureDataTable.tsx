@@ -508,7 +508,7 @@ export function VacancyClosureDataTable({
                             disabled={isBusy}
                             className="inline-flex h-8 items-center justify-center rounded-md border border-brand-500 bg-brand-500 px-3.5 text-xs font-medium text-white hover:bg-brand-600 disabled:opacity-50 transition cursor-pointer"
                           >
-                            <span>Approve Closure</span>
+                            <span>Approve</span>
                           </button>
                         </div>
                       ) : isApproved ? (

@@ -28,7 +28,7 @@ The Approvals Module (`/approvals`) serves as the administrative hub and request
   - **Full Visibility by Default**: Sections default to open/expanded (`isOpen = true`) so all operational queues and pending requests are immediately visible without being collapsed or hidden. Manual accordion toggles remain available per section and via the master toolbar toggle.
   - **Header Actions**: Each category card includes an `"Open Tab ->"` action button that smoothly routes to that category's dedicated main tab.
   - **Uncapped Full Queue Display**: Directly displays all matching requests per category without 5-item truncation, accompanied by a `"Showing all X requests"` footer and tab deep-link navigation.
-  - **Direct In-Line Actions**: Direct row action buttons (Approve, Reject, Review, View) are functional in-place using existing modular modal and mutation workflows, auto-invalidating category queries and global badges upon completion.
+  - **Direct In-Line Actions**: Direct row action buttons are strictly standardized to **"Approve"** and **"Reject"** across all category tables and cards (eliminating category-specific suffixes like *Approve Deactivation*, *Approve Store*, *Approve Closure*), minimizing column width footprint and executing in-place using existing modular modal and mutation workflows with automatic invalidation of category queries and global badges.
 
 ---
 

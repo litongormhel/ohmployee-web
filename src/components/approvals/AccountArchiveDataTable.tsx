@@ -220,7 +220,7 @@ export function AccountArchiveDataTable({
                         onClick={() => setSelectedApproveItem(item)}
                         className="rounded-lg bg-brand-button px-2.5 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-brand-button-hover transition cursor-pointer"
                       >
-                        Approve Archive
+                        Approve
                       </button>
                     </div>
                   </td>
