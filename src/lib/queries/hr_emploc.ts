@@ -923,7 +923,7 @@ export async function authorizeHrEmplocDocUpload(
     p_hr_emploc_id: params.hrEmplocId,
     p_file_name: params.fileName,
     p_mime_type: params.mimeType,
-    p_file_size: params.fileSize,
+    p_size_bytes: params.fileSize,
   });
 
   if (error) {
@@ -932,8 +932,8 @@ export async function authorizeHrEmplocDocUpload(
 
   const res = asObject(data);
   return {
-    authorized: res.authorized === true,
-    bucket: asString(res.bucket) || "hr-corrections",
+    authorized: res.authorized === true || Boolean(res.object_path || res.storage_path),
+    bucket: asString(res.bucket_id ?? res.bucket) || "hr-corrections",
     object_path: asString(res.object_path) || "",
     storage_path: asString(res.storage_path) || "",
   };
@@ -955,9 +955,9 @@ export async function registerHrEmplocDocument(
   const { data, error } = await supabase.rpc("register_hr_emploc_document", {
     p_hr_emploc_id: params.hrEmplocId,
     p_storage_path: params.storagePath,
-    p_file_name: params.fileName,
+    p_original_filename: params.fileName,
     p_mime_type: params.mimeType,
-    p_file_size: params.fileSize,
+    p_size_bytes: params.fileSize,
     p_stage: params.stage || null,
   });
 
@@ -1001,7 +1001,7 @@ export async function submitHrEmplocRequirements(params: {
   const supabase = createClient();
   const { error } = await supabase.rpc("submit_hr_emploc_requirements", {
     p_hr_emploc_id: params.hrEmplocId,
-    p_notes: params.notes?.trim() || null,
+    p_remarks: params.notes?.trim() || null,
   });
 
   if (error) {

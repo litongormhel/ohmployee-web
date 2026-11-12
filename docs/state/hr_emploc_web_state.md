@@ -501,4 +501,13 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - Registered `--color-accent-primary: var(--brand-button);` and `--color-accent-primary-hover: var(--brand-button-hover);` in `src/app/globals.css` `@theme inline`.
 - Standardized action buttons in `HrEmplocTable.tsx`, `UploadDocsModal.tsx`, `AddEmplocModal.tsx`, and `DocumentPreviewModal.tsx` to `bg-brand-button hover:bg-brand-button-hover text-white shadow-2xs`.
 
+## RPC Parameter Alignment for Document Upload & Intake (ohm#m2k7v5q8)
+- Fixed schema cache error in `UploadDocsModal` (`Could not find the function public.authorize_hr_emploc_doc_upload(...) in the schema cache`).
+- Root cause: PostgREST named argument mismatches in `src/lib/queries/hr_emploc.ts`:
+  - `authorize_hr_emploc_doc_upload`: sent `p_file_size` instead of `p_size_bytes`. Also mapped `authorized` from `res.authorized === true` (which was omitted from DB JSON payload; now mapped via `Boolean(res.object_path || res.storage_path || res.authorized)`).
+  - `register_hr_emploc_document`: sent `p_file_name` and `p_file_size` instead of `p_original_filename` and `p_size_bytes`.
+  - `submit_hr_emploc_requirements`: sent `p_notes` instead of `p_remarks`.
+- Corrected all three function client callers in `src/lib/queries/hr_emploc.ts`. Verified live in Staging (`qqiiznmqxfoamqytjica`) with zero regressions.
+
+
 

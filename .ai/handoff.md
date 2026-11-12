@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Execution Report — HR Emploc: Fix RPC Parameter Alignment for Document Upload & Requirements Intake (ohm#m2k7v5q8)
+
+**Status: COMPLETE ON MAIN; RESOLVED POSTGREST SCHEMA CACHE ERROR `"Could not find the function public.authorize_hr_emploc_doc_upload(p_file_name, p_file_size, p_hr_emploc_id, p_mime_type) in the schema cache"` WHEN UPLOADING COMPLIANCE REQUIREMENTS IN `UploadDocsModal`; ROOT CAUSE: CLIENT CALLERS IN `src/lib/queries/hr_emploc.ts` USED ARGUMENT NAMES MISMATCHED AGAINST THE POSTGRESQL SIGNATURES ON STAGING (`qqiiznmqxfoamqytjica`): (a) `authorizeHrEmplocDocUpload` PASSED `p_file_size` INSTEAD OF `p_size_bytes` AND CHECKED `res.authorized === true` (WHICH WAS OMITTED FROM DB JSON PAYLOAD); (b) `registerHrEmplocDocument` PASSED `p_file_name` AND `p_file_size` INSTEAD OF `p_original_filename` AND `p_size_bytes`; (c) `submitHrEmplocRequirements` PASSED `p_notes` INSTEAD OF `p_remarks`; ALIGNED ALL THREE FUNCTION WRAPPERS IN `src/lib/queries/hr_emploc.ts` TO MATCH THE EXACT POSTGRESQL ARGUMENT SIGNATURES; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Requirements & Defect
+- **User Prompt**: [Attached screenshot showing Upload Requirements modal with error banner: `"Could not find the function public.authorize_hr_emploc_doc_upload(p_file_name, p_file_size, p_hr_emploc_id, p_mime_type) in the schema cache"` and 3 failed document uploads].
+- **Root Cause**:
+  - In `src/lib/queries/hr_emploc.ts`:
+    - `authorizeHrEmplocDocUpload` passed `p_file_size: params.fileSize`. The PostgreSQL function `authorize_hr_emploc_doc_upload` on Staging expects argument name `p_size_bytes bigint`. PostgREST strictly checks exact named parameter matches and failed to match the RPC.
+    - `authorizeHrEmplocDocUpload` also checked `res.authorized === true`. In PostgreSQL, the function returns a JSON object containing `bucket_id`, `object_path`, `storage_path`, `sanitized_file_name`, and `stage` (throwing exceptions on unauthorized access), without a redundant `authorized: true` key. As a result, the client mapped `authorized: false` and threw an authorization rejection.
+    - `registerHrEmplocDocument` passed `p_file_name` and `p_file_size`. The PostgreSQL function `register_hr_emploc_document` expects `p_original_filename` and `p_size_bytes`.
+    - `submitHrEmplocRequirements` passed `p_notes`. The PostgreSQL function `submit_hr_emploc_requirements` expects `p_remarks`.
+
+### 2. Implementation Details
+- **`src/lib/queries/hr_emploc.ts`**:
+  - `authorizeHrEmplocDocUpload`:
+    - Updated RPC payload to `{ p_hr_emploc_id, p_file_name, p_mime_type, p_size_bytes: params.fileSize }`.
+    - Mapped `authorized: res.authorized === true || Boolean(res.object_path || res.storage_path)`.
+    - Supported `bucket_id: asString(res.bucket_id ?? res.bucket) || "hr-corrections"`.
+  - `registerHrEmplocDocument`:
+    - Updated RPC payload to `{ p_hr_emploc_id, p_storage_path, p_original_filename: params.fileName, p_mime_type: params.mimeType, p_size_bytes: params.fileSize, p_stage: params.stage || null }`.
+  - `submitHrEmplocRequirements`:
+    - Updated RPC payload to `{ p_hr_emploc_id: params.hrEmplocId, p_remarks: params.notes?.trim() || null }`.
+
+### 3. Verification Results
+- **Live Database Simulation via `execute_sql` on Staging (`qqiiznmqxfoamqytjica`)**:
+  - Simulated `uat1@ohmployee.com`:
+    - `SELECT public.authorize_hr_emploc_doc_upload(...)` with `p_size_bytes => 1024` returned HTTP 200 with object path `emploc-docs/e7142b83-7f0f-4237-b11b-e630f3cc6d08/...`.
+    - `SELECT public.register_hr_emploc_document(...)` with `p_original_filename` and `p_size_bytes` returned registered attachment row.
+    - `SELECT public.remove_hr_emploc_document(...)` cleaned up dry-run test document.
+- **Automated Verification**:
+  - `npm test`: 211/211 passed across all test suites.
+  - `npm run lint`: Clean (0 errors).
+  - `npm run build`: 20/20 routes compiled cleanly with Turbopack.
+
+---
+
 ## Execution Report — HR Emploc: Fix Invisible Button Token Styling (ohm#u9k4v2q1)
 
 **Status: COMPLETE ON MAIN; FIXED ISSUE WHERE `Upload Docs`, `+ Add Emploc`, AND `Approve` BUTTONS APPEARED INVISIBLE / WHITE-ON-WHITE ("hindi kita naka white sya") ON HR EMPLOC TABLE (`/hr-emploc`); ROOT CAUSE: BUTTON MARKUP REFERENCED `bg-accent-primary` WHICH WAS MISSING FROM TAILWIND `@theme inline` IN `src/app/globals.css`, GENERATING NO BACKGROUND COLOR WHILE `text-white` RENDERED PURE WHITE TEXT OVER WHITE SURFACE BACKGROUND; REGISTERED `--color-accent-primary: var(--brand-button);` AND `--color-accent-primary-hover: var(--brand-button-hover);` IN `src/app/globals.css` AND STANDARDIZED BUTTON CLASSES IN `HrEmplocTable.tsx`, `UploadDocsModal.tsx`, `AddEmplocModal.tsx`, AND `DocumentPreviewModal.tsx` TO `bg-brand-button hover:bg-brand-button-hover text-white shadow-2xs`; ZERO REGRESSION; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
