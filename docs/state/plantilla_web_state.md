@@ -1018,6 +1018,11 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Crisp & Direct Messages**: Messages now read directly as `"Mismatched hired date across roving store rows."`, `"Underage employee. Minimum legal working age is 18."`, `"Hire date does not match master record in database."`, and `"Multiple employee numbers assigned to the same person. Roving employees must share the same Emp No."`.
   - **Signature Simplification**: Cleaned up function signature and call sites to remove unused parameter `_employeeName`.
 
+- **MOSES HQ Pinning to Front of Plantilla Directory (`ohm#m1q9k4v2` — 2026-11-12)**:
+  - **Pinned Tier 0 Priority (`src/app/(dashboard)/plantilla/page.tsx`)**:
+    - MOSES HQ / Workforce Pool account (`isPoolAccount = true` or `name.toLowerCase() === 'moses hq'`) is permanently pinned to index 0 (`pinaka unahan lagi`) of the Plantilla Directory cards grid.
+    - Subsequent accounts continue to sort using the multi-tier problem-first hierarchy (lowest MFR first, vacancy tie-breaker, unconfigured accounts at bottom).
+
 - **Hardcoded Overrides & Magic Numbers Elimination (`ohm#h4p9m2k8` — 2026-11-12)**:
   - **Eliminated ALTURAS Hardcoded Allocations**: Removed the artificial override `if (row.account_id === '3126b9a8...') { actual = 752; vacant = 3; }` in `src/app/(dashboard)/plantilla/page.tsx`. Metrics now derive authentically from `v_account_allocation_kpi` without synthetic masking.
   - **Removed Hardcoded Pool Account UUIDs**: Purged raw UUID string `"3946ffdd-d826-4fc7-bb9e-356a32dcd152"` across `plantilla/page.tsx` and `dashboard/page.tsx`. Workforce pool account resolution is now 100% dynamic via `is_pool_account = true` and `name.toLowerCase() === 'moses hq'`.

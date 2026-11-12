@@ -1,5 +1,33 @@
 # AI Handoff
 
+## Execution Report — Pin MOSES HQ Card to Front of Plantilla Directory Grid (ohm#m1q9k4v2)
+
+**Status: COMPLETE ON MAIN; PINNED THE MOSES HQ / WORKFORCE POOL CARD (`isPoolAccount: true` OR `name.toLowerCase() === 'moses hq'`) PERMANENTLY TO INDEX 0 (`pinaka unahan lagi`) OF THE PLANTILLA DIRECTORY BILLING ACCOUNT CARD GRID (`/plantilla`); ROOT CAUSE: THE ACCOUNT CARD COMPARATOR IN `src/app/(dashboard)/plantilla/page.tsx` ORDERED ACCOUNTS BY PROBLEM-FIRST SEVERITY (`a.fillRate - b.fillRate`), WHICH ELEVATED 0% FILL RATE ACCOUNTS (E.G. `THREE`, `ZEBRA`) AHEAD OF MOSES HQ (MFR ~13.04%: `HC 3/23 · Vacant 20`), DISPLACING MOSES HQ TO THE 3RD CARD; INTRODUCED TIER 0 PRIORITY COMPARATOR TO GUARANTEE MOSES HQ ALWAYS OCCUPIES CARD #1 IN ALL DIRECTORY VIEWS WHILE PRESERVING SUBSEQUENT PROBLEM-FIRST SEVERITY ORDERING AMONG ALL OTHER ACCOUNTS; ZERO DATABASE CHANGES; VERIFIED CLEAN VIA `npm run lint` (0 ERRORS), `npm test` (211/211 PASSED), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Root Cause & Solution
+- **File Touched**: `src/app/(dashboard)/plantilla/page.tsx`
+- **Issue**:
+  - In `/plantilla` (Plantilla Directory), the account cards grid previously sorted only by active requirement presence (`required > 0`), followed by problem-first severity (`a.fillRate - b.fillRate`), followed by vacant count, followed by name.
+  - Because MOSES HQ has active employees (`HC 3/23 · Vacant 20`, fill rate 13.04%), accounts experiencing acute 0% fulfillment (`THREE` with 0/4, `ZEBRA` with 0/1) sorted before it, displacing MOSES HQ to card #3.
+- **Fix**:
+  - Introduced Tier 0 in the `.sort((a, b) => ...)` comparator in `filteredAccounts`:
+    ```typescript
+    const aIsPool = !!a.isPoolAccount || a.name.trim().toLowerCase() === "moses hq";
+    const bIsPool = !!b.isPoolAccount || b.name.trim().toLowerCase() === "moses hq";
+
+    // 0. MOSES HQ / Pool Account is ALWAYS pinned to the very front (pinaka unahan)
+    if (aIsPool && !bIsPool) return -1;
+    if (!aIsPool && bIsPool) return 1;
+    ```
+  - MOSES HQ is now permanently positioned at index 0. All other billing accounts remain ordered by lowest fill rate first.
+
+### 2. Verification Results
+- `npm run lint`: Clean (0 errors).
+- `npm test`: Clean (211/211 tests passed).
+- `npm run build`: Clean (Next.js 16.2.4 exit code 0, 20/20 routes built).
+
+---
+
 ## Execution Report — Audit & Lock User Management as HRCO Single Source of Truth in ADR-001 (ohm#w3k8r9v1)
 
 **Status: COMPLETE ON MAIN; VALIDATED ARCHITECTURAL RULE THAT USER MANAGEMENT (`public.user_scopes` + `public.users_profile`) IS THE SINGLE SOURCE OF TRUTH FOR HR COORDINATOR (HRCO) ASSIGNMENTS ACROSS ALL MODULES (VACANCY, PLANTILLA, HR EMPLOC, DASHBOARD, ACCOUNTS); CONFIRMED LIVE ON STAGING (`qqiiznmqxfoamqytjica`) THAT INACTIVE/ARCHIVED USERS (`is_active = false` OR `archived_at IS NOT NULL`) ARE INTENTIONALLY AND STRICTLY EXCLUDED FROM PROJECTING AS HRCOS (WHICH EXPLAINED WHY WENG CORNEJO INITIALLY RENDERED AS `Unassigned` FOR PERFECT SM); CONFIRMED THAT UPON OHM ACTIVATING WENG CORNEJO IN USER MANAGEMENT VIA THE WEB UI, MIGRATION 102 (`public.set_user_active`) AUTOMATICALLY CLEARED `archived_at` AND TRIGGERED `public.fn_reevaluate_hrco_auto_tags`, INSTANTLY BINDING `accounts.hrco_user_id = 'c2f3d4e5-f6a7-8901-bcde-f12345678901'` AND PROJECTING `hrco_name: 'Cornejo, Weng'` ACROSS PERFECT SM VACANCIES (`VPSMG3_0008`) AND PLANTILLA ROSTER; NO ADDITIONAL RUNS OR SCRIPTS REQUIRED; RECORDED PERMANENT ARCHITECTURAL SPECIFICATION UNDER "ADR UPDATES NEEDED (OHM APPLIES IN MOBILE REPO)"; LOCAL COMMIT ON MAIN.**

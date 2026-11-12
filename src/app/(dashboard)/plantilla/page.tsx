@@ -1979,6 +1979,13 @@ function PlantillaPageContent() {
                   };
                 })
                 .sort((a, b) => {
+                  const aIsPool = !!a.isPoolAccount || a.name.trim().toLowerCase() === "moses hq";
+                  const bIsPool = !!b.isPoolAccount || b.name.trim().toLowerCase() === "moses hq";
+
+                  // 0. MOSES HQ / Pool Account is ALWAYS pinned to the very front (pinaka unahan)
+                  if (aIsPool && !bIsPool) return -1;
+                  if (!aIsPool && bIsPool) return 1;
+
                   const aHasRequirements = a.required > 0;
                   const bHasRequirements = b.required > 0;
 
