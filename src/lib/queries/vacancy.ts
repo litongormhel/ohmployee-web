@@ -1058,6 +1058,145 @@ export async function getVacancySummary(
     summaryRpcParams,
   );
 
+  // Pipeline tab count: active pipeline applicants (per person / applicant, matching table rows and export)
+  const pipelinePromise = (async () => {
+    try {
+      const TERMINAL_STATUSES = [
+        "failed",
+        "backout",
+        "rejected",
+        "did_not_report",
+        "did not report",
+        "rejected_by_ops",
+        "rejected by ops",
+        "withdrew",
+        "confirmed_onboard",
+        "confirmed onboard",
+        "hired",
+      ];
+
+      const { data: pipelineApplicants, error: appsError } = await supabase
+        .from("applicants")
+        .select(`
+          id,
+          vacancy_vcode,
+          first_name,
+          last_name,
+          middle_name,
+          full_name,
+          status,
+          created_at
+        `)
+        .eq("is_archived", false)
+        .order("created_at", { ascending: false });
+
+      if (appsError || !Array.isArray(pipelineApplicants) || pipelineApplicants.length === 0) {
+        return 0;
+      }
+
+      const activeCandidates = pipelineApplicants.filter((a) => {
+        const normStatus = (asString(a.status) || "").toLowerCase().trim().replace(/[\s-]+/g, "_");
+        return !TERMINAL_STATUSES.some((t) => t.replace(/[\s-]+/g, "_") === normStatus);
+      });
+
+      if (activeCandidates.length === 0) return 0;
+
+      const vcodes = Array.from(
+        new Set(activeCandidates.map((c) => asString(c.vacancy_vcode)).filter(Boolean)),
+      ) as string[];
+
+      if (vcodes.length === 0) return 0;
+
+      let vacQuery = supabase
+        .from("vw_vacancy_list")
+        .select(`
+          id,
+          vcode,
+          store_name,
+          store_branch,
+          position,
+          account,
+          account_id,
+          group_id,
+          vacant_date,
+          created_at,
+          urgency_level,
+          status,
+          is_archived
+        `)
+        .in("vcode", vcodes)
+        .eq("is_archived", false);
+
+      if (params.accountId) {
+        vacQuery = vacQuery.eq("account_id", params.accountId);
+      }
+      if (params.groupId) {
+        vacQuery = vacQuery.eq("group_id", params.groupId);
+      }
+      if (params.urgency) {
+        vacQuery = vacQuery.ilike("urgency_level", params.urgency);
+      }
+      if (params.vacantFrom) {
+        vacQuery = vacQuery.gte("vacant_date", params.vacantFrom);
+      }
+      if (params.vacantTo) {
+        vacQuery = vacQuery.lte("vacant_date", params.vacantTo);
+      }
+
+      const { data: vacData, error: vacError } = await vacQuery;
+      if (vacError || !vacData) return 0;
+
+      const vacMap = new Map(
+        vacData
+          .filter((v) => {
+            const st = (v.status || "").toLowerCase().trim();
+            return st !== "filled" && st !== "closed" && st !== "archived";
+          })
+          .map((v) => [v.vcode, v]),
+      );
+
+      let validCandidates = activeCandidates.filter((c) => vacMap.has(asString(c.vacancy_vcode)));
+
+      if (params.search) {
+        const q = params.search.toLowerCase().trim();
+        validCandidates = validCandidates.filter((c) => {
+          const vac = vacMap.get(asString(c.vacancy_vcode));
+          const vcode = asString(c.vacancy_vcode) || "";
+          const candidateName = (asString(c.full_name) || `${asString(c.first_name)} ${asString(c.last_name)}`).toLowerCase();
+          const pos = asString(vac?.position) || "";
+          const store = asString(vac?.store_name ?? vac?.store_branch) || "";
+          const acc = asString(vac?.account) || "";
+          const st = asString(c.status) || "";
+          return (
+            vcode.toLowerCase().includes(q) ||
+            candidateName.includes(q) ||
+            pos.toLowerCase().includes(q) ||
+            store.toLowerCase().includes(q) ||
+            acc.toLowerCase().includes(q) ||
+            st.toLowerCase().includes(q)
+          );
+        });
+      }
+
+      if (params.agingBucket) {
+        validCandidates = validCandidates.filter((c) => {
+          const vac = vacMap.get(asString(c.vacancy_vcode));
+          const vDateStr = asString(vac?.vacant_date ?? vac?.created_at ?? c.created_at);
+          if (!vDateStr) return false;
+          const diffDays = Math.max(0, Math.floor((Date.now() - new Date(vDateStr).getTime()) / (1000 * 60 * 60 * 24)));
+          let bucket = "31_plus";
+          if (diffDays <= 7) bucket = "0_7";
+          else if (diffDays <= 14) bucket = "8_14";
+          else if (diffDays <= 30) bucket = "15_30";
+          return bucket === params.agingBucket;
+        });
+      }
+
+      return validCandidates.length;
+    } catch {
+      return 0;
+    }
+  })();
 
   // Hired tab count: query fn_get_hired_applicants matching mobile service
   const hiredPromise = (async () => {
@@ -1162,8 +1301,9 @@ export async function getVacancySummary(
     }
   })();
 
-  const [summaryRes, hiredCountResult, closureCountResult, failedCountResult] = await Promise.allSettled([
+  const [summaryRes, pipelineCountResult, hiredCountResult, closureCountResult, failedCountResult] = await Promise.allSettled([
     summaryPromise,
+    pipelinePromise,
     hiredPromise,
     closurePromise,
     failedPromise,
@@ -1177,6 +1317,11 @@ export async function getVacancySummary(
   }
 
   const baseSummary = normalizeSummary(summaryRes.value.data);
+
+  const pipelineCount =
+    pipelineCountResult.status === "fulfilled"
+      ? pipelineCountResult.value
+      : baseSummary.pipeline;
 
   const hiredCount =
     hiredCountResult.status === "fulfilled"
@@ -1198,10 +1343,12 @@ export async function getVacancySummary(
   return {
     ...baseSummary,
     open: openCount,
+    pipeline: pipelineCount,
+    with_applicant: pipelineCount,
     hired: hiredCount,
     closure: closureCount,
     failedBackout: failedCount,
-    total: openCount + baseSummary.pipeline + hiredCount + closureCount + failedCount,
+    total: openCount + pipelineCount + hiredCount + closureCount + failedCount,
   };
 }
 

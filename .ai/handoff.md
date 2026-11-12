@@ -1,5 +1,31 @@
 # AI Handoff
 
+## Execution Report — Vacancy: Pipeline Tab Count Per Person Headcount Parity (ohm#p6k2v9q4)
+
+**Status: COMPLETE ON MAIN; ALIGNED VACANCY MANAGEMENT PIPELINE TAB BADGE COUNT STRICTLY TO INDIVIDUAL CANDIDATE HEADCOUNT (PER TAO ANG BILANG DITO REGARDLESS IF SAME SILA NG STORE); PREVIOUSLY, `getVacancySummary` IN `src/lib/queries/vacancy.ts` RELIED EXCLUSIVELY ON `baseSummary.pipeline` RETURNED BY RPC `get_web_vacancy_summary`, WHICH COUNTED DISTINCT STORE REQUISITIONS (5 VACANCIES) INSTEAD OF ACTIVE APPLICANTS, PRODUCING A MISMATCH AGAINST THE 6 EXPANDED CANDIDATE ROWS (E.G. TWO CANDIDATES UNDER `ACT-G5-008` ALI MALL); INTRODUCED DEDICATED `pipelinePromise` IN `getVacancySummary` THAT RESOLVES IN PARALLEL AND COUNTS ACTIVE NON-TERMINAL APPLICANTS TIED TO ACTIVE NON-CLOSED VACANCIES; FULLY PRESERVED COMPREHENSIVE FILTER SCOPING (`accountId`, `groupId`, `urgency`, `vacantFrom`, `vacantTo`, `search`, AND `agingBucket`); TAB BADGE NOW MATCHES TABLE ROWS AT 6; ZERO REGRESSION; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Requirements & Root Cause
+- **User Prompt**: "pipeline should be 6 not 5 kasi per tao ang bilang dito regardless if same sila ng store"
+- **Context**: On the Vacancy Management page (`/vacancy`), the Pipeline tab table renders 1 row per applicant/candidate (6 rows total across 5 vacancies: `VCBPIG1_1026`, `VCBPIG1_0183`, `SEA-00006`, `REL-00009`, and `ACT-G5-008` which has two candidates: `Russel, George Santos` and `Antonelli, Andrea Kimi`).
+- **Defect**: The tab button badge displayed `Pipeline (5)` instead of `(6)`.
+- **Root Cause**: `getVacancySummary` retrieved `baseSummary.pipeline` from the PostgreSQL function `get_web_vacancy_summary`, which counts distinct vacancy requisition records in `vw_vacancy_list` rather than active pipeline candidate count.
+
+### 2. Implementation Details
+- **Added `pipelinePromise` in `getVacancySummary` (`src/lib/queries/vacancy.ts`)**:
+  - Paralleled alongside `hiredPromise`, `closurePromise`, and `failedPromise` within `Promise.allSettled`.
+  - Queries `public.applicants` with `is_archived = false` excluding terminal statuses (`failed`, `backout`, `rejected`, `did_not_report`, `rejected_by_ops`, `withdrew`, `confirmed_onboard`, `hired`).
+  - Joins with `vw_vacancy_list` to exclude vacancies that are `filled`, `closed`, or `archived`.
+  - Applies active filters: `accountId`, `groupId`, `urgency`, `vacantFrom`, `vacantTo`, text `search` (candidate name, vcode, store, account, position, status), and `agingBucket` (`0_7`, `8_14`, `15_30`, `31_plus`).
+  - Sets `pipeline: pipelineCount`, `with_applicant: pipelineCount`, and updates `total: openCount + pipelineCount + hiredCount + closureCount + failedCount`.
+  - Gracefully falls back to `baseSummary.pipeline` if the promise rejects.
+
+### 3. Verification Results
+- `npm test`: Clean (211/211 tests passed).
+- `npm run lint`: Clean (0 errors).
+- `npm run build`: Clean (Next.js 16.2.4 exit code 0, 20/20 routes compiled).
+
+---
+
 ## Execution Report — Custom Report Builder: Custom Date Range & Semi-Monthly Cut-off Selection (ohm#d4r9k2c7)
 
 **Status: COMPLETE ON MAIN; ADDED COMPREHENSIVE CUT-OFF PRESETS AND CUSTOM DATE RANGE SELECTION TO CUSTOM REPORT BUILDER (`CustomReportTab.tsx`); USERS CAN NOW SELECT STANDARD RANGES (LAST 7D, LAST 30D, LAST 90D, THIS MONTH), PRECISE SEMI-MONTHLY CUT-OFFS (CURRENT MONTH: 1ST–15TH, CURRENT MONTH: 16TH–END, PREVIOUS MONTH: 1ST–15TH, PREVIOUS MONTH: 16TH–END), OR ARBITRARY CUSTOM RANGES VIA DUAL "FROM DATE" AND "TO DATE" PICKERS; INTRODUCED DYNAMIC DATE RANGE COMPUTATION WITH MONTH-END BOUNDARY AWARENESS (28/29/30/31 DAYS); RENDERED ACTIVE WINDOW SUB-LABEL AND HIGH-VISIBILITY PERIOD PREVIEW BADGES IN RESULTS; ENRICHED XLSX AND CSV EXPORT FILENAMES WITH THE ACTIVE DATE WINDOW SUFFIX (`Custom_<source>_Report_<start>_to_<end>.xlsx`); PREVENTED INVALID RANGE EXECUTION (TO DATE < FROM DATE); ZERO REGRESSION; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

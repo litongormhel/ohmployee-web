@@ -8,6 +8,13 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Pipeline Tab Count Per Person Headcount Parity (`ohm#p6k2v9q4` — 2026-11-12)**:
+  - **The Requirement**: In Vacancy Management (`/vacancy`), the Pipeline tab count must represent individual applicants/candidates in the pipeline (**per tao ang bilang**), regardless of whether multiple applicants share the same store/vacancy.
+  - **The Defect**: The Pipeline tab roster displayed 6 applicants (including 2 candidates for Cashier at Ali Mall, `ACT-G5-008`), but the tab badge displayed `5`.
+  - **Root Cause**: `getVacancySummary` relied on `baseSummary.pipeline` from the RPC `get_web_vacancy_summary`, which counted distinct requisition/vacancy records (5) rather than candidate headcount (6).
+  - **Remediation**: Added a parallel `pipelinePromise` in `getVacancySummary` ([vacancy.ts](file:///d:/Projects/ohmployee-web/src/lib/queries/vacancy.ts)) that directly queries active non-terminal applicants across non-closed/non-filled vacancies, with full scoping support (`accountId`, `groupId`, `urgency`, `vacantFrom`, `vacantTo`, `search`, `agingBucket`), matching the candidate-level row expansion in `listVacancies` and `fetchAllPipelineVacancies`. Tab badge and table roster are now in 100% parity (6 applicants = badge 6).
+  - **Quality Gates**: Verified clean via `npm run lint` (0 errors), `npm test` (211/211 passed), and `npm run build` (Next.js 16.2.4 exit code 0).
+
 - **Lock User Management as HRCO Single Source of Truth & Active Status Enforcement (`ohm#w3k8r9v1` — 2026-11-12)**:
   - **The Invariant**: User Management (`public.user_scopes` + `public.users_profile`) is the single authoritative source of truth for HR Coordinator assignments across Vacancy, Plantilla, HR Emploc, Dashboard, and Accounts.
   - **Archived Profile Protection**: Only active, non-archived user profiles (`is_active = TRUE AND archived_at IS NULL`) are recognized and projected as HRCOs. Inactive or soft-archived profiles are strictly suppressed and render as `Unassigned`.
