@@ -4,9 +4,10 @@
 
 **Status: COMPLETE ON MAIN; VALIDATED ARCHITECTURAL RULE THAT USER MANAGEMENT (`public.user_scopes` + `public.users_profile`) IS THE SINGLE SOURCE OF TRUTH FOR HR COORDINATOR (HRCO) ASSIGNMENTS ACROSS ALL MODULES (VACANCY, PLANTILLA, HR EMPLOC, DASHBOARD, ACCOUNTS); CONFIRMED LIVE ON STAGING (`qqiiznmqxfoamqytjica`) THAT INACTIVE/ARCHIVED USERS (`is_active = false` OR `archived_at IS NOT NULL`) ARE INTENTIONALLY AND STRICTLY EXCLUDED FROM PROJECTING AS HRCOS (WHICH EXPLAINED WHY WENG CORNEJO INITIALLY RENDERED AS `Unassigned` FOR PERFECT SM); CONFIRMED THAT UPON OHM ACTIVATING WENG CORNEJO IN USER MANAGEMENT VIA THE WEB UI, MIGRATION 102 (`public.set_user_active`) AUTOMATICALLY CLEARED `archived_at` AND TRIGGERED `public.fn_reevaluate_hrco_auto_tags`, INSTANTLY BINDING `accounts.hrco_user_id = 'c2f3d4e5-f6a7-8901-bcde-f12345678901'` AND PROJECTING `hrco_name: 'Cornejo, Weng'` ACROSS PERFECT SM VACANCIES (`VPSMG3_0008`) AND PLANTILLA ROSTER; NO ADDITIONAL RUNS OR SCRIPTS REQUIRED; RECORDED PERMANENT ARCHITECTURAL SPECIFICATION UNDER "ADR UPDATES NEEDED (OHM APPLIES IN MOBILE REPO)"; LOCAL COMMIT ON MAIN.**
 
-### 1. ADR Updates Needed (Ohm applies in mobile repo)
-- **Target File**: `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`
-- **Section to Add / Append**: `Section: User Management Authority for HRCO Assignments & Active Roster Contract`
+### 1. ADR Update Applied to Mobile Repo
+- **Target File**: `D:\Projects\OHMployee\.ai\architecture_locks\ADR-001-ohmployee-system-architecture.md`
+- **Commit in Mobile Repo**: `3729ccb` on `main` (`ohm#w3k8r9v1: Add Rule 7 (User Management HRCO Single Source of Truth) to ADR-001`)
+- **Section Added**: `### Rule 7 — User Management as HRCO Single Source of Truth` under `## Core Cross-Module Invariants`
 - **Rule Specification**:
   > **ADR-001 Lock: User Management HRCO Single Source of Truth & Active Status Enforcement**
   > 1. **Single Source of Truth**: User Management (`public.user_scopes` joined to `public.users_profile` with `roles.role_name = 'HRCO'`) is the exclusive authoritative source of truth for HR Coordinator assignments across all modules:
