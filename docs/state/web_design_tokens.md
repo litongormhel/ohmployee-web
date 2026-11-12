@@ -21,7 +21,7 @@ The token system is **live** in `src/app/globals.css`. Implementation notes:
 - **Theme Switcher & Light Default:**
   Theme mode defaults strictly to `Light` for new sessions. Users can toggle seamlessly between `Light`, `Dark`, and `System` via the Settings Preferences tab or the persistent toggle button in the Sidebar footer and mobile topbar without page flicker or layout shift.
 - **Typography Pairing:**
-  UI Sans-serif choices expanded with `Inter` (Antigravity default) and `Geist Sans`, paired with `JetBrains Mono` and `Roboto Mono` for technical monospace tokens (Employee IDs, Store Codes, Plantilla slot codes, timestamps, audit IDs) via `.tech-token` and `.mono-pill` containers.
+  UI Sans-serif choices expanded with `Inter` (Antigravity default) and `Geist Sans`, paired with `JetBrains Mono` and `Roboto Mono` for technical monospace tokens (Employee IDs, Store Codes, Plantilla slot codes, timestamps, audit IDs) via `.tech-token` and `.mono-pill` containers. Default UI font is `Inter` (`data-font="Inter"`). User font preference persists to `localStorage.ohm_font_preference` and synchronizes bidirectionally with `user_settings.font_family` in the database.
 
 Dense feature tables (Vacancy, HR Emploc) are now fully tokenized (OHM2026_1098). Table interior tokens are declared as runtime `:root` variables alongside the existing semantic surface/text/border set and remapped under `@media (prefers-color-scheme: dark)`. They are exposed via `@theme inline`:
 

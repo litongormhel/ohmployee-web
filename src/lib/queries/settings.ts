@@ -568,12 +568,34 @@ export async function updateUserSettings(
     payload.font_family = settings.fontFamily;
   }
 
-  const { error } = await supabase
+  // Check if row already exists for user: update existing row or insert new
+  const { data: existing } = await supabase
     .from("user_settings")
-    .upsert(payload, { onConflict: "user_id" });
+    .select("user_id")
+    .eq("user_id", prof.id)
+    .maybeSingle();
 
-  if (error) {
-    throw new Error(`Failed to save settings: ${error.message}`);
+  let saveError;
+  if (existing) {
+    const updateRes = await supabase
+      .from("user_settings")
+      .update(payload)
+      .eq("user_id", prof.id);
+    saveError = updateRes.error;
+  } else {
+    const insertRes = await supabase
+      .from("user_settings")
+      .insert(payload);
+    saveError = insertRes.error;
+  }
+
+  if (saveError) {
+    const upsertRes = await supabase
+      .from("user_settings")
+      .upsert(payload, { onConflict: "user_id" });
+    if (upsertRes.error) {
+      throw new Error(`Failed to save settings: ${saveError.message || upsertRes.error.message}`);
+    }
   }
 }
 

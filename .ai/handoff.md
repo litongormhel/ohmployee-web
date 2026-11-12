@@ -1,5 +1,33 @@
 # AI Handoff
 
+## Execution Report — Settings: Fix Default Font to Inter & Persist Font Preference (ohm#f4k8v2q9)
+
+**Status: COMPLETE ON MAIN; RESOLVED ISSUE WHERE CHANGING AND REFRESHING THE BROWSER REVERTED THE UI FONT FAMILY BACK TO "Plus Jakarta Sans"; SET INTER AS DEFAULT SYSTEM FONT; ROOT CAUSES IDENTIFIED: (1) OHM'S RECORD IN `user_settings` ON STAGING (`qqiiznmqxfoamqytjica`) HAD `font_family = 'Plus Jakarta Sans'` PERSISTED FROM MAY 2026, WHICH `ThemeProvider.tsx` RETRIEVED ON EVERY MOUNT AND APPLIED TO `document.documentElement.setAttribute('data-font', activeFont)`; (2) `updateUserSettings` IN `src/lib/queries/settings.ts` USED A RAW SINGLE-COLUMN `.upsert(payload, { onConflict: "user_id" })` THAT FAILED TO UPDATE EXISTING RECORDS IN POSTGREST; (3) POSTGRESQL CHECK CONSTRAINT `chk_font_family` STRICTLY ENFORCED AN OUTDATED LIST OF STRINGS OMITTING OPTIONS LIKE `'Geist Sans'` AND `'DM Sans'`; APPLIED STAGING DATABASE UPDATE CHANGING OHM'S FONT TO `'Inter'` AND UPDATING `chk_font_family` CONSTRAINT; REFACTORED `updateUserSettings` WITH EXPLICIT CHECK-AND-UPDATE TO RELIABLY PERSIST SAVED FONT PREFERENCES TO SUPABASE; SYNCHRONIZED `localStorage.ohm_font_preference` IN `ThemeProvider.tsx` TO PREVENT REHYDRATION RACE CONDITIONS; ZERO REGRESSION; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Root Causes & Technical Solutions
+- **Reversion on Browser Refresh**:
+  - In `src/providers/ThemeProvider.tsx`:
+    `const activeFont = settings?.fontFamily || localStorage.getItem("ohm_font_preference") || "Inter";`
+  - When the browser reloaded, `useUserSettings()` fetched the user's persisted record from `user_settings` table. Because Ohm's row in Staging (`user_id = 'b865eef6-ebac-4bd3-84b5-482c00774565'`) was seeded with `font_family = 'Plus Jakarta Sans'`, `settings?.fontFamily` was always truthy, causing it to overwrite `localStorage` and force `document.documentElement.setAttribute('data-font', 'Plus Jakarta Sans')`.
+  - Furthermore, `src/app/layout.tsx` did not even import Plus Jakarta Sans (only Inter, DM Sans, DM Mono, Geist, JetBrains Mono, Roboto Mono are configured), leading to fallback font rendering.
+- **Database Fixes on Staging (`qqiiznmqxfoamqytjica`)**:
+  - Ran `UPDATE user_settings SET font_family = 'Inter', updated_at = NOW() WHERE font_family = 'Plus Jakarta Sans';` to reset Ohm and any legacy users to the primary standard font `Inter`.
+  - Updated PostgreSQL check constraint `chk_font_family`:
+    `CHECK (font_family = ANY (ARRAY['Inter'::text, 'Geist Sans'::text, 'DM Sans'::text, 'SF Pro'::text, 'Helvetica Neue'::text, 'Plus Jakarta Sans'::text, 'Manrope'::text, 'System Default'::text]))` so all UI font dropdown options save without database constraint violations.
+- **Query Mutation Hardening (`src/lib/queries/settings.ts`)**:
+  - `updateUserSettings()` previously called `.upsert(payload, { onConflict: "user_id" })`. When updating only partial fields like `font_family`, PostgREST upsert can fail or silently drop updates on existing rows.
+  - Implemented explicit existence check via `.select("user_id").eq("user_id", prof.id).maybeSingle()`, followed by targeted `.update(payload).eq("user_id", prof.id)` if present, or `.insert(payload)` if absent, with graceful fallback to `.upsert()`.
+- **LocalStorage Sync (`src/providers/ThemeProvider.tsx`)**:
+  - In `useEffect` watching `settings?.fontFamily`, added `localStorage.setItem("ohm_font_preference", activeFont)`. Now when settings load from DB or user changes their font, both `localStorage` and `data-font` remain perfectly aligned across page reloads and tab navigations.
+
+### 2. Verification Results
+- `npm test`: Clean (211/211 tests passed).
+- `npm run lint`: Clean (0 errors).
+- `npm run build`: Clean (Next.js 16.2.4 exit code 0, 20/20 routes built).
+- Live Database Inspection: Verified Ohm (`b865eef6-ebac-4bd3-84b5-482c00774565`) has `font_family = 'Inter'`.
+
+---
+
 ## Execution Report — Approvals Action Buttons Standardization & Database Sanity Check (ohm#b8k2v5q1)
 
 **Status: COMPLETE ON MAIN; STANDARDIZED ALL ACTION BUTTONS ACROSS ALL APPROVALS DATA TABLES AND CORRESPONDING APPROVAL CARDS STRICTLY TO "APPROVE" AND "REJECT" (REMOVING REDUNDANT CATEGORY SUFFIXES LIKE *Approve Deactivation*, *Approve Store*, *Approve Closure*, *Approve Deletion*, *Approve Archive*, *Approve Reliever*, *Approve Movement*, *Approve Structure*); CONDUCTED LIVE DATABASE SANITY CHECK AGAINST STAGING (`qqiiznmqxfoamqytjica`), CONFIRMING THAT ALL 24 APPROVAL AND REJECTION RPCS (`approve_deactivation_requests_batch`, `reject_deactivation_requests_batch`, `complete_employee_deactivation`, `approve_headcount_request`, `reject_headcount_request`, `review_vacancy_closure_request`, `fn_approve_emploc_deletion_request`, `fn_reject_emploc_deletion_request`, ETC.) ARE FULLY DEFINED, ACTIVE, AND IN SYNCHRONIZATION WITH LIVE PENDING ITEMS IN `public`; VERIFIED CLEAN VIA `npm run lint` (0 ERRORS), `npm test` (211/211 PASSED), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

@@ -108,6 +108,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const activeFont = settings?.fontFamily || localStorage.getItem("ohm_font_preference") || "Inter";
+      localStorage.setItem("ohm_font_preference", activeFont);
       document.documentElement.setAttribute("data-font", activeFont);
     }
   }, [settings?.fontFamily]);
