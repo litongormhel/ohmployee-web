@@ -630,6 +630,8 @@
   --color-brand-primary: var(--brand-primary);
   --color-brand-button: var(--brand-button);
   --color-brand-button-hover: var(--brand-button-hover);
+  --color-accent-primary: var(--brand-button);
+  --color-accent-primary-hover: var(--brand-button-hover);
   --color-danger-button: var(--danger-button);
   --color-danger-button-hover: var(--danger-button-hover);
 

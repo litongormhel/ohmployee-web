@@ -1,5 +1,28 @@
 # AI Handoff
 
+## Execution Report — HR Emploc: Fix Invisible Button Token Styling (ohm#u9k4v2q1)
+
+**Status: COMPLETE ON MAIN; FIXED ISSUE WHERE `Upload Docs`, `+ Add Emploc`, AND `Approve` BUTTONS APPEARED INVISIBLE / WHITE-ON-WHITE ("hindi kita naka white sya") ON HR EMPLOC TABLE (`/hr-emploc`); ROOT CAUSE: BUTTON MARKUP REFERENCED `bg-accent-primary` WHICH WAS MISSING FROM TAILWIND `@theme inline` IN `src/app/globals.css`, GENERATING NO BACKGROUND COLOR WHILE `text-white` RENDERED PURE WHITE TEXT OVER WHITE SURFACE BACKGROUND; REGISTERED `--color-accent-primary: var(--brand-button);` AND `--color-accent-primary-hover: var(--brand-button-hover);` IN `src/app/globals.css` AND STANDARDIZED BUTTON CLASSES IN `HrEmplocTable.tsx`, `UploadDocsModal.tsx`, `AddEmplocModal.tsx`, AND `DocumentPreviewModal.tsx` TO `bg-brand-button hover:bg-brand-button-hover text-white shadow-2xs`; ZERO REGRESSION; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Requirements & Defect
+- **User Prompt**: "hindi kita naka white sya" (with attached screenshot showing `Luca, Grace Poe` row in Pending queue with a blank/white button area under `Actions`).
+- **Defect**: The button was technically rendered by React, but because `bg-accent-primary` was not defined in the CSS `@theme inline` block, the background was transparent/white. Paired with `text-white`, the text and icon were invisible white on white.
+
+### 2. Implementation Details
+- **`src/app/globals.css`**:
+  - Registered `--color-accent-primary: var(--brand-button);` and `--color-accent-primary-hover: var(--brand-button-hover);` within `@theme inline` so any past or present usage of `accent-primary` maps to the authoritative brand button token (`#2b4fd6` in light mode, `#FAFAFA` in dark mode).
+- **`src/components/hr-emploc/HrEmplocTable.tsx`**:
+  - Replaced `bg-accent-primary hover:bg-accent-primary/90 text-white` on `Upload Docs` (Pending), `+ Add Emploc` (For Emploc), `Upload Docs` (Correction), and `Approve` (Review) with canonical `bg-brand-button hover:bg-brand-button-hover text-white shadow-2xs`.
+- **Modals (`UploadDocsModal.tsx`, `AddEmplocModal.tsx`, `DocumentPreviewModal.tsx`)**:
+  - Standardized submit buttons to `bg-brand-button hover:bg-brand-button-hover text-white shadow-xs cursor-pointer`.
+
+### 3. Verification Results
+- `npm test`: 211/211 passed across all test suites.
+- `npm run lint`: Clean (0 errors).
+- `npm run build`: 20/20 routes compiled cleanly with Turbopack.
+
+---
+
 ## Execution Report — HR Emploc: Restore `can_upload_docs` & `for_emploc` Stage 2b RPCs (ohm#x7k4v9q2)
 
 **Status: COMPLETE ON MAIN; FIXED BLANK ACTIONS COLUMN IN HR EMPLOC PENDING TAB (`/hr-emploc`) WHERE CANDIDATES (E.G. LUCA, GRACE POE `VCTG2_0006`) HAD NO ACTION BUTTON; ROOT CAUSE: HISTORICAL MIGRATION `20262606000084` WAS RECORDED AS APPLIED ON STAGING BEFORE STAGE 2B EXTENSIONS WERE INTRODUCED, PREVENTING SUBSEQUENT DISK MODIFICATIONS FROM BEING APPLIED TO REMOTE STAGING; STAGING RAN THE OLDER MIGRATION 83 FUNCTIONS WHICH LACKED `can_upload_docs` IN `row_capabilities` AND OMITTED `for_emploc_count` IN `get_web_hr_emploc_summary`; CREATED MIGRATION 104 (`20262606000104_restore_hr_emploc_for_emploc_and_upload_docs_rpcs.sql`) RESTORING CANONICAL DEFINITIONS FOR `list_web_hr_emplocs`, `get_web_hr_emploc_summary`, AND `get_web_hr_emploc_detail`; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); TESTED LIVE AS `uat1@ohmployee.com`: `row_capabilities->>'can_upload_docs'` EVALUATES TO `true`, `can_submit_requirements` EVALUATES TO `true`, `get_web_hr_emploc_summary` RETURNS `for_emploc_count: 0`; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

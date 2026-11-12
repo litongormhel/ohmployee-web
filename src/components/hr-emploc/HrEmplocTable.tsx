@@ -537,7 +537,7 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onUploadDocs(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md bg-accent-primary hover:bg-accent-primary/90 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="inline-flex items-center gap-1 rounded-md bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Upload Requirements & Move to For Emploc"
                               >
                                 <Upload className="h-3.5 w-3.5" />
@@ -593,7 +593,7 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onAddEmploc(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md bg-accent-primary hover:bg-accent-primary/90 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="inline-flex items-center gap-1 rounded-md bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Assign Emploc Number & Deploy to Plantilla"
                               >
                                 <UserCheck className="h-3.5 w-3.5" />
@@ -629,7 +629,7 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onUploadDocs(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md bg-accent-primary hover:bg-accent-primary/90 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-md bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
                                 title="Upload correction documents and submit"
                               >
                                 <Upload className="h-3.5 w-3.5" />
@@ -649,7 +649,7 @@ export function HrEmplocTable({
                                   e.stopPropagation();
                                   onApproveReview(row);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md bg-accent-primary hover:bg-accent-primary/90 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-md bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
                                 title="Approve review and deploy candidate"
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />

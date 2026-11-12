@@ -482,7 +482,7 @@ export function UploadDocsModal({
             type="button"
             onClick={handleFinalSubmit}
             disabled={isSubmitting || isAnyProcessing || (existingDocs.length === 0 && queue.length === 0)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent-primary px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-accent-primary/90 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-brand-button-hover disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting || isAnyProcessing ? (
               <>

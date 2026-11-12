@@ -212,7 +212,7 @@ export function AddEmplocModal({
             <button
               type="submit"
               disabled={isSubmitting || !confirmState.reason.trim()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent-primary px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-accent-primary/90 disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-brand-button-hover disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? (
                 <>
@@ -309,7 +309,7 @@ export function AddEmplocModal({
             <button
               type="submit"
               disabled={isSubmitting || isValidating || !employeeNo.trim()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent-primary px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-accent-primary/90 disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-button px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-brand-button-hover disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting || isValidating ? (
                 <>

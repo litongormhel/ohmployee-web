@@ -495,3 +495,10 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - Restored `for_emploc_count bigint` in `public.get_web_hr_emploc_summary()` to power the 5-tab badge counters (`Pending`, `For Emploc`, `Correction`, `Review`, `Deployed`).
 - Restored `get_web_hr_emploc_detail` capabilities projection including `can_upload_docs`, `can_submit_requirements`, and multi-document attachment metadata (`stage`, `object_path`, `storage_path`).
 
+## Button Token Standardization (ohm#u9k4v2q1)
+- Fixed invisible/white-on-white action buttons (`Upload Docs`, `+ Add Emploc`, `Approve`) in `HrEmplocTable.tsx`.
+- Root cause: components used `bg-accent-primary` which was missing from Tailwind `@theme inline` in `src/app/globals.css`, generating transparent/white background with `text-white`.
+- Registered `--color-accent-primary: var(--brand-button);` and `--color-accent-primary-hover: var(--brand-button-hover);` in `src/app/globals.css` `@theme inline`.
+- Standardized action buttons in `HrEmplocTable.tsx`, `UploadDocsModal.tsx`, `AddEmplocModal.tsx`, and `DocumentPreviewModal.tsx` to `bg-brand-button hover:bg-brand-button-hover text-white shadow-2xs`.
+
+
