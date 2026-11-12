@@ -33,6 +33,31 @@ const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, "..");
 const MIGRATIONS_DIR = path.join(ROOT, "supabase", "migrations");
 
+/**
+ * Collects `.sql` migration entries across the local repository and any
+ * sibling OHMployee repository (`../ohmployee` or `../ohmployee-web`),
+ * deduplicated by filename (local repo takes precedence on exact filename match)
+ * and sorted lexicographically.
+ */
+function collectMigrationEntries() {
+  const candidateDirs = [
+    path.resolve(ROOT, "..", "ohmployee", "supabase", "migrations"),
+    path.resolve(ROOT, "..", "ohmployee-web", "supabase", "migrations"),
+    MIGRATIONS_DIR,
+  ];
+  const byName = new Map();
+  for (const dir of candidateDirs) {
+    if (!fs.existsSync(dir)) continue;
+    for (const file of fs.readdirSync(dir)) {
+      if (!file.endsWith(".sql")) continue;
+      byName.set(file, { file, fullPath: path.join(dir, file) });
+    }
+  }
+  return Array.from(byName.values()).sort((a, b) =>
+    a.file.localeCompare(b.file)
+  );
+}
+
 function stripSqlComments(sql) {
   return sql.replace(
     /'(?:''|[^'])*'|--[^\r\n]*|\/\*[\s\S]*?\*\//g,
@@ -46,7 +71,7 @@ function stripSqlComments(sql) {
 /**
  * Step 1: Build the live column catalog for all `public.*` tables from migrations.
  */
-function buildTableSchemaCatalog(migrationFiles) {
+function buildTableSchemaCatalog(migrationEntries) {
   const tables = new Map();
 
   const ensureTable = (tbl) => {
@@ -67,8 +92,8 @@ function buildTableSchemaCatalog(migrationFiles) {
     "like",
   ]);
 
-  for (const file of migrationFiles) {
-    const raw = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf-8");
+  for (const { fullPath } of migrationEntries) {
+    const raw = fs.readFileSync(fullPath, "utf-8");
     const clean = stripSqlComments(raw);
 
     // 1A. Match CREATE TABLE [IF NOT EXISTS] [public.]table_name ( ... )
@@ -163,14 +188,14 @@ function buildTableSchemaCatalog(migrationFiles) {
 /**
  * Step 2: Extract the latest definition of every `public.<function_name>` across migrations.
  */
-function extractLatestFunctions(migrationFiles) {
+function extractLatestFunctions(migrationEntries) {
   const latestFunctions = new Map();
 
   const funcRegex =
     /create\s+(?:or\s+replace\s+)?function\s+(?:"?public"?\.)?"?([a-zA-Z0-9_]+)"?\s*\(([\s\S]*?)\)\s*returns\s+[\s\S]*?as\s+(\$[a-zA-Z0-9_]*\$)([\s\S]*?)\3/gi;
 
-  for (const file of migrationFiles) {
-    const raw = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf-8");
+  for (const { file, fullPath } of migrationEntries) {
+    const raw = fs.readFileSync(fullPath, "utf-8");
     let match;
     while ((match = funcRegex.exec(raw)) !== null) {
       const funcName = match[1].toLowerCase();
@@ -553,12 +578,9 @@ function main() {
     process.exit(1);
   }
 
-  const migrationFiles = fs
-    .readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
+  const migrationEntries = collectMigrationEntries();
 
-  const allTables = buildTableSchemaCatalog(migrationFiles);
+  const allTables = buildTableSchemaCatalog(migrationEntries);
   const enforcedTables = new Map();
   for (const tbl of ENFORCED_DML_TABLES) {
     if (allTables.has(tbl)) {
@@ -566,7 +588,7 @@ function main() {
     }
   }
 
-  const latestFunctions = extractLatestFunctions(migrationFiles);
+  const latestFunctions = extractLatestFunctions(migrationEntries);
   const violations = [];
 
   // 1. Check DML columns in the latest definition of all functions touched in active migrations (20262606000050+)
@@ -621,7 +643,7 @@ function main() {
   }
 
   console.log(
-    `[sql-guard] SQL_CONTRACTS_OK — verified ${enforcedTables.size} core tables & ${RPC_INVARIANT_CONTRACTS.length} cross-module RPC contracts across ${migrationFiles.length} migrations.`
+    `[sql-guard] SQL_CONTRACTS_OK — verified ${enforcedTables.size} core tables & ${RPC_INVARIANT_CONTRACTS.length} cross-module RPC contracts across ${migrationEntries.length} migrations.`
   );
 }
 

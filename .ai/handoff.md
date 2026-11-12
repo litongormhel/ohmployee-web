@@ -1,5 +1,23 @@
 # AI Handoff
 
+## Execution Report — Unify Auto Context Loading, Workflow Safety Gates, and Cross-Repo SQL Contract Guard Across Mobile & Web (ohm#m9x4k2v1)
+
+**Status: COMPLETE ON MAIN IN BOTH MOBILE (`D:\Projects\ohmployee`) AND WEB (`D:\Projects\ohmployee-web`); UNIFIED AUTO CONTEXT LOADING (`briefing.md` -> `current_state.md` ROUTING INDEX -> MODULE STATE FILE -> `ADR-001` / `ADR-002`), STRUCTURED ROUTING INDEX TABLE, AND SAFETY GATES ACROSS MOBILE `AGENTS.md`, `AI.md`, `.ai/briefing.md`, AND `.ai/current_state.md`; UPGRADED `scripts/check-sql-contracts.mjs` IN BOTH REPOSITORIES TO MERGE AND VALIDATE ALL 630 COMBINED MIGRATIONS ACROSS MOBILE & WEB (28 CORE TABLES & 19 CROSS-MODULE RPCS) AND WIRED INTO `scripts/ai-finish.ps1` / `scripts/ai-finish.sh` STATE 3 IN MOBILE; ALL VERIFICATION GATES PASSED CLEAN (`npm run check:sql` 630 MIGRATIONS OK, `npm test` 211/211 PASSED, `npm run lint` 0 ERRORS); LOCAL COMMITS ON MAIN IN BOTH REPOS.**
+
+- **Request**: Ohm requested applying the same ecosystem-wide SQL anti-regression contract guard (`check-sql-contracts.mjs`) and unified Auto Context Loading (`briefing.md` $\to$ `current_state.md` $\to$ `ADR-001`/`ADR-002`) to the Mobile repo (`D:\Projects\ohmployee`) so both repositories follow a single unified standard.
+- **Actions & Results**:
+  1. **Cross-Repo Migration Catalog in `scripts/check-sql-contracts.mjs` (Web & Mobile)**:
+     - Added `collectMigrationEntries()` to merge `.sql` files from both `D:\Projects\ohmployee\supabase\migrations` and `D:\Projects\ohmployee-web\supabase\migrations` (630 unique migrations total), validating physical columns on 28 core tables and 19 cross-module RPC contracts regardless of which repo runs `npm run check:sql`.
+  2. **Unified Mobile Repo Workflow & Context Router (`D:\Projects\ohmployee`)**:
+     - Updated `AGENTS.md`, `AI.md`, `.ai/briefing.md`, and `.ai/current_state.md` with Auto Context Loading (`Context loaded: <files + ADR sections>`), the 13-domain Module Routing Table, SQL Function Surgical-Diff & Contract Gate, Uncertainty/ADR Conflict/Visibility Regression Gates, and Task Decomposition Gate.
+     - Chained `node scripts/check-sql-contracts.mjs` into `scripts/ai-finish.ps1` and `scripts/ai-finish.sh` STATE 3 and added `"check:sql"` to `package.json`.
+- **Verification**:
+  - `node d:\Projects\ohmployee\scripts\check-sql-contracts.mjs` → `SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 630 migrations`.
+  - `npm test` & `npm run lint` (Web) → 211/211 passed, 0 lint errors.
+- **ADR updates needed**: None.
+
+---
+
 ## Execution Report — Ecosystem-Wide SQL Schema & RPC Anti-Regression Gate + Canonical Migration 105 Slot/Link Restoration (ohm#g9s4k2v8)
 
 **Status: COMPLETE ON MAIN; BUILT ECOSYSTEM-WIDE AUTOMATED SQL SCHEMA & RPC CONTRACT GUARD `scripts/check-sql-contracts.mjs` AND WIRED INTO `npm test`, `npm run lint`, AND `npm run check:sql`; RESTORED FULL CANONICAL MIGRATION `086` BODY (`plantilla_slots` PROVISIONING/CLAIMING, `plantilla_store_links` SYNC, `vacancies` SHADOW SYNC, `slot_history`, AND `import_row_id` SNAPSHOTS) + ADR-002 RULE #17 LAST-ROW-WINS COALESCING INTO `supabase/migrations/20262606000105_fix_approve_plantilla_import_batch_store_columns.sql`; ADDED MANDATORY SQL FUNCTION SURGICAL-DIFF & CONTRACT GATE TO `AGENTS.md` AND `.ai/briefing.md`; ALL VERIFICATION GATES PASSED CLEAN (`npm run check:sql` 28 CORE TABLES & 19 CROSS-MODULE RPCS OK, `npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
