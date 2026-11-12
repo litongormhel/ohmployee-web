@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — HR Emploc: Fix Document Count Normalization & Ops Role Restriction (ohm#d8v3m5k1)
+
+**Status: COMPLETE ON MAIN; RESOLVED ISSUE WHERE CANDIDATE `LUCA, GRACE POE` IN THE `FOR EMPLOC` QUEUE DISPLAYED `0 DOCS` DESPITE HAVING 3 VALID UPLOADED COMPLIANCE DOCUMENTS; ROOT CAUSE: `normalizeListRow` AND `normalizeDetailRow` IN `src/lib/queries/hr_emploc_normalizers.ts` READ `row.attachments` AND `row.doc_count` FROM ROOT LEVEL ONLY, FAILING TO INSPECT `caps.attachments` AND `caps.doc_count` PROJECTED WITHIN `row_capabilities`; UPDATED NORMALIZERS TO FALL BACK TO `caps.attachments` AND `caps.doc_count`; TABLE NOW RENDERS `[Eye] View (3)` OPENING `DocumentPreviewModal`; RE-ASSERTED STRICT OPS ROLE RESTRICTIONS: OPS COORDINATORS (OM, TL, ATL, HRCO) REMAIN STRICTLY RESTRICTED FROM ADDING EMPLOC IDS OR TAGGING DEFICIENCIES IN `FOR EMPLOC` PER ADR-001 § 5; ACTIONS REMAIN EXCLUSIVELY RESERVED FOR SUPER ADMIN, HR PERSONNEL, HEAD ADMIN, AND ENCODER; ZERO REGRESSION; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Requirements & Defect
+- **User Prompt**: "uploaded but 0 docs nakalagay. And ung action dapat may naka add na 'Add Emploc' 'For Correction' meron na nito before hanapin mo nalang" followed by user clarification: "good catch. Ops cannot add Emploc and Tag for Deficiency. Ung docs lang ang i fix".
+- **Defect**:
+  - The record in `For Emploc` had 3 uploaded documents in `hr_emploc_correction_attachments` (returned in `row_capabilities.attachments` and `row_capabilities.doc_count = 3` from `list_web_hr_emplocs`), but the table displayed `0 docs`.
+  - In `HrEmplocTable.tsx`, `row.docCount` was 0 because `normalizeListRow` only checked `row.attachments` / `row.doc_count` at root level.
+- **Clarification on Actions**:
+  - Confirmed and verified that Ops coordinators (HRCO, OM, TL, ATL) should **NOT** have `+ Add Emploc` and `! For Correction` actions in `For Emploc`. Those actions are intentionally and strictly reserved for Super Admin, HR Personnel, Head Admin, and Encoder per ADR-001 § 5. Re-asserted DB functions `can_assign_pending_hr_emploc()` and `can_tag_or_review_hr_emploc()` to maintain this strict boundary.
+
+### 2. Implementation Details
+- **`src/lib/queries/hr_emploc_normalizers.ts`**:
+  - In `normalizeListRow`:
+    - `rawAttachments`: reads `row.attachments` with fallback to `caps.attachments`.
+    - `docCount`: reads `row.doc_count` with fallback to `caps.doc_count ?? attachments.length`.
+  - In `normalizeDetailRow`:
+    - Extracted `caps` before reading attachments.
+    - `rawAttachments`: checks `row.attachments`, `row.correction_attachments`, and `caps.attachments`.
+    - `docCount`: checks `row.doc_count`, `caps.doc_count`, and `attachments.length`.
+- **`src/components/hr-emploc/HrEmplocTable.tsx`**:
+  - Aligned document `View (X)` button styling to `--color-brand-primary` / `--color-border-default` with solid hover transitions.
+
+### 3. Verification Results
+- `npm test`: 211/211 passed across all test suites.
+- `npm run lint`: Clean (0 errors).
+- `npm run build`: 20/20 routes compiled cleanly with Turbopack.
+
+---
+
 ## Execution Report — HR Emploc: Fix RPC Parameter Alignment for Document Upload & Requirements Intake (ohm#m2k7v5q8)
 
 **Status: COMPLETE ON MAIN; RESOLVED POSTGREST SCHEMA CACHE ERROR `"Could not find the function public.authorize_hr_emploc_doc_upload(p_file_name, p_file_size, p_hr_emploc_id, p_mime_type) in the schema cache"` WHEN UPLOADING COMPLIANCE REQUIREMENTS IN `UploadDocsModal`; ROOT CAUSE: CLIENT CALLERS IN `src/lib/queries/hr_emploc.ts` USED ARGUMENT NAMES MISMATCHED AGAINST THE POSTGRESQL SIGNATURES ON STAGING (`qqiiznmqxfoamqytjica`): (a) `authorizeHrEmplocDocUpload` PASSED `p_file_size` INSTEAD OF `p_size_bytes` AND CHECKED `res.authorized === true` (WHICH WAS OMITTED FROM DB JSON PAYLOAD); (b) `registerHrEmplocDocument` PASSED `p_file_name` AND `p_file_size` INSTEAD OF `p_original_filename` AND `p_size_bytes`; (c) `submitHrEmplocRequirements` PASSED `p_notes` INSTEAD OF `p_remarks`; ALIGNED ALL THREE FUNCTION WRAPPERS IN `src/lib/queries/hr_emploc.ts` TO MATCH THE EXACT POSTGRESQL ARGUMENT SIGNATURES; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

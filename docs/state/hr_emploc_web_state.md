@@ -509,5 +509,12 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
   - `submit_hr_emploc_requirements`: sent `p_notes` instead of `p_remarks`.
 - Corrected all three function client callers in `src/lib/queries/hr_emploc.ts`. Verified live in Staging (`qqiiznmqxfoamqytjica`) with zero regressions.
 
+## Document Count Normalization & Ops Role Restriction (ohm#d8v3m5k1)
+- Fixed issue where records in `For Emploc` queue displayed `0 docs` despite having 3 uploaded requirement documents.
+- Root cause: `normalizeListRow` and `normalizeDetailRow` in `src/lib/queries/hr_emploc_normalizers.ts` read `row.attachments` and `row.doc_count` strictly from root level, ignoring `caps.attachments` and `caps.doc_count` where `list_web_hr_emplocs` projects them.
+- Updated `normalizeListRow` and `normalizeDetailRow` to fall back to `caps.attachments` and `caps.doc_count`. Table now renders `[Eye] View (3)` opening `DocumentPreviewModal`.
+- Re-confirmed Ops action restriction: Ops coordinators (OM, TL, ATL, HRCO) are strictly restricted from adding Emploc IDs or tagging deficiency in `For Emploc` queue; these actions remain strictly reserved for Super Admin, HR Personnel, Head Admin, and Encoder per ADR-001 § 5.
+
+
 
 

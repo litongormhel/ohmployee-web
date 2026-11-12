@@ -306,9 +306,9 @@ export function HrEmplocTable({
                                 e.stopPropagation();
                                 onViewDocs?.(row);
                               }}
-                              className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-1 text-2xs font-medium text-text-primary hover:bg-surface-hover hover:border-accent-primary cursor-pointer transition"
+                              className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-1 text-2xs font-medium text-text-primary hover:bg-surface-hover hover:border-brand-primary cursor-pointer transition"
                             >
-                              <Eye className="h-3 w-3 text-accent-primary" />
+                              <Eye className="h-3 w-3 text-brand-primary" />
                               <span>{row.docCount > 1 ? `View (${row.docCount})` : "View"}</span>
                             </button>
                           ) : (
@@ -375,9 +375,9 @@ export function HrEmplocTable({
                                 e.stopPropagation();
                                 onViewDocs?.(row);
                               }}
-                              className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-1 text-2xs font-medium text-text-primary hover:bg-surface-hover hover:border-accent-primary cursor-pointer transition"
+                              className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-1 text-2xs font-medium text-text-primary hover:bg-surface-hover hover:border-brand-primary cursor-pointer transition"
                             >
-                              <Eye className="h-3 w-3 text-accent-primary" />
+                              <Eye className="h-3 w-3 text-brand-primary" />
                               <span>{row.docCount > 1 ? `View (${row.docCount})` : "View"}</span>
                             </button>
                           ) : (
@@ -465,9 +465,9 @@ export function HrEmplocTable({
                                 e.stopPropagation();
                                 onViewDocs?.(row);
                               }}
-                              className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-1 text-2xs font-medium text-text-primary hover:bg-surface-hover hover:border-accent-primary cursor-pointer transition"
+                              className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-1 text-2xs font-medium text-text-primary hover:bg-surface-hover hover:border-brand-primary cursor-pointer transition"
                             >
-                              <Eye className="h-3 w-3 text-accent-primary" />
+                              <Eye className="h-3 w-3 text-brand-primary" />
                               <span>{row.docCount > 1 ? `View (${row.docCount})` : "View"}</span>
                             </button>
                           ) : (
