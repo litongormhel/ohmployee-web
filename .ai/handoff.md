@@ -1,5 +1,52 @@
 # AI Handoff
 
+## Execution Report — HR Emploc: Restore `can_upload_docs` & `for_emploc` Stage 2b RPCs (ohm#x7k4v9q2)
+
+**Status: COMPLETE ON MAIN; FIXED BLANK ACTIONS COLUMN IN HR EMPLOC PENDING TAB (`/hr-emploc`) WHERE CANDIDATES (E.G. LUCA, GRACE POE `VCTG2_0006`) HAD NO ACTION BUTTON; ROOT CAUSE: HISTORICAL MIGRATION `20262606000084` WAS RECORDED AS APPLIED ON STAGING BEFORE STAGE 2B EXTENSIONS WERE INTRODUCED, PREVENTING SUBSEQUENT DISK MODIFICATIONS FROM BEING APPLIED TO REMOTE STAGING; STAGING RAN THE OLDER MIGRATION 83 FUNCTIONS WHICH LACKED `can_upload_docs` IN `row_capabilities` AND OMITTED `for_emploc_count` IN `get_web_hr_emploc_summary`; CREATED MIGRATION 104 (`20262606000104_restore_hr_emploc_for_emploc_and_upload_docs_rpcs.sql`) RESTORING CANONICAL DEFINITIONS FOR `list_web_hr_emplocs`, `get_web_hr_emploc_summary`, AND `get_web_hr_emploc_detail`; APPLIED TO STAGING (`qqiiznmqxfoamqytjica`); TESTED LIVE AS `uat1@ohmployee.com`: `row_capabilities->>'can_upload_docs'` EVALUATES TO `true`, `can_submit_requirements` EVALUATES TO `true`, `get_web_hr_emploc_summary` RETURNS `for_emploc_count: 0`; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Requirements & Defect
+- **User Prompt**: "fix this. Ops can upload docs dapat then mapupunta sya sa For Emploc kapag nakapag upload na. Nagawa na ito before eh. Check ADR din. Audit muna tayo." (with screenshot showing HR Emploc `/hr-emploc`, Pending tab with `Luca, Grace Poe` under account `THREE`, and an entirely empty `Actions` column).
+- **ADR & Architecture Basis**: `docs/proposals/adr-001-workflow-update.md § 5` (Stage 2b Workflow Extension: 5 tabs `Pending` -> `For Emploc` -> `Correction` -> `Review` -> `Deployed`) and `docs/state/hr_emploc_web_state.md § 2 & § 4.1`.
+- **Root Cause**:
+  In `HrEmplocTable.tsx` (lines 530-546), the `Upload Docs` button renders if and only if `caps.can_upload_docs && onUploadDocs`. On Staging (`qqiiznmqxfoamqytjica`), `public.list_web_hr_emplocs` was running the outdated version from migration 83 which completely lacked `can_upload_docs` in `row_capabilities` and lacked `p_queue = 'for_emploc'` filtering. Similarly, `public.get_web_hr_emploc_summary` lacked `for_emploc_count bigint`. When commit `9ce4422` previously updated migration `84` on local disk, Staging had already registered `20262606000084` in `schema_migrations`, so Supabase never re-applied the updated RPC definitions.
+
+### 2. Implementation Details
+- **Migration 104 (`supabase/migrations/20262606000104_restore_hr_emploc_for_emploc_and_upload_docs_rpcs.sql`)**:
+  - Restored canonical `public.list_web_hr_emplocs(p_queue text, p_account text, p_group text, p_search text)`:
+    - Supports `p_queue = 'for_emploc'` (`h.status = 'Pending Emploc' AND h.hr_status = 'For Emploc'`).
+    - Projects `can_upload_docs: public.can_upload_hr_emploc_docs(h.id)` in `row_capabilities`.
+    - Correctly sets `can_submit_requirements: (h.status = 'Pending Emploc' AND h.hr_status = 'Pending' AND public.can_upload_hr_emploc_docs(h.id))`.
+    - Accurately joins multi-document attachments with `stage`, `object_path`, and `storage_path`.
+  - Restored canonical `public.get_web_hr_emploc_summary()`:
+    - Returns `TABLE (pending_count bigint, for_emploc_count bigint, correction_count bigint, review_count bigint, ready_count bigint, sla_breached_count bigint, sla_warning_count bigint, with_deficiency_count bigint, pending_deletion_count bigint)`.
+  - Restored canonical `public.get_web_hr_emploc_detail(p_hr_emploc_id uuid)`:
+    - Returns full capabilities payload including `can_upload_docs` and `can_submit_requirements`.
+  - Granted `EXECUTE` on all three functions to `authenticated`, `service_role`, and `postgres`.
+  - Applied cleanly to remote Staging (`qqiiznmqxfoamqytjica`) via `npx supabase db push --remote --yes`.
+
+### 3. Verification Results
+- **Live Database Simulation via `execute_sql` on Staging (`qqiiznmqxfoamqytjica`)**:
+  - Set context as `uat1@ohmployee.com` (`684cfb9d-0dbc-4826-9744-2ea6161c5c70`):
+    - `list_web_hr_emplocs(p_queue => 'pending')` for candidate Grace Poe Luca (`e7142b83-7f0f-4237-b11b-e630f3cc6d08`):
+      - `row_capabilities->>'can_upload_docs'` = `true`.
+      - `row_capabilities->>'can_submit_requirements'` = `true`.
+      - `row_capabilities->>'can_view_docs'` = `true`.
+    - `get_web_hr_emploc_summary()` returns:
+      - `pending_count: 1`
+      - `for_emploc_count: 0`
+      - `correction_count: 0`
+      - `review_count: 0`
+      - `ready_count: 1`
+    - `get_web_hr_emploc_detail('e7142b83-7f0f-4237-b11b-e630f3cc6d08')` returns:
+      - `capabilities.can_upload_docs: true`
+      - `capabilities.can_submit_requirements: true`
+- **Automated Test & Build Suite**:
+  - `npm test`: 211/211 passed across all test suites (including `hr_emploc_normalizers.test.mjs` contract tests).
+  - `npm run lint`: Clean (0 errors).
+  - `npm run build`: Compiled successfully in 22.0s, TypeScript passed in 37.9s, static optimization (20/20 routes) generated with zero warnings or errors.
+
+---
+
 ## Execution Report — RBAC: Fix `get_my_allowed_accounts` to Union Group and Account Scopes (ohm#s4k9v2q8)
 
 **Status: COMPLETE ON MAIN; RESOLVED ISSUE WHERE `uat1@ohmployee.com` (HRCO) WAS BLOCKED WITH "Vacancy with VCode VCTG2_0006 not found." WHEN ENDORSING APPLICANTS TO STORE ASENSO PINOY HEAD OFFICE (ACCOUNT `THREE`, GROUP 2); ROOT CAUSE: `public.get_my_allowed_accounts()` USED A MUTUALLY EXCLUSIVE `IF v_account_count > 0` BRANCH THAT RETURNED ONLY EXPLICIT `user_scopes.account_id` ROWS AND DROPPED GROUP-ASSIGNED ACCOUNTS (`user_scopes.group_id`), CAUSING DIRECT POSTGREST RLS ON `public.vacancies` (`vacancies_read_scoped`) AND `public.applicants` (`applicants_insert_ops_only`) TO OMIT ACCOUNT `THREE` AND HIDE THE REQUISITION; CREATED DATABASE MIGRATION 103 (`20262606000103_fix_get_my_allowed_accounts_union_group_scopes.sql`) REPLACING THE CONDITIONAL BRANCH WITH AN ADDITIVE `UNION` ACROSS EXPLICIT ACCOUNT SCOPES, GROUP-DERIVED ACCOUNTS, USER PROFILE FALLBACKS, AND TEMPORARY OVERRIDES (`tpo`); APPLIED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 100% LIVE `pg_get_functiondef` PARITY; VERIFIED LIVE UNDER `uat1@ohmployee.com` SESSION: `THREE = ANY(get_my_allowed_accounts())` RETURNS `TRUE`, AND DIRECT SELECT ON `public.vacancies` FOR `VCTG2_0006` SUCCEEDS AND RETURNS THE RECORD; ZERO REGRESSION; LOCAL COMMIT ON MAIN.**

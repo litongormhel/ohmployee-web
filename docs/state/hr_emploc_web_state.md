@@ -487,3 +487,11 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - Fixed PostgreSQL error `42703 (undefined_column)` in `list_web_hr_emplocs`: migration `20262606000081` contained broken column reference `COALESCE(h.position_snapshot, h.position) AS position_title` (table `hr_emploc` lacks `position_snapshot`).
 - Re-asserted `list_web_hr_emplocs` projecting `h.position AS position_title` in migration `20262606000082_fix_list_web_hr_emplocs_position_column.sql`, reloaded PostgREST schema cache (`NOTIFY pgrst, 'reload schema';`), and patched line 1957 of `20262606000081` for future clean Production promotion.
 - Confirmed live HTTP 200 row listings across all 4 queue tabs (`pending`, `correction`, `review`, `deployed`) matching tab badge counters on Staging (`qqiiznmqxfoamqytjica`).
+
+## RPC Restoration — Migration 20262606000104 (ohm#x7k4v9q2)
+- Restored canonical Stage 2b RPC definitions on Staging (`qqiiznmqxfoamqytjica`) via `20262606000104_restore_hr_emploc_for_emploc_and_upload_docs_rpcs.sql`.
+- Resolved blank Actions column on the Pending queue tab where `can_upload_docs` was not being projected by `list_web_hr_emplocs`.
+- Ensured `public.list_web_hr_emplocs` projects `row_capabilities.can_upload_docs` evaluated via `public.can_upload_hr_emploc_docs(h.id)` and correctly filters `p_queue = 'for_emploc'`.
+- Restored `for_emploc_count bigint` in `public.get_web_hr_emploc_summary()` to power the 5-tab badge counters (`Pending`, `For Emploc`, `Correction`, `Review`, `Deployed`).
+- Restored `get_web_hr_emploc_detail` capabilities projection including `can_upload_docs`, `can_submit_requirements`, and multi-document attachment metadata (`stage`, `object_path`, `storage_path`).
+
