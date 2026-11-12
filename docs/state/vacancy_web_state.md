@@ -8,6 +8,15 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **ADR-001 Rule 4 Open Capacity Alignment in `list_web_vacancies` (`ohm#v5k8r4a1` — 2026-11-12)**:
+  - **ADR-001 Basis**: Enforced ADR-001 Rule 4 classification priority (`(hc_needed - hired_count - pipeline_count - hr_processing_count) > 0`).
+  - **The Defect**: Migration `20262606000099` previously checked `s.hc_filled < s.hc_total OR lower(s.pipeline_status) = 'open'`. Because `s.hc_filled` only counts active Plantilla members, single-headcount requisitions with candidates sitting in `public.hr_emploc` (`hr_processing_count = 1`, `pipeline_status = 'Hired'`) had `hc_filled = 0`, causing `0 < 1` to evaluate to true. This bled 5 Hired vacancies (including `TEST005` Super 5) and 5 Pipeline vacancies into the Open tab (returning 41 rows against badge `Open 31`).
+  - **Database Migration 101 (`20262606000101_align_list_web_vacancies_adr001_rule4_open_capacity.sql`)**:
+    - Replaced the condition with `((s.hc_total - s.hc_filled - s.hr_processing_count - s.active_applicant_count) > 0 OR lower(s.pipeline_status) = 'open') AND lower(s.pipeline_status) NOT IN ('hired', 'pipeline')`.
+    - Projected `vl.hr_processing_count` in `scoped` CTE and exposed `'hr_processing_count'` in `row_capabilities`.
+    - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`); confirmed live `pg_get_functiondef` parity.
+    - Verified live query probe: Open tab table rows dropped from 41 to exactly 31 (100% parity with badge `Open (31)`), `TEST005` in Open dropped to 0, `TEST005` in Hired evaluates to 1, and Pipeline tab matches badge at 5.
+
 - **Resolution of `TEST005` Vacancy Reappearance & Justin Bieber Applicant Restoration (`ohm#t5b8j2s1` — 2026-11-12)**:
   - **Root Cause Identified**: Discovered that migration `20262606000091` Section 3.B executed an automated backfill query on 2026-11-05 UTC intended to archive previous separated workers' applicants, but its `WHERE` filter (`v.status = 'Open' AND v.vacancy_type = 'Backfill' AND p.status = 'Inactive'`) matched active onboarding candidate `BIEBER, JUSTIN SANTOS` (`f3ed88ff-7715-4a07-b4d9-6fe3ea266595`) under `TEST005`, setting `is_archived = true`.
   - **Surgical Database Restoration on Staging (`qqiiznmqxfoamqytjica`)**: Restored `public.applicants` record `f3ed88ff-7715-4a07-b4d9-6fe3ea266595` (`is_archived = false, archived_at = NULL`).

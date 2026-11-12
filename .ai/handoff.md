@@ -1,5 +1,56 @@
 # AI Handoff
 
+## Execution Report — Align list_web_vacancies with ADR-001 Rule 4 Open Capacity (ohm#v5k8r4a1)
+
+**Status: COMPLETE ON MAIN; RESOLVED CRITICAL UI/DATA DISCREPANCY WHERE `TEST005` (SUPER 5) AND 4 OTHER HIRED VACANCIES + 5 PIPELINE VACANCIES WERE RETURNED IN THE OPEN TAB (TABLE RETURNED 41 ROWS AGAINST BADGE `Open (31)`); ROOT CAUSE IDENTIFIED IN DIRECT REFERENCE TO ADR-001 RULE 4: PREVIOUS MIGRATION `20262606000099` HAD REPLACED THE CAPACITY GUARD WITH `s.hc_filled < s.hc_total OR lower(s.pipeline_status) = 'open'`; BECAUSE `hc_filled` DERIVES STRICTLY FROM ACTIVE EMPLOYEES IN `public.plantilla` (PER ADR-001 RULE 2), CANDIDATES UNDERGOING HR COMPLIANCE IN `public.hr_emploc` HAVE `hc_filled = 0`, MAKING `hc_filled < hc_total` (`0 < 1`) ALWAYS TRUE AND PERMITTING HIRED AND PIPELINE VACANCIES TO BLEED INTO THE OPEN TAB WITH ACTIVE `+ Applicant` BUTTONS; SHIPPED MIGRATION `20262606000101_align_list_web_vacancies_adr001_rule4_open_capacity.sql` TO STAGING (`qqiiznmqxfoamqytjica`), ENFORCING ADR-001 RULE 4 CLASSIFICATION PRIORITY (`(s.hc_total - s.hc_filled - s.hr_processing_count - s.active_applicant_count) > 0`) AND EXPLICITLY REJECTING `'hired'` AND `'pipeline'` STATUSES FROM THE OPEN QUEUE; POST-MIGRATION LIVE DIFF CONFIRMED 100% PARITY; VERIFIED LIVE ON STAGING: OPEN TAB ROWS DROPPED FROM 41 TO EXACTLY 31 (100% MATCH WITH BADGE `Open 31`), `TEST005` IN OPEN IS EXACTLY 0, `TEST005` IN HIRED IS 1, AND PIPELINE ROWS REMAIN AT 5; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS 0 WARNINGS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Root Cause & Architectural ADR-001 Basis
+- **ADR-001 Basis**: `ADR-001: OHMployee System Architecture` (located at `D:\Projects\OHMployee\.ai\architecture_locks\ADR-001-ohmployee-system-architecture.md` / `/Users/armanjr/Projects/OHMployee/OHMployee/.ai/architecture_locks/adr_001_coverage_architecture_v2.md`):
+  - **Rule 2 (Hired HC Source)**: `hired_count` derives strictly from `plantilla.status = 'Active'` per VCode. A confirmed-onboard candidate not yet in Plantilla sits in `hr_processing`, not `plantilla.status = 'Active'`, so `hc_filled` is 0.
+  - **Rule 4 (Classification Priority)**:
+    > "Open tab: visible iff `(hc_needed - hired_count - pipeline_count - hr_processing_count) > 0`, shown with that value. Pipeline tab: visible iff `pipeline_count > 0`, independent of Open. A vacancy may appear in Open, Pipeline, both, or neither."
+    > "added `hr_processing_count` as a third subtraction term. Rationale: a Confirmed-Onboard/HIRED applicant sitting in `plantilla_slots.slot_status = 'hr_processing'` (awaiting Employee Number, before reaching `Plantilla.status = 'Active'`) was previously counted in NEITHER `hired_count` NOR `pipeline_count` — a real population, already exposed as `hr_processing_count` in `vw_slot_derived_vacancy_shadow`, that business confirms is effectively already hired and not truly vacant."
+- **The Defect in `list_web_vacancies`**:
+  - Migration `20262606000099` introduced an over-simplified condition for `p_status = 'Open'`:
+    ```sql
+    s.hc_filled < s.hc_total OR lower(s.pipeline_status) = 'open'
+    ```
+  - For single-headcount requisitions (`hc_total = 1`), whenever an applicant was hired into `hr_emploc` (`hr_processing_count = 1`), `hc_filled` was 0. Thus `0 < 1` evaluated to TRUE, bypassing the fact that `pipeline_status` was `'Hired'`!
+  - This allowed 5 Hired stores (`TEST005` Super 5, `VCYG1_0001`, `ACT-G5-002`, `ACT-G5-006`, `BUN-GHQ-00015`) and 5 Pipeline stores (`VCBPIG1_1026`, `VCBPIG1_0183`, `REL-00009`, `SEA-00006`, `ACT-G5-008`) to bleed into the Open tab, yielding 41 rows against the badge `Open (31)`.
+
+### 2. Changes Implemented
+- **Database Migration `20262606000101_align_list_web_vacancies_adr001_rule4_open_capacity.sql`**:
+  - Replaced the Open-tab condition with full ADR-001 Rule 4 compliance:
+    ```sql
+    WHEN lower(btrim(p_status)) = 'open' THEN 
+      (
+        -- ADR-001 Rule 4: visible iff (hc_needed - hired_count - pipeline_count - hr_processing_count) > 0
+        (s.hc_total - s.hc_filled - s.hr_processing_count - s.active_applicant_count) > 0
+        OR lower(s.pipeline_status) = 'open'
+      )
+      AND lower(s.pipeline_status) NOT IN ('hired', 'pipeline')
+      AND s.vacancy_status <> 'Filled'
+      AND s.has_pending_closure = false
+      AND lower(coalesce(s.closure_request_status, '')) <> 'pending'
+      AND lower(coalesce(s.vacancy_status, '')) NOT IN ('closure', 'for_closure', 'closed', 'archived')
+    ```
+  - Projected `vl.hr_processing_count` in `scoped` CTE and exposed `'hr_processing_count'` in `row_capabilities` JSON payload.
+  - Granted execute privileges to `authenticated`, `service_role`, and `postgres`.
+  - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npx supabase db push --remote --yes`.
+
+### 3. Verification & Live Parity
+- **Staging SQL Execution Probe** (authenticated as Super Admin):
+  - `open_count`: **31** (was 41; now matches badge `Open (31)` with 100% parity).
+  - `test005_in_open`: **0** (`TEST005` / Super 5 is 100% removed from Open tab).
+  - `test005_in_hired`: **1** (`TEST005` renders properly under Hired tab).
+  - `pipeline_count`: **5** (matches badge `Pipeline (5)` with 100% parity).
+- **Quality Gates**:
+  - `npm run lint`: 0 errors, 0 warnings.
+  - `npm test`: 211/211 tests passing.
+  - `npm run build`: Next.js 16.2.4 Turbopack exit code 0.
+
+---
+
 ## Execution Report — Investigate & Restore TEST005 Vacancy and Justin Bieber Applicant State (ohm#t5b8j2s1)
 
 **Status: COMPLETE ON MAIN; INVESTIGATED WHY VCODE `TEST005` REMAINED IN VACANCY WHEN CANDIDATE `BIEBER, JUSTIN SANTOS` WAS ALREADY IN HR EMPLOC; ROOT CAUSE UNCOVERED: ON 2026-11-05 UTC, MIGRATION `20262606000091` EXECUTED A SWEEPING CLEANUP TARGETING BACKFILL VACANCIES WITH INACTIVE SOURCE PLANTILLA THAT ERRONEOUSLY FLAGGED JUSTIN BIEBER'S APPLICANT RECORD (`f3ed88ff-7715-4a07-b4d9-6fe3ea266595`) WITH `is_archived = true`, CAUSING `confirmed_onboard_count` IN `vw_vacancy_list` TO DROP FROM 1 TO 0 AND REVERTING `derived_status` BACK TO `'Open'`; CANDIDATE IS CURRENTLY IN `public.hr_emploc` (`d9e670c5-948e-412e-94b9-46b5ce7d39b2`) WITH STATUS `For Compliance` / `For Review` (SLOT STATUS `'hr_processing'`) AND HAS NOT YET BEEN MOVED TO PLANTILLA; UNDER APPROVAL & REGRESSION GATE, SURGICALLY UNARCHIVED JUSTIN BIEBER'S RECORD (`is_archived = false, archived_at = NULL`) ON REMOTE STAGING (`qqiiznmqxfoamqytjica`); LIVE RE-EVALUATION CONFIRMS `vw_vacancy_list.derived_status` TRANSITIONED TO `'Hired'`, `confirmed_onboard_count` RESTORED TO 1, AND `get_web_vacancy_summary.total_open` RETURNED 0 FOR TEST005; NO CODEBASE FILES MUTATED; VERIFIED CLI AND RUNTIME REMAIN SECURELY LINKED TO STAGING (`qqiiznmqxfoamqytjica`); LOCAL COMMIT ON MAIN.**
