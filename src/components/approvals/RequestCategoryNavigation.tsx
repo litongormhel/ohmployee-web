@@ -72,7 +72,7 @@ export function RequestCategoryNavigation({
     <nav
       aria-label="Approval types"
       role="tablist"
-      className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none p-1"
+      className="flex flex-wrap items-center gap-1.5 sm:gap-2 p-1"
     >
       {categories.map((cat) => {
         const Icon = CATEGORY_ICONS[cat.key];
@@ -90,7 +90,7 @@ export function RequestCategoryNavigation({
             role="tab"
             aria-selected={isSelected}
             onClick={() => onSelectCategory(cat.key)}
-            className={`group inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+            className={`group inline-flex h-8.5 shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
               isSelected
                 ? "border-border-brand bg-brand-subtle text-text-brand-bold shadow-2xs"
                 : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"

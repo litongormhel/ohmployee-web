@@ -21,21 +21,21 @@ The Approvals Module (`/approvals`) serves as the administrative hub and request
 ## 2. All Requests Unified Command Center (`all_requests`)
 - **Default Landing Tab**: Automatically defaults to `"all_requests"` when entering `/approvals` without a `?tab=` query parameter.
 - **Top Badge**: Sum of all pending operational requests across categories.
-- **Toolbar & Global Search**: Status pills (`Pending`, `Approved / Completed`, `Rejected`), global search input filtering items across all categories simultaneously, and a unified refresh button.
+- **Toolbar & Global Search**: Status pills (`Pending`, `Approved / Completed`, `Rejected`), global search input filtering items across all categories simultaneously, a `"Collapse All / Expand All"` master accordion toggle, and a unified refresh button.
 - **Resilient Parallel Fetching**: Utilizes `Promise.allSettled()` to fetch queues across all operational categories in parallel; individual category failures are safely isolated without crashing the entire hub.
-- **Smart Category Accordions**:
+- **Smart Category Sections**:
   - **Dynamic Sorting**: Categories with active items (`count > 0` for current status and search query) sort automatically to the top; categories with `0` items sort to the bottom.
-  - **Auto-Expand / Collapse**: Auto-expands categories with active items (`count > 0`); auto-collapses empty categories into a compact 1-line header with `0` badge while preserving manual toggle control.
+  - **Full Visibility by Default**: Sections default to open/expanded (`isOpen = true`) so all operational queues and pending requests are immediately visible without being collapsed or hidden. Manual accordion toggles remain available per section and via the master toolbar toggle.
   - **Header Actions**: Each category card includes an `"Open Tab ->"` action button that smoothly routes to that category's dedicated main tab.
-  - **Preview Cap (5 items)**: Displays up to 5 items per category by default, with a `"Show all X requests"` toggle and deep-link navigation.
+  - **Uncapped Full Queue Display**: Directly displays all matching requests per category without 5-item truncation, accompanied by a `"Showing all X requests"` footer and tab deep-link navigation.
   - **Direct In-Line Actions**: Direct row action buttons (Approve, Reject, Review, View) are functional in-place using existing modular modal and mutation workflows, auto-invalidating category queries and global badges upon completion.
 
 ---
 
 ## 3. UI Layout & Navigation
 - **Header**: `AdminPageHeader` with title, subtitle, refresh button, and module category tag.
-- **Top Tab Strip**: `RequestCategoryNavigation` rendering pill tabs in alphabetical sequence (A-Z) with live counts and acknowledgment badges for authorized categories (`canViewApprovalsHub`, `getAllowedApprovalCategories`).
-- **Main Review Pane**: `ActiveQueueReviewPane` rendered with `key={selectedCategory}` for immediate state isolation and clean tab remounting.
+- **Top Tab Strip**: `RequestCategoryNavigation` rendering pill tabs in responsive wrapping layout (`flex-wrap gap-2`) with live counts and acknowledgment badges for authorized categories (`canViewApprovalsHub`, `getAllowedApprovalCategories`), guaranteeing that all 13 tabs remain 100% visible and accessible without requiring browser zoom-out or horizontal scroll hunting.
+- **Main Review Pane**: `ActiveQueueReviewPane` rendered with `key={selectedCategory}` for immediate state isolation and clean tab remounting. Container padding optimized (`p-4 sm:p-5 lg:p-6`) to give maximum horizontal real estate to tables.
   - **Inline Toolbar (`QueueToolbar`)**: A single horizontal row containing:
     - Left side: Search input alongside status filter tabs (`Pending`, `Approved`, `Rejected` / `Deactivated`) with live count badges.
     - Right side: `Refresh` button.

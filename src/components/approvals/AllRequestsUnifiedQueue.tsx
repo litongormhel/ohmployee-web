@@ -174,8 +174,6 @@ const ALL_CATEGORY_KEYS: Array<Exclude<RequestCategoryKey, "all_requests">> = [
   "rollbacks",
 ];
 
-const PREVIEW_CAP = 5;
-
 export function AllRequestsUnifiedQueue({
   onSelectCategory,
   allowedCategories,
@@ -186,11 +184,6 @@ export function AllRequestsUnifiedQueue({
 
   // Track explicit user accordion expansion state overrides
   const [manualExpanded, setManualExpanded] = useState<
-    Record<string, boolean>
-  >({});
-
-  // Track "Show all X requests" per category section
-  const [expandedAllItems, setExpandedAllItems] = useState<
     Record<string, boolean>
   >({});
 
@@ -244,7 +237,7 @@ export function AllRequestsUnifiedQueue({
         fetchAccountArchiveRequests(currentTab).then((r) => r.data),
         fetchRelieverEndorsements(currentTab),
         fetchVacancyClosureRequests(currentTab),
-        fetchRollbackApprovalRequests(currentTab, { page: 1, limit: PREVIEW_CAP }).then((r) => r.data),
+        fetchRollbackApprovalRequests(currentTab).then((r) => r.data),
       ]);
 
       if (headcountRes.status === "fulfilled") results.headcount = headcountRes.value;
@@ -459,18 +452,22 @@ export function AllRequestsUnifiedQueue({
     });
   }, [filteredData, allowedCategories]);
 
-  const toggleAccordion = (key: string, defaultOpen: boolean) => {
+  const toggleAccordion = (key: string) => {
     setManualExpanded((prev) => {
-      const current = prev[key] ?? defaultOpen;
+      const current = prev[key] ?? true;
       return { ...prev, [key]: !current };
     });
   };
 
-  const toggleExpandAllItems = (key: string) => {
-    setExpandedAllItems((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+  const allExpanded = activeCategories.every((k) => manualExpanded[k] ?? true);
+
+  const toggleAllSections = () => {
+    const nextState = !allExpanded;
+    const updated: Record<string, boolean> = {};
+    activeCategories.forEach((k) => {
+      updated[k] = nextState;
+    });
+    setManualExpanded(updated);
   };
 
   return (
@@ -554,20 +551,40 @@ export function AllRequestsUnifiedQueue({
             </div>
           </div>
 
-          {/* Right: Refresh button */}
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefetching || isLoading}
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-[var(--line)] bg-transparent px-3 text-xs font-normal text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--text)] disabled:opacity-50 transition cursor-pointer"
-          >
-            <RefreshCw
-              className={`h-3 w-3 ${
-                isRefetching ? "animate-spin text-[var(--text)]" : ""
-              }`}
-            />
-            <span>Refresh All</span>
-          </button>
+          {/* Right: Expand/Collapse All + Refresh button */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleAllSections}
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-[var(--line)] bg-transparent px-3 text-xs font-normal text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--text)] transition cursor-pointer"
+            >
+              {allExpanded ? (
+                <>
+                  <ChevronRight className="h-3 w-3" />
+                  <span>Collapse All</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-3 w-3" />
+                  <span>Expand All</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefetching || isLoading}
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-[var(--line)] bg-transparent px-3 text-xs font-normal text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--text)] disabled:opacity-50 transition cursor-pointer"
+            >
+              <RefreshCw
+                className={`h-3 w-3 ${
+                  isRefetching ? "animate-spin text-[var(--text)]" : ""
+                }`}
+              />
+              <span>Refresh All</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -591,13 +608,9 @@ export function AllRequestsUnifiedQueue({
             const hasItems = itemCount > 0;
             const errorMessage = filteredData?.errors[catKey];
 
-            // Auto-expand non-empty; auto-collapse empty; respect manual toggles
-            const isOpen = manualExpanded[catKey] ?? hasItems;
-            const isShowingAll = expandedAllItems[catKey] ?? false;
-
-            const visibleItems = isShowingAll
-              ? items
-              : items.slice(0, PREVIEW_CAP);
+            // Not collapsed by default: all requests are directly viewable
+            const isOpen = manualExpanded[catKey] ?? true;
+            const visibleItems = items;
 
             return (
               <section
@@ -611,7 +624,7 @@ export function AllRequestsUnifiedQueue({
                 {/* ── Category Section Header ─────────────────────────────── */}
                 <div className="flex flex-wrap items-center justify-between gap-3 p-4">
                   <div
-                    onClick={() => toggleAccordion(catKey, hasItems)}
+                    onClick={() => toggleAccordion(catKey)}
                     className="flex items-center gap-3 cursor-pointer select-none min-w-0 flex-1"
                   >
                     <button
@@ -809,35 +822,21 @@ export function AllRequestsUnifiedQueue({
                           />
                         )}
 
-                        {/* Preview Cap & Expansion Bar */}
-                        {itemCount > PREVIEW_CAP && (
+                        {/* Section Item Count & Deep-link Action Bar */}
+                        {itemCount > 0 && (
                           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--line)] pt-3 text-xs text-[var(--muted)]">
                             <span>
-                              Showing {visibleItems.length} of {itemCount} requests
+                              Showing all {itemCount} {itemCount === 1 ? "request" : "requests"}
                             </span>
 
-                            <div className="flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => toggleExpandAllItems(catKey)}
-                                className="font-medium text-brand-600 hover:text-brand-500 hover:underline cursor-pointer"
-                              >
-                                {isShowingAll
-                                  ? `Show first ${PREVIEW_CAP} requests`
-                                  : `Show all ${itemCount} requests`}
-                              </button>
-
-                              <span className="text-[var(--line)]">|</span>
-
-                              <button
-                                type="button"
-                                onClick={() => onSelectCategory(catKey)}
-                                className="inline-flex items-center gap-1 font-medium text-[var(--text)] hover:text-brand-600 hover:underline cursor-pointer"
-                              >
-                                <span>View all in {meta?.label ?? catKey} Tab</span>
-                                <ArrowRight className="h-3 w-3" />
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => onSelectCategory(catKey)}
+                              className="inline-flex items-center gap-1 font-medium text-[var(--text)] hover:text-brand-600 hover:underline cursor-pointer"
+                            >
+                              <span>View all in {meta?.label ?? catKey} Tab</span>
+                              <ArrowRight className="h-3 w-3" />
+                            </button>
                           </div>
                         )}
                       </div>

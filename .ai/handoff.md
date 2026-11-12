@@ -1,5 +1,28 @@
 # AI Handoff
 
+## Execution Report — Approvals Layout & Queue Visibility: Wrap Category Tabs & Uncap/Expand All Requests (ohm#a7m4q9k2)
+
+**Status: COMPLETE ON MAIN; RESOLVED ISSUE WHERE APPROVALS HUB (`/approvals`) CLIPPED REAR CATEGORY TABS (*New Stores*, *Relievers*, *Rollbacks*, *Vacancy Closures*) AND TABLE ACTION BUTTONS DUE TO SINGLE-LINE OVERFLOW (`no-scrollbar scrollbar-none`), FORCING THE USER TO ZOOM OUT TO SEE THEM; RESOLVED ISSUE WHERE ALL REQUESTS TRUNCATED ITEMS AT 5 AND AUTO-COLLAPSED CATEGORIES; TRANSITIONED `RequestCategoryNavigation` TO RESPONSIVE `flex-wrap gap-2` WITH COMPACT `h-8.5` PILLS SO ALL 13 CATEGORY TABS REMAIN 100% VISIBLE AND ACCESSIBLE AT NORMAL 100% ZOOM; ELIMINATED PREVIEW CAPPING (`PREVIEW_CAP`) IN `AllRequestsUnifiedQueue` SO ALL PENDING REQUESTS RENDER DIRECTLY WITHOUT BEING TRUNCATED BEHIND "SHOW ALL REQUESTS"; SET CATEGORY SECTIONS TO DEFAULT EXPANDED (`isOpen = true`); ADDED "COLLAPSE ALL / EXPAND ALL" MASTER TOOLBAR TOGGLE; OPTIMIZED CONTAINER PADDING IN `approvals/page.tsx` (`p-4 sm:p-5 lg:p-6`) GIVING MAXIMUM HORIZONTAL ROOM FOR TABLES; ZERO DATABASE CHANGES; VERIFIED CLEAN VIA `npm run lint` (0 ERRORS), `npm test` (211/211 PASSED), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Root Causes & Technical Solutions
+- **Category Tabs Clipping & Zoom-Out Dependency**:
+  - In `src/components/approvals/RequestCategoryNavigation.tsx`, the tab container used `flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none` with `whitespace-nowrap`.
+  - Because 13 category tabs span ~1700px, on standard 1080p and laptop screens (1366px-1536px), later tabs (*New Stores*, *Relievers*, *Rollbacks*, *Vacancy Closures*) were pushed off-screen to the right. Since scrollbars were hidden, users could not see or reach those tabs without zooming out to 75%-80%.
+  - **Fix**: Changed navigation to `flex flex-wrap items-center gap-1.5 sm:gap-2 p-1` and slightly reduced tab button height to `h-8.5 px-3 py-1.5`. Tabs now wrap cleanly across lines on narrower displays, keeping all 13 categories immediately visible and interactive at normal 100% zoom.
+- **All Requests Truncation & Collapsed State**:
+  - In `src/components/approvals/AllRequestsUnifiedQueue.tsx`, items within each queue were artificially capped at 5 (`PREVIEW_CAP = 5`), hiding subsequent pending items behind a *"Showing 5 of 8 requests / Show all 8 requests"* toggle.
+  - Furthermore, categories with 0 items were collapsed into single-line headers, making queues non-uniform.
+  - **Fix**: Removed the 5-item truncation cap, rendering `visibleItems = items` directly so all active requests (e.g. all 8 deactivations) are visible at once. Defaulted category sections to open (`isOpen = true`). Added a `"Collapse All / Expand All"` toolbar button next to "Refresh All" allowing the user to tuck or expand all queues with one click. In the rollback fetch call, removed `{ page: 1, limit: PREVIEW_CAP }` so all rollback items are retrieved without limit.
+- **Horizontal Real Estate Optimization**:
+  - In `src/app/(dashboard)/approvals/page.tsx`, relaxed container padding from `p-6` to `p-4 sm:p-5 lg:p-6`, providing an additional 16-32px of horizontal screen width to data tables, ensuring columns including *Action* buttons remain visible without requiring zoom-out.
+
+### 2. Verification Results
+- `npm run lint`: Clean (0 errors).
+- `npm test`: Clean (211/211 tests passed).
+- `npm run build`: Clean (Next.js 16.2.4 exit code 0, 20/20 routes built).
+
+---
+
 ## Execution Report — Pin MOSES HQ Card to Front of Plantilla Directory Grid (ohm#m1q9k4v2)
 
 **Status: COMPLETE ON MAIN; PINNED THE MOSES HQ / WORKFORCE POOL CARD (`isPoolAccount: true` OR `name.toLowerCase() === 'moses hq'`) PERMANENTLY TO INDEX 0 (`pinaka unahan lagi`) OF THE PLANTILLA DIRECTORY BILLING ACCOUNT CARD GRID (`/plantilla`); ROOT CAUSE: THE ACCOUNT CARD COMPARATOR IN `src/app/(dashboard)/plantilla/page.tsx` ORDERED ACCOUNTS BY PROBLEM-FIRST SEVERITY (`a.fillRate - b.fillRate`), WHICH ELEVATED 0% FILL RATE ACCOUNTS (E.G. `THREE`, `ZEBRA`) AHEAD OF MOSES HQ (MFR ~13.04%: `HC 3/23 · Vacant 20`), DISPLACING MOSES HQ TO THE 3RD CARD; INTRODUCED TIER 0 PRIORITY COMPARATOR TO GUARANTEE MOSES HQ ALWAYS OCCUPIES CARD #1 IN ALL DIRECTORY VIEWS WHILE PRESERVING SUBSEQUENT PROBLEM-FIRST SEVERITY ORDERING AMONG ALL OTHER ACCOUNTS; ZERO DATABASE CHANGES; VERIFIED CLEAN VIA `npm run lint` (0 ERRORS), `npm test` (211/211 PASSED), AND `npm run build` (NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

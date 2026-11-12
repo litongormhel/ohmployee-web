@@ -156,7 +156,7 @@ function ApprovalsPageContent() {
       </div>
 
       {/* Active Queue Review Pane - 100% Full Width */}
-      <div className="w-full min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface-base)] p-6">
+      <div className="w-full min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface-base)] p-4 sm:p-5 lg:p-6">
         <ActiveQueueReviewPane
           key={selectedCategory}
           selectedCategory={selectedCategory}
