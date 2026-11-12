@@ -1,5 +1,52 @@
 # AI Handoff
 
+## Execution Report — Eliminate Unpaginated Inactive Parity Fallback from Vacancy Open Tab (ohm#p9k4v2s8)
+
+**Status: COMPLETE ON MAIN; RESOLVED CRITICAL UI DEFECT WHERE VACANCY MANAGEMENT (`/vacancy`) OPEN TAB DISPLAYED >10 ROWS ON PAGE 1 (RENDERING ~31 ROWS) DESPITE `Rows per page: 10` FOOTER; ROOT CAUSE IDENTIFIED IN `src/lib/queries/vacancy.ts` (LINES 2573–2687): A LEGACY CLIENT-SIDE FALLBACK ("Parity fallback: ensure vacated slots from inactive plantilla personnel are included") QUERIED INACTIVE PERSONNEL VIA `list_web_plantilla_employees` AND EVALUATED `!existingVcodes.has(vk)` AGAINST ONLY THE CURRENT PAGE'S 10 ROWS, CAUSING IT TO SYNTHESIZE AND BLINDLY `.push(...)` ~21 VACATED ROWS ONTO PAGE 1 WITHOUT APPLYING PAGINATION SLICING; THIS ALSO WRONGLY RE-CREATED A SYNTHETIC OPEN VACANCY ROW FOR `TEST005` (SUPER 5) DUE TO AN INACTIVE HISTORICAL PLANTILLA RECORD (AIDA DELA CRUZ) DESPITE JUSTIN BIEBER BEING ACTIVELY ONBOARDED AS HIRED IN `hr_emploc`; REMOVED THE OBSOLETE CLIENT-SIDE FALLBACK IN FAVOR OF THE CANONICAL POSTGRESQL RPC `list_web_vacancies` (WHICH ALREADY HANDLES REOPENED INACTIVE SLOTS VIA MIGRATIONS 79 & 101); CONFIRMED 100% CLEAN LOCAL QUALITY GATES (`npm run lint` 0 ERRORS 0 WARNINGS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+### 1. Root Cause Analysis
+- **Bug Manifestation**:
+  - In `/vacancy` (Open Tab), the table footer stated `Showing 1-10 of 31 records` with `Rows per page: 10`, but the table body rendered 18+ visible rows (in fact, all 31 records).
+  - Row 17 was `TEST005` (Super 5), which had just been verified as Hired in the previous prompt (`ohm#v5k8r4a1`).
+- **Defect Mechanism**:
+  1. `listVacancies` in `src/lib/queries/vacancy.ts` calls `supabase.rpc("list_web_vacancies", getListRpcParams(params, pageSize, offset))`. The database RPC paginates correctly (`LIMIT 10 OFFSET 0`), returning the 10 rows for page 1 and reporting `total_count: 31`.
+  2. After this, lines 2573–2687 ran an obsolete client-side block:
+     ```ts
+     // Parity fallback: ensure vacated slots from inactive plantilla personnel are included
+     if (currentTab === "open" || !currentTab) {
+       const { data: plantillaRows } = await supabase.rpc("list_web_plantilla_employees", { ... });
+       ...
+       const existingVcodes = new Set(
+         finalRows.map((r) => (r.vcode || "").trim().toUpperCase()).filter(Boolean),
+       );
+       const candidateInactive = inactive.filter((pl) => { ... return vk && occupied === 0 && !existingVcodes.has(vk); });
+       ...
+       for (const pl of candidateInactive) {
+         finalRows.push({ ... }); // Appends ~21 synthetic rows directly into finalRows!
+       }
+     }
+     ```
+  3. Because `existingVcodes` only contained the 10 rows on page 1, any inactive employee whose VCode was on page 2, 3, 4 (or was Hired, like `TEST005` whose predecessor Aida Dela Cruz was Inactive) was considered "missing" from the Open tab.
+  4. The code pushed all 21 candidates directly into `finalRows` and returned `data: finalRows` without slicing or respecting `pageSize`!
+  5. As a result, page 1 rendered 31 rows (10 from server + 21 synthesized), and `TEST005` was artificially resurrected on Open.
+
+### 2. Changes Made
+- **`src/lib/queries/vacancy.ts`**:
+  - Removed the legacy 116-line block (lines 2573–2687) that was querying `list_web_plantilla_employees` and injecting synthetic rows into `finalRows`.
+  - Now, `listVacancies` returns exactly `finalRows` from the canonical RPC `list_web_vacancies`, honoring the `LIMIT 10 OFFSET (page - 1) * 10` contract and returning at most `pageSize` (10) rows per page.
+
+### 3. Verification & Results
+- **Code Quality & Build**:
+  - `npm run lint`: 0 errors, 0 warnings.
+  - `npm test`: 211/211 tests passing.
+  - `npm run build`: Next.js 16.2.4 compiled and optimized with exit code 0.
+- **Outcome**:
+  - Page 1 of Open tab will now render strictly up to 10 records.
+  - `TEST005` is completely absent from Open tab (confirmed Hired in DB and visible only in Hired tab).
+  - All 31 open vacancies are cleanly partitioned across pages 1 (1-10), 2 (11-20), 3 (21-30), and 4 (31).
+
+---
+
 ## Execution Report — Align list_web_vacancies with ADR-001 Rule 4 Open Capacity (ohm#v5k8r4a1)
 
 **Status: COMPLETE ON MAIN; RESOLVED CRITICAL UI/DATA DISCREPANCY WHERE `TEST005` (SUPER 5) AND 4 OTHER HIRED VACANCIES + 5 PIPELINE VACANCIES WERE RETURNED IN THE OPEN TAB (TABLE RETURNED 41 ROWS AGAINST BADGE `Open (31)`); ROOT CAUSE IDENTIFIED IN DIRECT REFERENCE TO ADR-001 RULE 4: PREVIOUS MIGRATION `20262606000099` HAD REPLACED THE CAPACITY GUARD WITH `s.hc_filled < s.hc_total OR lower(s.pipeline_status) = 'open'`; BECAUSE `hc_filled` DERIVES STRICTLY FROM ACTIVE EMPLOYEES IN `public.plantilla` (PER ADR-001 RULE 2), CANDIDATES UNDERGOING HR COMPLIANCE IN `public.hr_emploc` HAVE `hc_filled = 0`, MAKING `hc_filled < hc_total` (`0 < 1`) ALWAYS TRUE AND PERMITTING HIRED AND PIPELINE VACANCIES TO BLEED INTO THE OPEN TAB WITH ACTIVE `+ Applicant` BUTTONS; SHIPPED MIGRATION `20262606000101_align_list_web_vacancies_adr001_rule4_open_capacity.sql` TO STAGING (`qqiiznmqxfoamqytjica`), ENFORCING ADR-001 RULE 4 CLASSIFICATION PRIORITY (`(s.hc_total - s.hc_filled - s.hr_processing_count - s.active_applicant_count) > 0`) AND EXPLICITLY REJECTING `'hired'` AND `'pipeline'` STATUSES FROM THE OPEN QUEUE; POST-MIGRATION LIVE DIFF CONFIRMED 100% PARITY; VERIFIED LIVE ON STAGING: OPEN TAB ROWS DROPPED FROM 41 TO EXACTLY 31 (100% MATCH WITH BADGE `Open 31`), `TEST005` IN OPEN IS EXACTLY 0, `TEST005` IN HIRED IS 1, AND PIPELINE ROWS REMAIN AT 5; VERIFICATION GATES ALL PASSED CLEAN (`npm run lint` 0 ERRORS 0 WARNINGS, `npm test` 211/211 PASSED, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

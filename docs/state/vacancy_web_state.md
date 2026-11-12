@@ -8,6 +8,12 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Elimination of Unpaginated Inactive Parity Fallback in Open Tab (`ohm#p9k4v2s8` — 2026-11-12)**:
+  - **The Defect**: The Vacancy Open tab table rendered >10 records on page 1 (rendering ~31 records) despite `Rows per page: 10` and `Showing 1-10 of 31 records`. Additionally, `TEST005` (Super 5) re-appeared on the Open tab table as row 17.
+  - **Root Cause**: `src/lib/queries/vacancy.ts` contained a legacy client-side fallback block ("Parity fallback: ensure vacated slots from inactive plantilla personnel are included") that fetched inactive employees from `list_web_plantilla_employees` and appended all matching candidates into `finalRows` on page 1 without applying pagination slicing (`finalRows.push(...)`). Because `existingVcodes` only checked the 10 rows on page 1, any inactive personnel on other pages or already hired in `hr_emploc` (such as `TEST005`) were artificially injected into page 1 with synthesized open status.
+  - **Remediation**: Removed the obsolete 116-line fallback block (lines 2573–2687) from `src/lib/queries/vacancy.ts`. `listVacancies` now strictly follows the server-paginated result of the canonical RPC `list_web_vacancies` (`LIMIT 10 OFFSET (page - 1) * 10`), guaranteeing at most `pageSize` rows per page and preventing bogus synthesis of hired/inactive vacancies.
+  - **Quality Gates**: Verified clean via `npm run lint` (0 errors, 0 warnings), `npm test` (211/211 passed), and `npm run build` (Next.js 16.2.4 exit code 0).
+
 - **ADR-001 Rule 4 Open Capacity Alignment in `list_web_vacancies` (`ohm#v5k8r4a1` — 2026-11-12)**:
   - **ADR-001 Basis**: Enforced ADR-001 Rule 4 classification priority (`(hc_needed - hired_count - pipeline_count - hr_processing_count) > 0`).
   - **The Defect**: Migration `20262606000099` previously checked `s.hc_filled < s.hc_total OR lower(s.pipeline_status) = 'open'`. Because `s.hc_filled` only counts active Plantilla members, single-headcount requisitions with candidates sitting in `public.hr_emploc` (`hr_processing_count = 1`, `pipeline_status = 'Hired'`) had `hc_filled = 0`, causing `0 < 1` to evaluate to true. This bled 5 Hired vacancies (including `TEST005` Super 5) and 5 Pipeline vacancies into the Open tab (returning 41 rows against badge `Open 31`).
