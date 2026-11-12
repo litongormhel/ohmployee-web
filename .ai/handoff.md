@@ -1,5 +1,30 @@
 # AI Handoff
 
+## Execution Report — Vacancy Drawer UI Redesign (ohm#7k3q9d2m)
+
+**Status: COMPLETE ON MAIN; CODE + DOCS; ZERO SCHEMA / DB / RPC CHANGES; LOCAL COMMIT ON MAIN.**
+
+- **Goal**: Redesign the Vacancy detail drawer (`src/components/vacancy/VacancyDetailDrawer.tsx`) for scannability, reduced scroll depth, and eliminated low-value cards and redundancy without changing data, RBAC, workflows, or business rules.
+- **Problem Resolution**:
+  1. **Redundancy eliminated**: VCode, status, Group, Account, and single Store were dropped from the body because they are already in the drawer header and breadcrumb.
+  2. **Low-value card replaced**: Removed the standalone "Requirements & Headcount" card; replaced it with a sleek 4-column **Top KPI Strip** directly below the header (`Hired x/y`, `Pipeline`, `Avail`, `Aging` with days + bucket and penalty badge), with multi-position breakdown preserved below the strip when `requirements.length > 1`.
+  3. **Aging duplication fixed**: Consolidated duplicate aging chips into a single unified readout in the KPI strip.
+  4. **Empty-field noise removed**: Muted italic `Unassigned` style without repeated icons; suppressed `"Triggered By --"` completely when no trigger user exists.
+  5. **Buried primary content elevated**: "Applicant & Pipeline" moved directly beneath the KPI strip and action bar as the primary section, with candidate cards, all 3 candidate actions (`Edit Details` with 1-time profile edit lock for non-admins, `Update Stage / Backout`, `Mark Hired`), and the empty state preserved.
+  6. **Action clutter resolved**: Requisition & Quota controls de-cluttered into a compact action row above the pipeline with identical RBAC gates (`Adjust Quota`, `Request HC Adjustment`, `Request Closure` disabled with tooltip when active applicants exist, and `Withdraw Closure` when pending).
+  7. **PII Guard promoted**: Upgraded to a prominent, clear callout banner with lock icon.
+  8. **Collapsible secondary sections**: Deduplicated "Vacancy Details & Timeline" (Source, Type, Urgency, Province/City, multi-store tags, Vacant Since [Edit] with date override mutation, Target Fill, Date Created, SLA warning) and "Ownership & Team" (compact roster with muted italic Unassigned) are collapsible, defaulting to expanded on initial load without persisted state.
+- **Quality Gates & Regression Audit**:
+  - `npm run check:adr` → `ADR_MIRROR_STATUS: FRESH — 3729ccb 2026-11-12T10:33:06+08:00`.
+  - `npm run lint` → 0 errors, 0 warnings.
+  - `npm test` → 211 / 211 unit tests passed.
+  - `npx tsc --noEmit` → Clean, 0 errors.
+  - `npm run build` → Next.js 16.2.4 compiled successfully in 17.8s, finished TypeScript in 30.7s, generated 20/20 static pages, exit code 0.
+  - Subagent Regression Audit → 13/13 parity items verified 100% compliant.
+- **ADR Updates Needed**: None (ADR basis: ADR-001 § Core Cross-Module Invariants + Vacancy).
+
+---
+
 ## Execution Report — Workflow: Uncertainty, ADR Conflict & Regression Safety Gates (ohm#q4n7v2m9)
 
 **Status: COMPLETE ON MAIN; DOCS ONLY; LOCAL COMMIT ON MAIN.**

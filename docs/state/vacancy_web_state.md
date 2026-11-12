@@ -8,6 +8,17 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Vacancy Detail Drawer UI Redesign (`ohm#7k3q9d2m` — 2026-11-12)**:
+  - **The Requirement**: Redesign the Vacancy detail drawer (`src/components/vacancy/VacancyDetailDrawer.tsx`) for scannability, reduced scroll depth, and eliminated redundancy (presentation-layer redesign only; zero behavior, data, or RBAC changes).
+  - **Layout & Hierarchy Overhaul**:
+    1. **Header & Subtitle**: Retained VCode mono chip, dynamic status chip (rose/red for Pending Clearance, neutral otherwise), position title, and `MapPin` breadcrumb (Account / Group / Store).
+    2. **Top KPI Strip**: Introduced compact 4-metric strip directly below header (`Hired x/y`, `Pipeline`, `Avail`, `Aging` with days + bucket and penalty badge), replacing the redundant "Requirements & Headcount" card while preserving multi-position breakdown for complex requisitions.
+    3. **De-Cluttered Action Row**: Requisition & Quota controls de-cluttered into a compact action row directly above the pipeline with identical RBAC gates (`Adjust Quota`, `Request HC Adjustment`, `Request Closure` disabled with tooltip when active applicants exist, and `Withdraw Closure` when pending).
+    4. **Primary Working Section First**: Moved "Applicant & Pipeline" with candidate cards, actions (`Edit Details` with 1-time profile edit lock for non-admins, `Update Stage / Backout`, `Mark Hired`), and empty state directly under the KPI strip and action row.
+    5. **Promoted PII Guard**: Upgraded to a prominent, clear callout banner with lock icon.
+    6. **Collapsible Secondary Sections**: Deduplicated "Vacancy Details & Timeline" (Source, Type, Urgency, Province/City, multi-store tags, Vacant Since [Edit] with date override mutation, Target Fill, Date Created, SLA warning) and "Ownership & Team" (compact roster with muted italic Unassigned) are collapsible, defaulting to expanded on initial load without persisted state.
+  - **Quality Gates**: Verified clean via `npm run lint` (0 errors), `npm test` (211/211 passed), `npx tsc --noEmit` (0 errors), and `npm run build` (Next.js 16.2.4 exit code 0); 13/13 parity items verified via regression agent; local commit on main.
+
 - **Fix `public.get_my_allowed_accounts()` Union for Hybrid Group & Account Scopes (`ohm#s4k9v2q8` — 2026-11-12)**:
   - **The Defect**: When an HR Coordinator (`uat1@ohmployee.com`) attempted to endorse an applicant to vacancy `VCTG2_0006` (account `THREE`, Group 2), the modal threw error `"Vacancy with VCode VCTG2_0006 not found."`.
   - **Root Cause**: `get_my_allowed_accounts()` had an `IF v_account_count > 0 THEN` early-return branch that returned *only* explicit accounts (`us.account_id = a.id`) and dropped assigned group accounts (`us.group_id = a.group_id`). Because `uat1` had both explicit accounts and Group 2 assigned, `THREE` was dropped from `get_my_allowed_accounts()`, causing direct PostgREST RLS checks on `public.vacancies` (`vacancies_read_scoped`) and `public.applicants` (`applicants_insert_ops_only`) to evaluate to false and hide the vacancy.

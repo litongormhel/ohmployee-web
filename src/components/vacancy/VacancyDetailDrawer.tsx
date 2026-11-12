@@ -12,6 +12,8 @@ import {
   Calendar,
   CheckCheck,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   ClipboardList,
   Clock3,
   Edit3,
@@ -112,22 +114,42 @@ function getErrorKind(error: unknown) {
   return error instanceof VacancyDataError ? error.kind : "retryable";
 }
 
-function CompactSection({
+function CollapsibleSection({
   icon: Icon,
   title,
+  isOpen,
+  onToggle,
+  badge,
   children,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  badge?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2">
-      <div className="flex items-center gap-1.5 text-[11px] font-bold text-text-secondary">
-        <Icon className="h-3.5 w-3.5 text-brand-600 shrink-0" />
-        <span>{title}</span>
-      </div>
-      {children}
+    <div className="rounded-lg border border-border-subtle bg-surface-base overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-3 text-left hover:bg-surface-muted/40 transition cursor-pointer select-none"
+      >
+        <div className="flex items-center gap-1.5 text-[11px] font-bold text-text-secondary">
+          <Icon className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+          <span>{title}</span>
+          {badge}
+        </div>
+        <div className="text-text-muted">
+          {isOpen ? (
+            <ChevronDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5" />
+          )}
+        </div>
+      </button>
+      {isOpen && <div className="px-3 pb-3 pt-1 border-t border-border-subtle/50 space-y-2.5">{children}</div>}
     </div>
   );
 }
@@ -224,6 +246,7 @@ function formatActivityHistorySummary(item: {
 }
 
 export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = false, status }: VacancyDetailDrawerProps) {
+  // Modal states
   const [isReviseQuotaModalOpen, setIsReviseQuotaModalOpen] = useState(false);
   const [isRequestAdjustmentModalOpen, setIsRequestAdjustmentModalOpen] = useState(false);
   const [isAddApplicantModalOpen, setIsAddApplicantModalOpen] = useState(false);
@@ -234,6 +257,14 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
   const [isRequestClosureModalOpen, setIsRequestClosureModalOpen] = useState(false);
   const [isEditHiredDateModalOpen, setIsEditHiredDateModalOpen] = useState(false);
   const [isEditApplicantModalOpen, setIsEditApplicantModalOpen] = useState(false);
+
+  // Collapsible section states (defaulting to expanded on initial load)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(true);
+  const [isOwnershipOpen, setIsOwnershipOpen] = useState(true);
+  const [isContextOpen, setIsContextOpen] = useState(true);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
+
+  // Selected candidate state
   const [selectedCandidateForEdit, setSelectedCandidateForEdit] = useState<EditApplicantTarget | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<{
     id: string;
@@ -251,6 +282,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
     endorsedByName?: string | null;
   } | null>(null);
 
+  // RBAC checks
   const currentUser = useCurrentUser();
   const canReviseQuota = canReviseHeadcountQuota(currentUser);
   const canRequestAdjustment = canRequestHeadcountAdjustment(currentUser);
@@ -264,6 +296,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
   const userCanReviewClosures = canReviewVacancyClosures(currentUser);
   const userCanRequestClosure = canRequestVacancyClosure(currentUser);
 
+  // Mutations
   const withdrawClosureMutation = useWithdrawVacancyClosureRequest();
   const updateEffectiveVacancyDateMutation = useUpdateEffectiveVacancyDate();
   const [isEditingVacantDate, setIsEditingVacantDate] = useState(false);
@@ -273,6 +306,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
     isUserFullAccess || userIsOps || canReviseQuota || userCanManagePipeline
   );
 
+  // Queries
   const {
     data: detail,
     isLoading,
@@ -402,7 +436,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
     <DetailDrawer
       isOpen={!!vacancyId}
       onClose={onClose}
-      contentClassName="p-3.5 space-y-2.5"
+      contentClassName="p-3.5 space-y-3"
       footerClassName="px-4 py-2.5"
       badge={
         isLoading ? (
@@ -517,469 +551,186 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
         ) : undefined
       }
     >
-          {isLoading ? (
-            <LoadingSkeleton />
-          ) : errorKind === "access_denied" ? (
-            <AccessDeniedState />
-          ) : errorKind === "not_found" ? (
-            <NotFoundState />
-          ) : isError ? (
-            <ErrorState errorMsg={error instanceof Error ? error.message : "Unable to load vacancy details"} onRetry={refetch} />
-          ) : !detail ? (
-            <NotFoundState />
-          ) : (
-            <>
-              {/* Pending Closure Clearance Notice */}
-              {(detail.hasPendingClosure ||
-                detail.closureRequestStatus?.toLowerCase() === "pending" ||
-                detail.derivedStatus === "For Closure") && (
-                <div className="rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-[#991B1B] flex items-start gap-2.5">
-                  <Clock3 className="h-4 w-4 shrink-0 mt-0.5 text-[#DC2626]" />
-                  <div className="text-xs space-y-1 w-full">
-                    <div className="font-semibold flex items-center gap-1.5 text-[#991B1B]">
-                      <span>Closure Clearance In-Flight</span>
-                      {detail.closureRequestStatus && (
-                        <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-[#991B1B] border border-[#FECACA] shadow-2xs">
-                          {detail.closureRequestStatus}
+      {isLoading ? (
+        <LoadingSkeleton />
+      ) : errorKind === "access_denied" ? (
+        <AccessDeniedState />
+      ) : errorKind === "not_found" ? (
+        <NotFoundState />
+      ) : isError ? (
+        <ErrorState errorMsg={error instanceof Error ? error.message : "Unable to load vacancy details"} onRetry={refetch} />
+      ) : !detail ? (
+        <NotFoundState />
+      ) : (
+        <>
+          {/* Pending Closure Clearance Notice (Top Priority Alert) */}
+          {(detail.hasPendingClosure ||
+            detail.closureRequestStatus?.toLowerCase() === "pending" ||
+            detail.derivedStatus === "For Closure") && (
+            <div className="rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-[#991B1B] flex items-start gap-2.5">
+              <Clock3 className="h-4 w-4 shrink-0 mt-0.5 text-[#DC2626]" />
+              <div className="text-xs space-y-1 w-full">
+                <div className="font-semibold flex items-center gap-1.5 text-[#991B1B]">
+                  <span>Closure Clearance In-Flight</span>
+                  {detail.closureRequestStatus && (
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-[#991B1B] border border-[#FECACA] shadow-2xs">
+                      {detail.closureRequestStatus}
+                    </span>
+                  )}
+                </div>
+                <div className="text-[#7F1D1D] leading-relaxed">
+                  This vacancy slot has an active Store / Vacancy Closure request under review. Sourcing and pipeline transitions are paused pending management clearance.
+                </div>
+                {detail.closureReason && (
+                  <div className="mt-1 font-medium text-[#991B1B]">
+                    Reason: {detail.closureReason}
+                  </div>
+                )}
+                {detail.closureRequestedBy && (
+                  <div className="text-[11px] text-[#991B1B]/80">
+                    Requested by {detail.closureRequestedBy}
+                    {detail.closureRequestedAt && ` • ${new Date(detail.closureRequestedAt).toLocaleDateString()}`}
+                  </div>
+                )}
+                {(isUserFullAccess || userIsOps || userCanRequestClosure) && (
+                  <div className="pt-1.5">
+                    <button
+                      type="button"
+                      disabled={withdrawClosureMutation.isPending}
+                      onClick={async () => {
+                        if (!detail?.vcode) return;
+                        const confirmed = window.confirm(
+                          `Are you sure you want to withdraw the pending closure request for ${detail.vcode}? This will restore normal sourcing and pipeline operations.`
+                        );
+                        if (!confirmed) return;
+                        try {
+                          await withdrawClosureMutation.mutateAsync({
+                            vcode: detail.vcode,
+                            userId: currentUser?.authUserId || currentUser?.profileId || null,
+                          });
+                          refetch();
+                        } catch (err: unknown) {
+                          alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2.5 py-1 text-[11px] font-semibold transition shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure Request"}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Sourced Headcount & Capacity Metrics */}
+          {(() => {
+            const hiredCount = detail.confirmedOnboardCount ?? 0;
+            const totalHc = detail.headcount ?? 1;
+            const pipelineCount = detail.activeApplicantCount ?? 0;
+            const availableSlots = Math.max(0, totalHc - hiredCount);
+
+            // Multi-store resolution
+            const storesList: string[] = [];
+            if (Array.isArray(detail.assignedStores) && detail.assignedStores.length > 0) {
+              for (const s of detail.assignedStores) {
+                const clean = s?.trim();
+                if (clean && !storesList.includes(clean)) {
+                  storesList.push(clean);
+                }
+              }
+            }
+            if (detail.storeName) {
+              const parts = detail.storeName.includes(",")
+                ? detail.storeName.split(",").map((s) => s.trim()).filter(Boolean)
+                : [detail.storeName.trim()];
+              for (const p of parts) {
+                if (p && !storesList.includes(p)) {
+                  storesList.push(p);
+                }
+              }
+            }
+            if (storesList.length === 0) {
+              const isPool =
+                detail.vcode?.includes("GHQ") ||
+                detail.accountName?.toLowerCase() === "moses hq" ||
+                detail.source === "pool";
+              if (isPool) {
+                storesList.push("Moses HQ");
+              }
+            }
+
+            return (
+              <>
+                {/* 1. Top KPI Strip (Replaces Requirements & Headcount Card + Consolidates Aging) */}
+                <div className="rounded-lg border border-border-subtle bg-surface-base p-2.5 shadow-2xs">
+                  <div className="grid grid-cols-4 gap-2 text-center divide-x divide-border-subtle">
+                    <div className="px-1">
+                      <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider block">Hired</span>
+                      <span className="text-xs font-bold text-text-primary tabular-nums block mt-0.5">{hiredCount}/{totalHc}</span>
+                    </div>
+                    <div className="px-1">
+                      <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider block">Pipeline</span>
+                      <span className="text-xs font-bold text-text-primary tabular-nums block mt-0.5">{pipelineCount}</span>
+                    </div>
+                    <div className="px-1">
+                      <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider block">Avail</span>
+                      <span className="text-xs font-bold text-text-primary tabular-nums block mt-0.5">{availableSlots}</span>
+                    </div>
+                    <div className="px-1">
+                      <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider block">Aging</span>
+                      <div className="mt-0.5 flex flex-col items-center justify-center">
+                        <span className="text-xs font-bold text-text-primary tabular-nums">
+                          {detail.agingDays !== null ? `${detail.agingDays}d` : "--"}
                         </span>
-                      )}
-                    </div>
-                    <div className="text-[#7F1D1D] leading-relaxed">
-                      This vacancy slot has an active Store / Vacancy Closure request under review. Sourcing and pipeline transitions are paused pending management clearance.
-                    </div>
-                    {detail.closureReason && (
-                      <div className="mt-1 font-medium text-[#991B1B]">
-                        Reason: {detail.closureReason}
-                      </div>
-                    )}
-                    {detail.closureRequestedBy && (
-                      <div className="text-[11px] text-[#991B1B]/80">
-                        Requested by {detail.closureRequestedBy}
-                        {detail.closureRequestedAt && ` • ${new Date(detail.closureRequestedAt).toLocaleDateString()}`}
-                      </div>
-                    )}
-                    {(isUserFullAccess || userIsOps || userCanRequestClosure) && (
-                      <div className="pt-1.5">
-                        <button
-                          type="button"
-                          disabled={withdrawClosureMutation.isPending}
-                          onClick={async () => {
-                            if (!detail?.vcode) return;
-                            const confirmed = window.confirm(
-                              `Are you sure you want to withdraw the pending closure request for ${detail.vcode}? This will restore normal sourcing and pipeline operations.`
-                            );
-                            if (!confirmed) return;
-                            try {
-                              await withdrawClosureMutation.mutateAsync({
-                                vcode: detail.vcode,
-                                userId: currentUser?.authUserId || currentUser?.profileId || null,
-                              });
-                              refetch();
-                            } catch (err: unknown) {
-                              alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2.5 py-1 text-[11px] font-semibold transition shadow-xs cursor-pointer disabled:opacity-50"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure Request"}</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Stores list resolution for single / stacked multi-store listing */}
-              {(() => {
-                const storesList: string[] = [];
-                if (Array.isArray(detail.assignedStores) && detail.assignedStores.length > 0) {
-                  for (const s of detail.assignedStores) {
-                    const clean = s?.trim();
-                    if (clean && !storesList.includes(clean)) {
-                      storesList.push(clean);
-                    }
-                  }
-                }
-                if (detail.storeName) {
-                  const parts = detail.storeName.includes(",")
-                    ? detail.storeName.split(",").map((s) => s.trim()).filter(Boolean)
-                    : [detail.storeName.trim()];
-                  for (const p of parts) {
-                    if (p && !storesList.includes(p)) {
-                      storesList.push(p);
-                    }
-                  }
-                }
-                if (storesList.length === 0) {
-                  const isPool =
-                    detail.vcode?.includes("GHQ") ||
-                    detail.accountName?.toLowerCase() === "moses hq" ||
-                    detail.source === "pool";
-                  if (isPool) {
-                    storesList.push("Moses HQ");
-                  }
-                }
-
-                const hiredCount = detail.confirmedOnboardCount ?? 0;
-                const totalHc = detail.headcount ?? 1;
-                const pipelineCount = detail.activeApplicantCount ?? 0;
-                const availableSlots = Math.max(0, totalHc - hiredCount);
-                const isHiredTab = status === "hired" || detail.derivedStatus?.toLowerCase() === "hired" || detail.vacancyStatus?.toLowerCase() === "filled";
-
-                return (
-                  <>
-                    {/* 1. Combined Vacancy Summary & Assignment Section (2-Column Key-Value Grid) */}
-                    <CompactSection icon={Building2} title="Vacancy & Assignment">
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">VCode</span>
-                          <span className="font-mono text-xs font-semibold text-text-primary block truncate">{detail.vcode}</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">Urgency Level</span>
-                          <div className="mt-0.5">
-                            <StatusBadge variant={urgencyVariant} className="text-[11px] py-0 px-2 font-semibold">
-                              {detail.urgencyLevel ?? "Normal"}
-                            </StatusBadge>
-                          </div>
-                        </div>
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">Source</span>
-                          <span className="font-semibold text-text-primary block truncate">
-                            {formatVacancySource(detail.source) || (detail.vcode.startsWith("CG-") ? "Coverage Group" : "Plantilla")}
+                        {detail.agingBucket && (
+                          <span className="text-[9px] text-text-muted leading-tight font-medium">
+                            {formatAgingBucket(detail.agingBucket)}
                           </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">Vacancy Type</span>
-                          <span className="font-semibold text-text-primary block truncate">
-                            {detail.vacancyType || (detail.source === "Plantilla" ? "Replacement" : "New Demand")}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">Group</span>
-                          <span className="font-semibold text-text-primary block truncate" title={formatGroupName(detail.groupName, detail.accountName) || "--"}>
-                            {formatGroupName(detail.groupName, detail.accountName) || "--"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">Account</span>
-                          <span className="font-semibold text-text-primary block truncate" title={detail.accountName && detail.accountName !== "Unknown Account" ? formatAccountName(detail.accountName) : "--"}>
-                            {detail.accountName && detail.accountName !== "Unknown Account" ? formatAccountName(detail.accountName) : "--"}
-                          </span>
-                        </div>
-                        <div className={storesList.length > 1 ? "col-span-2" : ""}>
-                          <span className="text-[10px] font-medium text-text-muted block">
-                            {storesList.length > 1 ? `Assigned Stores (${storesList.length})` : "Store Name"}
-                          </span>
-                          {storesList.length > 1 ? (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {storesList.map((st, i) => (
-                                <span key={i} className="inline-flex rounded bg-surface-muted px-1.5 py-0.5 text-[11px] font-medium text-text-primary border border-border-subtle">
-                                  {st}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="font-semibold text-text-primary block truncate" title={storesList[0] || "--"}>
-                              {storesList[0] || "--"}
-                            </span>
-                          )}
-                        </div>
-                        <div className={storesList.length > 1 ? "col-span-2" : ""}>
-                          <span className="text-[10px] font-medium text-text-muted block">Province / City</span>
-                          <span className="font-semibold text-text-primary block truncate">
-                            {[detail.areaProvince, detail.areaCity].filter(Boolean).join(" / ") || detail.storeLocation || "--"}
-                          </span>
-                        </div>
-                        {detail.employmentType && (
-                          <div className="col-span-2">
-                            <span className="text-[10px] font-medium text-text-muted block">Employment Type</span>
-                            <span className="font-semibold text-text-primary">
-                              {detail.employmentType}
-                            </span>
-                          </div>
                         )}
                       </div>
-                    </CompactSection>
-
-                    {/* 2. Requirements & Headcount Section */}
-                    <CompactSection icon={ClipboardList} title="Requirements & Headcount">
-                      {detail.requirements && detail.requirements.length > 0 ? (
-                        <div className="space-y-1.5">
-                          {detail.requirements.map((req, idx) => {
-                            const avail = Math.max(0, req.hcNeeded - req.hcFilled);
-                            return (
-                              <div
-                                key={req.id || `req-${idx}`}
-                                className="flex items-center justify-between gap-1 py-1 border-b border-border-subtle/50 last:border-b-0 text-xs"
-                              >
-                                <div className="font-semibold text-text-primary truncate">{req.positionName}</div>
-                                <div className="text-text-secondary text-[11px] font-medium shrink-0">
-                                  Hired: <span className="font-bold text-text-primary">{req.hcFilled}/{req.hcNeeded}</span> • Pipeline: <span className="font-bold text-text-primary">{req.pipelineCount}</span> • Avail: <span className="font-bold text-text-primary">{avail}</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between gap-1 py-0.5 text-xs">
-                          <div className="font-semibold text-text-primary text-xs truncate">
-                            {detail.position_title ?? "Position Title"}
-                          </div>
-                          <div className="text-text-secondary text-[11px] font-medium shrink-0">
-                            Hired: <span className="font-bold text-text-primary">{hiredCount}/{totalHc}</span> • Pipeline: <span className="font-bold text-text-primary">{pipelineCount}</span> • Avail: <span className="font-bold text-text-primary">{availableSlots}</span>
-                          </div>
-                        </div>
-                      )}
-                    </CompactSection>
-
-                    {/* 3. Compact Timeline & SLA Block */}
-                    <CompactSection icon={Calendar} title="Timeline & SLA Status">
-                      {isEditingVacantDate ? (
-                        <div className="rounded-lg border border-brand-200 bg-brand-50/50 dark:bg-brand-950/40 p-2 my-1">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex-1 min-w-[140px]">
-                              <label className="text-[10px] font-semibold text-text-secondary block mb-1">
-                                Effective Vacancy Date (Aging Override)
-                              </label>
-                              <input
-                                type="date"
-                                value={editedVacantDate}
-                                onChange={(e) => setEditedVacantDate(e.target.value)}
-                                className="h-7 w-full rounded border border-border-default bg-surface-base px-2 text-xs text-text-primary focus:border-brand-500 focus:outline-none"
-                              />
-                            </div>
-                            <div className="flex items-center gap-1.5 self-end">
-                              <button
-                                type="button"
-                                disabled={updateEffectiveVacancyDateMutation.isPending}
-                                onClick={async () => {
-                                  if (!editedVacantDate) return;
-                                  try {
-                                    setEditDateError(null);
-                                    await updateEffectiveVacancyDateMutation.mutateAsync({
-                                      vacancyId: vacancyId || undefined,
-                                      vcode: detail.vcode,
-                                      vacantDate: editedVacantDate,
-                                    });
-                                    setIsEditingVacantDate(false);
-                                    refetch();
-                                  } catch (err: unknown) {
-                                    setEditDateError(err instanceof Error ? err.message : "Failed to update date");
-                                  }
-                                }}
-                                className="h-7 px-2.5 rounded bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 transition disabled:opacity-50 cursor-pointer shadow-2xs"
-                              >
-                                {updateEffectiveVacancyDateMutation.isPending ? "Saving..." : "Save"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setIsEditingVacantDate(false);
-                                  setEditDateError(null);
-                                }}
-                                className="h-7 px-2 rounded border border-border-default bg-surface-base text-text-secondary text-xs hover:bg-surface-hover transition cursor-pointer"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                          {editDateError && (
-                            <p className="mt-1 text-[11px] text-danger-text">{editDateError}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-3 gap-2 text-xs py-0.5">
-                          <div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-medium text-text-muted block">Vacant Since</span>
-                              {canEditEffectiveVacancyDate && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditedVacantDate(detail.vacantDate ? detail.vacantDate.split("T")[0] : new Date().toISOString().split("T")[0]);
-                                    setIsEditingVacantDate(true);
-                                  }}
-                                  className="text-[10px] text-brand-600 hover:text-brand-700 font-medium inline-flex items-center gap-0.5 cursor-pointer ml-1"
-                                  title="Edit Effective Vacancy Date (Override Aging)"
-                                >
-                                  <Edit3 className="w-2.5 h-2.5" />
-                                  <span>Edit</span>
-                                </button>
-                              )}
-                            </div>
-                            <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
-                              {formatDate(detail.vacantDate)}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-medium text-text-muted block">Target Fill Date</span>
-                            <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
-                              {detail.source === "Plantilla" ? "-" : formatDate(detail.targetFillDate)}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-medium text-text-muted block">Date Created</span>
-                            <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
-                              {formatDate(detail.createdAt || detail.vacantDate)}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {(detail.agingDays !== null || hasPenalty) && (
-                        <div className="flex flex-wrap items-center justify-between gap-1.5 rounded-md bg-surface-muted/70 px-2.5 py-1.5 text-xs border border-border-subtle">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-semibold text-text-muted">Aging:</span>
-                            {detail.agingDays !== null ? (
-                              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border border-border-default bg-surface-muted text-text-secondary tabular-nums">
-                                {detail.agingDays} {detail.agingDays === 1 ? "Day" : "Days"}
-                              </span>
-                            ) : (
-                              <span className="font-semibold text-text-primary">--</span>
-                            )}
-                            {detail.agingBucket && (
-                              <Badge className="border-border-default bg-surface-muted text-text-secondary font-sans text-xs py-0.5 px-1.5">
-                                {formatAgingBucket(detail.agingBucket)}
-                              </Badge>
-                            )}
-                          </div>
-                          <div>
-                            {hasPenalty ? (
-                              <span className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-muted px-1.5 py-0.5 text-[11px] font-medium text-text-secondary">
-                                <AlertTriangle className="h-3 w-3 shrink-0" />
-                                Penalty Active {penaltyFormatted ? `(${penaltyFormatted})` : ""}
-                              </span>
-                            ) : (
-                              <span className="text-[11px] text-text-muted">No Penalty</span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {detail.agingDays !== null && detail.agingDays > 60 && (
-                        <div className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted px-2.5 py-1.5 text-xs text-text-primary">
-                          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-text-muted" />
-                          <div className="leading-snug text-[11px]">
-                            <strong className="font-semibold">High SLA Breach Risk:</strong> Open &gt; 60 days. Prioritize onboarding to minimize penalty exposure.
-                          </div>
-                        </div>
-                      )}
-                    </CompactSection>
-
-                    {/* 4. Ownership & Team Section */}
-                    <CompactSection icon={User} title="Ownership & Team">
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">HRCO Assignee</span>
-                          <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
-                            <User className="h-3 w-3 shrink-0 text-text-muted" />
-                            <span className="truncate">{detail.hrcoName ?? "Unassigned"}</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">Recruiter</span>
-                          <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
-                            <User className="h-3 w-3 shrink-0 text-text-muted" />
-                            <span className="truncate">{detail.recruiterName ?? "Unassigned"}</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">OM</span>
-                          <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
-                            <User className="h-3 w-3 shrink-0 text-text-muted" />
-                            <span className="truncate">{leadership.om}</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">TL</span>
-                          <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
-                            <User className="h-3 w-3 shrink-0 text-text-muted" />
-                            <span className="truncate">{leadership.tl}</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] font-medium text-text-muted block">ATL</span>
-                          <div className="mt-0.5 font-semibold text-text-primary flex items-center gap-1.5 truncate">
-                            <User className="h-3 w-3 shrink-0 text-text-muted" />
-                            <span className="truncate">{leadership.atl}</span>
-                          </div>
-                        </div>
-
-                        {isHiredTab ? (
-                          <div>
-                            <span className="text-[10px] font-medium text-text-muted block">Deployed By</span>
-                            <div className="mt-0.5 font-semibold text-text-primary truncate">
-                              {detail.deployedByName ?? "--"}
-                            </div>
-                          </div>
-                        ) : detail.triggeredByName ? (
-                          <div>
-                            <span className="text-[10px] font-medium text-text-muted block">Triggered By</span>
-                            <div className="mt-0.5 font-semibold text-text-primary truncate">
-                              {detail.triggeredByName}
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <span className="text-[10px] font-medium text-text-muted block">Triggered By</span>
-                            <div className="mt-0.5 font-semibold text-text-primary truncate">
-                              --
-                            </div>
-                          </div>
-                        )}
-
-                        {(detail.hasReliever || detail.relieverOnDuty) && (
-                          <div className="col-span-2 pt-1.5 border-t border-border-subtle/50 flex items-center justify-between text-xs">
-                            <span className="text-[10px] font-medium text-text-muted">Reliever on Duty</span>
-                            <span className="inline-flex items-center gap-1 rounded bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-default">
-                              <UserCheck className="h-3 w-3 text-text-muted" />
-                              {detail.relieverOnDuty ?? "Reliever Assigned"}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </CompactSection>
-                  </>
-                );
-              })()}
-
-              {/* HRCO Remarks - Only rendered when actual operational remarks are recorded */}
-              {detail.hrcoRemarks && detail.hrcoRemarks.trim().length > 0 && (
-                <div className="rounded-lg border border-border-subtle p-3 space-y-1.5 bg-surface-muted/30">
-                  <h3 className="text-xs font-semibold text-text-muted">
-                    HRCO Remarks
-                  </h3>
-                  <p className="text-xs text-text-primary bg-surface-base p-2.5 rounded border border-border-subtle leading-relaxed whitespace-pre-line">
-                    {detail.hrcoRemarks.trim()}
-                  </p>
-                </div>
-              )}
-
-              {/* 5. Requisition & Quota Management Section - Suppressed in Hired tab or filled status (Bug 2) */}
-              {!isHiredTab && (
-                <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-text-secondary">
-                      <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600 shrink-0" />
-                      <span>Requisition & Quota Controls</span>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  {/* Active Penalty Callout Strip */}
+                  {hasPenalty && (
+                    <div className="mt-2 pt-2 border-t border-border-subtle flex items-center justify-center gap-1.5 text-[11px] font-semibold text-danger-text">
+                      <AlertTriangle className="h-3.5 w-3.5 text-danger shrink-0" />
+                      <span>Penalty Active {penaltyFormatted ? `(${penaltyFormatted})` : ""}</span>
+                    </div>
+                  )}
+
+                  {/* Multi-position breakdown (preserved for rare multi-position requisitions) */}
+                  {detail.requirements && detail.requirements.length > 1 && (
+                    <div className="mt-2.5 pt-2 border-t border-border-subtle space-y-1">
+                      <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Position Breakdown</span>
+                      {detail.requirements.map((req, idx) => {
+                        const avail = Math.max(0, req.hcNeeded - req.hcFilled);
+                        return (
+                          <div key={req.id || `req-${idx}`} className="flex items-center justify-between text-xs py-0.5">
+                            <span className="font-medium text-text-primary truncate max-w-[170px]">{req.positionName}</span>
+                            <span className="text-[11px] text-text-secondary">
+                              Hired: <strong className="text-text-primary">{req.hcFilled}/{req.hcNeeded}</strong> • Pipe: <strong className="text-text-primary">{req.pipelineCount}</strong> • Avail: <strong className="text-text-primary">{avail}</strong>
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Compact Requisition & Quota Action Row (De-cluttered and elevated) */}
+                {!isHiredTab && (canReviseQuota || canRequestAdjustment || userCanRequestClosure || isPendingClosure) && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                     {canReviseQuota && (
                       <button
                         type="button"
                         onClick={() => setIsReviseQuotaModalOpen(true)}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/70 px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-muted hover:border-border transition shadow-xs cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/60 px-2.5 py-1 text-[11px] font-medium text-text-primary hover:bg-surface-muted hover:border-border-default transition cursor-pointer shadow-2xs"
                         title="Directly revise headcount quota for this requisition slot"
                       >
-                        <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600" />
+                        <SlidersHorizontal className="h-3 w-3 text-brand-600" />
                         <span>Adjust Quota</span>
                       </button>
                     )}
@@ -988,10 +739,10 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                       <button
                         type="button"
                         onClick={() => setIsRequestAdjustmentModalOpen(true)}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/70 px-2.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-muted hover:border-border transition shadow-xs cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/60 px-2.5 py-1 text-[11px] font-medium text-text-primary hover:bg-surface-muted hover:border-border-default transition cursor-pointer shadow-2xs"
                         title="Submit a formal headcount quota adjustment request"
                       >
-                        <FileText className="h-3.5 w-3.5 text-brand-600" />
+                        <FileText className="h-3 w-3 text-brand-600" />
                         <span>Request HC Adjustment</span>
                       </button>
                     )}
@@ -1004,10 +755,10 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           if (isClosureBlockedByApplicants) return;
                           setIsRequestClosureModalOpen(true);
                         }}
-                        className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition shadow-xs ${
+                        className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium transition shadow-2xs ${
                           isClosureBlockedByApplicants
-                            ? "border-border-default bg-surface-muted text-text-muted cursor-not-allowed opacity-60"
-                            : "border-border-default bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary cursor-pointer"
+                            ? "border-border-subtle bg-surface-muted text-text-muted cursor-not-allowed opacity-60"
+                            : "border-border-subtle bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary cursor-pointer"
                         }`}
                         title={
                           isClosureBlockedByApplicants
@@ -1015,7 +766,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                             : "Request store or vacancy closure clearance"
                         }
                       >
-                        <XCircle className={`h-3.5 w-3.5 ${isClosureBlockedByApplicants ? "text-text-muted" : "text-brand-600"}`} />
+                        <XCircle className={`h-3 w-3 ${isClosureBlockedByApplicants ? "text-text-muted" : "text-brand-600"}`} />
                         <span>Request Closure</span>
                       </button>
                     )}
@@ -1040,628 +791,871 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                             alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
                           }
                         }}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface-muted px-2.5 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-xs cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface-muted px-2.5 py-1 text-[11px] font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-2xs cursor-pointer"
                         title="Withdraw in-flight closure clearance request"
                       >
-                        <RotateCcw className="h-3.5 w-3.5 text-text-muted" />
+                        <RotateCcw className="h-3 w-3 text-text-muted" />
                         <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure"}</span>
                       </button>
                     )}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* 6. Applicant & Pipeline Section with Candidate Cards */}
-              <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[11px] font-bold text-text-secondary flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5 text-brand-600 shrink-0" />
-                    <span>Applicant & Pipeline</span>
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-[11px] text-text-secondary font-medium">
-                    <span>{detail.activeApplicantCount} Active</span>
-                    <span>&bull;</span>
-                    <span>{detail.confirmedOnboardCount} Onboarded</span>
+                {/* 3. Primary Working Section: Applicant & Pipeline (Moved First!) */}
+                <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-2.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[11px] font-bold text-text-secondary flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                      <span>Applicant & Pipeline</span>
+                    </h3>
+                    <div className="flex items-center gap-1.5 text-[11px] text-text-secondary font-medium">
+                      <span className="tabular-nums font-semibold text-text-primary">{detail.activeApplicantCount}</span>
+                      <span>Active</span>
+                      <span>&bull;</span>
+                      <span className="tabular-nums font-semibold text-text-primary">{detail.confirmedOnboardCount}</span>
+                      <span>Onboarded</span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Candidate cards */}
-                <div className="space-y-2.5">
-                  {detail.activeApplicantsList && detail.activeApplicantsList.length > 0 ? (
-                    detail.activeApplicantsList.map((candidate, index) => {
-                      const isCandidateHired =
-                        isHired ||
-                        candidate.statusLabel.toLowerCase().includes("hired") ||
-                        candidate.statusLabel.toLowerCase().includes("confirm");
+                  {/* Candidate cards */}
+                  <div className="space-y-2.5">
+                    {detail.activeApplicantsList && detail.activeApplicantsList.length > 0 ? (
+                      detail.activeApplicantsList.map((candidate, index) => {
+                        const isCandidateHired =
+                          isHired ||
+                          candidate.statusLabel.toLowerCase().includes("hired") ||
+                          candidate.statusLabel.toLowerCase().includes("confirm");
 
-                      // Candidate aging in current stage or requisition aging
-                      const candidateAging = candidate.agingDays ?? detail.agingDays ?? null;
+                        const candidateAging = candidate.agingDays ?? detail.agingDays ?? null;
 
-                      return (
-                        <div
-                          key={candidate.applicantId || `candidate-${index}`}
-                          className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3 text-xs hover:bg-surface-muted/60 transition space-y-2.5"
-                        >
-                          {/* Candidate Top Header */}
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold text-[10px]">
-                                {candidate.displayName.charAt(0)}
+                        return (
+                          <div
+                            key={candidate.applicantId || `candidate-${index}`}
+                            className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3 text-xs hover:bg-surface-muted/60 transition space-y-2.5"
+                          >
+                            {/* Candidate Header */}
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold text-[10px]">
+                                  {candidate.displayName.charAt(0)}
+                                </div>
+                                <div className="font-bold text-text-primary text-xs">
+                                  {formatPersonName(candidate.displayName)}
+                                </div>
                               </div>
-                              <div className="font-bold text-text-primary text-xs">
-                                {formatPersonName(candidate.displayName)}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <Badge className="text-[10px] py-0.5 px-2 font-medium border border-border-default bg-surface-muted text-text-secondary">
+                                  {candidate.statusLabel}
+                                </Badge>
+                                {candidateAging !== null && (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border border-border-default bg-surface-muted text-text-secondary"
+                                    title="Candidate Aging in Stage"
+                                  >
+                                    <Clock3 className="h-2.5 w-2.5" />
+                                    <span>{candidateAging}d</span>
+                                  </span>
+                                )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <Badge
-                                className="text-[10px] py-0.5 px-2 font-medium border border-border-default bg-surface-muted text-text-secondary"
+
+                            {/* Candidate Details */}
+                            <div className="grid grid-cols-2 gap-2 text-[11px] text-text-secondary pt-1 border-t border-border-subtle/50">
+                              <div className="flex items-center gap-1 truncate">
+                                <Phone className="h-3 w-3 text-text-muted shrink-0" />
+                                <span className="truncate">{candidate.contactNumber || "No contact recorded"}</span>
+                              </div>
+                              {candidate.onboardDate ? (
+                                <div className="flex items-center gap-1 truncate">
+                                  <Calendar className="h-3 w-3 text-text-muted shrink-0" />
+                                  <span className="truncate">Onboard: {formatDate(candidate.onboardDate)}</span>
+                                </div>
+                              ) : candidate.recruiterName ? (
+                                <div className="flex items-center gap-1 truncate">
+                                  <User className="h-3 w-3 text-text-muted shrink-0" />
+                                  <span className="truncate">Recruiter: {candidate.recruiterName}</span>
+                                </div>
+                              ) : null}
+                            </div>
+
+                            {/* Consolidated Candidate Action Buttons */}
+                            {!isCandidateHired && (userCanManagePipeline || userCanEditApplicant) && (
+                              <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border-subtle/50 flex-wrap">
+                                {userCanEditApplicant && (isUserFullAccess || (candidate.profileEditCount ?? 0) === 0) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCandidateForEdit({
+                                        applicantId: candidate.applicantId,
+                                        displayName: candidate.displayName,
+                                        lastName: candidate.lastName,
+                                        firstName: candidate.firstName,
+                                        middleName: candidate.middleName,
+                                        contactNumber: candidate.contactNumber,
+                                        profileEditCount: candidate.profileEditCount,
+                                        statusLabel: candidate.statusLabel,
+                                        vcode: detail.vcode,
+                                        positionTitle: detail.position_title,
+                                      });
+                                      setIsEditApplicantModalOpen(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded border border-border-default bg-surface px-2 py-1 text-[11px] font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-xs cursor-pointer"
+                                    title="Edit applicant profile details"
+                                  >
+                                    <Edit3 className="h-3 w-3" />
+                                    <span>Edit Details</span>
+                                  </button>
+                                )}
+
+                                {userCanManagePipeline && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedCandidate({
+                                          id: candidate.applicantId,
+                                          fullName: candidate.displayName,
+                                          lastName: candidate.lastName,
+                                          firstName: candidate.firstName,
+                                          middleName: candidate.middleName,
+                                          contactNumber: candidate.contactNumber,
+                                          status: candidate.statusLabel,
+                                          vcode: detail.vcode,
+                                          positionTitle: detail.position_title,
+                                          groupId: detail.groupId,
+                                          accountId: detail.accountId,
+                                          endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
+                                        });
+                                        setIsAdvancePipelineModalOpen(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-muted px-2 py-1 text-[11px] font-semibold text-text-primary hover:bg-surface-hover transition shadow-xs cursor-pointer"
+                                      title="Advance stage or select terminal backout/dropout reason"
+                                    >
+                                      <ArrowRightCircle className="h-3 w-3" />
+                                      <span>Update Stage / Backout</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedCandidate({
+                                          id: candidate.applicantId,
+                                          fullName: candidate.displayName,
+                                          lastName: candidate.lastName,
+                                          firstName: candidate.firstName,
+                                          middleName: candidate.middleName,
+                                          contactNumber: candidate.contactNumber,
+                                          status: candidate.statusLabel,
+                                          vcode: detail.vcode,
+                                          positionTitle: detail.position_title,
+                                          groupId: detail.groupId,
+                                          accountId: detail.accountId,
+                                          endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
+                                        });
+                                        setIsMarkHiredModalOpen(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 transition shadow-xs cursor-pointer"
+                                      title="Approve and mark candidate as hired"
+                                    >
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      <span>Mark Hired</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : detail.applicantName ? (
+                      /* Fallback Single Candidate Card */
+                      <div className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3 text-xs space-y-2.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold text-[10px]">
+                              {detail.applicantName.charAt(0)}
+                            </div>
+                            <div className="font-bold text-text-primary text-xs">
+                              {detail.applicantName}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge className="text-[10px] py-0.5 px-2 font-medium border border-border-default bg-surface-muted text-text-secondary">
+                              {detail.pipelineStatus || "In Pipeline"}
+                            </Badge>
+                            {detail.agingDays !== null && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border border-border-default bg-surface-muted text-text-secondary"
+                                title="Aging in Pipeline"
                               >
-                                {candidate.statusLabel}
-                              </Badge>
-                              {candidateAging !== null && (
-                                <span
-                                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border border-border-default bg-surface-muted text-text-secondary"
-                                  title="Candidate Aging in Stage"
-                                >
-                                  <Clock3 className="h-2.5 w-2.5" />
-                                  <span>{candidateAging}d</span>
-                                </span>
-                              )}
-                            </div>
+                                <Clock3 className="h-2.5 w-2.5" />
+                                <span>{detail.agingDays}d</span>
+                              </span>
+                            )}
                           </div>
+                        </div>
 
-                          {/* Candidate Metadata Row */}
-                          <div className="grid grid-cols-2 gap-2 text-[11px] text-text-secondary pt-1 border-t border-border-subtle/50">
+                        <div className="grid grid-cols-2 gap-2 text-[11px] text-text-secondary pt-1 border-t border-border-subtle/50">
+                          <div className="flex items-center gap-1 truncate">
+                            <Phone className="h-3 w-3 text-text-muted shrink-0" />
+                            <span className="truncate">{detail.contactNumber || "No contact recorded"}</span>
+                          </div>
+                          {detail.onboardDate && (
                             <div className="flex items-center gap-1 truncate">
-                              <Phone className="h-3 w-3 text-text-muted shrink-0" />
-                              <span className="truncate">{candidate.contactNumber || "No contact recorded"}</span>
+                              <Calendar className="h-3 w-3 text-text-muted shrink-0" />
+                              <span className="truncate">Onboard: {formatDate(detail.onboardDate)}</span>
                             </div>
-                            {candidate.onboardDate ? (
-                              <div className="flex items-center gap-1 truncate">
-                                <Calendar className="h-3 w-3 text-text-muted shrink-0" />
-                                <span className="truncate">Onboard: {formatDate(candidate.onboardDate)}</span>
-                              </div>
-                            ) : candidate.recruiterName ? (
-                              <div className="flex items-center gap-1 truncate">
-                                <User className="h-3 w-3 text-text-muted shrink-0" />
-                                <span className="truncate">Recruiter: {candidate.recruiterName}</span>
-                              </div>
-                            ) : null}
-                          </div>
+                          )}
+                        </div>
 
-                          {/* Consolidated Candidate Action Buttons */}
-                          {!isCandidateHired && (userCanManagePipeline || userCanEditApplicant) && (
-                            <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border-subtle/50 flex-wrap">
-                              {userCanEditApplicant && (isUserFullAccess || (candidate.profileEditCount ?? 0) === 0) && (
+                        {!isHired && (userCanManagePipeline || userCanEditApplicant) && (
+                          <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border-subtle/50 flex-wrap">
+                            {userCanEditApplicant && detail.applicantId && (isUserFullAccess || (detail.profileEditCount ?? 0) === 0) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCandidateForEdit({
+                                    applicantId: detail.applicantId!,
+                                    displayName: detail.applicantName,
+                                    firstName: detail.applicantFirstName,
+                                    middleName: detail.applicantMiddleName,
+                                    lastName: detail.applicantLastName,
+                                    contactNumber: detail.contactNumber,
+                                    profileEditCount: detail.profileEditCount,
+                                    statusLabel: detail.pipelineStatus,
+                                    vcode: detail.vcode,
+                                    positionTitle: detail.position_title,
+                                  });
+                                  setIsEditApplicantModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 rounded border border-border-default bg-surface px-2 py-1 text-[11px] font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-xs cursor-pointer"
+                                title="Edit applicant profile details"
+                              >
+                                <Edit3 className="h-3 w-3" />
+                                <span>Edit Details</span>
+                              </button>
+                            )}
+
+                            {userCanManagePipeline && (
+                              <>
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setSelectedCandidateForEdit({
-                                      applicantId: candidate.applicantId,
-                                      displayName: candidate.displayName,
-                                      lastName: candidate.lastName,
-                                      firstName: candidate.firstName,
-                                      middleName: candidate.middleName,
-                                      contactNumber: candidate.contactNumber,
-                                      profileEditCount: candidate.profileEditCount,
-                                      statusLabel: candidate.statusLabel,
+                                    setSelectedCandidate({
+                                      id: detail.applicantId || detail.vacancyId,
+                                      fullName: detail.applicantName || "Candidate",
+                                      lastName: detail.applicantLastName,
+                                      firstName: detail.applicantFirstName,
+                                      middleName: detail.applicantMiddleName,
+                                      contactNumber: detail.contactNumber,
+                                      status: detail.pipelineStatus || "Pipeline",
                                       vcode: detail.vcode,
                                       positionTitle: detail.position_title,
+                                      groupId: detail.groupId,
+                                      accountId: detail.accountId,
+                                      endorsedByName: detail.recruiterName || null,
                                     });
-                                    setIsEditApplicantModalOpen(true);
+                                    setIsAdvancePipelineModalOpen(true);
                                   }}
-                                  className="inline-flex items-center gap-1 rounded border border-border-default bg-surface px-2 py-1 text-[11px] font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-xs cursor-pointer"
-                                  title="Edit applicant profile details"
+                                  className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-muted px-2 py-1 text-[11px] font-semibold text-text-primary hover:bg-surface-hover transition shadow-xs cursor-pointer"
+                                  title="Advance stage or select terminal backout/dropout reason"
                                 >
-                                  <Edit3 className="h-3 w-3" />
-                                  <span>Edit Details</span>
+                                  <ArrowRightCircle className="h-3 w-3" />
+                                  <span>Update Stage / Backout</span>
                                 </button>
-                              )}
 
-                              {userCanManagePipeline && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedCandidate({
-                                        id: candidate.applicantId,
-                                        fullName: candidate.displayName,
-                                        lastName: candidate.lastName,
-                                        firstName: candidate.firstName,
-                                        middleName: candidate.middleName,
-                                        contactNumber: candidate.contactNumber,
-                                        status: candidate.statusLabel,
-                                        vcode: detail.vcode,
-                                        positionTitle: detail.position_title,
-                                        groupId: detail.groupId,
-                                        accountId: detail.accountId,
-                                        endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
-                                      });
-                                      setIsAdvancePipelineModalOpen(true);
-                                    }}
-                                    className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-muted px-2 py-1 text-[11px] font-semibold text-text-primary hover:bg-surface-hover transition shadow-xs cursor-pointer"
-                                    title="Advance stage or select terminal backout/dropout reason"
-                                  >
-                                    <ArrowRightCircle className="h-3 w-3" />
-                                    <span>Update Stage / Backout</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedCandidate({
-                                        id: candidate.applicantId,
-                                        fullName: candidate.displayName,
-                                        lastName: candidate.lastName,
-                                        firstName: candidate.firstName,
-                                        middleName: candidate.middleName,
-                                        contactNumber: candidate.contactNumber,
-                                        status: candidate.statusLabel,
-                                        vcode: detail.vcode,
-                                        positionTitle: detail.position_title,
-                                        groupId: detail.groupId,
-                                        accountId: detail.accountId,
-                                        endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
-                                      });
-                                      setIsMarkHiredModalOpen(true);
-                                    }}
-                                    className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 transition shadow-xs cursor-pointer"
-                                    title="Approve and mark candidate as hired"
-                                  >
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    <span>Mark Hired</span>
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : detail.applicantName ? (
-                    /* Fallback Single Candidate Card */
-                    <div className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3 text-xs space-y-2.5">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700 font-bold text-[10px]">
-                            {detail.applicantName.charAt(0)}
-                          </div>
-                          <div className="font-bold text-text-primary text-xs">
-                            {detail.applicantName}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Badge
-                            className="text-[10px] py-0.5 px-2 font-medium border border-border-default bg-surface-muted text-text-secondary"
-                          >
-                            {detail.pipelineStatus || "In Pipeline"}
-                          </Badge>
-                          {detail.agingDays !== null && (
-                            <span
-                              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border border-border-default bg-surface-muted text-text-secondary"
-                              title="Aging in Pipeline"
-                            >
-                              <Clock3 className="h-2.5 w-2.5" />
-                              <span>{detail.agingDays}d</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-[11px] text-text-secondary pt-1 border-t border-border-subtle/50">
-                        <div className="flex items-center gap-1 truncate">
-                          <Phone className="h-3 w-3 text-text-muted shrink-0" />
-                          <span className="truncate">{detail.contactNumber || "No contact recorded"}</span>
-                        </div>
-                        {detail.onboardDate && (
-                          <div className="flex items-center gap-1 truncate">
-                            <Calendar className="h-3 w-3 text-text-muted shrink-0" />
-                            <span className="truncate">Onboard: {formatDate(detail.onboardDate)}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCandidate({
+                                      id: detail.applicantId || detail.vacancyId,
+                                      fullName: detail.applicantName || "Candidate",
+                                      lastName: detail.applicantLastName,
+                                      firstName: detail.applicantFirstName,
+                                      middleName: detail.applicantMiddleName,
+                                      contactNumber: detail.contactNumber,
+                                      status: detail.pipelineStatus || "Pipeline",
+                                      vcode: detail.vcode,
+                                      positionTitle: detail.position_title,
+                                      groupId: detail.groupId,
+                                      accountId: detail.accountId,
+                                      endorsedByName: detail.recruiterName || null,
+                                    });
+                                    setIsMarkHiredModalOpen(true);
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 transition shadow-xs cursor-pointer"
+                                  title="Approve and mark candidate as hired"
+                                >
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  <span>Mark Hired</span>
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
+                    ) : (
+                      <div className="text-center py-4 border border-dashed border-border-subtle rounded-md text-xs text-text-muted">
+                        No active applicants in pipeline.
+                      </div>
+                    )}
+                  </div>
 
-                      {!isHired && (userCanManagePipeline || userCanEditApplicant) && (
-                        <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border-subtle/50 flex-wrap">
-                          {userCanEditApplicant && detail.applicantId && (isUserFullAccess || (detail.profileEditCount ?? 0) === 0) && (
+                  {/* Enhanced PII Guard Notice (Prominent Callout) */}
+                  <div className="rounded-md border border-border-subtle/80 bg-surface-muted/60 px-2.5 py-1.5 text-[11px] text-text-secondary flex items-start gap-1.5">
+                    <Lock className="h-3.5 w-3.5 text-text-muted shrink-0 mt-0.5" />
+                    <span>PII Guard active: Candidate personal contact details subject to operational scope.</span>
+                  </div>
+                </div>
+
+                {/* 4. Secondary Section: Vacancy Details & Timeline (Collapsible, Deduplicated) */}
+                <CollapsibleSection
+                  icon={Building2}
+                  title="Vacancy Details & Timeline"
+                  isOpen={isDetailsOpen}
+                  onToggle={() => setIsDetailsOpen(!isDetailsOpen)}
+                >
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <div>
+                      <span className="text-[10px] font-medium text-text-muted block">Source</span>
+                      <span className="font-semibold text-text-primary block truncate">
+                        {formatVacancySource(detail.source) || (detail.vcode.startsWith("CG-") ? "Coverage Group" : "Plantilla")}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-medium text-text-muted block">Vacancy Type</span>
+                      <span className="font-semibold text-text-primary block truncate">
+                        {detail.vacancyType || (detail.source === "Plantilla" ? "Replacement" : "New Demand")}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-medium text-text-muted block">Urgency Level</span>
+                      <div className="mt-0.5">
+                        <StatusBadge variant={urgencyVariant} className="text-[11px] py-0 px-2 font-semibold">
+                          {detail.urgencyLevel ?? "Normal"}
+                        </StatusBadge>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-medium text-text-muted block">Province / City</span>
+                      <span className="font-semibold text-text-primary block truncate">
+                        {[detail.areaProvince, detail.areaCity].filter(Boolean).join(" / ") || detail.storeLocation || "--"}
+                      </span>
+                    </div>
+
+                    {/* Assigned Stores tags (only rendered if multi-store roving assignment) */}
+                    {storesList.length > 1 && (
+                      <div className="col-span-2">
+                        <span className="text-[10px] font-medium text-text-muted block mb-1">
+                          Assigned Stores ({storesList.length})
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {storesList.map((st, i) => (
+                            <span key={i} className="inline-flex rounded bg-surface-muted px-1.5 py-0.5 text-[11px] font-medium text-text-primary border border-border-subtle">
+                              {st}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {detail.employmentType && (
+                      <div className="col-span-2">
+                        <span className="text-[10px] font-medium text-text-muted block">Employment Type</span>
+                        <span className="font-semibold text-text-primary">
+                          {detail.employmentType}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Merged Timeline & SLA Fields */}
+                  <div className="pt-2 border-t border-border-subtle/50">
+                    {isEditingVacantDate ? (
+                      <div className="rounded-lg border border-brand-200 bg-brand-50/50 dark:bg-brand-950/40 p-2 my-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex-1 min-w-[140px]">
+                            <label className="text-[10px] font-semibold text-text-secondary block mb-1">
+                              Effective Vacancy Date (Aging Override)
+                            </label>
+                            <input
+                              type="date"
+                              value={editedVacantDate}
+                              onChange={(e) => setEditedVacantDate(e.target.value)}
+                              className="h-7 w-full rounded border border-border-default bg-surface-base px-2 text-xs text-text-primary focus:border-brand-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5 self-end">
+                            <button
+                              type="button"
+                              disabled={updateEffectiveVacancyDateMutation.isPending}
+                              onClick={async () => {
+                                if (!editedVacantDate) return;
+                                try {
+                                  setEditDateError(null);
+                                  await updateEffectiveVacancyDateMutation.mutateAsync({
+                                    vacancyId: vacancyId || undefined,
+                                    vcode: detail.vcode,
+                                    vacantDate: editedVacantDate,
+                                  });
+                                  setIsEditingVacantDate(false);
+                                  refetch();
+                                } catch (err: unknown) {
+                                  setEditDateError(err instanceof Error ? err.message : "Failed to update date");
+                                }
+                              }}
+                              className="h-7 px-2.5 rounded bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 transition disabled:opacity-50 cursor-pointer shadow-2xs"
+                            >
+                              {updateEffectiveVacancyDateMutation.isPending ? "Saving..." : "Save"}
+                            </button>
                             <button
                               type="button"
                               onClick={() => {
-                                setSelectedCandidateForEdit({
-                                  applicantId: detail.applicantId!,
-                                  displayName: detail.applicantName,
-                                  firstName: detail.applicantFirstName,
-                                  middleName: detail.applicantMiddleName,
-                                  lastName: detail.applicantLastName,
-                                  contactNumber: detail.contactNumber,
-                                  profileEditCount: detail.profileEditCount,
-                                  statusLabel: detail.pipelineStatus,
-                                  vcode: detail.vcode,
-                                  positionTitle: detail.position_title,
-                                });
-                                setIsEditApplicantModalOpen(true);
+                                setIsEditingVacantDate(false);
+                                setEditDateError(null);
                               }}
-                              className="inline-flex items-center gap-1 rounded border border-border-default bg-surface px-2 py-1 text-[11px] font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-xs cursor-pointer"
-                              title="Edit applicant profile details"
+                              className="h-7 px-2 rounded border border-border-default bg-surface-base text-text-secondary text-xs hover:bg-surface-hover transition cursor-pointer"
                             >
-                              <Edit3 className="h-3 w-3" />
-                              <span>Edit Details</span>
+                              Cancel
                             </button>
-                          )}
-
-                          {userCanManagePipeline && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedCandidate({
-                                    id: detail.applicantId || detail.vacancyId,
-                                    fullName: detail.applicantName || "Candidate",
-                                    lastName: detail.applicantLastName,
-                                    firstName: detail.applicantFirstName,
-                                    middleName: detail.applicantMiddleName,
-                                    contactNumber: detail.contactNumber,
-                                    status: detail.pipelineStatus || "Pipeline",
-                                    vcode: detail.vcode,
-                                    positionTitle: detail.position_title,
-                                    groupId: detail.groupId,
-                                    accountId: detail.accountId,
-                                    endorsedByName: detail.recruiterName || null,
-                                  });
-                                  setIsAdvancePipelineModalOpen(true);
-                                }}
-                                className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-muted px-2 py-1 text-[11px] font-semibold text-text-primary hover:bg-surface-hover transition shadow-xs cursor-pointer"
-                                title="Advance stage or select terminal backout/dropout reason"
-                              >
-                                <ArrowRightCircle className="h-3 w-3" />
-                                <span>Update Stage / Backout</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedCandidate({
-                                    id: detail.applicantId || detail.vacancyId,
-                                    fullName: detail.applicantName || "Candidate",
-                                    lastName: detail.applicantLastName,
-                                    firstName: detail.applicantFirstName,
-                                    middleName: detail.applicantMiddleName,
-                                    contactNumber: detail.contactNumber,
-                                    status: detail.pipelineStatus || "Pipeline",
-                                    vcode: detail.vcode,
-                                    positionTitle: detail.position_title,
-                                    groupId: detail.groupId,
-                                    accountId: detail.accountId,
-                                    endorsedByName: detail.recruiterName || null,
-                                  });
-                                  setIsMarkHiredModalOpen(true);
-                                }}
-                                className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 transition shadow-xs cursor-pointer"
-                                title="Approve and mark candidate as hired"
-                              >
-                                <CheckCircle2 className="h-3 w-3" />
-                                <span>Mark Hired</span>
-                              </button>
-                            </>
-                          )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 border border-dashed border-border-subtle rounded-md text-xs text-text-muted">
-                      No active applicants in pipeline.
+                        {editDateError && (
+                          <p className="mt-1 text-[11px] text-danger-text">{editDateError}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-medium text-text-muted block">Vacant Since</span>
+                            {canEditEffectiveVacancyDate && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditedVacantDate(detail.vacantDate ? detail.vacantDate.split("T")[0] : new Date().toISOString().split("T")[0]);
+                                  setIsEditingVacantDate(true);
+                                }}
+                                className="text-[10px] text-brand-600 hover:text-brand-700 font-medium inline-flex items-center gap-0.5 cursor-pointer ml-1"
+                                title="Edit Effective Vacancy Date (Override Aging)"
+                              >
+                                <Edit3 className="w-2.5 h-2.5" />
+                                <span>Edit</span>
+                              </button>
+                            )}
+                          </div>
+                          <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
+                            {formatDate(detail.vacantDate)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-medium text-text-muted block">Target Fill Date</span>
+                          <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
+                            {detail.source === "Plantilla" ? "-" : formatDate(detail.targetFillDate)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-medium text-text-muted block">Date Created</span>
+                          <span className="mt-0.5 text-xs font-bold text-text-primary block truncate">
+                            {formatDate(detail.createdAt || detail.vacantDate)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* High SLA Breach Risk Warning */}
+                  {detail.agingDays !== null && detail.agingDays > 60 && (
+                    <div className="mt-1 flex items-center gap-2 rounded-md border border-border-default bg-surface-muted px-2.5 py-1.5 text-xs text-text-primary">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                      <div className="leading-snug text-[11px]">
+                        <strong className="font-semibold">High SLA Breach Risk:</strong> Open &gt; 60 days. Prioritize onboarding to minimize penalty exposure.
+                      </div>
                     </div>
                   )}
-                </div>
+                </CollapsibleSection>
 
-                <div className="text-[10px] text-text-muted flex items-start gap-1 pt-1">
-                  <Lock className="h-3 w-3 shrink-0 mt-0.5 text-text-muted" />
-                  <span>PII Guard active: Candidate personal contact details subject to operational scope.</span>
-                </div>
-              </div>
+                {/* 5. Secondary Section: Ownership & Team (Collapsible, Compact Roster) */}
+                <CollapsibleSection
+                  icon={User}
+                  title="Ownership & Team"
+                  isOpen={isOwnershipOpen}
+                  onToggle={() => setIsOwnershipOpen(!isOwnershipOpen)}
+                >
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <div>
+                      <span className="text-[10px] font-medium text-text-muted block">HRCO Assignee</span>
+                      <div className="mt-0.5 font-semibold text-text-primary truncate">
+                        {detail.hrcoName ? detail.hrcoName : <span className="text-text-muted font-normal italic">Unassigned</span>}
+                      </div>
+                    </div>
 
-              {/* Headcount Origin & Approvals Context - Hidden if completely empty */}
-              {hasHeadcountContext && (
-                <div className="rounded-lg border border-border-subtle p-3 space-y-2 text-xs bg-surface-base">
-                  <h3 className="text-[11px] font-bold text-text-secondary">
-                    Headcount & Approvals Context
-                  </h3>
-                  <div className="space-y-1.5">
-                    {detail.headcountRequestId && (
-                      <div className="flex justify-between border-b border-border-subtle/50 pb-1">
-                        <span className="text-[11px] text-text-muted">Headcount Request ID</span>
-                        <span className="font-mono text-xs text-text-primary truncate max-w-[200px]">
-                          {detail.headcountRequestId}
-                        </span>
+                    <div>
+                      <span className="text-[10px] font-medium text-text-muted block">Recruiter</span>
+                      <div className="mt-0.5 font-semibold text-text-primary truncate">
+                        {detail.recruiterName ? detail.recruiterName : <span className="text-text-muted font-normal italic">Unassigned</span>}
                       </div>
-                    )}
-                    {detail.vacancyReason && (
-                      <div className="flex justify-between border-b border-border-subtle/50 pb-1">
-                        <span className="text-[11px] text-text-muted">Vacancy Stated Reason</span>
-                        <span className="text-xs text-text-primary font-medium">
-                          {detail.vacancyReason}
-                        </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-medium text-text-muted block">OM</span>
+                      <div className="mt-0.5 font-semibold text-text-primary truncate">
+                        {leadership.om !== "Unassigned" ? leadership.om : <span className="text-text-muted font-normal italic">Unassigned</span>}
                       </div>
-                    )}
-                    {detail.approvedByName && (
-                      <div className="flex justify-between border-b border-border-subtle/50 pb-1">
-                        <span className="text-[11px] text-text-muted">Approved By</span>
-                        <span className="text-xs text-text-primary font-medium">
-                          {detail.approvedByName}
-                        </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-medium text-text-muted block">TL</span>
+                      <div className="mt-0.5 font-semibold text-text-primary truncate">
+                        {leadership.tl !== "Unassigned" ? leadership.tl : <span className="text-text-muted font-normal italic">Unassigned</span>}
                       </div>
-                    )}
-                    {detail.approvedAt && (
-                      <div className="flex justify-between border-b border-border-subtle/50 pb-1">
-                        <span className="text-[11px] text-text-muted">Approval Date</span>
-                        <span className="text-xs text-text-primary">
-                          {formatDate(detail.approvedAt)}
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-medium text-text-muted block">ATL</span>
+                      <div className="mt-0.5 font-semibold text-text-primary truncate">
+                        {leadership.atl !== "Unassigned" ? leadership.atl : <span className="text-text-muted font-normal italic">Unassigned</span>}
+                      </div>
+                    </div>
+
+                    {isHiredTab ? (
+                      <div>
+                        <span className="text-[10px] font-medium text-text-muted block">Deployed By</span>
+                        <div className="mt-0.5 font-semibold text-text-primary truncate">
+                          {detail.deployedByName ?? "--"}
+                        </div>
+                      </div>
+                    ) : detail.triggeredByName ? (
+                      <div>
+                        <span className="text-[10px] font-medium text-text-muted block">Triggered By</span>
+                        <div className="mt-0.5 font-semibold text-text-primary truncate">
+                          {detail.triggeredByName}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {(detail.hasReliever || detail.relieverOnDuty) && (
+                      <div className="col-span-2 pt-1.5 border-t border-border-subtle/50 flex items-center justify-between text-xs">
+                        <span className="text-[10px] font-medium text-text-muted">Reliever on Duty</span>
+                        <span className="inline-flex items-center gap-1 rounded bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-default">
+                          <UserCheck className="h-3 w-3 text-text-muted" />
+                          {detail.relieverOnDuty ?? "Reliever Assigned"}
                         </span>
                       </div>
                     )}
                   </div>
-                  {detail.jobDescription && (
-                    <div className="mt-2 pt-2 border-t border-border-subtle/50">
-                      <div className="text-[11px] text-text-muted mb-1">Job Description & Qualifications</div>
-                      <p className="text-xs text-text-secondary leading-relaxed bg-surface-muted/50 p-2 rounded border border-border-subtle whitespace-pre-line">
-                        {detail.jobDescription}
+
+                  {/* HRCO Remarks (conditionally rendered only when recorded) */}
+                  {detail.hrcoRemarks && detail.hrcoRemarks.trim().length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-border-subtle/50 space-y-1">
+                      <span className="text-[10px] font-semibold text-text-muted block">HRCO Remarks</span>
+                      <p className="text-xs text-text-primary bg-surface-muted/30 p-2 rounded border border-border-subtle leading-relaxed whitespace-pre-line">
+                        {detail.hrcoRemarks.trim()}
                       </p>
                     </div>
                   )}
+                </CollapsibleSection>
+              </>
+            );
+          })()}
+
+          {/* 6. Headcount Origin & Approvals Context (Collapsible, only rendered if context exists) */}
+          {hasHeadcountContext && (
+            <CollapsibleSection
+              icon={ClipboardList}
+              title="Headcount & Approvals Context"
+              isOpen={isContextOpen}
+              onToggle={() => setIsContextOpen(!isContextOpen)}
+            >
+              <div className="space-y-1.5 text-xs">
+                {detail.headcountRequestId && (
+                  <div className="flex justify-between border-b border-border-subtle/50 pb-1">
+                    <span className="text-[11px] text-text-muted">Headcount Request ID</span>
+                    <span className="font-mono text-xs text-text-primary truncate max-w-[200px]">
+                      {detail.headcountRequestId}
+                    </span>
+                  </div>
+                )}
+                {detail.vacancyReason && (
+                  <div className="flex justify-between border-b border-border-subtle/50 pb-1">
+                    <span className="text-[11px] text-text-muted">Vacancy Stated Reason</span>
+                    <span className="text-xs text-text-primary font-medium">
+                      {detail.vacancyReason}
+                    </span>
+                  </div>
+                )}
+                {detail.approvedByName && (
+                  <div className="flex justify-between border-b border-border-subtle/50 pb-1">
+                    <span className="text-[11px] text-text-muted">Approved By</span>
+                    <span className="text-xs text-text-primary font-medium">
+                      {detail.approvedByName}
+                    </span>
+                  </div>
+                )}
+                {detail.approvedAt && (
+                  <div className="flex justify-between border-b border-border-subtle/50 pb-1">
+                    <span className="text-[11px] text-text-muted">Approval Date</span>
+                    <span className="text-xs text-text-primary">
+                      {formatDate(detail.approvedAt)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {detail.jobDescription && (
+                <div className="mt-2 pt-2 border-t border-border-subtle/50">
+                  <div className="text-[11px] text-text-muted mb-1">Job Description & Qualifications</div>
+                  <p className="text-xs text-text-secondary leading-relaxed bg-surface-muted/50 p-2 rounded border border-border-subtle whitespace-pre-line">
+                    {detail.jobDescription}
+                  </p>
                 </div>
               )}
-
-              {/* Audit Activity Timeline - Hidden when no real audit logs exist */}
-              {hasActivityLogs && (
-                <div className="rounded-lg border border-border-subtle p-3 space-y-2 bg-surface-base">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-text-secondary">
-                    <History className="h-3.5 w-3.5 text-brand-600 shrink-0" />
-                    <span>Activity History</span>
-                  </div>
-                  <div className="relative pl-4 space-y-2.5 border-l-2 border-border-subtle ml-1.5 mt-2">
-                    {detail.activityHistory!.map((item, index) => {
-                      const summary = formatActivityHistorySummary(item);
-                      return (
-                        <div key={item.eventId || `activity-${index}`} className="relative text-xs">
-                          {/* Timeline dot */}
-                          <div className="absolute -left-[21px] top-0.5 h-2 w-2 rounded-full border-2 border-surface-base bg-brand-500" />
-                          <div className="flex justify-between items-baseline gap-2">
-                            <span className="font-semibold text-text-primary leading-tight">{summary.title}</span>
-                            <span className="text-[10px] text-text-muted shrink-0">
-                              {formatDate(item.createdAt)}
-                            </span>
-                          </div>
-                          {item.profileName && (
-                            <div className="mt-0.5 text-[10px] text-text-muted">
-                              By {item.profileName}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Add Applicant Modal */}
-              {isAddApplicantModalOpen && (
-                <AddApplicantModal
-                  isOpen={isAddApplicantModalOpen}
-                  onClose={() => setIsAddApplicantModalOpen(false)}
-                  vacancy={{
-                    vcode: detail.vcode,
-                    positionTitle: detail.position_title,
-                    storeName: detail.storeName,
-                    accountName: detail.accountName,
-                    groupName: detail.groupName,
-                    hrcoName: detail.hrcoName,
-                  }}
-                  onSuccess={() => refetch()}
-                />
-              )}
-
-              {/* Advance Pipeline Modal */}
-              {isAdvancePipelineModalOpen && (
-                <AdvancePipelineModal
-                  isOpen={isAdvancePipelineModalOpen}
-                  onClose={() => {
-                    setIsAdvancePipelineModalOpen(false);
-                    setSelectedCandidate(null);
-                  }}
-                  applicant={
-                    selectedCandidate || {
-                      id: detail.vacancyId,
-                      fullName: detail.applicantName || "Candidate",
-                      contactNumber: detail.contactNumber,
-                      status: detail.pipelineStatus || "Pipeline",
-                      vcode: detail.vcode,
-                      positionTitle: detail.position_title,
-                    }
-                  }
-                  onSuccess={() => {
-                    setIsAdvancePipelineModalOpen(false);
-                    setSelectedCandidate(null);
-                    refetch();
-                  }}
-                />
-              )}
-
-              {/* Mark Hired Modal */}
-              {isMarkHiredModalOpen && (
-                <MarkHiredModal
-                  isOpen={isMarkHiredModalOpen}
-                  onClose={() => {
-                    setIsMarkHiredModalOpen(false);
-                    setSelectedCandidate(null);
-                  }}
-                  applicant={
-                    selectedCandidate || {
-                      id: detail.vacancyId,
-                      fullName: detail.applicantName || "Candidate",
-                      lastName: detail.applicantLastName,
-                      firstName: detail.applicantFirstName,
-                      middleName: detail.applicantMiddleName,
-                      contactNumber: detail.contactNumber,
-                      vcode: detail.vcode,
-                      positionTitle: detail.position_title,
-                      groupId: detail.groupId,
-                      accountId: detail.accountId,
-                      endorsedByName: detail.recruiterName || null,
-                    }
-                  }
-                  onSuccess={() => {
-                    setIsMarkHiredModalOpen(false);
-                    setSelectedCandidate(null);
-                    refetch();
-                  }}
-                />
-              )}
-
-              {/* Fail / Backout Modal */}
-              {isFailBackoutModalOpen && (
-                <FailBackoutModal
-                  isOpen={isFailBackoutModalOpen}
-                  onClose={() => {
-                    setIsFailBackoutModalOpen(false);
-                    setSelectedCandidate(null);
-                  }}
-                  applicant={
-                    selectedCandidate || {
-                      id: detail.applicantId || detail.vacancyId,
-                      fullName: detail.applicantName || "Candidate",
-                      status: detail.pipelineStatus || "Pipeline",
-                      vcode: detail.vcode,
-                      positionTitle: detail.position_title,
-                    }
-                  }
-                  onSuccess={() => {
-                    setIsFailBackoutModalOpen(false);
-                    setSelectedCandidate(null);
-                    refetch();
-                  }}
-                />
-              )}
-
-              {/* Edit Hired Date Modal */}
-              {isEditHiredDateModalOpen && (
-                <EditHiredDateModal
-                  isOpen={isEditHiredDateModalOpen}
-                  onClose={() => {
-                    setIsEditHiredDateModalOpen(false);
-                    setSelectedCandidate(null);
-                  }}
-                  applicant={
-                    selectedCandidate || {
-                      id: detail.vacancyId,
-                      fullName: detail.applicantName || "Candidate",
-                      vcode: detail.vcode,
-                      hiredDate: detail.onboardDate,
-                    }
-                  }
-                  onSuccess={() => {
-                    setIsEditHiredDateModalOpen(false);
-                    setSelectedCandidate(null);
-                    refetch();
-                  }}
-                />
-              )}
-
-              {/* Edit Applicant Profile Modal */}
-              {isEditApplicantModalOpen && selectedCandidateForEdit && (
-                <EditApplicantModal
-                  isOpen={isEditApplicantModalOpen}
-                  onClose={() => {
-                    setIsEditApplicantModalOpen(false);
-                    setSelectedCandidateForEdit(null);
-                  }}
-                  applicant={selectedCandidateForEdit}
-                  onSuccess={() => {
-                    setIsEditApplicantModalOpen(false);
-                    setSelectedCandidateForEdit(null);
-                    refetch();
-                  }}
-                />
-              )}
-
-              {/* Reopen Vacancy Modal */}
-              {isReopenVacancyModalOpen && (
-                <ReopenVacancyModal
-                  isOpen={isReopenVacancyModalOpen}
-                  onClose={() => setIsReopenVacancyModalOpen(false)}
-                  vacancy={{
-                    vcode: detail.vcode,
-                    positionTitle: detail.position_title,
-                    storeName: detail.storeName,
-                    accountName: detail.accountName,
-                  }}
-                  onSuccess={() => {
-                    setIsReopenVacancyModalOpen(false);
-                    refetch();
-                  }}
-                />
-              )}
-
-              {/* Request Vacancy Closure Modal */}
-              {isRequestClosureModalOpen && (
-                <RequestVacancyClosureModal
-                  isOpen={isRequestClosureModalOpen}
-                  onClose={() => setIsRequestClosureModalOpen(false)}
-                  vacancy={{
-                    vcode: detail.vcode,
-                    positionTitle: detail.position_title,
-                    storeName: detail.storeName,
-                  }}
-                  onSuccess={() => {
-                    setIsRequestClosureModalOpen(false);
-                    refetch();
-                  }}
-                />
-              )}
-
-              {/* Headcount Quota Modals */}
-              {isReviseQuotaModalOpen && (
-                <ReviseHeadcountQuotaModal
-                  isOpen={isReviseQuotaModalOpen}
-                  onClose={() => setIsReviseQuotaModalOpen(false)}
-                  vcode={detail.vcode}
-                  storeName={detail.storeName}
-                  positionTitle={detail.position_title}
-                  initialQuota={detail.headcount}
-                  onSuccess={() => refetch()}
-                />
-              )}
-
-              {isRequestAdjustmentModalOpen && (
-                <RequestHeadcountAdjustmentModal
-                  isOpen={isRequestAdjustmentModalOpen}
-                  onClose={() => setIsRequestAdjustmentModalOpen(false)}
-                  vcode={detail.vcode}
-                  storeName={detail.storeName}
-                  positionTitle={detail.position_title}
-                  initialQuota={detail.headcount}
-                  accountId={detail.accountId}
-                  storeId={detail.storeId}
-                  onSuccess={() => refetch()}
-                />
-              )}
-            </>
+            </CollapsibleSection>
           )}
-      </DetailDrawer>
+
+          {/* 7. Activity History (Collapsible, only rendered if logs exist) */}
+          {hasActivityLogs && (
+            <CollapsibleSection
+              icon={History}
+              title="Activity History"
+              isOpen={isHistoryOpen}
+              onToggle={() => setIsHistoryOpen(!isHistoryOpen)}
+            >
+              <div className="relative pl-4 space-y-2.5 border-l-2 border-border-subtle ml-1.5 mt-1">
+                {detail.activityHistory!.map((item, index) => {
+                  const summary = formatActivityHistorySummary(item);
+                  return (
+                    <div key={item.eventId || `activity-${index}`} className="relative text-xs">
+                      {/* Timeline dot */}
+                      <div className="absolute -left-[21px] top-0.5 h-2 w-2 rounded-full border-2 border-surface-base bg-brand-500" />
+                      <div className="flex justify-between items-baseline gap-2">
+                        <span className="font-semibold text-text-primary leading-tight">{summary.title}</span>
+                        <span className="text-[10px] text-text-muted shrink-0">
+                          {formatDate(item.createdAt)}
+                        </span>
+                      </div>
+                      {item.profileName && (
+                        <div className="mt-0.5 text-[10px] text-text-muted">
+                          By {item.profileName}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CollapsibleSection>
+          )}
+
+          {/* All Action Modals */}
+          {isAddApplicantModalOpen && (
+            <AddApplicantModal
+              isOpen={isAddApplicantModalOpen}
+              onClose={() => setIsAddApplicantModalOpen(false)}
+              vacancy={{
+                vcode: detail.vcode,
+                positionTitle: detail.position_title,
+                storeName: detail.storeName,
+                accountName: detail.accountName,
+                groupName: detail.groupName,
+                hrcoName: detail.hrcoName,
+              }}
+              onSuccess={() => refetch()}
+            />
+          )}
+
+          {isAdvancePipelineModalOpen && (
+            <AdvancePipelineModal
+              isOpen={isAdvancePipelineModalOpen}
+              onClose={() => {
+                setIsAdvancePipelineModalOpen(false);
+                setSelectedCandidate(null);
+              }}
+              applicant={
+                selectedCandidate || {
+                  id: detail.vacancyId,
+                  fullName: detail.applicantName || "Candidate",
+                  contactNumber: detail.contactNumber,
+                  status: detail.pipelineStatus || "Pipeline",
+                  vcode: detail.vcode,
+                  positionTitle: detail.position_title,
+                }
+              }
+              onSuccess={() => {
+                setIsAdvancePipelineModalOpen(false);
+                setSelectedCandidate(null);
+                refetch();
+              }}
+            />
+          )}
+
+          {isMarkHiredModalOpen && (
+            <MarkHiredModal
+              isOpen={isMarkHiredModalOpen}
+              onClose={() => {
+                setIsMarkHiredModalOpen(false);
+                setSelectedCandidate(null);
+              }}
+              applicant={
+                selectedCandidate || {
+                  id: detail.vacancyId,
+                  fullName: detail.applicantName || "Candidate",
+                  lastName: detail.applicantLastName,
+                  firstName: detail.applicantFirstName,
+                  middleName: detail.applicantMiddleName,
+                  contactNumber: detail.contactNumber,
+                  vcode: detail.vcode,
+                  positionTitle: detail.position_title,
+                  groupId: detail.groupId,
+                  accountId: detail.accountId,
+                  endorsedByName: detail.recruiterName || null,
+                }
+              }
+              onSuccess={() => {
+                setIsMarkHiredModalOpen(false);
+                setSelectedCandidate(null);
+                refetch();
+              }}
+            />
+          )}
+
+          {isFailBackoutModalOpen && (
+            <FailBackoutModal
+              isOpen={isFailBackoutModalOpen}
+              onClose={() => {
+                setIsFailBackoutModalOpen(false);
+                setSelectedCandidate(null);
+              }}
+              applicant={
+                selectedCandidate || {
+                  id: detail.applicantId || detail.vacancyId,
+                  fullName: detail.applicantName || "Candidate",
+                  status: detail.pipelineStatus || "Pipeline",
+                  vcode: detail.vcode,
+                  positionTitle: detail.position_title,
+                }
+              }
+              onSuccess={() => {
+                setIsFailBackoutModalOpen(false);
+                setSelectedCandidate(null);
+                refetch();
+              }}
+            />
+          )}
+
+          {isEditHiredDateModalOpen && (
+            <EditHiredDateModal
+              isOpen={isEditHiredDateModalOpen}
+              onClose={() => {
+                setIsEditHiredDateModalOpen(false);
+                setSelectedCandidate(null);
+              }}
+              applicant={
+                selectedCandidate || {
+                  id: detail.vacancyId,
+                  fullName: detail.applicantName || "Candidate",
+                  vcode: detail.vcode,
+                  hiredDate: detail.onboardDate,
+                }
+              }
+              onSuccess={() => {
+                setIsEditHiredDateModalOpen(false);
+                setSelectedCandidate(null);
+                refetch();
+              }}
+            />
+          )}
+
+          {isEditApplicantModalOpen && selectedCandidateForEdit && (
+            <EditApplicantModal
+              isOpen={isEditApplicantModalOpen}
+              onClose={() => {
+                setIsEditApplicantModalOpen(false);
+                setSelectedCandidateForEdit(null);
+              }}
+              applicant={selectedCandidateForEdit}
+              onSuccess={() => {
+                setIsEditApplicantModalOpen(false);
+                setSelectedCandidateForEdit(null);
+                refetch();
+              }}
+            />
+          )}
+
+          {isReopenVacancyModalOpen && (
+            <ReopenVacancyModal
+              isOpen={isReopenVacancyModalOpen}
+              onClose={() => setIsReopenVacancyModalOpen(false)}
+              vacancy={{
+                vcode: detail.vcode,
+                positionTitle: detail.position_title,
+                storeName: detail.storeName,
+                accountName: detail.accountName,
+              }}
+              onSuccess={() => {
+                setIsReopenVacancyModalOpen(false);
+                refetch();
+              }}
+            />
+          )}
+
+          {isRequestClosureModalOpen && (
+            <RequestVacancyClosureModal
+              isOpen={isRequestClosureModalOpen}
+              onClose={() => setIsRequestClosureModalOpen(false)}
+              vacancy={{
+                vcode: detail.vcode,
+                positionTitle: detail.position_title,
+                storeName: detail.storeName,
+              }}
+              onSuccess={() => {
+                setIsRequestClosureModalOpen(false);
+                refetch();
+              }}
+            />
+          )}
+
+          {isReviseQuotaModalOpen && (
+            <ReviseHeadcountQuotaModal
+              isOpen={isReviseQuotaModalOpen}
+              onClose={() => setIsReviseQuotaModalOpen(false)}
+              vcode={detail.vcode}
+              storeName={detail.storeName}
+              positionTitle={detail.position_title}
+              initialQuota={detail.headcount}
+              onSuccess={() => refetch()}
+            />
+          )}
+
+          {isRequestAdjustmentModalOpen && (
+            <RequestHeadcountAdjustmentModal
+              isOpen={isRequestAdjustmentModalOpen}
+              onClose={() => setIsRequestAdjustmentModalOpen(false)}
+              vcode={detail.vcode}
+              storeName={detail.storeName}
+              positionTitle={detail.position_title}
+              initialQuota={detail.headcount}
+              accountId={detail.accountId}
+              storeId={detail.storeId}
+              onSuccess={() => refetch()}
+            />
+          )}
+        </>
+      )}
+    </DetailDrawer>
   );
 }
 
 // Sub-components for states
 function LoadingSkeleton() {
   return (
-    <div className="space-y-5 animate-pulse">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="h-16 rounded-md bg-surface-muted" />
-        <div className="h-16 rounded-md bg-surface-muted" />
-      </div>
-      <div className="h-32 rounded-md bg-surface-muted" />
-      <div className="h-24 rounded-md bg-surface-muted" />
-      <div className="h-36 rounded-md bg-surface-muted" />
-      <div className="h-28 rounded-md bg-surface-muted" />
+    <div className="space-y-4 animate-pulse">
+      <div className="h-16 rounded-lg bg-surface-muted" />
+      <div className="h-10 rounded-md bg-surface-muted" />
+      <div className="h-36 rounded-lg bg-surface-muted" />
+      <div className="h-28 rounded-lg bg-surface-muted" />
+      <div className="h-28 rounded-lg bg-surface-muted" />
     </div>
   );
 }
