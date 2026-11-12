@@ -1,5 +1,45 @@
 # Current State
 
+## Routing Index (load this section only)
+
+AI context router. Load ONLY the files for the active module. Do not load unrelated modules.
+All paths are relative to THIS web repo. If a required file is missing, STOP and report it — never proceed silently.
+
+### Architecture Lock (ADR-001)
+- Read: `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (read-only mirror)
+- Source of truth (do NOT edit from web): mobile repo `.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md`
+- Freshness: run `npm run check:adr` at the start of every prompt (AGENTS.md § ADR Mirror).
+- Every module below also loads ADR-001 § **Core Cross-Module Invariants**.
+
+### Module Routing
+| Module | Web state file(s) | ADR-001 section(s) besides Core |
+|---|---|---|
+| Vacancy | `docs/state/vacancy_web_state.md` | Vacancy |
+| Plantilla | `docs/state/plantilla_web_state.md` | Plantilla |
+| HR Emploc | `docs/state/hr_emploc_web_state.md`, `docs/state/web_mutation_workflow_state.md` | HR Emploc Import |
+| Dashboard / CENCOM | `docs/state/dashboard_state.md`, `docs/state/cencom_state.md` | Dashboard & CENCOM |
+| More | `docs/state/more_state.md` | More Module |
+| Approvals | `docs/state/approvals_web_state.md` | HC Request & Coverage Semantics |
+| Auth / RBAC | `docs/state/web_auth_rbac_state.md` | — (Core Rule 7) |
+| UI System / Tokens | `docs/state/web_ui_system_state.md`, `docs/state/web_design_tokens.md` | — |
+| OHMni Copilot | `docs/state/ohmni_copilot_state.md` | — |
+| Foundation / Target | `docs/state/web_foundation_state.md`, `docs/state/web_target_state.md` | — |
+
+- Use the web state files above, NOT same-named files in the mobile repo (mobile copies are older and diverged).
+- Mobile-only state (e.g. Flutter `docs/state/vacancy_state.md`) is out of scope for web work unless the prompt says otherwise.
+
+### Standard Context Block (copy into prompts)
+```
+1. .ai/briefing.md
+2. .ai/current_state.md (Routing Index section only)
+3. docs/state/<module web state file from table>
+4. docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md → Core Cross-Module Invariants, <module section>
+```
+
+---
+_Everything below is historical log (not routing). Do not load unless needed._
+
+
 OHMployee Web is a Next.js App Router project with a lightweight admin command shell, authentication page, and scaffold-only module routes.
 
 ## Recent Updates

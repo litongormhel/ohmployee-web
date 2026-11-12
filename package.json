@@ -4,15 +4,17 @@
   "private": true,
   "packageManager": "pnpm@10.29.3",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/adr-mirror.mjs check && next dev",
     "dev:prod": "node scripts/switch-env.js prod && next dev",
-    "build": "next build",
+    "build": "node scripts/adr-mirror.mjs check && next build",
     "build:staging": "node scripts/switch-env.js staging && next build",
     "build:prod": "node scripts/switch-env.js prod && next build",
     "start": "next start",
-    "lint": "eslint",
-    "test": "node --test src/lib/utils/__tests__/*.test.mjs src/lib/queries/__tests__/*.test.mjs",
-    "finish": "node scripts/finish.js"
+    "lint": "node scripts/adr-mirror.mjs check && eslint",
+    "test": "node scripts/adr-mirror.mjs check && node --test src/lib/utils/__tests__/*.test.mjs src/lib/queries/__tests__/*.test.mjs",
+    "finish": "node scripts/finish.js",
+    "check:adr": "node scripts/adr-mirror.mjs check",
+    "sync:adr": "node scripts/adr-mirror.mjs sync"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.109",

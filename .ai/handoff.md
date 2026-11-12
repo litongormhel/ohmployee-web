@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — Workflow: ADR-001 Read-Only Mirror, Sync Guard & Context Routing Index (ohm#a4r7m2s9)
+
+**Status: COMPLETE ON MAIN; DOCS + TOOLING ONLY (NO APP CODE, SCHEMA, DB, OR MIGRATIONS); LOCAL COMMIT ON MAIN.**
+
+### 1. Problem
+- Prompt Context blocks referenced mobile-repo paths (`docs/state/vacancy_state.md`, `.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md`) that do not exist in the web repo, so agents ran without ADR-001.
+- `.ai/briefing.md` pointed to a Mac-only path with a stale filename (`adr_001_coverage_architecture_v2.md`); the real file is `ADR-001-ohmployee-system-architecture.md` in the mobile repo (`D:\Projects\OHMployee`).
+- Same-named state files differ between repos (all 8 overlapping files hash `DIFF`; web copies newer, e.g. `vacancy_web_state.md` web 2026-11-12 vs mobile 2026-05-25).
+- Web `.ai/current_state.md` was a historical log, not a router.
+
+### 2. Changes
+- `scripts/adr-mirror.mjs` (new): `check` / `sync`. Mirror header stores `source_commit`, `source_sha256` (LF-normalized content hash), `synced_at`. `check` prints `ADR_MIRROR_STATUS: FRESH | STALE | MIRROR_MISSING | MIRROR_EDITED | NOT_VERIFIED`, always exits 0; runs `git fetch` on the mobile repo and warns if the ADR is behind upstream (offline → NOT VERIFIED warning). Skips on `VERCEL`/`CI`. Mobile path: `OHM_MOBILE_REPO` or `../OHMployee`.
+- `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (new): synced from mobile `3729ccb`.
+- `package.json`: added `check:adr`, `sync:adr`; `dev`, `build`, `lint`, `test` now run `check:adr` first (warning only). Chained instead of `pre*` hooks because `packageManager` is pnpm (pnpm skips pre/post scripts by default).
+- `AGENTS.md`: added Context routing + fail-loud rule and ADR Mirror rule (check every prompt; auto-sync exempt from Approval Gate per Ohm).
+- `.ai/briefing.md`: ADR Architecture Lock Reference now points to the mirror.
+- `.ai/current_state.md`: prepended "Routing Index" (module → web state file → ADR sections + standard Context block); historical log retained below.
+
+### 3. Verification
+- Script scenarios (this session): MIRROR_MISSING → SYNCED → FRESH; hand edit → MIRROR_EDITED; altered fake source via `OHM_MOBILE_REPO` → STALE; missing repo → NOT_VERIFIED; `CI=1` → skipped. Bug found and fixed during testing: header key regex lacked digits (`source_sha256`).
+- All routed state files exist; all 7 routed ADR sections found as `##` headings in the mirror.
+- `npm run lint`: see commit report.
+- State files: none updated (no module behavior change).
+
+### 4. ADR updates needed (Ohm applies in mobile repo)
+- None.
+
+---
+
 ## Execution Report — HR Emploc: Normalize Document Counts, Hide Actions for Ops/Recruitment & Compact SLA Badges (ohm#c3m8v4q7)
 
 **Status: COMPLETE ON MAIN; RESOLVED PERSISTENT `0 DOCS` ISSUE BY SYNCHRONIZING `normalizeListRow` AND `normalizeDetailRow` DIRECTLY IN `src/lib/queries/hr_emploc.ts` AND `hr_emploc_normalizers.ts` WITH SAFE STRINGIFIED JSON PARSING IN `asObject()` AND READING `caps.attachments` AND `caps.doc_count` (NOW RENDERING `View (3)`); ENFORCED ROLE-SCOPED ACTIONS COLUMN VISIBILITY IN `HrEmplocTable.tsx`: COMPLETELY REMOVED ACTIONS COLUMN FOR RECRUITMENT ACROSS ALL TABS, AND REMOVED ACTIONS FOR OPS (OM, TL, ATL, HRCO) ON TABS WHERE OPS HAS NO ALLOWED ACTIONS (`for_emploc`, `review`, `deployed`), PRESERVING ACTIONS COLUMN FOR OPS EXCLUSIVELY ON `pending` AND `correction` WHERE `Upload Docs` IS NEEDED; STANDARDIZED SLA BADGE TEXT TO COMPACT `${days}d` FORMAT (e.g. `0d`, `1d`, `2d`) WITHOUT EXPANDED "DAY/DAYS" TEXT; VERIFIED CLEAN VIA `npm test` (211/211 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (NEXT.JS 16.2.4 TURBOPACK EXIT CODE 0); LOCAL COMMIT ON MAIN.**

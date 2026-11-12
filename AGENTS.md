@@ -1,5 +1,15 @@
 ## Core Workflow Rules (apply to EVERY prompt, even if the prompt body does not mention them)
 - Read `.ai/briefing.md` first. Follow its "Mandatory Workflow Rules" section on EVERY prompt.
+- Context routing: use `.ai/current_state.md` to pick the module state file and ADR-001 sections.
+  All paths in a prompt's Context block are relative to THIS web repo. Fail loudly: if any
+  required context file is missing, STOP and report the missing path. Never proceed silently.
+- ADR Mirror: ADR-001 is read from `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md`
+  (read-only copy; source of truth is the mobile repo). At the start of EVERY prompt run
+  `npm run check:adr` and act on `ADR_MIRROR_STATUS`:
+  `FRESH` → proceed. `STALE` / `MIRROR_MISSING` / `MIRROR_EDITED` → run `npm run sync:adr`
+  (exempt from the Approval Gate: copy only, no code/logic), then include the mirror file in the
+  prompt's local commit and report "ADR mirror synced: <old> → <new>". `NOT_VERIFIED` → use the
+  mirror and write "ADR freshness: NOT VERIFIED" in the report. Never edit the mirror by hand.
 - The post-prompt documentation update is mandatory on EVERY prompt, even if the prompt body
   does not mention it. Checklist: `.ai/briefing.md` § After Every Completed Prompt.
 - Approval & Regression Gate: before any code, schema, or migration change, present a short
