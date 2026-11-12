@@ -34,6 +34,13 @@
   regressing visibility (e.g., role-scoped action buttons, tab rosters, historical separation logs),
   or corrupting state transitions, STOP immediately. Detail what breaks, ask the user, and present
   a safe recommendation that avoids regression.
+- Task Decomposition & Subagent Delegation Gate: When a prompt or task is heavy, multi-surface, or
+  architecturally complex (e.g., spans multiple modules, involves large refactoring, requires deep
+  codebase or RPC tracing, or carries high regression risk), the agent MUST decompose the problem.
+  It should spawn specialized subagents (e.g., Codebase Researcher, Schema/RPC Auditor, or Verification
+  Specialist via `invoke_subagent`) to perform isolated investigations or checks without polluting the
+  primary context window. The primary agent remains the orchestrator: it synthesizes subagent findings,
+  enforces the Approval Gate and ADR contracts, and delivers the unified report and recommendations to the user.
 - Work on `main` only. Never create a branch unless the prompt says "create a branch". Never
   merge, push, or delete a branch on your own. If the environment created a branch, report it
   in the handoff entry; Ohm verifies (`npm run lint` / `npm run build` / manual test), merges

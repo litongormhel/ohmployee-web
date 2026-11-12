@@ -1,5 +1,19 @@
 # AI Handoff
 
+## Execution Report — Workflow: Task Decomposition & Subagent Delegation Gate (ohm#z8m4k1p6)
+
+**Status: COMPLETE ON MAIN; DOCS ONLY; LOCAL COMMIT ON MAIN.**
+
+- **Request**: Add workflow rule for spawning specialized subagents when a prompt or task is heavy, complex, or multi-surface.
+- **Updates**:
+  - `AGENTS.md`: Added `Task Decomposition & Subagent Delegation Gate`:
+    When a task is heavy, multi-module, or requires deep tracing, the agent must decompose the problem and spawn specialized subagents (e.g. codebase research, RPC audits, or verification specialists via `invoke_subagent`) to prevent context pollution. The primary agent acts as the unified orchestrator, upholding workflow rules and the Approval Gate.
+  - `.ai/briefing.md`: Added matching section `### Task Decomposition & Subagent Delegation Standard` under Mandatory Workflow Rules. Updated "Last Completed Tasks" table to reflect `ohm#z8m4k1p6` (preserving 5 items).
+- **Verification**: `npm run check:adr` → `FRESH — 3729ccb`. Docs-only prompt.
+- **ADR updates needed**: None.
+
+---
+
 ## Execution Report — Vacancy Drawer UI Redesign (ohm#7k3q9d2m)
 
 **Status: COMPLETE ON MAIN; CODE + DOCS; ZERO SCHEMA / DB / RPC CHANGES; LOCAL COMMIT ON MAIN.**
