@@ -1,4 +1,5 @@
-// ADR-001 read-only mirror: check freshness / sync from the mobile repo.
+// ADR read-only mirror: check freshness / sync from the mobile repo.
+// Supports ADR-001 and ADR-002.
 // Usage: node scripts/adr-mirror.mjs check|sync
 // Source of truth stays in the mobile repo. Override its location with OHM_MOBILE_REPO.
 // `check` never fails the calling npm script (always exit 0); it prints ADR_MIRROR_STATUS.
@@ -21,9 +22,19 @@ if (process.env.VERCEL || process.env.CI) {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mobileRepo = path.resolve(process.env.OHM_MOBILE_REPO || path.join(root, '..', 'OHMployee'));
-const SRC_REL = '.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md';
-const srcFile = path.join(mobileRepo, SRC_REL);
-const mirrorFile = path.join(root, 'docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md');
+
+const ADR_FILES = [
+  {
+    id: 'ADR-001',
+    srcRel: '.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md',
+    mirrorRel: 'docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md',
+  },
+  {
+    id: 'ADR-002',
+    srcRel: 'docs/architecture/adr002_plantilla_import_store_identity_and_governance.md',
+    mirrorRel: 'docs/architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md',
+  },
+];
 
 const normalize = (s) => s.replace(/\r\n/g, '\n');
 const sha256 = (s) => crypto.createHash('sha256').update(normalize(s), 'utf8').digest('hex');
@@ -41,7 +52,7 @@ function status(code, detail) {
   else console.warn(`\n[adr] ⚠️  ${line}\n[adr] Fix: npm run sync:adr (see AGENTS.md)\n`);
 }
 
-function readMirror() {
+function readMirror(mirrorFile) {
   if (!fs.existsSync(mirrorFile)) return null;
   const text = normalize(fs.readFileSync(mirrorFile, 'utf8'));
   const end = text.indexOf('-->\n');
@@ -55,17 +66,17 @@ function readMirror() {
   return { header, body: text.slice(end + 4) };
 }
 
-function sourceCommit() {
+function sourceCommit(srcRel) {
   try {
-    const hash = git(['log', '-1', '--format=%h %cI', '--', SRC_REL]) || 'untracked';
-    const dirty = git(['status', '--porcelain', '--', SRC_REL]) ? ' +uncommitted-changes' : '';
+    const hash = git(['log', '-1', '--format=%h %cI', '--', srcRel]) || 'untracked';
+    const dirty = git(['status', '--porcelain', '--', srcRel]) ? ' +uncommitted-changes' : '';
     return hash + dirty;
   } catch {
     return 'unknown (git unavailable)';
   }
 }
 
-// Warn if the local mobile clone is behind its remote for the ADR file. Never fatal.
+// Warn if the local mobile clone is behind its remote for any ADR file. Never fatal.
 function remoteCheck() {
   try {
     git(['fetch', '--quiet'], 10000);
@@ -74,63 +85,92 @@ function remoteCheck() {
     return;
   }
   try {
-    const behind = Number(git(['rev-list', '--count', 'HEAD..@{u}', '--', SRC_REL]));
+    const srcPaths = ADR_FILES.map((f) => f.srcRel);
+    const behind = Number(git(['rev-list', '--count', 'HEAD..@{u}', '--', ...srcPaths]));
     if (behind > 0) {
-      console.warn(`\n[adr] ⚠️  Mobile repo is ${behind} commit(s) behind remote for the ADR. Run: git -C "${mobileRepo}" pull\n`);
+      console.warn(`\n[adr] ⚠️  Mobile repo is ${behind} commit(s) behind remote for ADR files. Run: git -C "${mobileRepo}" pull\n`);
     } else {
-      console.log('[adr] Remote check: mobile ADR is up to date with upstream.');
+      console.log('[adr] Remote check: mobile ADRs are up to date with upstream.');
     }
   } catch {
     console.warn('[adr] Remote check NOT VERIFIED (no upstream branch configured).');
   }
 }
 
-const sourceExists = fs.existsSync(srcFile);
-
 if (mode === 'sync') {
-  if (!sourceExists) {
-    console.error(`[adr] Source not found: ${srcFile}\n[adr] Set OHM_MOBILE_REPO to the mobile repo path.`);
-    process.exit(1);
-  }
   remoteCheck();
-  const body = normalize(fs.readFileSync(srcFile, 'utf8'));
-  const prev = readMirror();
-  const header = [
-    '<!--',
-    'ADR-MIRROR: DO NOT EDIT. Read-only copy. Edit the ADR in the mobile repo, then run `npm run sync:adr`.',
-    `source: OHMployee/${SRC_REL}`,
-    `source_commit: ${sourceCommit()}`,
-    `source_sha256: ${sha256(body)}`,
-    `synced_at: ${new Date().toISOString()}`,
-    '-->',
-    '',
-  ].join('\n');
-  fs.mkdirSync(path.dirname(mirrorFile), { recursive: true });
-  fs.writeFileSync(mirrorFile, header + body, 'utf8');
-  const from = prev?.header?.source_commit || 'none';
-  status('SYNCED', `${from} → ${sourceCommit()}`);
+  const results = [];
+  for (const item of ADR_FILES) {
+    const srcFile = path.join(mobileRepo, item.srcRel);
+    const mirrorFile = path.join(root, item.mirrorRel);
+    if (!fs.existsSync(srcFile)) {
+      console.error(`[adr] Source not found: ${srcFile}`);
+      continue;
+    }
+    const body = normalize(fs.readFileSync(srcFile, 'utf8'));
+    const prev = readMirror(mirrorFile);
+    const header = [
+      '<!--',
+      `ADR-MIRROR: DO NOT EDIT. Read-only copy of ${item.id}. Edit in mobile repo, then run \`npm run sync:adr\`.`,
+      `source: OHMployee/${item.srcRel}`,
+      `source_commit: ${sourceCommit(item.srcRel)}`,
+      `source_sha256: ${sha256(body)}`,
+      `synced_at: ${new Date().toISOString()}`,
+      '-->',
+      '',
+    ].join('\n');
+    fs.mkdirSync(path.dirname(mirrorFile), { recursive: true });
+    fs.writeFileSync(mirrorFile, header + body, 'utf8');
+    const from = prev?.header?.source_commit || 'none';
+    results.push(`${item.id}: ${from} → ${sourceCommit(item.srcRel)}`);
+  }
+  status('SYNCED', results.join('; '));
   process.exit(0);
 }
 
 // mode === 'check'
-const mirror = readMirror();
-if (!mirror) {
-  status('MIRROR_MISSING', path.relative(root, mirrorFile));
-  process.exit(0);
+const mobileExists = fs.existsSync(mobileRepo);
+if (mobileExists) {
+  remoteCheck();
 }
-if (mirror.header.source_sha256 && sha256(mirror.body) !== mirror.header.source_sha256) {
-  status('MIRROR_EDITED', 'mirror body was edited by hand; re-sync to restore');
-  process.exit(0);
+
+let anyStale = false;
+let anyMissing = false;
+let anyEdited = false;
+let unverified = !mobileExists;
+const freshList = [];
+
+for (const item of ADR_FILES) {
+  const srcFile = path.join(mobileRepo, item.srcRel);
+  const mirrorFile = path.join(root, item.mirrorRel);
+  const mirror = readMirror(mirrorFile);
+
+  if (!mirror) {
+    anyMissing = true;
+    status('MIRROR_MISSING', `${item.id}: ${path.relative(root, mirrorFile)}`);
+    continue;
+  }
+  if (mirror.header.source_sha256 && sha256(mirror.body) !== mirror.header.source_sha256) {
+    anyEdited = true;
+    status('MIRROR_EDITED', `${item.id}: mirror body edited by hand; run npm run sync:adr`);
+    continue;
+  }
+  if (!fs.existsSync(srcFile)) {
+    unverified = true;
+    status('NOT_VERIFIED', `${item.id}: mobile source not found; using mirror (${mirror.header.source_commit || 'unknown'})`);
+    continue;
+  }
+  const srcHash = sha256(fs.readFileSync(srcFile, 'utf8'));
+  if (srcHash !== mirror.header.source_sha256) {
+    anyStale = true;
+    status('STALE', `${item.id}: mirror ${mirror.header.source_commit || 'unknown'} ≠ source ${sourceCommit(item.srcRel)}`);
+  } else {
+    freshList.push(`${item.id} (${mirror.header.source_commit || 'ok'})`);
+  }
 }
-if (!sourceExists) {
-  status('NOT_VERIFIED', `mobile repo not found at ${mobileRepo}; using mirror (${mirror.header.source_commit || 'unknown'})`);
-  process.exit(0);
+
+if (!anyStale && !anyMissing && !anyEdited && !unverified) {
+  status('FRESH', freshList.join(', '));
 }
-remoteCheck();
-const srcHash = sha256(fs.readFileSync(srcFile, 'utf8'));
-if (srcHash !== mirror.header.source_sha256) {
-  status('STALE', `mirror ${mirror.header.source_commit || 'unknown'} ≠ source ${sourceCommit()}`);
-} else {
-  status('FRESH', mirror.header.source_commit);
-}
+
 process.exit(0);

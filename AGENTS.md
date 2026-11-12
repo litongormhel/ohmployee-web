@@ -10,13 +10,13 @@
   "Context loaded: <files + ADR sections>". Fail loudly: if any file is missing, STOP and report
   the missing path. Never proceed silently. All paths are relative to THIS web repo.
   A Context block in the prompt is optional: it overrides or extends this default.
-- ADR Mirror: ADR-001 is read from `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md`
-  (read-only copy; source of truth is the mobile repo). At the start of EVERY prompt run
+- ADR Mirrors: ADR-001 and ADR-002 are read from `docs/architecture/_mirror/`
+  (read-only copies; source of truth is the mobile repo). At the start of EVERY prompt run
   `npm run check:adr` and act on `ADR_MIRROR_STATUS`:
   `FRESH` → proceed. `STALE` / `MIRROR_MISSING` / `MIRROR_EDITED` → run `npm run sync:adr`
-  (exempt from the Approval Gate: copy only, no code/logic), then include the mirror file in the
+  (exempt from the Approval Gate: copy only, no code/logic), then include the mirror file(s) in the
   prompt's local commit and report "ADR mirror synced: <old> → <new>". `NOT_VERIFIED` → use the
-  mirror and write "ADR freshness: NOT VERIFIED" in the report. Never edit the mirror by hand.
+  mirrors and write "ADR freshness: NOT VERIFIED" in the report. Never edit mirrors by hand.
 - The post-prompt documentation update is mandatory on EVERY prompt, even if the prompt body
   does not mention it. Checklist: `.ai/briefing.md` § After Every Completed Prompt.
 - Approval & Regression Gate: before any code, schema, or migration change, present a short

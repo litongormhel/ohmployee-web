@@ -1,9 +1,9 @@
 <!--
-ADR-MIRROR: DO NOT EDIT. Read-only copy. Edit the ADR in the mobile repo, then run `npm run sync:adr`.
+ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
 source_commit: 3729ccb 2026-11-12T10:33:06+08:00
 source_sha256: 773e3ff47d26bff4ddc54a0bf0119f6ee0d9fcb16197093bf9deb2f06e029f5c
-synced_at: 2026-11-12T08:55:18.813Z
+synced_at: 2026-11-12T09:36:28.879Z
 -->
 # ADR-001: OHMployee System Architecture
 

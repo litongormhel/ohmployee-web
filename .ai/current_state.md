@@ -5,17 +5,18 @@
 AI context router. Load ONLY the files for the active module. Do not load unrelated modules.
 All paths are relative to THIS web repo. If a required file is missing, STOP and report it — never proceed silently.
 
-### Architecture Lock (ADR-001)
-- Read: `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (read-only mirror)
-- Source of truth (do NOT edit from web): mobile repo `.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md`
+### Architecture Locks (ADR-001 & ADR-002)
+- Read ADR-001: `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (read-only mirror)
+- Read ADR-002: `docs/architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md` (read-only mirror)
+- Source of truth (do NOT edit from web): mobile repo `.ai/architecture_locks/` and `docs/architecture/`
 - Freshness: run `npm run check:adr` at the start of every prompt (AGENTS.md § ADR Mirror).
 - Every module below also loads ADR-001 § **Core Cross-Module Invariants**.
 
 ### Module Routing
-| Module | Web state file(s) | ADR-001 section(s) besides Core |
+| Module | Web state file(s) | ADR section(s) besides Core |
 |---|---|---|
 | Vacancy | `docs/state/vacancy_web_state.md` | Vacancy |
-| Plantilla | `docs/state/plantilla_web_state.md` | Plantilla |
+| Plantilla | `docs/state/plantilla_web_state.md` | Plantilla (ADR-001); ADR-002 mirror |
 | HR Emploc | `docs/state/hr_emploc_web_state.md`, `docs/state/web_mutation_workflow_state.md` | HR Emploc Import |
 | Dashboard / CENCOM | `docs/state/dashboard_state.md`, `docs/state/cencom_state.md` | Dashboard & CENCOM |
 | More | `docs/state/more_state.md` | More Module |

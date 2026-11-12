@@ -1,5 +1,20 @@
 # AI Handoff
 
+## Execution Report — Workflow: Sync ADR-002 to Mobile Source of Truth & Mirror Guard (ohm#y7m2k9v4)
+
+**Status: COMPLETE ON MAIN; DOCS + SCRIPT TOOLING; LOCAL COMMIT ON MAIN.**
+
+- **Request**: Sync ADR-002 from web repo to mobile repo (source of truth) and govern it under the mirror sync guard.
+- **Actions & Results**:
+  1. **Mobile Sync**: Copied updated ADR-002 with Addendum (Invariants 16–19: bi-directional identity lock, coalescing, 18+ minimum age, schedule expansion & rest day carving) from web to mobile repo `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`. Committed in mobile repo as `49d7a40`.
+  2. **Multi-ADR Mirroring**: Updated `scripts/adr-mirror.mjs` to track both `ADR-001` and `ADR-002` in `docs/architecture/_mirror/`. Supports multi-file hash checks, upstream `git fetch` staleness checks, and tamper detection.
+  3. **Mirror Sync**: Ran `npm run sync:adr` to generate read-only mirror `docs/architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md`.
+  4. **Pointers & Routing**: Replaced loose web `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md` with an advisory notice directing to the read-only mirror. Updated `docs/state/plantilla_web_state.md`, `.ai/current_state.md`, `AGENTS.md`, and `.ai/briefing.md` to reference the mirror.
+- **Verification**: `npm run check:adr` → `FRESH — ADR-001 (3729ccb 2026-11-12T10:33:06+08:00), ADR-002 (49d7a40 2026-11-12T17:34:47+08:00)`.
+- **ADR updates needed**: None (already applied in mobile repo).
+
+---
+
 ## Execution Report — Workflow: Task Decomposition & Subagent Delegation Gate (ohm#z8m4k1p6)
 
 **Status: COMPLETE ON MAIN; DOCS ONLY; LOCAL COMMIT ON MAIN.**

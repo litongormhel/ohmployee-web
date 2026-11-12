@@ -1,7 +1,7 @@
 # Plantilla Web State & Architecture Specification
 
 > [!NOTE]
-> **Governing Architecture:** Governed by [ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture](../architecture/adr002_plantilla_import_store_identity_and_governance.md).
+> **Governing Architecture:** Governed by [ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture](../architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md).
 > Key rules: 1 Store Name = 1 Permanent VCODE; Vacant baseline imports allowed; Auto-computed roving headcount fractions ($1/N$); Strict middle name rules; Per-Account HRCO auto-population and reactive backfill; 72-hour rollback window with strict Zero-Edit Lock.
 
 ## 1. Scope & Core Purpose
@@ -55,7 +55,7 @@ Search: "Search employees, IDs, stores..."    [ All Stores (Area -> City) ]    [
 
 > [!NOTE]
 > **Batch Import Entry Point & Contract**: Plantilla baseline batch roster imports are centralized under **More → Data Control → Batch Imports** (`/more?tab=data_control&subtab=batch_imports&import=plantilla`). The legacy inline "Import Plantilla" header action button and `<PlantillaImportModal>` mount on `/plantilla` were removed in `ohm#9b5t3c7e` to prevent inline layout overlaps after batch imports became full-page views.
-> For the governing validation contract, pre-upload dry-run blocking, roving status evaluation, and rollback requirements, refer to [ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture](../architecture/adr002_plantilla_import_store_identity_and_governance.md) § Invariant 4 and Invariant 10.
+> For the governing validation contract, pre-upload dry-run blocking, roving status evaluation, and rollback requirements, refer to [ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture](../architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md) § Invariant 4 and Invariant 10.
 > Self-rolling-back SQL regression test harness is maintained at `scripts/tests/plantilla_import_regression.sql` (run before and after any change touching Import Plantilla).
 
 ### A. Employee View (Default)
