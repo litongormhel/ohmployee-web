@@ -1,5 +1,17 @@
 # AI Handoff
 
+## Execution Report — Workflow: Auto Context Loading in AGENTS.md (ohm#k6p2w8n4)
+
+**Status: COMPLETE ON MAIN; DOCS ONLY; LOCAL COMMIT ON MAIN.**
+
+- **Request**: Ohm should not have to paste the Context block every prompt.
+- **`AGENTS.md`**: replaced the "Context routing" bullet with "Auto Context Loading": every prompt loads `.ai/briefing.md`, `.ai/current_state.md` Routing Index, the inferred module's web state file(s), and ADR mirror § Core Cross-Module Invariants + module section(s). Ask if the module is ambiguous; every report starts with "Context loaded: …"; fail loudly on missing files; prompt Context block is optional override/extend.
+- **`.ai/current_state.md`**: Standard Context Block marked optional.
+- **Verification**: `npm run check:adr` → `FRESH — 3729ccb`. Docs-only, lint not required. State files: none (no module behavior change).
+- **ADR updates needed**: None.
+
+---
+
 ## Execution Report — Workflow: ADR-001 Read-Only Mirror, Sync Guard & Context Routing Index (ohm#a4r7m2s9)
 
 **Status: COMPLETE ON MAIN; DOCS + TOOLING ONLY (NO APP CODE, SCHEMA, DB, OR MIGRATIONS); LOCAL COMMIT ON MAIN.**

@@ -1,8 +1,15 @@
 ## Core Workflow Rules (apply to EVERY prompt, even if the prompt body does not mention them)
 - Read `.ai/briefing.md` first. Follow its "Mandatory Workflow Rules" section on EVERY prompt.
-- Context routing: use `.ai/current_state.md` to pick the module state file and ADR-001 sections.
-  All paths in a prompt's Context block are relative to THIS web repo. Fail loudly: if any
-  required context file is missing, STOP and report the missing path. Never proceed silently.
+- Auto Context Loading (EVERY prompt, no Context block needed):
+  1. `.ai/briefing.md`
+  2. `.ai/current_state.md` → "Routing Index" section only
+  3. Infer the module(s) from the prompt (route, component, RPC, or module name). Load each
+     module's web state file(s) and its ADR-001 sections from the Routing Index table.
+  4. ADR mirror → § Core Cross-Module Invariants + the module section(s).
+  If the module is ambiguous, ask before loading. Start every report with
+  "Context loaded: <files + ADR sections>". Fail loudly: if any file is missing, STOP and report
+  the missing path. Never proceed silently. All paths are relative to THIS web repo.
+  A Context block in the prompt is optional: it overrides or extends this default.
 - ADR Mirror: ADR-001 is read from `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md`
   (read-only copy; source of truth is the mobile repo). At the start of EVERY prompt run
   `npm run check:adr` and act on `ADR_MIRROR_STATUS`:

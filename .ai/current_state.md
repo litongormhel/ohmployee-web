@@ -28,7 +28,8 @@ All paths are relative to THIS web repo. If a required file is missing, STOP and
 - Use the web state files above, NOT same-named files in the mobile repo (mobile copies are older and diverged).
 - Mobile-only state (e.g. Flutter `docs/state/vacancy_state.md`) is out of scope for web work unless the prompt says otherwise.
 
-### Standard Context Block (copy into prompts)
+### Standard Context Block (optional — agents auto-load this per AGENTS.md § Auto Context Loading)
+Include only to override or extend the default:
 ```
 1. .ai/briefing.md
 2. .ai/current_state.md (Routing Index section only)
