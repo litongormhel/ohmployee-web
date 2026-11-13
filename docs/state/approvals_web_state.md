@@ -136,4 +136,15 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
   - Search: Full text matching applicant name, vcode, store name, position title, group name, account name, requester, and employee number.
   - Approve Modal: Summarizes applicant, VCODE, deletion type, and scope (`Group / Account`) with optional pipeline vacancy slot reopen toggle.
 
+---
+
+## 9. Super Admin Universal Bypass & RBAC Guard
+- **Universal Super Admin Bypass**: Super Admin identity (`isOwner`, `email === 'ohmpayatt@proton.me'`, `role_level === 100`, or `roleKey === 'super_admin'`) unconditionally bypasses all module and category restrictions:
+  - In `src/lib/rbac.ts`, `isOwner` checks email, `roleLevel >= 100`, and `AppRole.SUPER_ADMIN`.
+  - In `src/lib/rbac.ts`, `isModuleAllowedForUser` grants immediate exit `if (isOwner(user)) return true;`.
+  - In `src/app/(dashboard)/approvals/page.tsx`, `isSuperAdmin` bypasses `canViewApprovalsHub` and guarantees access to all 13 approval categories, preventing false positive `DataState kind="access_denied"` screens.
+  - In `src/lib/auth.ts`, `loadCurrentUserContext` populates `roleLevel: 100` and `role_level: 100` on `WebCurrentUserContext`.
+- **Strict Role Integrity**: Non-admin roles (OM, HRCO, Recruitment, Backoffice, Viewer) retain their strict ADR-001 defense-in-depth boundaries (HRCO strictly denied Approvals, CENCOM, Reports; Backoffice restricted to deactivations only; Encoder restricted to 5 categories).
+
+
 

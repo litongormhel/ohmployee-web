@@ -11,7 +11,7 @@ import {
   type RequestCategoryKey,
 } from "@/lib/queries/requests";
 import { useCurrentUser } from "@/lib/auth";
-import { canViewApprovalsHub, getAllowedApprovalCategories } from "@/lib/rbac";
+import { canViewApprovalsHub, getAllowedApprovalCategories, isOwner } from "@/lib/rbac";
 import { DataState } from "@/components/shared/DataState";
 
 const VALID_CATEGORIES = new Set<string>([
@@ -34,10 +34,16 @@ function ApprovalsPageContent() {
   const currentUser = useCurrentUser();
   const searchParams = useSearchParams();
 
-  const isAuthorized = canViewApprovalsHub(currentUser);
+  const isSuperAdmin = isOwner(currentUser);
+  const isAuthorized = isSuperAdmin || canViewApprovalsHub(currentUser);
   const allowedCategories = useMemo(
-    () => (currentUser ? getAllowedApprovalCategories(currentUser) : []),
-    [currentUser]
+    () => {
+      if (isSuperAdmin) {
+        return getAllowedApprovalCategories(currentUser);
+      }
+      return currentUser ? getAllowedApprovalCategories(currentUser) : [];
+    },
+    [currentUser, isSuperAdmin]
   );
 
   const defaultCategory: RequestCategoryKey =
@@ -106,7 +112,7 @@ function ApprovalsPageContent() {
     await refetchCounts();
   };
 
-  if (currentUser && (!isAuthorized || allowedCategories.length === 0)) {
+  if (!isSuperAdmin && currentUser && (!isAuthorized || allowedCategories.length === 0)) {
     return (
       <div className="space-y-6">
         <AdminPageHeader

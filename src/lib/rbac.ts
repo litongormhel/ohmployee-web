@@ -31,6 +31,8 @@ export type RoleIdentifiable = {
   roleKey?: string | null;
   roleName?: string | null;
   roleLevel?: number | null;
+  role_level?: number | null;
+  email?: string | null;
   allowedModuleKeys?: string[];
   moduleAccess?: Record<string, { visible: boolean; reason?: string }>;
 };
@@ -93,6 +95,17 @@ export function normalizeRole(roleKeyOrName?: string | null): AppRole | null {
  */
 export function getRoleLevel(userOrRole?: RoleIdentifiable | string | null): number {
   if (!userOrRole) return 0;
+  if (typeof userOrRole === "object") {
+    if (userOrRole.email?.toLowerCase().trim() === "ohmpayatt@proton.me") {
+      return 100;
+    }
+    if (typeof userOrRole.roleLevel === "number" && userOrRole.roleLevel > 0) {
+      return userOrRole.roleLevel;
+    }
+    if (typeof userOrRole.role_level === "number" && userOrRole.role_level > 0) {
+      return userOrRole.role_level;
+    }
+  }
   const roleName = typeof userOrRole === "string" ? userOrRole : userOrRole.roleKey || userOrRole.roleName;
   const role = normalizeRole(roleName);
   switch (role) {
@@ -129,12 +142,25 @@ export function getRoleLevel(userOrRole?: RoleIdentifiable | string | null): num
 // ── Role Groupings (Mobile role_constants.dart parity) ──────────────────────
 
 export function isOwner(userOrRole?: RoleIdentifiable | string | null): boolean {
+  if (!userOrRole) return false;
+  if (typeof userOrRole === "object") {
+    if (userOrRole.email?.toLowerCase().trim() === "ohmpayatt@proton.me") {
+      return true;
+    }
+    if (typeof userOrRole.roleLevel === "number" && userOrRole.roleLevel >= 100) {
+      return true;
+    }
+    if (typeof userOrRole.role_level === "number" && userOrRole.role_level >= 100) {
+      return true;
+    }
+  }
   const role = normalizeRole(extractRoleString(userOrRole));
   if (role) return role === AppRole.SUPER_ADMIN;
   return getRoleLevel(userOrRole) >= 100;
 }
 
 export function hasFullAccess(userOrRole?: RoleIdentifiable | string | null): boolean {
+  if (isOwner(userOrRole)) return true;
   const role = normalizeRole(extractRoleString(userOrRole));
   if (role) return role === AppRole.SUPER_ADMIN || role === AppRole.HEAD_ADMIN;
   return getRoleLevel(userOrRole) >= 90;
@@ -405,6 +431,9 @@ export function isModuleAllowedForUser(
   user?: RoleIdentifiable | null,
 ): boolean {
   if (!user) return false;
+
+  // Super Admin universal bypass: unrestricted access to all modules and tools
+  if (isOwner(user)) return true;
 
   const role = normalizeRole(extractRoleString(user));
 

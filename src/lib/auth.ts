@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { webModules, type WebModule } from "@/lib/modules";
-import { isModuleAllowedForUser } from "@/lib/rbac";
+import { isModuleAllowedForUser, isOwner, getRoleLevel } from "@/lib/rbac";
 
 export type WebModuleAccess = {
   visible: boolean;
@@ -338,8 +338,17 @@ export async function loadCurrentUserContext(): Promise<{
           .filter((id): id is string => typeof id === "string" && id.length > 0))
       : [];
 
+    const isSuperAdminUser =
+      rpcRow.email?.toLowerCase().trim() === "ohmpayatt@proton.me" ||
+      user.email?.toLowerCase().trim() === "ohmpayatt@proton.me" ||
+      isOwner(rpcRow.role_name || rpcRow.role_key);
+
+    const derivedRoleLevel = isSuperAdminUser
+      ? 100
+      : getRoleLevel(rpcRow.role_name || rpcRow.role_key);
+
     console.info(
-      `[auth] Workspace context loaded successfully. Role: ${rpcRow.role_name || rpcRow.role_key || "unknown"}, Modules: [${allowedModuleKeys.join(", ")}]`
+      `[auth] Workspace context loaded successfully. Role: ${rpcRow.role_name || rpcRow.role_key || "unknown"} (Level ${derivedRoleLevel}), Modules: [${allowedModuleKeys.join(", ")}]`
     );
 
     return {
@@ -348,8 +357,10 @@ export async function loadCurrentUserContext(): Promise<{
         profileId: rpcRow.profile_id ?? null,
         displayName: rpcRow.full_name ?? rpcRow.display_name ?? getDisplayName(user),
         email: rpcRow.email ?? user.email ?? null,
-        roleKey: rpcRow.role_key ?? null,
-        roleName: rpcRow.role_name ?? null,
+        roleKey: rpcRow.role_key ?? (isSuperAdminUser ? "super_admin" : null),
+        roleName: rpcRow.role_name ?? (isSuperAdminUser ? "Super Admin" : null),
+        roleLevel: derivedRoleLevel,
+        role_level: derivedRoleLevel,
         groupScope: {
           mode: groupScopeMode,
           ids: groupScopeIds,
@@ -410,10 +421,14 @@ export function useCurrentUser() {
 export function isQuotaOverrideRole(roleKeyOrName?: string | null): boolean {
   if (!roleKeyOrName) return false;
   const normalized = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  const raw = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "");
   return (
     normalized === "super_admin" ||
+    raw === "superadmin" ||
     normalized === "head_admin" ||
-    normalized === "encoder"
+    raw === "headadmin" ||
+    normalized === "encoder" ||
+    raw === "encoder"
   );
 }
 
@@ -424,14 +439,24 @@ export function isQuotaOverrideRole(roleKeyOrName?: string | null): boolean {
 export function isOpsAmendmentRole(roleKeyOrName?: string | null): boolean {
   if (!roleKeyOrName) return false;
   const normalized = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  const raw = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "");
   return (
     normalized === "super_admin" ||
+    raw === "superadmin" ||
     normalized === "head_admin" ||
+    raw === "headadmin" ||
     normalized === "operations_manager" ||
+    raw === "operationsmanager" ||
     normalized === "operations" ||
+    raw === "operations" ||
+    normalized === "om" ||
+    raw === "om" ||
     normalized === "atl" ||
+    raw === "atl" ||
     normalized === "tl" ||
-    normalized === "hrco"
+    raw === "tl" ||
+    normalized === "hrco" ||
+    raw === "hrco"
   );
 }
 
@@ -441,7 +466,13 @@ export function isOpsAmendmentRole(roleKeyOrName?: string | null): boolean {
 export function isHeadOrSuperAdmin(roleKeyOrName?: string | null): boolean {
   if (!roleKeyOrName) return false;
   const normalized = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "_");
-  return normalized === "super_admin" || normalized === "head_admin";
+  const raw = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return (
+    normalized === "super_admin" ||
+    raw === "superadmin" ||
+    normalized === "head_admin" ||
+    raw === "headadmin"
+  );
 }
 
 /**
@@ -450,14 +481,24 @@ export function isHeadOrSuperAdmin(roleKeyOrName?: string | null): boolean {
 export function isPlantillaLifecycleRole(roleKeyOrName?: string | null): boolean {
   if (!roleKeyOrName) return false;
   const normalized = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  const raw = roleKeyOrName.toLowerCase().replace(/[^a-z0-9]/g, "");
   return (
     normalized === "super_admin" ||
+    raw === "superadmin" ||
     normalized === "head_admin" ||
+    raw === "headadmin" ||
     normalized === "hrco" ||
+    raw === "hrco" ||
     normalized === "operations_manager" ||
+    raw === "operationsmanager" ||
     normalized === "operations" ||
+    raw === "operations" ||
+    normalized === "om" ||
+    raw === "om" ||
     normalized === "atl" ||
-    normalized === "tl"
+    raw === "atl" ||
+    normalized === "tl" ||
+    raw === "tl"
   );
 }
 
