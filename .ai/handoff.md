@@ -1,5 +1,40 @@
 # AI Handoff
 
+## Execution Report — MARIZ Account & Fallback Archival Reconciliation (ohm#m8r2a4k7)
+
+**Status: COMPLETE ON MAIN; STAGING DB DATA RECONCILED (14 ACTIVE PERSONNEL UNARCHIVED IN public.plantilla AND CANONICAL ALLOCATIONS REACTIVATED IN public.employee_store_allocations; v_account_allocation_kpi NOW COMPUTING 14 ACTUAL / 14 REQUIRED (100.0% MFR)); CLIENT FALLBACK IN listWebPlantillaEmployees PATCHED IN src/lib/queries/plantilla.ts TO STRICTLY ENFORCE ADR-001 ARCHIVAL/DELETION INVARIANTS; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla Module), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Plantilla.
+
+### 1. Observation
+- User reported a discrepancy on the MARIZ billing account: the Directory Card showed no data (`HC 0/0 • Vacant 0 • Pipeline 0 • MFR —`), but opening the account showed `14 Active Deployed personnel` and `100.0% MFR`.
+- Investigation revealed two interrelated causes:
+  1. **Staging Database QA Test Artifact**: The 14 active employees under MARIZ were marked `is_archived = true` during a QA testing batch in June 2026 (`QA TESTINGAAA` / `QA TEST HEHESSSSS`), and their corresponding `employee_store_allocations` had `is_active = false`.
+  2. **View vs Fallback Discrepancy**:
+     - The Directory Card reads from `v_account_allocation_kpi`, which filters `employee_store_allocations WHERE is_active = true`. Because allocations were inactive, it returned 0/0.
+     - The Account Detail view calls `list_web_plantilla_employees` RPC, which reads `v_plantilla_safe` (`WHERE is_archived = false`), returning 0 rows.
+     - However, `listWebPlantillaEmployees` has a client-side fallback (Strategy D) that queried raw `plantilla` table directly without filtering `is_archived = false`. Because these rows had `status = 'Active'`, the fallback resurrected them, causing the account view to compute `14 Active` and `100% MFR`.
+
+### 2. Logic Chain & Surgical Changes
+1. **`src/lib/queries/plantilla.ts`**:
+   - Enforced `.or("is_archived.is.null,is_archived.eq.false").or("is_deleted.is.null,is_deleted.eq.false")` across fallback query strategies A, B, C, and D in `listWebPlantillaEmployees`.
+   - Guaranteed that direct `plantilla` table queries in fallback code strictly adhere to ADR-001 archival invariants, matching `v_plantilla_safe`.
+2. **Staging Database Reconciliation**:
+   - Unarchived the 14 active personnel records for MARIZ in `public.plantilla` (`is_archived = false, archived_at = null, archive_reason = null`).
+   - Reactivated their 18 canonical allocation rows (including 5 x 0.20 roving splits for employee `10016`) in `public.employee_store_allocations` (`is_active = true`).
+   - Verified `v_account_allocation_kpi`: now outputs `actual_hc = 14`, `required_hc = 14.0000`, and `mfr = 1.0000` (100.0%).
+3. **Documentation**:
+   - Updated `docs/state/plantilla_web_state.md` with entry `ohm#m8r2a4k7`.
+
+### 3. Verification Method
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 631 migrations.
+- `npm test` → 211 tests passed, 0 failures.
+- `npm run lint` → 0 errors, 0 warnings.
+- `npm run build` → Next.js 16.2.4 production build compiled successfully (Exit Code 0).
+
+---
+
 ## Execution Report — Create Roving Coverage Group Feature Parity with Mobile (ohm#c7v2k9m4)
 
 **Status: COMPLETE ON MAIN; HIGH-FIDELITY DIRECT CREATION MODAL CreateCoverageGroupModal.tsx IMPLEMENTED MATCHING MOBILE create_coverage_group_screen.dart AND coverage_group_service.dart; DUAL ENTRY ACCESS IN PLANTILLA (/plantilla BESIDE + Add Account IN DIRECTORY VIEW AND INSIDE ACCOUNT VIEW TOOLBAR) AND MORE HUB (RovingCoverageGroupsModal.tsx TOOLBAR); DYNAMIC POSITION RESOLUTION (v_account_position_options WITH positions FALLBACK); ELIGIBLE STORES RESOLUTION (get_coverage_group_eligible_stores) ENFORCING >= 2 FREE STORES, 1 DESIGNATED ANCHOR STORE, AND OVERLAPPING STORE HARD-LOCKS; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

@@ -1038,6 +1038,14 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Data Layer & Hooks (`src/lib/queries/more.ts`)**: Added `fetchCoverageGroupEligibleStores` (calling RPC `get_coverage_group_eligible_stores`), `fetchAccountPositionOptions` (querying `v_account_position_options` with `positions` fallback), and `useCreateDirectCoverageGroup` with standardized multi-cache invalidation.
   - **ADR-001 Validation**: Real-time client enforcement requiring $\ge 2$ free stores, 1 designated anchor store from selected stores, and blocking stores already assigned to active coverage groups (`alreadyGroupedCode`). Validated clean via `npm run lint` and `npm run build`.
 
+- **MARIZ Account & Fallback Archival Reconciliation (`ohm#m8r2a4k7` — 2026-11-13)**:
+  - **Root Cause**: Plantilla Directory cards read from `v_account_allocation_kpi` (which aggregates `employee_store_allocations WHERE is_active = true`), showing `0/0` and `MFR —` because MARIZ's allocations were previously set to `is_active = false` and its active plantilla rows had been marked `is_archived = true` during QA batch testing (`QA TESTINGAAA` / `QA TEST HEHESSSSS`). When opening the account, the Strategy D client fallback in `listWebPlantillaEmployees` queried raw `plantilla` table without `is_archived = false` check, resurrecting the 14 active personnel and calculating `14 Active / 14 Required (100.0% MFR)`.
+  - **Client-Side Archival Safety Guard (`src/lib/queries/plantilla.ts`)**: Patched fallback query strategies in `listWebPlantillaEmployees` to strictly enforce `.or("is_archived.is.null,is_archived.eq.false").or("is_deleted.is.null,is_deleted.eq.false")` across chunks and direct table queries, guaranteeing client fallbacks never violate ADR-001 archival invariants by surfacing archived/deleted records.
+  - **Staging Database Reconciliation**:
+    1. Unarchived the 14 active personnel records for MARIZ in `public.plantilla` (`is_archived = false, archived_at = null, archive_reason = null`).
+    2. Reactivated their canonical allocation records in `public.employee_store_allocations` (`is_active = true`).
+    3. Reconciled `v_account_allocation_kpi` on Staging: now computes `actual_hc = 14`, `required_hc = 14.0000`, `mfr = 1.0000` (100.0%), ensuring seamless consistency between Directory Card and Account View.
+
   - **Pinned Tier 0 Priority (`src/app/(dashboard)/plantilla/page.tsx`)**:
     - MOSES HQ / Workforce Pool account (`isPoolAccount = true` or `name.toLowerCase() === 'moses hq'`) is permanently pinned to index 0 (`pinaka unahan lagi`) of the Plantilla Directory cards grid.
     - Subsequent accounts continue to sort using the multi-tier problem-first hierarchy (lowest MFR first, vacancy tie-breaker, unconfigured accounts at bottom).

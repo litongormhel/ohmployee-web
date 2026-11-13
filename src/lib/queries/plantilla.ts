@@ -1332,13 +1332,15 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
             .in("id", chunk);
           addRowsToMap(safeData);
 
-          // For any IDs in this chunk not resolved yet, query plantilla table directly
+          // For any IDs in this chunk not resolved yet, query plantilla table directly with archival safety
           const missingChunk = chunk.filter((id) => !safeRowsMap.has(id));
           if (missingChunk.length > 0) {
             const { data: tableData } = await supabase
               .from("plantilla")
               .select("*")
-              .in("id", missingChunk);
+              .in("id", missingChunk)
+              .or("is_archived.is.null,is_archived.eq.false")
+              .or("is_deleted.is.null,is_deleted.eq.false");
             addRowsToMap(tableData);
           }
         }
@@ -1360,7 +1362,9 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
             const { data: tableData } = await supabase
               .from("plantilla")
               .select("*")
-              .in("employee_no", missingChunk);
+              .in("employee_no", missingChunk)
+              .or("is_archived.is.null,is_archived.eq.false")
+              .or("is_deleted.is.null,is_deleted.eq.false");
             addRowsToMap(tableData);
           }
         }
@@ -1381,7 +1385,9 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
             const { data: tableData } = await supabase
               .from("plantilla")
               .select("*")
-              .in("store_id", chunk);
+              .in("store_id", chunk)
+              .or("is_archived.is.null,is_archived.eq.false")
+              .or("is_deleted.is.null,is_deleted.eq.false");
             addRowsToMap(tableData);
           }
         }
@@ -1401,6 +1407,8 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
             .from("plantilla")
             .select("*")
             .ilike("account", `%${accountName}%`)
+            .or("is_archived.is.null,is_archived.eq.false")
+            .or("is_deleted.is.null,is_deleted.eq.false")
             .limit(pageSize);
           addRowsToMap(tableData);
         }
@@ -1418,6 +1426,8 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
             .from("plantilla")
             .select("*")
             .eq("account_id", params.accountId)
+            .or("is_archived.is.null,is_archived.eq.false")
+            .or("is_deleted.is.null,is_deleted.eq.false")
             .limit(pageSize);
           addRowsToMap(idTableData);
         }
