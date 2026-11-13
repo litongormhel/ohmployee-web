@@ -5,6 +5,42 @@ import { createClient } from "@/lib/supabase/client";
 // Types: QA Center
 // ============================================================================
 
+export interface QaScenarioStep {
+  step: number;
+  role: string;
+  action: string;
+  status: "passed" | "failed";
+  details: string;
+}
+
+export interface QaScenarioRunResult {
+  success: boolean;
+  run_id: string;
+  scenario_code: string;
+  sandbox_rolled_back: boolean;
+  steps: QaScenarioStep[];
+  finding_counts: {
+    critical?: number;
+    high?: number;
+    medium?: number;
+    low?: number;
+    total?: number;
+  };
+  executed_at: string;
+  // Ergonomic camelCase aliases for React UI components
+  runId?: string;
+  scenarioCode?: string;
+  sandboxRolledBack?: boolean;
+  findingCounts?: {
+    critical?: number;
+    high?: number;
+    medium?: number;
+    low?: number;
+    total?: number;
+  };
+  executedAt?: string;
+}
+
 export interface QaRunSummary {
   id: string;
   agentName: string;
@@ -17,17 +53,26 @@ export interface QaRunSummary {
   lowCount: number;
   startedAt: string | null;
   completedAt: string | null;
+  summary?: string | null;
+  executionType?: string;
+  rolledBack?: boolean;
+  stepsCount?: number;
 }
 
 export interface QaFinding {
   id: string;
   findingCode: string;
+  findingType?: string;
   category: string;
   severity: "critical" | "high" | "medium" | "low";
   moduleName: string;
   status: string;
   title: string;
   details: string | null;
+  recommendation?: string | null;
+  referenceTable?: string | null;
+  referenceRecordId?: string | null;
+  runId?: string | null;
   createdAt: string | null;
 }
 
@@ -35,8 +80,12 @@ export interface QaSchedule {
   id: string;
   scheduleName: string;
   cronExpression: string;
+  frequency?: string;
+  runTime?: string | null;
   targetModule: string;
+  suiteName?: string;
   isActive: boolean;
+  isEnabled?: boolean;
   lastRunAt: string | null;
   nextRunAt: string | null;
 }
@@ -45,7 +94,12 @@ export interface QaQueueItem {
   id: string;
   scheduleId: string | null;
   status: string;
+  queueStatus?: string;
+  suiteName?: string;
+  runId?: string | null;
   priority: number;
+  retryCount?: number;
+  maxRetries?: number;
   queuedAt: string | null;
   startedAt: string | null;
   errorMessage: string | null;
@@ -60,8 +114,10 @@ export interface QaDailyReport {
   passedRuns: number;
   failedRuns: number;
   criticalFindings: number;
+  criticalCount?: number;
   executiveSummary: string | null;
   createdAt: string | null;
+  generatedAt?: string | null;
 }
 
 export interface QaNotification {
@@ -322,64 +378,106 @@ export async function fetchQaCenterSnapshot(): Promise<QaCenterSnapshot> {
           lowCount: Number(r.low_count ?? 0),
           startedAt: r.started_at ? String(r.started_at) : null,
           completedAt: r.completed_at ? String(r.completed_at) : null,
+          summary: r.summary ? String(r.summary) : null,
+          executionType: r.execution_type ? String(r.execution_type) : undefined,
         }))
       : [];
 
   const findings: QaFinding[] =
     findingsRes.status === "fulfilled" && findingsRes.value.data
-      ? findingsRes.value.data.map((f: Record<string, unknown>) => ({
-          id: String(f.id ?? ""),
-          findingCode: String(f.finding_code ?? f.code ?? "QA_FINDING"),
-          category: String(f.category ?? "General"),
-          severity: (f.severity as "critical" | "high" | "medium" | "low") ?? "medium",
-          moduleName: String(f.module_name ?? f.module ?? "System"),
-          status: String(f.status ?? "open"),
-          title: String(f.title ?? f.finding_summary ?? "Detected Anomaly"),
-          details: f.details || f.error_message ? String(f.details ?? f.error_message) : null,
-          createdAt: f.created_at ? String(f.created_at) : null,
-        }))
+      ? findingsRes.value.data.map((f: Record<string, unknown>) => {
+          const findingType = String(f.finding_type ?? f.finding_code ?? f.code ?? "QA_FINDING");
+          return {
+            id: String(f.id ?? ""),
+            findingCode: findingType,
+            findingType,
+            category: String(f.category ?? f.finding_type ?? "General"),
+            severity: (f.severity as "critical" | "high" | "medium" | "low") ?? "medium",
+            moduleName: String(f.module_name ?? f.module ?? "System"),
+            status: String(f.status ?? "open"),
+            title: String(f.title ?? f.finding_summary ?? "Detected Anomaly"),
+            details: f.details || f.error_message ? String(f.details ?? f.error_message) : null,
+            recommendation: f.recommendation ? String(f.recommendation) : null,
+            referenceTable: f.reference_table ? String(f.reference_table) : null,
+            referenceRecordId: f.reference_record_id ? String(f.reference_record_id) : null,
+            runId: f.run_id ? String(f.run_id) : null,
+            createdAt: f.created_at ? String(f.created_at) : null,
+          };
+        })
       : [];
 
   const schedules: QaSchedule[] =
     schedulesRes.status === "fulfilled" && schedulesRes.value.data
-      ? schedulesRes.value.data.map((s: Record<string, unknown>) => ({
-          id: String(s.id ?? ""),
-          scheduleName: String(s.schedule_name ?? "Scheduled Run"),
-          cronExpression: String(s.cron_expression ?? "@daily"),
-          targetModule: String(s.target_module ?? "all"),
-          isActive: Boolean(s.is_active ?? true),
-          lastRunAt: s.last_run_at ? String(s.last_run_at) : null,
-          nextRunAt: s.next_run_at ? String(s.next_run_at) : null,
-        }))
+      ? schedulesRes.value.data.map((s: Record<string, unknown>) => {
+          const frequency = s.frequency ? String(s.frequency) : "";
+          const runTime = s.run_time ? String(s.run_time) : "";
+          const cronExpression = String(
+            s.cron_expression ?? (runTime ? `${frequency} at ${runTime}` : frequency || "@daily")
+          );
+          const suiteName = String(s.suite_name ?? s.target_module ?? "all");
+          const isEnabled = Boolean(s.is_enabled ?? s.is_active ?? true);
+          return {
+            id: String(s.id ?? ""),
+            scheduleName: String(s.schedule_name ?? "Scheduled Run"),
+            cronExpression,
+            frequency: frequency || undefined,
+            runTime: runTime || null,
+            targetModule: suiteName,
+            suiteName,
+            isActive: isEnabled,
+            isEnabled,
+            lastRunAt: s.last_run_at ? String(s.last_run_at) : null,
+            nextRunAt: s.next_run_at ? String(s.next_run_at) : null,
+          };
+        })
       : [];
 
   const queueItems: QaQueueItem[] =
     queueRes.status === "fulfilled" && queueRes.value.data
-      ? queueRes.value.data.map((q: Record<string, unknown>) => ({
-          id: String(q.id ?? ""),
-          scheduleId: q.schedule_id ? String(q.schedule_id) : null,
-          status: String(q.status ?? "queued"),
-          priority: Number(q.priority ?? 0),
-          queuedAt: q.queued_at ? String(q.queued_at) : null,
-          startedAt: q.started_at ? String(q.started_at) : null,
-          errorMessage: q.error_message ? String(q.error_message) : null,
-        }))
+      ? queueRes.value.data.map((q: Record<string, unknown>) => {
+          const queueStatus = String(q.queue_status ?? q.status ?? "queued");
+          return {
+            id: String(q.id ?? ""),
+            scheduleId: q.schedule_id ? String(q.schedule_id) : null,
+            status: queueStatus,
+            queueStatus,
+            suiteName: q.suite_name ? String(q.suite_name) : undefined,
+            runId: q.run_id ? String(q.run_id) : null,
+            priority: Number(q.priority ?? 0),
+            retryCount: q.retry_count != null ? Number(q.retry_count) : undefined,
+            maxRetries: q.max_retries != null ? Number(q.max_retries) : undefined,
+            queuedAt: q.queued_at ? String(q.queued_at) : null,
+            startedAt: q.started_at ? String(q.started_at) : null,
+            errorMessage: q.error_message ? String(q.error_message) : null,
+          };
+        })
       : [];
 
   const reports: QaDailyReport[] =
     reportsRes.status === "fulfilled" && reportsRes.value.data
-      ? reportsRes.value.data.map((dr: Record<string, unknown>) => ({
-          id: String(dr.id ?? ""),
-          reportDate: String(dr.report_date ?? ""),
-          environment: String(dr.environment ?? "production"),
-          healthScore: dr.health_score != null ? Number(dr.health_score) : null,
-          totalRuns: Number(dr.total_runs ?? 0),
-          passedRuns: Number(dr.passed_runs ?? 0),
-          failedRuns: Number(dr.failed_runs ?? 0),
-          criticalFindings: Number(dr.critical_findings ?? 0),
-          executiveSummary: dr.executive_summary ? String(dr.executive_summary) : null,
-          createdAt: dr.created_at ? String(dr.created_at) : null,
-        }))
+      ? reportsRes.value.data.map((dr: Record<string, unknown>) => {
+          const createdAt = (dr.generated_at ?? dr.created_at) ? String(dr.generated_at ?? dr.created_at) : null;
+          const criticalCount = Number(dr.critical_count ?? dr.critical_findings ?? 0);
+          const executiveSummary = dr.executive_summary
+            ? String(dr.executive_summary)
+            : dr.health_status
+            ? `Status: ${dr.health_status}${dr.most_unstable_workflow ? ` • Unstable: ${dr.most_unstable_workflow}` : ""}`
+            : null;
+          return {
+            id: String(dr.id ?? ""),
+            reportDate: String(dr.report_date ?? ""),
+            environment: String(dr.environment ?? "staging"),
+            healthScore: dr.health_score != null ? Number(dr.health_score) : null,
+            totalRuns: Number(dr.total_runs ?? 0),
+            passedRuns: Number(dr.passed_runs ?? 0),
+            failedRuns: Number(dr.failed_runs ?? 0),
+            criticalFindings: criticalCount,
+            criticalCount,
+            executiveSummary,
+            createdAt,
+            generatedAt: createdAt,
+          };
+        })
       : [];
 
   const notifications: QaNotification[] =
@@ -461,18 +559,90 @@ export function useRunQaCoreDetectionSuite() {
   });
 }
 
-export async function runQaScenarioRpc(scenarioCode: string) {
+export async function runQaScenarioRpc(scenarioCode: string): Promise<QaScenarioRunResult> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("qa_run_scenario", {
     p_scenario_code: scenarioCode.trim(),
   });
   if (error) throw error;
-  return data;
+
+  const raw = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+
+  // Defend against null, undefined, primitive, or array items inside steps array
+  const rawSteps = Array.isArray(raw.steps)
+    ? raw.steps.filter(
+        (s): s is Record<string, unknown> => s !== null && typeof s === "object" && !Array.isArray(s)
+      )
+    : [];
+
+  const steps: QaScenarioStep[] = rawSteps.map((s: Record<string, unknown>, idx: number) => {
+    const rawStepNum = Number(s?.step);
+    const step = Number.isFinite(rawStepNum) && rawStepNum > 0 ? Math.floor(rawStepNum) : idx + 1;
+    const rawStatus = typeof s?.status === "string" ? s.status.trim().toLowerCase() : "";
+    const status: "passed" | "failed" = rawStatus === "failed" ? "failed" : "passed";
+
+    return {
+      step,
+      role: String(s?.role ?? "System"),
+      action: String(s?.action ?? "unknown_action"),
+      status,
+      details: String(s?.details ?? ""),
+    };
+  });
+
+  // Defend against non-object or malformed finding_counts
+  const rawCounts = (raw.finding_counts &&
+  typeof raw.finding_counts === "object" &&
+  !Array.isArray(raw.finding_counts)
+    ? raw.finding_counts
+    : {}) as Record<string, unknown>;
+
+  const toSafeCount = (val: unknown): number => {
+    const num = Number(val);
+    return Number.isFinite(num) && num >= 0 ? Math.floor(num) : 0;
+  };
+
+  const critical = toSafeCount(rawCounts.critical);
+  const high = toSafeCount(rawCounts.high);
+  const medium = toSafeCount(rawCounts.medium);
+  const low = toSafeCount(rawCounts.low);
+  const rawTotal = toSafeCount(rawCounts.total);
+  const total = rawTotal > 0 ? rawTotal : critical + high + medium + low;
+
+  const findingCounts = {
+    critical,
+    high,
+    medium,
+    low,
+    total,
+  };
+
+  const success = Boolean(raw.success);
+  const runId = String(raw.run_id ?? "");
+  const scenarioCodeResolved = String(raw.scenario_code ?? scenarioCode);
+  const sandboxRolledBack = Boolean(raw.sandbox_rolled_back);
+  const executedAt = String(raw.executed_at ?? new Date().toISOString());
+
+  return {
+    success,
+    run_id: runId,
+    scenario_code: scenarioCodeResolved,
+    sandbox_rolled_back: sandboxRolledBack,
+    steps,
+    finding_counts: findingCounts,
+    executed_at: executedAt,
+    // Convenience aliases
+    runId,
+    scenarioCode: scenarioCodeResolved,
+    sandboxRolledBack,
+    findingCounts,
+    executedAt,
+  };
 }
 
 export function useRunQaScenario() {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useMutation<QaScenarioRunResult, Error, string>({
     mutationFn: runQaScenarioRpc,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["qa-center-snapshot"] });
@@ -480,7 +650,9 @@ export function useRunQaScenario() {
   });
 }
 
-export async function generateDailyQaReportRpc(environment = "production") {
+export const useRunQaScenarioMutation = useRunQaScenario;
+
+export async function generateDailyQaReportRpc(environment = "staging") {
   const supabase = createClient();
   const today = new Date().toISOString().substring(0, 10);
   const { data, error } = await supabase.rpc("generate_daily_qa_report", {
@@ -494,7 +666,7 @@ export async function generateDailyQaReportRpc(environment = "production") {
 export function useGenerateDailyQaReport() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (environment?: string) => generateDailyQaReportRpc(environment),
+    mutationFn: (environment: string = "staging") => generateDailyQaReportRpc(environment),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["qa-center-snapshot"] });
     },

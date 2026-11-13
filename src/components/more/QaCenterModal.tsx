@@ -12,12 +12,10 @@ import {
   ListOrdered,
   Play,
   RefreshCw,
-  Search,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
   TrendingUp,
-  XCircle,
 } from "lucide-react";
 
 import {
@@ -25,8 +23,12 @@ import {
   useQaCenterSnapshot,
   useRunQaCoreDetectionSuite,
   useRunQaScenario,
+  type QaScenarioRunResult,
 } from "@/lib/queries/governance";
 import { Modal } from "@/components/shared/Modal";
+import { QaStepTimeline } from "./qa/QaStepTimeline";
+import { QaFindingsViewer } from "./qa/QaFindingsViewer";
+import { QaRunHistoryTable } from "./qa/QaRunHistoryTable";
 
 export interface QaCenterModalProps {
   isOpen: boolean;
@@ -37,6 +39,7 @@ export interface QaCenterModalProps {
 type QaTab = "overview" | "runs" | "findings" | "schedules_queue" | "reports";
 
 const COMMON_SCENARIOS = [
+  { code: "FULL_E2E_RELAY", label: "Full 6-Role Workflow Relay" },
   { code: "VAC_ARCHIVE_001", label: "Vacancy Archival Integrity" },
   { code: "PLANTILLA_001", label: "Plantilla Slot Allocation" },
   { code: "HR_EMPLOC_001", label: "HR Emploc Active Sync" },
@@ -46,9 +49,9 @@ const COMMON_SCENARIOS = [
 
 export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalProps) {
   const [activeTab, setActiveTab] = useState<QaTab>("overview");
-  const [selectedScenario, setSelectedScenario] = useState("VAC_ARCHIVE_001");
-  const [findingSeverityFilter, setFindingSeverityFilter] = useState<string>("all");
-  const [findingSearchQuery, setFindingSearchQuery] = useState("");
+  const [selectedScenario, setSelectedScenario] = useState("FULL_E2E_RELAY");
+  const [lastScenarioResult, setLastScenarioResult] = useState<QaScenarioRunResult | null>(null);
+  const [selectedRunIdFilter, setSelectedRunIdFilter] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const { data: snapshot, isLoading } = useQaCenterSnapshot();
@@ -73,8 +76,16 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
   const handleRunScenario = async () => {
     if (!selectedScenario) return;
     try {
-      await runScenarioMutation.mutateAsync(selectedScenario);
-      showToast(`Scenario ${selectedScenario} executed successfully.`);
+      const res = await runScenarioMutation.mutateAsync(selectedScenario);
+      setLastScenarioResult(res);
+      if (res?.success) {
+        showToast(`Scenario ${selectedScenario} executed cleanly with zero data pollution.`);
+      } else {
+        showToast(`Scenario ${selectedScenario} completed with failures/findings. Check details.`);
+      }
+      if (activeTab !== "overview") {
+        setActiveTab("overview");
+      }
     } catch (err: unknown) {
       showToast(`Scenario run failed: ${(err as Error).message}`);
     }
@@ -82,7 +93,7 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
 
   const handleGenerateReport = async () => {
     try {
-      await generateReportMutation.mutateAsync("production");
+      await generateReportMutation.mutateAsync("staging");
       showToast("Daily QA integrity report generated.");
     } catch (err: unknown) {
       showToast(`Report generation failed: ${(err as Error).message}`);
@@ -105,18 +116,6 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
 
   const latestReport = reports[0];
   const overallHealthScore = latestReport?.healthScore ?? 98.4;
-
-  const filteredFindings = findings.filter((f) => {
-    if (findingSeverityFilter !== "all" && f.severity !== findingSeverityFilter) return false;
-    if (!findingSearchQuery.trim()) return true;
-    const q = findingSearchQuery.toLowerCase();
-    return (
-      f.findingCode.toLowerCase().includes(q) ||
-      f.title.toLowerCase().includes(q) ||
-      f.moduleName.toLowerCase().includes(q) ||
-      (f.details ?? "").toLowerCase().includes(q)
-    );
-  });
 
   return (
     <Modal
@@ -278,6 +277,14 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
             </div>
           ) : activeTab === "overview" ? (
             <div className="space-y-4">
+              {/* Flagship Simulation Runner & Step Timeline */}
+              <QaStepTimeline
+                result={lastScenarioResult}
+                isRunning={runScenarioMutation.isPending}
+                selectedScenarioCode={selectedScenario}
+                onViewFindings={() => setActiveTab("findings")}
+              />
+
               {/* Top KPI Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="rounded-2xl border border-border-default bg-surface-primary p-4 shadow-2xs">
@@ -423,202 +430,22 @@ export function QaCenterModal({ isOpen, onClose, isSuperAdmin }: QaCenterModalPr
                 <span className="text-xs text-text-muted font-mono">Total Runs: {runs.length}</span>
               </div>
 
-              {runs.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border-default p-12 text-center text-xs text-text-muted">
-                  No detection runs found in history. Click &quot;Run Core Suite&quot; to execute your first probe.
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-border-default overflow-hidden">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-border-default bg-surface-subtle text-xs font-bold text-text-muted">
-                        <th className="py-2.5 px-4">Status</th>
-                        <th className="py-2.5 px-4">Agent / Suite</th>
-                        <th className="py-2.5 px-4">Target Module</th>
-                        <th className="py-2.5 px-4">Findings Breakdown</th>
-                        <th className="py-2.5 px-4">Started At</th>
-                        <th className="py-2.5 px-4">Completed</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-subtle bg-surface-primary">
-                      {runs.map((r) => {
-                        const isSuccess = r.status.toLowerCase() === "passed" || r.status.toLowerCase() === "completed";
-                        const isFailed = r.status.toLowerCase() === "failed" || r.criticalCount > 0;
-                        return (
-                          <tr key={r.id} className="hover:bg-surface-hover/50">
-                            <td className="py-2.5 px-4">
-                              <span
-                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold  ${
-                                  isSuccess
-                                    ? "bg-surface-subtle text-text-primary border border-border-default"
-                                    : isFailed
-                                    ? "bg-danger-surface text-danger-text border border-danger-border"
-                                    : "bg-surface-subtle text-text-secondary border border-border-default"
-                                }`}
-                              >
-                                {isSuccess ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary" />
-                                ) : isFailed ? (
-                                  <XCircle className="h-3.5 w-3.5 text-danger-text" />
-                                ) : (
-                                  <Clock className="h-3.5 w-3.5 text-text-muted" />
-                                )}
-                                <span>{r.status}</span>
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-4 font-semibold text-text-primary">{r.agentName}</td>
-                            <td className="py-2.5 px-4">
-                              <span className="font-mono text-xs bg-surface-subtle px-2 py-0.5 rounded-full border border-border-default text-text-secondary">
-                                {r.targetModule}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-4">
-                              <div className="flex items-center gap-1.5 text-xs font-semibold">
-                                {r.criticalCount > 0 && (
-                                  <span className="bg-danger-surface text-danger-text border border-danger-border px-1.5 py-0.2 rounded-full">
-                                    {r.criticalCount} crit
-                                  </span>
-                                )}
-                                {r.highCount > 0 && (
-                                  <span className="bg-surface-subtle text-text-primary border border-border-default px-1.5 py-0.2 rounded-full">
-                                    {r.highCount} high
-                                  </span>
-                                )}
-                                {r.mediumCount > 0 && (
-                                  <span className="bg-surface-subtle text-text-secondary border border-border-default px-1.5 py-0.2 rounded-full">
-                                    {r.mediumCount} med
-                                  </span>
-                                )}
-                                {r.lowCount > 0 && (
-                                  <span className="bg-surface-subtle text-text-muted border border-border-default px-1.5 py-0.2 rounded-full">
-                                    {r.lowCount} low
-                                  </span>
-                                )}
-                                {r.findingCount === 0 && (
-                                  <span className="text-text-primary">Clean</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-4 font-mono text-sm text-text-muted">
-                              {r.startedAt ? new Date(r.startedAt).toLocaleString() : "-"}
-                            </td>
-                            <td className="py-2.5 px-4 font-mono text-sm text-text-muted">
-                              {r.completedAt ? new Date(r.completedAt).toLocaleTimeString() : "In progress"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <QaRunHistoryTable
+                runs={runs}
+                onViewFindingsForRun={(runId) => {
+                  setSelectedRunIdFilter(runId);
+                  setActiveTab("findings");
+                }}
+              />
             </div>
           ) : activeTab === "findings" ? (
             /* Findings Tab */
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="relative w-64">
-                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-text-muted" />
-                    <input
-                      type="text"
-                      placeholder="Search findings, modules, codes..."
-                      value={findingSearchQuery}
-                      onChange={(e) => setFindingSearchQuery(e.target.value)}
-                      className="h-9 w-full rounded-xl border border-border-default bg-surface-primary pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-hidden"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    {["all", "critical", "high", "medium", "low"].map((sev) => (
-                      <button
-                        key={sev}
-                        type="button"
-                        onClick={() => setFindingSeverityFilter(sev)}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-bold  transition cursor-pointer ${
-                          findingSeverityFilter === sev
-                            ? "bg-brand-primary text-surface-primary"
-                            : "bg-surface-primary text-text-secondary hover:bg-surface-hover border border-border-default"
-                        }`}
-                      >
-                        {sev}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <span className="text-xs text-text-muted">
-                  Showing {filteredFindings.length} of {findings.length} findings
-                </span>
-              </div>
-
-              {filteredFindings.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border-default p-12 text-center text-xs text-text-muted">
-                  No findings match the current filter criteria.
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {filteredFindings.map((f) => {
-                    const isCrit = f.severity === "critical";
-                    const isHigh = f.severity === "high";
-                    return (
-                      <div
-                        key={f.id}
-                        className={`rounded-2xl border p-4 transition ${
-                          isCrit
-                            ? "border-danger-border bg-danger-surface"
-                            : isHigh
-                            ? "border-border-default bg-surface-subtle"
-                            : "border-border-default bg-surface-primary"
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-semibold  ${
-                                isCrit
-                                  ? "bg-danger-surface text-danger-text border border-danger-border"
-                                  : "bg-surface-subtle text-text-secondary border border-border-default"
-                              }`}
-                            >
-                              {f.severity}
-                            </span>
-                            <span className="font-mono text-xs font-bold text-text-muted">
-                              {f.findingCode}
-                            </span>
-                            <span className="text-sm font-semibold text-text-primary">{f.title}</span>
-                          </div>
-
-                          <span className="font-mono text-xs text-text-muted">
-                            {f.createdAt ? new Date(f.createdAt).toLocaleString() : ""}
-                          </span>
-                        </div>
-
-                        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
-                          <span>
-                            Module: <strong className="text-text-primary">{f.moduleName}</strong>
-                          </span>
-                          <span>•</span>
-                          <span>
-                            Category: <strong className="text-text-primary">{f.category}</strong>
-                          </span>
-                          <span>•</span>
-                          <span>
-                            Status: <strong className="text-text-primary">{f.status}</strong>
-                          </span>
-                        </div>
-
-                        {f.details && (
-                          <p className="mt-2 text-xs font-mono bg-surface-primary p-2.5 rounded-xl border border-border-default text-text-secondary overflow-x-auto">
-                            {f.details}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <QaFindingsViewer
+              findings={findings}
+              selectedRunId={selectedRunIdFilter}
+              onClearRunFilter={() => setSelectedRunIdFilter(null)}
+              onSelectRun={(runId) => setSelectedRunIdFilter(runId)}
+            />
           ) : activeTab === "schedules_queue" ? (
             /* Schedules & Queue Tab */
             <div className="space-y-6">

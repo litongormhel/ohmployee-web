@@ -1,5 +1,80 @@
 # AI Handoff
 
+## Execution Report — Audit and Ensure QA Simulation Engine, Multi-Role Relay, and QA Center UI Readiness (ohm#q4m8s2k1)
+
+**Status: COMPLETE ON MAIN; SURGICAL MIGRATION 20262606000106 IMPLEMENTING DUAL GUC ROLE IMPERSONATION, SCHEMA CONSTRAINT COMPLIANCE, COLLISION-PROOF TEST DATA, 6-ROLE WORKFLOW RELAY, NEGATIVE BARRIER CHECK, 7-STEP METADATA TELEMETRY, AND ATOMIC SUBTRANSACTION ROLLBACK (QA_SANDBOX_ROLLBACK_SUCCESS); HIGH-FIDELITY QA CENTER UI MODAL AND CHILD COMPONENTS (QaSimulationRunner, QaStepTimeline, QaRunHistoryTable, QaFindingsViewer) WITH TYPED CLIENT HOOKS IN governance.ts; AUTOMATED STAGING E2E TEST RUNNER scripts/test_m3_e2e_staging_simulation.mjs VERIFYING 100% CLEAN RELAY PASS, 0 RECORDS POLLUTED IN LIVE TABLES (vacancies, plantilla, applicants, hr_emploc, users_profile), AND PERSISTENT TELEMETRY IN qa_agent_runs & qa_agent_findings; ALL VERIFICATION GATES PASSED CLEAN (npm run check:adr FRESH, npm run check:sql 28 CORE TABLES & 19 RPCS OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> More Module), `docs/state/more_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, More Module.
+
+### 1. Observation
+- Verified remote Staging database instance (`qqiiznmqxfoamqytjica`) contains surgical migration `20262606000106_qa_run_scenario_sandbox_simulation_engine.sql` implementing `public.qa_run_scenario(p_scenario_code text DEFAULT 'FULL_E2E_RELAY')`.
+- Executed `scripts/test_m3_e2e_staging_simulation.mjs` against Staging:
+  * PostgREST unauthenticated call correctly failed with: `"Only Head Admin or Super Admin can execute QA scenarios"`.
+  * Authorized simulation call `public.qa_run_scenario('FULL_E2E_RELAY')` succeeded:
+    - `run_id`: `9dd3c63d-2e6e-439d-a19d-3d503091836f`
+    - `success`: `true`
+    - `sandbox_rolled_back`: `true`
+    - `scenario_code`: `'FULL_E2E_RELAY'`
+    - `steps.length`: `7`
+    - Step 1 (`Head Admin` / `headcount_approval_and_vacancy_init`): `passed`
+    - Step 2 (`Encoder` / `plantilla_slot_allocation`): `passed`
+    - Step 3 (`Recruitment` / `applicant_intake_and_pipeline`): `passed`
+    - Step 4 (`HRCO / Operations` / `onboarding_confirmation`): `passed`
+    - Step 5 (`HR Personnel` / `emploc_generation_and_sync`): `passed`
+    - Step 6 (`Back Office` / `plantilla_move_request`): `passed`
+    - Step 7 (`Back Office` / `negative_permission_barrier_check`): `passed`
+  * Live table zero-pollution verification returned exact zero records across all 5 operational tables:
+    - `public.vacancies`: 0 records (`vcode LIKE 'QA-RELAY%'`)
+    - `public.plantilla`: 0 records (`employee_no LIKE 'EMP-RELAY%' OR vcode LIKE 'QA-RELAY%'`)
+    - `public.applicants`: 0 records (`first_name = 'Jane' AND last_name = 'Relay Doe'`)
+    - `public.hr_emploc`: 0 records (`employee_no LIKE 'EMP-RELAY%'`)
+    - `public.users_profile`: 0 mock records (`email LIKE 'qa_%@ohmployee.internal'`)
+  * Persistent telemetry in `public.qa_agent_runs` for run `9dd3c63d-2e6e-439d-a19d-3d503091836f`:
+    - `agent_name`: `'QA_ROLE_RELAY_ENGINE'`
+    - `execution_type`: `'manual'`
+    - `status`: `'completed'`
+    - `summary`: `'Scenario FULL_E2E_RELAY passed cleanly in sandbox with zero data pollution.'`
+    - `metadata->'steps'`: Full 7 steps array persisted.
+    - `metadata->'sandbox_rolled_back'`: `true`
+  * Defect findings in `public.qa_agent_findings` confirmed `0` defects logged for clean pass.
+  * Legacy scenario `VAC_ARCHIVE_001` executed cleanly (`run_id = ecb25922-d115-4061-8494-9f2f363469e2`, `success = true`, `sandbox_rolled_back = true`), with 0 records remaining in `vacancies`.
+  * TypeScript client normalization in `src/lib/queries/governance.ts` mapped live staging simulation payload cleanly into `QaScenarioRunResult`.
+
+### 2. Logic Chain
+1. Previous simulation failures were caused by: (a) single GUC impersonation (`request.jwt.claim.sub` only, without `request.jwt.claims`), preventing `get_my_role_level()` from evaluating the simulated actor's level; (b) physical schema constraint violations on `hr_emploc.status` and `plantilla.status`; (c) mock actor email collisions in `users_profile`; (d) unpersisted step details when mutations rolled back.
+2. Migration `20262606000106` resolved all 4 defects: set dual GUCs (`request.jwt.claim.sub` and `request.jwt.claims`), aligned statuses to `'Pending Emploc'` and `'Resigned'`, randomized test credentials with collision-proof identifiers, and updated `qa_agent_runs.metadata` outside the rolled-back subtransaction.
+3. The atomic subtransaction (`BEGIN ... EXCEPTION ... END` + `RAISE EXCEPTION 'QA_SANDBOX_ROLLBACK_SUCCESS'`) guarantees that 100% of mutations to operational tables (`vacancies`, `plantilla`, `applicants`, `hr_emploc`) and trigger side-effects are rolled back, leaving zero mock records in live database tables.
+4. The QA Center UI modal (`QaCenterModal.tsx`) and modular child components (`QaSimulationRunner`, `QaStepTimeline`, `QaRunHistoryTable`, `QaFindingsViewer`) cleanly render real-time progress, role badges, status chips, and actionable remediation cards without runtime crashes.
+
+### 3. Caveats
+- No caveats. All 3 milestones (Database Engine Migration, UI Integration, E2E Staging Simulation & Zero-Pollution Verification) are 100% complete, verified on remote Staging, and covered by automated test runner `scripts/test_m3_e2e_staging_simulation.mjs`.
+
+### 4. Conclusion
+- The QA Agents simulation feature in the More Module (QA Center) is fully functional and production-ready.
+- The multi-role relay executes cleanly across 6 roles, verifies negative barriers, isolates all mutations in an atomic rollback sandbox, leaves zero pollution in live database tables, and persists telemetry to `qa_agent_runs` and `qa_agent_findings`.
+
+### 5. Verification Method
+- `node scripts/test_m3_e2e_staging_simulation.mjs` → 8 PASSED, 0 FAILED.
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb 2026-11-12T10:33:06+08:00), ADR-002 (49d7a40 2026-11-12T17:34:47+08:00).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 631 migrations.
+- `npm test` → 211 tests passed, 0 failures.
+- `npm run lint` → Clean (0 errors).
+- `npm run build` → Next.js 16.2.4 exit code 0.
+
+### 6. Next Steps
+- Open `/more?tab=admin_tools&tool=qa_center` in the web application as Super Admin or Head Admin.
+- Click "Run Simulation" on "6-Role AI Agent Workflow Relay (FULL_E2E_RELAY)" to observe the real-time execution, step timeline, and persistent history.
+- Review historical runs and defect findings in the QA Center dashboard.
+
+> [!TIP]
+> To run the complete remote Staging E2E simulation and zero-pollution verification suite anytime, execute:
+> ```bash
+> node scripts/test_m3_e2e_staging_simulation.mjs
+> ```
+> This script automatically verifies the PostgREST RLS boundary, executes `FULL_E2E_RELAY` and `VAC_ARCHIVE_001` against Staging, confirms 0 mock records in 5 operational tables, validates persisted telemetry in `qa_agent_runs`, and checks client contract mapping.
+
+---
+
 ## Execution Report — Unify Auto Context Loading, Workflow Safety Gates, and Cross-Repo SQL Contract Guard Across Mobile & Web (ohm#m9x4k2v1)
 
 **Status: COMPLETE ON MAIN IN BOTH MOBILE (`D:\Projects\ohmployee`) AND WEB (`D:\Projects\ohmployee-web`); UNIFIED AUTO CONTEXT LOADING (`briefing.md` -> `current_state.md` ROUTING INDEX -> MODULE STATE FILE -> `ADR-001` / `ADR-002`), STRUCTURED ROUTING INDEX TABLE, AND SAFETY GATES ACROSS MOBILE `AGENTS.md`, `AI.md`, `.ai/briefing.md`, AND `.ai/current_state.md`; UPGRADED `scripts/check-sql-contracts.mjs` IN BOTH REPOSITORIES TO MERGE AND VALIDATE ALL 630 COMBINED MIGRATIONS ACROSS MOBILE & WEB (28 CORE TABLES & 19 CROSS-MODULE RPCS) AND WIRED INTO `scripts/ai-finish.ps1` / `scripts/ai-finish.sh` STATE 3 IN MOBILE; ALL VERIFICATION GATES PASSED CLEAN (`npm run check:sql` 630 MIGRATIONS OK, `npm test` 211/211 PASSED, `npm run lint` 0 ERRORS); LOCAL COMMITS ON MAIN IN BOTH REPOS.**

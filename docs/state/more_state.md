@@ -58,3 +58,32 @@ This document captures the current stable architecture and navigation contract f
 - Canonical entry point is strictly located in **More > Data Control > Operations & Governance > "Data Archival & Recovery"** (Level 100).
 - Duplicate entry points in Admin Tools ("Data Archival Center") and Audit & Integrity ("Data Archival & Recovery") have been retired.
 - Opens `DataArchivalCenterModal` allowing Super Admins to inspect soft-deleted plantilla and vacancy records and perform restorations with audited justification logging.
+
+## QA Center & Simulation Engine (More > Admin Tools > QA Center)
+- **Modal Entry**: `QaCenterModal` rendered from `/more?tab=admin_tools&tool=qa_center`.
+- **Database Engine**: `public.qa_run_scenario(p_scenario_code text DEFAULT 'FULL_E2E_RELAY')` (Security Definer, search_path `public`, Head Admin / Super Admin authorization guard).
+- **Atomic Sandbox Isolation & Zero Pollution**:
+  - The simulation executes within an atomic PL/pgSQL subtransaction (`BEGIN ... EXCEPTION ... END`).
+  - Controlled rollback is triggered via `RAISE EXCEPTION 'QA_SANDBOX_ROLLBACK_SUCCESS'`.
+  - Guarantees 100% rollback of all mock/simulated operational records across `vacancies`, `plantilla`, `applicants`, `hr_emploc`, and `users_profile` (0 records remain in live tables).
+- **Multi-Role Simulation Relay (`FULL_E2E_RELAY`)**:
+  - Executes a sequential 7-step workflow relay across 6 key roles:
+    1. **Head Admin**: Headcount quota authorization & vacancy opening (`QA-RELAY-*`).
+    2. **Encoder**: Plantilla slot allocation and binding (`EMP-RELAY-*`).
+    3. **Recruitment**: Applicant candidate intake and pipeline registration (`Jane Relay Doe`).
+    4. **HRCO / Operations**: Onboarding confirmation and candidate stage progression.
+    5. **HR Personnel**: HR Emploc assignment generation and employee number synchronization.
+    6. **Back Office**: Plantilla movement request metadata recording.
+    7. **Back Office (Negative Security Barrier)**: Verification that Back Office actor is strictly blocked from executing administrative / Head Admin mutations.
+- **Dual GUC Impersonation**: Sets both `request.jwt.claim.sub` and `request.jwt.claims` so `auth.uid()` and `get_my_role_level()` evaluate the simulated actor's level correctly, with defensive restoration of original JWT claims upon completion.
+- **Persistent Telemetry**:
+  - Telemetry is recorded outside the rolled-back subtransaction:
+  - Run metadata is persisted to `public.qa_agent_runs` (`id`, `agent_name = 'QA_ROLE_RELAY_ENGINE'`, `execution_type = 'manual'`, `status = 'completed'`, `summary`, `metadata->'steps'`).
+  - Defect findings (if any) are logged to `public.qa_agent_findings` (`run_id`, `severity`, `finding_type`, `category`, `title`, `details`, `recommendation`).
+- **UI Components (`src/components/more/qa/`)**:
+  - `QaCenterModal.tsx`: Host modal orchestrating QA snapshot queries, scenario execution, and subviews.
+  - `QaSimulationRunner.tsx`: Scenario selector (`FULL_E2E_RELAY`, `VAC_ARCHIVE_001`, `RBAC_AUDIT_001`, etc.) and execution trigger.
+  - `QaStepTimeline.tsx`: Sequential step-by-step progress timeline displaying step numbers, role badges (`Head Admin`, `Encoder`, `Recruitment`, `HRCO`, `HR Personnel`, `Back Office`), action names, status (`passed` / `failed`), and details.
+  - `QaRunHistoryTable.tsx`: Historical test run table displaying run ID, agent name, status, duration, steps badge, and isolation status.
+  - `QaFindingsViewer.tsx`: Defect inspection list displaying finding code, severity badge, category, details, and actionable remediation callouts.
+
