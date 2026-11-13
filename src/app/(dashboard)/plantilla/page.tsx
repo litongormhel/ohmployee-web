@@ -2132,7 +2132,7 @@ function PlantillaPageContent() {
             subtitle="Select a billing account to audit roster allocations, capacity targets, and staffing governance."
             icon={Building2}
             actionSlot={
-              isHeadOrSuperAdmin(userRole) || isDataTeam(currentUser) ? (
+              isHeadOrSuperAdmin(userRole) || isDataTeam(currentUser) || isOpsAmendmentRole(userRole) ? (
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -2253,7 +2253,7 @@ function PlantillaPageContent() {
                   )}
 
                   {/* Action button: Create Coverage Group */}
-                  {(isHeadOrSuperAdmin(userRole) || isDataTeam(currentUser)) && (
+                  {(isHeadOrSuperAdmin(userRole) || isDataTeam(currentUser) || isOpsAmendmentRole(userRole)) && (
                     <button
                       type="button"
                       onClick={() => setIsCreateCoverageGroupOpen(true)}

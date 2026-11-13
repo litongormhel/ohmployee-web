@@ -89,14 +89,32 @@ export function CoverageGroupApprovalCard({
 
   const isBusy = approveMutation.isPending || rejectMutation.isPending;
 
-  // Role permissions: Head Admin or Super Admin
+  // Role permissions: Head Admin, Super Admin, or Encoder (if requested by Ops)
   const roleKey = currentUser?.roleKey?.toLowerCase() || "";
   const roleName = currentUser?.roleName?.toLowerCase() || "";
-  const canReview =
+  const isSuperOrHead =
     roleKey === "super_admin" ||
     roleKey === "head_admin" ||
     roleName.includes("super admin") ||
     roleName.includes("head admin");
+  const isEncoder = roleKey === "encoder" || roleName.includes("encoder");
+
+  // Check if request was initiated by an Operations role
+  const requestedRole = (request.requestedByRole || "").toLowerCase();
+  const isRequestedByOps =
+    requestedRole.includes("operation") ||
+    requestedRole.includes("om") ||
+    requestedRole.includes("tl") ||
+    requestedRole.includes("atl") ||
+    requestedRole.includes("hrco");
+
+  // Self-approval guard: users cannot review their own requests
+  const isSelfRequest = Boolean(
+    currentUser?.profileId && request.requestedBy && currentUser.profileId === request.requestedBy
+  );
+
+  // Tiered review: HA/SA can review all requests; Encoders can review Ops-initiated requests
+  const canReview = !isSelfRequest && (isSuperOrHead || (isEncoder && isRequestedByOps));
 
   const ageDisplay = formatRelativeAge(request.createdAt);
 

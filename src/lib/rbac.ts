@@ -408,6 +408,7 @@ export function getAllowedApprovalCategories(
   if (role === AppRole.ENCODER || level === 30) {
     return [
       "headcount",
+      "coverage",
       "applicant_movements",
       "relievers",
       "vacancy_closures",

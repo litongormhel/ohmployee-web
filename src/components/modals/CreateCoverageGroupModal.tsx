@@ -1335,7 +1335,7 @@ export function CreateCoverageGroupModal({
                 ) : (
                   <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 font-medium">
                     <Clock className="h-4 w-4 shrink-0" />
-                    <span>Encoder Mode: Submits request to Approval Center for review.</span>
+                    <span>Request Mode: Submits request to Approval Center for review.</span>
                   </div>
                 )}
               </div>

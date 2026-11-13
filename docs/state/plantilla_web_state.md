@@ -1035,6 +1035,18 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Crisp & Direct Messages**: Messages now read directly as `"Mismatched hired date across roving store rows."`, `"Underage employee. Minimum legal working age is 18."`, `"Hire date does not match master record in database."`, and `"Multiple employee numbers assigned to the same person. Roving employees must share the same Emp No."`.
   - **Signature Simplification**: Cleaned up function signature and call sites to remove unused parameter `_employeeName`.
 
+- **Phase 2: Operations Coverage Requesting & Tiered Review/Approval (`ohm#o4p9s2k1` — 2026-11-13)**:
+  - **Operations Request Authorization**: Enabled Operations roles (`Operations Manager`, `Team Leader`, `Assistant Team Leader`, `HR Coordinator` via `isOpsAmendmentRole`) to access the `+ Coverage Group` button and submit roving coverage group operations (Create Group, Add Store, Remove Store, Merge, Dissolve) in Request Mode.
+  - **Tiered Review & Approval Model**:
+    - **Encoder Review of Ops Requests**: Authorized Encoders (`role_level = 30`) to review (approve/reject) coverage requests initiated by Operations roles (`OM`, `TL`, `ATL`, `HRCO`). Unlocked Category 3 (`coverage`) in `/approvals` for Encoders in `src/lib/rbac.ts`.
+    - **Admin Approval Lock for Encoder Requests**: Coverage requests initiated by Encoders strictly require Head Admin or Super Admin review; Encoders cannot approve requests submitted by Encoders.
+    - **Self-Approval Guard**: Strictly blocks any actor from approving or rejecting their own request (`requested_by = v_actor.profile_id`) across both backend RPC (`_review_coverage_request_phase3`) and Web UI card (`CoverageGroupApprovalCard.tsx`).
+  - **Forward Migration 107 (`20262606000107_coverage_requests_ops_requesting_and_tiered_approval.sql`)**:
+    - `public.fn_can_mutate_coverage_request()`: Extended to include `'Encoder', 'Operations Manager', 'OM', 'TL', 'ATL', 'ATL/TL', 'HRCO'`.
+    - `public.fn_can_review_coverage_request(uuid)`: Tiered predicate checking requester role and self-approval block.
+    - `public._review_coverage_request_phase3(...)`: Enforces tiered review authorization and self-approval guard before execution.
+    - `coverage_requests_read_scoped` & `coverage_request_history_read_scoped`: Updated RLS policies granting Ops roles scoped read access to their requests.
+
 - **Comprehensive 5-Tab Coverage Group Management Architecture (`ohm#g9k2m4c8` — 2026-11-13)**:
   - **Full Mobile Parity (`CreateCoverageGroupModal.tsx`)**: Upgraded `CreateCoverageGroupModal` to support all 5 core coverage group lifecycle workflows across horizontal tabs (`[ + Create Group | ➕ Add Store | ➖ Remove Store | 🔀 Merge Groups | ⚠️ Dissolve Group ]`):
     1. **Create Coverage Group**: Strict stationary store footprint filtering ($\ge 2$ free stores, 1 designated anchor store).

@@ -1,5 +1,48 @@
 # AI Handoff
 
+## Execution Report — Phase 2: Operations Coverage Requesting & Tiered Review/Approval (ohm#o4p9s2k1)
+
+**Status: COMPLETE ON MAIN; AUTHORIZED OPERATIONS ROLES (OM, TL, ATL, HRCO) TO INITIATE COVERAGE GROUP OPERATIONS (CREATE, ADD STORE, REMOVE STORE, MERGE, DISSOLVE); IMPLEMENTED TIERED REVIEW MODEL (ENCODERS CAN REVIEW OPS-INITIATED REQUESTS; ENCODER-INITIATED REQUESTS STRICTLY REQUIRE HEAD ADMIN / SUPER ADMIN REVIEW); ENFORCED STRICT SELF-APPROVAL GUARDS ACROSS BACKEND AND UI; SHIPPED MIGRATION 107 (20262606000107_coverage_requests_ops_requesting_and_tiered_approval.sql); UNLOCKED CATEGORY 3 IN /approvals FOR ENCODERS (src/lib/rbac.ts); UPDATED CoverageGroupApprovalCard.tsx; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla & More Modules), `docs/state/plantilla_web_state.md`, `docs/state/more_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Module 11 (Coverage Groups), Module 1 (Plantilla).
+
+### 1. Observation & User Approval
+- User requested Phase 2: allowing Operations roles (`Operations Manager`, `TL`, `ATL`, `HRCO`) to request coverage operations since they are closest to store personnel movements between stationary and roving pools.
+- Business rule specification:
+  1. Requests submitted by Operations roles can be approved/reviewed by `Encoder`, `Head Admin`, and `Super Admin`.
+  2. Requests submitted by `Encoder` strictly require review/approval by `Head Admin` or `Super Admin` (Encoders cannot approve other Encoders' requests).
+  3. Strict self-approval prevention: no user may approve their own request regardless of role.
+- Presented architectural plan and regression risk assessment through the Approval Gate; explicit approval received from user.
+
+### 2. Logic Chain & Surgical Changes
+1. **Migration 107 (`supabase/migrations/20262606000107_coverage_requests_ops_requesting_and_tiered_approval.sql`)**:
+   - `public.fn_can_mutate_coverage_request()`: Expanded predicate to authorize Operations roles (`'Encoder', 'Operations Manager', 'OM', 'TL', 'ATL', 'ATL/TL', 'HRCO'`) alongside Head Admin and Super Admin for coverage request creation, mutation, submission, and cancellation.
+   - `public.fn_can_review_coverage_request(uuid)`: Implemented tiered predicate checking requester role and blocking self-approval.
+   - `public._review_coverage_request_phase3(...)`: Hardened approval/rejection review engine with tiered authorization check and self-approval exception (`v_request.requested_by = v_actor.profile_id`).
+   - `coverage_requests_read_scoped` & `coverage_request_history_read_scoped`: Updated RLS policies granting Operations roles account-scoped read visibility into coverage requests.
+2. **Frontend Wiring**:
+   - **`src/app/(dashboard)/plantilla/page.tsx`**: Exposed `+ Coverage Group` button to Operations roles on both Directory and Account views via `isOpsAmendmentRole(userRole)`.
+   - **`src/lib/rbac.ts`**: Added `"coverage"` to `AppRole.ENCODER` in `getAllowedApprovalCategories`, making Category 3 visible in `/approvals` for Encoders.
+   - **`src/components/approvals/CoverageGroupApprovalCard.tsx`**: Implemented tiered review capability: Encoders may review Ops-initiated requests; Head Admin and Super Admin may review all non-self requests; self-requests disable review buttons with security protection.
+   - **`src/components/modals/CreateCoverageGroupModal.tsx`**: Updated footer mode badge to "Request Mode: Submits request to Approval Center for review" for non-admin actors.
+3. **Documentation**:
+   - Updated `docs/state/plantilla_web_state.md` documenting Phase 2 architecture and tiered review model.
+
+### 3. Verification
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 632 migrations.
+- `npm test` → 211 tests passed, 0 failures.
+- `npm run lint` → 0 errors, 0 warnings.
+- `npm run build` → Next.js 16.2.4 production build compiled successfully (Exit Code 0).
+
+### 4. ADR Updates Needed (Ohm applies in mobile repo)
+- Update `ADR-001 § Coverage Groups` and Mobile review logic:
+  - Record the tiered approval rule:
+    - Coverage Request Mutation: `Encoder`, `Operations Manager`, `TL`, `ATL`, `HRCO`, `Head Admin`, `Super Admin`.
+    - Coverage Request Review: `Head Admin` & `Super Admin` (universal, non-self); `Encoder` (Ops-initiated requests only, non-self).
+
+---
+
 ## Execution Report — Coverage Group Management Modal Parity (ohm#g9k2m4c8)
 
 **Status: COMPLETE ON MAIN; UPGRADED CreateCoverageGroupModal INTO A UNIFIED 5-TAB COVERAGE GROUP MANAGEMENT MODAL (CREATE GROUP, ADD STORE, REMOVE STORE, MERGE GROUPS, DISSOLVE GROUP) MATCHING MOBILE PARITY AND ADR-001 § COVERAGE GROUPS; IMPLEMENTED STRICT FOOTPRINT FILTERING (STATIONARY/UNASSIGNED STORES ONLY FOR CREATE AND ADD STORE, CURRENT MEMBER STORES ONLY FOR REMOVE STORE WITH >= 2 STORES RETENTION INVARIANT, FULL DISSOLUTION REVERTING ALL STORES TO STATIONARY WITH GAP-02 ACTIVE PERSONNEL HOME STORE ASSIGNMENTS); IMPLEMENTED DUAL ROLE EXECUTION (HEAD ADMIN & SUPER ADMIN EXECUTE DIRECTLY, ENCODERS SUBMIT FOR APPROVAL TO /approvals CATEGORY 3); FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
