@@ -5,6 +5,7 @@ import {
   Building2,
   Layers,
   MapPin,
+  Plus,
   RefreshCw,
   Search,
   Users2,
@@ -14,6 +15,7 @@ import {
   useCoverageGroupDetail,
 } from "@/lib/queries/more";
 import { Modal } from "@/components/shared/Modal";
+import { CreateCoverageGroupModal } from "@/components/modals/CreateCoverageGroupModal";
 
 export interface RovingCoverageGroupsModalProps {
   isOpen: boolean;
@@ -26,6 +28,7 @@ export function RovingCoverageGroupsModal({
 }: RovingCoverageGroupsModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const {
     data: coverageGroups = [],
@@ -65,18 +68,26 @@ export function RovingCoverageGroupsModal({
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-border-subtle">
           {/* Left Column: Group List */}
           <div className="w-full md:w-1/2 flex flex-col h-full bg-surface-subtle/30">
-            {/* Search toolbar */}
-            <div className="p-4 border-b border-border-subtle bg-surface-base">
-              <div className="relative">
+            {/* Search and Action toolbar */}
+            <div className="p-3 border-b border-border-subtle bg-surface-base flex items-center gap-2">
+              <div className="relative flex-1">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Filter by coverage code, account, or area..."
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-border-default rounded-xl bg-surface-base text-text-primary placeholder:text-text-muted focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default"
+                  className="w-full pl-9 pr-3 py-1.5 text-xs border border-border-default rounded-lg bg-surface-base text-text-primary placeholder:text-text-muted focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default"
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateOpen(true)}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-button px-3 text-xs font-semibold text-white shadow-2xs hover:bg-brand-button-hover transition cursor-pointer shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create Group</span>
+              </button>
             </div>
 
             {/* List */}
@@ -270,6 +281,16 @@ export function RovingCoverageGroupsModal({
           </button>
         </div>
       </div>
+
+      {isCreateOpen && (
+        <CreateCoverageGroupModal
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          onSuccess={() => {
+            refetch();
+          }}
+        />
+      )}
     </Modal>
   );
 }

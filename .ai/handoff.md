@@ -1,5 +1,51 @@
 # AI Handoff
 
+## Execution Report — Create Roving Coverage Group Feature Parity with Mobile (ohm#c7v2k9m4)
+
+**Status: COMPLETE ON MAIN; HIGH-FIDELITY DIRECT CREATION MODAL CreateCoverageGroupModal.tsx IMPLEMENTED MATCHING MOBILE create_coverage_group_screen.dart AND coverage_group_service.dart; DUAL ENTRY ACCESS IN PLANTILLA (/plantilla BESIDE + Add Account IN DIRECTORY VIEW AND INSIDE ACCOUNT VIEW TOOLBAR) AND MORE HUB (RovingCoverageGroupsModal.tsx TOOLBAR); DYNAMIC POSITION RESOLUTION (v_account_position_options WITH positions FALLBACK); ELIGIBLE STORES RESOLUTION (get_coverage_group_eligible_stores) ENFORCING >= 2 FREE STORES, 1 DESIGNATED ANCHOR STORE, AND OVERLAPPING STORE HARD-LOCKS; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla Module), `docs/state/plantilla_web_state.md`, `docs/state/more_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Plantilla.
+
+### 1. Observation
+- Mobile application has dedicated `CreateCoverageGroupScreen` and `CoverageGroupListScreen` (`_onCreateTap`) enabling direct creation of multi-store roving coverage clusters.
+- Web repository lacked this capability: `RovingCoverageGroupsModal` was read-only inspection only, and Plantilla lacked a trigger for establishing coverage groups.
+- User requested auditing Mobile and integrating `Create Coverage Group` into Web beside `+ Add Account` in Plantilla. Through `/grill-me` alignment, a dual-entry architecture was approved (Plantilla landing + account view + More module roving groups modal), operating in direct execution mode for Data Team (`Super Admin`, `Head Admin`, `Encoder`).
+
+### 2. Logic Chain & Surgical Changes
+1. **`src/components/modals/CreateCoverageGroupModal.tsx`**:
+   - Built complete modal dialog using enterprise UI tokens, supporting context-aware Account selection (pre-selected and locked when opened from inside an account view; interactive search select when opened from landing or More).
+   - Dynamically resolves positions via `useAccountPositionOptions` and eligible stores via `useCoverageGroupEligibleStores`.
+   - Real-time client validation enforcing ADR-001 rules: $\ge 2$ free stores selected, exactly 1 anchor store designated among selected stores, and non-selectable display of stores already assigned to active coverage groups (`alreadyGroupedCode`).
+   - Invokes Supabase RPC `public.create_coverage_group` through `useCreateDirectCoverageGroup`.
+   - Success state displays generated `coverage_code` (e.g. `CG-005`), invalidates React Query caches across `coverage-groups`, `coverage-group-detail`, `plantilla`, and `store-staffing`.
+2. **`src/lib/queries/more.ts`**:
+   - Added `fetchAccountPositionOptions`, `useAccountPositionOptions`, `fetchCoverageGroupEligibleStores`, and `useCoverageGroupEligibleStores`.
+   - Refined `useCreateDirectCoverageGroup` with comprehensive multi-cache invalidation.
+3. **`src/app/(dashboard)/plantilla/page.tsx`**:
+   - Added `isCreateCoverageGroupOpen` state.
+   - Inserted `[ + Create Coverage Group ]` beside `[ + Add Account ]` on the Directory header action bar for `isHeadOrSuperAdmin` or `isDataTeam`.
+   - Inserted `[ + Coverage Group ]` action button inside the Account view header action bar (beside `Absorb Employees`).
+   - Mounted `CreateCoverageGroupModal` with contextual `defaultAccountId` and `defaultAccountName`.
+4. **`src/components/more/RovingCoverageGroupsModal.tsx`**:
+   - Added `[ + Create Group ]` button inside the search toolbar.
+   - Mounted `CreateCoverageGroupModal` triggering list `refetch()` upon completion.
+
+### 3. Caveats
+- Direct creation is restricted by database RPC `public.create_coverage_group` to Data Team roles (`Super Admin`, `Head Admin`, `Encoder`). For Encoders, the target account must be within their assigned scope.
+
+### 4. Conclusion
+- Web now achieves 100% parity with Mobile for Coverage Group creation and management.
+- Admins and Encoders can seamlessly establish multi-store roving clusters from either Plantilla or More.
+
+### 5. Verification Method
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 631 migrations.
+- `npm test` → 211 tests passed, 0 failures.
+- `npm run lint` → 0 errors, 0 warnings.
+- `npm run build` → Next.js 16.2.4 production build compiled successfully (Exit Code 0).
+
+---
+
 ## Execution Report — Super Admin Universal RBAC Bypass and Approvals Restriction Fix (ohm#s8a2b1k9)
 
 **Status: COMPLETE ON MAIN; SURGICAL ENHANCEMENTS IN src/lib/rbac.ts, src/lib/auth.ts, AND src/app/(dashboard)/approvals/page.tsx GUARANTEEING UNRESTRICTED UNIVERSAL ACCESS FOR SUPER ADMIN (isOwner, roleLevel >= 100, ohmpayatt@proton.me) WHILE KEEPING STRICT DEFENSE-IN-DEPTH RBAC CONSTRAINTS 100% INTACT FOR ALL OTHER ROLES (OM, HRCO, Recruitment, HR Personnel, Backoffice, Viewer); ALL 8 ROLE PROFILES VERIFIED CLEAN (100% MATCH); FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

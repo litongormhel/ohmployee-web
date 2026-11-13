@@ -1688,7 +1688,7 @@ export async function createDirectCoverageGroup(params: {
   areaName?: string;
   storeIds: string[];
   anchorStoreId: string;
-}) {
+}): Promise<{ coverage_group_id: string; coverage_code: string }> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("create_coverage_group", {
     p_account_id: params.accountId,
@@ -1699,7 +1699,11 @@ export async function createDirectCoverageGroup(params: {
     p_anchor_store_id: params.anchorStoreId,
   });
   if (error) throw new Error(error.message);
-  return data;
+  const row = (data || {}) as Record<string, unknown>;
+  return {
+    coverage_group_id: String(row.coverage_group_id || ""),
+    coverage_code: String(row.coverage_code || ""),
+  };
 }
 
 export async function archiveDirectCoverageGroup({
@@ -1739,7 +1743,103 @@ export function useCreateDirectCoverageGroup() {
     mutationFn: createDirectCoverageGroup,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["coverage-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-group-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-group-eligible-stores"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["web-plantilla-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["store-staffing"] });
     },
+  });
+}
+
+export interface AccountPositionOption {
+  positionId: string;
+  positionName: string;
+  positionCode: string | null;
+}
+
+export async function fetchAccountPositionOptions(accountId?: string | null): Promise<AccountPositionOption[]> {
+  const supabase = createClient();
+  if (accountId) {
+    const { data, error } = await supabase
+      .from("v_account_position_options")
+      .select("position_id, position_name, position_code")
+      .eq("account_id", accountId)
+      .eq("is_active", true)
+      .order("position_name");
+
+    if (!error && data && data.length > 0) {
+      const seen = new Set<string>();
+      const result: AccountPositionOption[] = [];
+      for (const row of data as Record<string, unknown>[]) {
+        const id = String(row.position_id || "");
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          result.push({
+            positionId: id,
+            positionName: String(row.position_name || ""),
+            positionCode: row.position_code ? String(row.position_code) : null,
+          });
+        }
+      }
+      if (result.length > 0) return result;
+    }
+  }
+
+  // Fallback to all active positions
+  const { data: allPositions, error: posError } = await supabase
+    .from("positions")
+    .select("id, position_name, position_code")
+    .eq("is_active", true)
+    .order("position_name");
+
+  if (posError || !allPositions) return [];
+  return allPositions.map((p) => ({
+    positionId: String(p.id),
+    positionName: String(p.position_name || ""),
+    positionCode: p.position_code ? String(p.position_code) : null,
+  }));
+}
+
+export function useAccountPositionOptions(accountId?: string | null) {
+  return useQuery({
+    queryKey: ["account-position-options", accountId || "all"],
+    queryFn: () => fetchAccountPositionOptions(accountId),
+    enabled: true,
+  });
+}
+
+export interface EligibleCoverageStoreItem {
+  storeId: string;
+  storeName: string;
+  accountId: string;
+  areaCity: string;
+  areaProvince: string;
+  alreadyGroupedCode: string | null;
+}
+
+export async function fetchCoverageGroupEligibleStores(accountId: string): Promise<EligibleCoverageStoreItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_coverage_group_eligible_stores", {
+    p_account_id: accountId,
+  });
+
+  if (error || !data) throw new Error(error?.message || "Failed to load eligible stores");
+  return (data as Record<string, unknown>[]).map((r) => ({
+    storeId: String(r.store_id || ""),
+    storeName: String(r.store_name || ""),
+    accountId: String(r.account_id || ""),
+    areaCity: String(r.area_city || ""),
+    areaProvince: String(r.area_province || ""),
+    alreadyGroupedCode: r.already_grouped_code ? String(r.already_grouped_code) : null,
+  }));
+}
+
+export function useCoverageGroupEligibleStores(accountId?: string | null) {
+  return useQuery({
+    queryKey: ["coverage-group-eligible-stores", accountId],
+    queryFn: () => (accountId ? fetchCoverageGroupEligibleStores(accountId) : Promise.resolve([])),
+    enabled: !!accountId,
   });
 }
 

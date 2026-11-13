@@ -1029,7 +1029,15 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Crisp & Direct Messages**: Messages now read directly as `"Mismatched hired date across roving store rows."`, `"Underage employee. Minimum legal working age is 18."`, `"Hire date does not match master record in database."`, and `"Multiple employee numbers assigned to the same person. Roving employees must share the same Emp No."`.
   - **Signature Simplification**: Cleaned up function signature and call sites to remove unused parameter `_employeeName`.
 
-- **MOSES HQ Pinning to Front of Plantilla Directory (`ohm#m1q9k4v2` — 2026-11-12)**:
+- **Roving Coverage Group Direct Creation Integration (`ohm#c7v2k9m4` — 2026-11-13)**:
+  - **Feature Parity with Mobile (`CreateCoverageGroupModal.tsx`)**: Built high-fidelity modal dialog for direct creation of multi-store roving coverage clusters in `src/components/modals/CreateCoverageGroupModal.tsx`, matching mobile `create_coverage_group_screen.dart` and `coverage_group_service.dart`.
+  - **Dual Entry Points**:
+    1. **Plantilla Landing (`/plantilla`)**: Placed `[ + Create Coverage Group ]` beside `[ + Add Account ]` on the Account Directory header action bar for Data Team roles (`isHeadOrSuperAdmin` or `isDataTeam`).
+    2. **Account View (`/plantilla?account=<id>`)**: Added `[ + Coverage Group ]` in the store/employee view toolbar with the account pre-selected and locked to the current account context.
+    3. **More Hub (`/more`)**: Integrated `[ + Create Group ]` into `RovingCoverageGroupsModal.tsx` toolbar.
+  - **Data Layer & Hooks (`src/lib/queries/more.ts`)**: Added `fetchCoverageGroupEligibleStores` (calling RPC `get_coverage_group_eligible_stores`), `fetchAccountPositionOptions` (querying `v_account_position_options` with `positions` fallback), and `useCreateDirectCoverageGroup` with standardized multi-cache invalidation.
+  - **ADR-001 Validation**: Real-time client enforcement requiring $\ge 2$ free stores, 1 designated anchor store from selected stores, and blocking stores already assigned to active coverage groups (`alreadyGroupedCode`). Validated clean via `npm run lint` and `npm run build`.
+
   - **Pinned Tier 0 Priority (`src/app/(dashboard)/plantilla/page.tsx`)**:
     - MOSES HQ / Workforce Pool account (`isPoolAccount = true` or `name.toLowerCase() === 'moses hq'`) is permanently pinned to index 0 (`pinaka unahan lagi`) of the Plantilla Directory cards grid.
     - Subsequent accounts continue to sort using the multi-tier problem-first hierarchy (lowest MFR first, vacancy tie-breaker, unconfigured accounts at bottom).

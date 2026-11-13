@@ -30,9 +30,11 @@ import {
   CheckCircle2,
   User,
   Calendar,
+  Users2,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCurrentUser, isOpsAmendmentRole, isHeadOrSuperAdmin } from "@/lib/auth";
+import { isDataTeam } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/client";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { DataState } from "@/components/shared/DataState";
@@ -72,6 +74,7 @@ import { ReturnToActiveModal } from "@/components/plantilla/ReturnToActiveModal"
 import { AssignStoreModal } from "@/components/plantilla/AssignStoreModal";
 import { UpdateEmploymentStatusModal } from "@/components/plantilla/UpdateEmploymentStatusModal";
 import { AddAccountModal } from "@/components/plantilla/AddAccountModal";
+import { CreateCoverageGroupModal } from "@/components/modals/CreateCoverageGroupModal";
 import { ArchiveAccountModal } from "@/components/plantilla/ArchiveAccountModal";
 import { AbsorbEmployeesModal } from "@/components/plantilla/AbsorbEmployeesModal";
 import { RequestDeactivationModal } from "@/components/plantilla/RequestDeactivationModal";
@@ -660,8 +663,9 @@ function PlantillaPageContent() {
   const [accountSearch, setAccountSearch] = useState("");
   const [selectorGroupId, setSelectorGroupId] = useState("");
 
-  // Account Governance Modals State (Add Account, Archive, Absorb)
+  // Account Governance Modals State (Add Account, Archive, Absorb, Create Coverage Group)
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  const [isCreateCoverageGroupOpen, setIsCreateCoverageGroupOpen] = useState(false);
   const [archiveModalAccount, setArchiveModalAccount] = useState<{
     id: string;
     name: string;
@@ -2298,15 +2302,27 @@ function PlantillaPageContent() {
             subtitle="Select a billing account to audit roster allocations, capacity targets, and staffing governance."
             icon={Building2}
             actionSlot={
-              isHeadOrSuperAdmin(userRole) ? (
-                <button
-                  type="button"
-                  onClick={() => setIsAddAccountOpen(true)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-button px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-button-hover transition cursor-pointer"
-                >
-                  <Plus className="h-3.5 w-3.5 shrink-0" />
-                  <span>+ Add Account</span>
-                </button>
+              isHeadOrSuperAdmin(userRole) || isDataTeam(currentUser) ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateCoverageGroupOpen(true)}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-primary shadow-xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
+                  >
+                    <Users2 className="h-3.5 w-3.5 shrink-0 text-brand-600" />
+                    <span>+ Create Coverage Group</span>
+                  </button>
+                  {isHeadOrSuperAdmin(userRole) && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddAccountOpen(true)}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-button px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-button-hover transition cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5 shrink-0" />
+                      <span>+ Add Account</span>
+                    </button>
+                  )}
+                </div>
               ) : undefined
             }
           />
@@ -2408,6 +2424,19 @@ function PlantillaPageContent() {
                     >
                       <Plus className="w-3.5 h-3.5 shrink-0" />
                       <span>Request Headcount</span>
+                    </button>
+                  )}
+
+                  {/* Action button: Create Coverage Group */}
+                  {(isHeadOrSuperAdmin(userRole) || isDataTeam(currentUser)) && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateCoverageGroupOpen(true)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
+                      title="Create a roving coverage group cluster for this account"
+                    >
+                      <Users2 className="w-3.5 h-3.5 shrink-0 text-brand-600" />
+                      <span>+ Coverage Group</span>
                     </button>
                   )}
 
@@ -3368,6 +3397,19 @@ function PlantillaPageContent() {
           onClose={() => setIsAddAccountOpen(false)}
           onSuccess={(createdName) =>
             showToast(`Account "${createdName}" created successfully.`, "success")
+          }
+        />
+      )}
+
+      {/* Create Coverage Group Modal */}
+      {isCreateCoverageGroupOpen && (
+        <CreateCoverageGroupModal
+          isOpen={isCreateCoverageGroupOpen}
+          onClose={() => setIsCreateCoverageGroupOpen(false)}
+          defaultAccountId={accountId || undefined}
+          defaultAccountName={selectedAccountName || undefined}
+          onSuccess={(created) =>
+            showToast(`Coverage Group "${created.coverageCode}" created successfully.`, "success")
           }
         />
       )}
