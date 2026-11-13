@@ -53,7 +53,6 @@ import {
   type PlantillaEmployeeListItem,
   type ActiveCoverageItem,
 } from "@/lib/queries/plantilla";
-import { fetchTeamDirectory, type TeamDirectoryUser } from "@/lib/queries/team_directory";
 import {
   listVacancies,
   type VacancyListItem,
@@ -149,119 +148,6 @@ function formatDate(value: string | null | undefined): string {
   } catch {
     return value;
   }
-}
-
-function formatLeadershipName(user: TeamDirectoryUser): string {
-  if (user.firstName && user.lastName) {
-    return `${user.firstName[0].toUpperCase()}. ${user.lastName}`;
-  }
-  if (user.fullName) {
-    if (user.fullName.includes(",")) {
-      const parts = user.fullName.split(",");
-      const last = parts[0]?.trim();
-      const first = parts.slice(1).join(",").trim();
-      if (first && last) {
-        return `${first[0].toUpperCase()}. ${last}`;
-      }
-    }
-    const parts = user.fullName.trim().split(/\s+/);
-    if (parts.length > 1) {
-      const first = parts[0];
-      const last = parts.slice(1).join(" ");
-      return `${first[0].toUpperCase()}. ${last}`;
-    }
-    return user.fullName;
-  }
-  return "—";
-}
-
-// ---------------------------------------------------------------------------
-// Circular SVG MFR Donut (CENCOM Style)
-// ---------------------------------------------------------------------------
-
-function OverallMfrDonut({
-  percent,
-  size = 72,
-  strokeWidth = 7.5,
-  hasGap = false,
-}: {
-  percent: number;
-  size?: number;
-  strokeWidth?: number;
-  hasGap?: boolean;
-}) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const sweepFraction = Math.min(1, Math.max(0, percent / 100));
-  const strokeDashoffset = circumference * (1 - sweepFraction);
-
-  // Dynamic stroke color based on percentage thresholds:
-  // 100% green, 95%-99.99% yellow, below 95% red
-  const strokeColor =
-    percent >= 100 && !hasGap
-      ? "var(--pct-good-bar, #16a34a)"
-      : percent >= 95
-      ? "var(--pct-warn-bar, #ca8a04)"
-      : "var(--pct-bad-bar, #dc2626)";
-
-  // Format percentage display: do not round off to 100% when there is an open vacancy gap
-  let displayPercent: string;
-  if (percent <= 0) {
-    displayPercent = "0.0%";
-  } else if (hasGap && percent >= 99.95) {
-    displayPercent = "99.9%";
-  } else if (percent >= 100 && !hasGap) {
-    displayPercent = "100.0%";
-  } else if (percent % 1 === 0) {
-    displayPercent = `${percent.toFixed(1)}%`;
-  } else {
-    displayPercent = `${percent.toFixed(2)}%`;
-  }
-
-  return (
-    <div
-      className="relative inline-flex items-center justify-center my-0.5"
-      style={{ width: size, height: size }}
-      role="progressbar"
-      aria-valuenow={Math.round(percent)}
-      aria-valuemin={0}
-      aria-valuemax={100}
-    >
-      <svg
-        width={size}
-        height={size}
-        className="-rotate-90 transform"
-        aria-hidden="true"
-      >
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          fill="transparent"
-          className="text-slate-100 dark:text-surface-muted"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={strokeColor}
-          strokeWidth={strokeWidth}
-          fill="transparent"
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          className="transition-all duration-500 ease-out"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs sm:text-sm font-bold tracking-tight text-text-primary tabular-nums">
-          {displayPercent}
-        </span>
-      </div>
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -983,52 +869,6 @@ function PlantillaPageContent() {
     enabled: !!currentUser && !!accountId && isAccountAuthorized,
   });
 
-  // Query for leadership roles: OM, TL, ATL, HRCO
-  const teamDirectoryQuery = useQuery({
-    queryKey: ["team-directory", "plantilla-account", accountId],
-    queryFn: () => fetchTeamDirectory({ accountId }),
-    enabled: !!accountId && isAccountAuthorized,
-    staleTime: 60000,
-  });
-
-  const leadershipTeam = useMemo(() => {
-    const users = teamDirectoryQuery.data ?? [];
-    const om: string[] = [];
-    const tl: string[] = [];
-    const atl: string[] = [];
-    const hrco: string[] = [];
-
-    for (const u of users) {
-      const role = (u.roleName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const formatted = formatLeadershipName(u);
-      if (!formatted || formatted === "—") continue;
-
-      if (role === "om" || role === "operationsmanager") {
-        om.push(formatted);
-      } else if (role === "tl" || role === "teamleader") {
-        tl.push(formatted);
-      } else if (role === "atl" || role === "assistantteamleader") {
-        atl.push(formatted);
-      } else if (role === "hrco" || role === "hrcoordinator") {
-        hrco.push(formatted);
-      }
-    }
-
-    const formatRoleDisplay = (names: string[]) => {
-      const unique = Array.from(new Set(names));
-      if (unique.length === 0) return "—";
-      if (unique.length <= 2) return unique.join(", ");
-      return `${unique[0]}, ${unique[1]} +${unique.length - 2} more`;
-    };
-
-    return {
-      om: formatRoleDisplay(om),
-      tl: formatRoleDisplay(tl),
-      atl: formatRoleDisplay(atl),
-      hrco: formatRoleDisplay(hrco),
-    };
-  }, [teamDirectoryQuery.data]);
-
   const selectedAccount = useMemo(() => {
     return (allowedAccountsQuery.data ?? []).find((a) => a.id === accountId);
   }, [allowedAccountsQuery.data, accountId]);
@@ -1747,16 +1587,6 @@ function PlantillaPageContent() {
   const deactivationCount = deactivationEmployees.length;
   const inactiveCount = inactiveEmployees.length;
   const vacancyCount = allVacancies.length > 0 ? allVacancies.length : (summaryData?.vacant ?? 0);
-  const effectiveVacancySlots =
-    totalVacanciesSlots > 0
-      ? totalVacanciesSlots
-      : (summaryData?.vacant ?? 0) + (summaryData?.hrProcess ?? 0);
-  const requiredCount =
-    summaryData?.required && summaryData.required > 0
-      ? summaryData.required
-      : activeCount + effectiveVacancySlots;
-  const fulfillmentRate =
-    requiredCount > 0 ? (activeCount / requiredCount) * 100 : 0;
 
   // Active view pagination
   const currentTabRows =
@@ -2371,17 +2201,12 @@ function PlantillaPageContent() {
                   <span className="text-sm font-semibold text-text-primary leading-tight truncate">
                     {formatAccountName(selectedAccountName)}
                   </span>
-                  {userRole && (
-                    <span className="inline-flex items-center rounded-full bg-brand-50 border border-brand-200/80 px-2 py-0.2 text-[10px] font-semibold text-brand-700 capitalize">
-                      {userRole.replace(/_/g, " ")}
-                    </span>
-                  )}
                 </nav>
               }
               subtitle="Viewing: Store Employees • Managing roster allocations, capacity targets, and staffing governance."
               actionSlot={
                 <div className="flex flex-wrap items-center gap-2">
-                  {/* Main View Segmented Toggle: [ 👥 Employee View | 🏬 Store View ] */}
+                  {/* Main View Segmented Toggle: [ Employee View | Store View ] */}
                   <div className="flex h-8 items-center rounded-lg border border-border-default bg-surface-muted p-0.5 shadow-2xs">
                     <button
                       type="button"
@@ -2396,7 +2221,7 @@ function PlantillaPageContent() {
                       }`}
                     >
                       <Users className="h-3.5 w-3.5" />
-                      <span>👥 Employee View</span>
+                      <span>Employee View</span>
                     </button>
                     <button
                       type="button"
@@ -2411,7 +2236,7 @@ function PlantillaPageContent() {
                       }`}
                     >
                       <Building2 className="h-3.5 w-3.5" />
-                      <span>🏬 Store View</span>
+                      <span>Store View</span>
                     </button>
                   </div>
 
@@ -2420,9 +2245,9 @@ function PlantillaPageContent() {
                     <button
                       type="button"
                       onClick={() => setIsRequestHeadcountOpen(true)}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
                     >
-                      <Plus className="w-3.5 h-3.5 shrink-0" />
+                      <Plus className="w-3.5 h-3.5 shrink-0 text-brand-600" />
                       <span>Request Headcount</span>
                     </button>
                   )}
@@ -2460,140 +2285,9 @@ function PlantillaPageContent() {
             />
           </div>
 
-          {/* 2. Top 5 KPI & Leadership Cards (grid-cols-5, Centered Content) */}
-          <section aria-label="Plantilla summary metrics" className="shrink-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {/* Card 1: Overall MFR (CENCOM Donut Style) */}
-              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-center text-center shadow-xs">
-                <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-                  Overall MFR
-                </div>
-                <OverallMfrDonut
-                  percent={fulfillmentRate}
-                  hasGap={activeCount < requiredCount}
-                  size={68}
-                  strokeWidth={7}
-                />
-                <div className="text-[11px] font-medium text-text-secondary mt-0.5">
-                  {activeCount} active / {requiredCount} required
-                </div>
-              </div>
 
-              {/* Card 2: Active Deployed */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  handleSelectStatusTab("active");
-                }}
-                className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs cursor-pointer hover:border-brand-primary transition-all hover:shadow-2xs"
-              >
-                <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-                  Active Deployed
-                </div>
-                <div className="text-2xl font-bold font-mono text-text-primary my-0.5">
-                  {activeCount}
-                </div>
-                <div className="text-[11px] text-text-muted leading-tight">
-                  Active deployed personnel
-                </div>
-              </div>
+          {/* 2. Search & Hierarchical Area -> City Filter Bar */}
 
-              {/* Card 3: Open Vacancies */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  handleSelectStatusTab("vacancy");
-                  setVacancySubFilter("open");
-                }}
-                className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs cursor-pointer hover:border-brand-primary transition-all hover:shadow-2xs"
-              >
-                <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-                  Open Vacancies
-                </div>
-                <div className="text-2xl font-bold font-mono text-text-primary my-0.5">
-                  {allVacancies.length > 0
-                    ? openVacanciesSlots > 0
-                      ? openVacanciesSlots
-                      : openVacanciesCount
-                    : (summaryData?.vacant ?? 0)}
-                </div>
-                <div className="text-[11px] text-text-muted leading-tight">
-                  {allVacancies.length > 0 && openVacanciesSlots !== openVacanciesCount
-                    ? `${openVacanciesCount} approved ${openVacanciesCount === 1 ? "requisition" : "requisitions"}`
-                    : "Approved open vacancy slots"}
-                </div>
-              </div>
-
-              {/* Card 4: HR Pipeline */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  handleSelectStatusTab("vacancy");
-                  setVacancySubFilter("pipeline");
-                }}
-                className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs cursor-pointer hover:border-brand-primary transition-all hover:shadow-2xs"
-              >
-                <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-                  HR Pipeline
-                </div>
-                <div className="text-2xl font-bold font-mono text-text-primary my-0.5">
-                  {allVacancies.length > 0
-                    ? pipelineVacanciesSlots > 0
-                      ? pipelineVacanciesSlots
-                      : pipelineVacanciesCount
-                    : (summaryData?.hrProcess ?? 0)}
-                </div>
-                <div className="text-[11px] text-text-muted leading-tight">
-                  {allVacancies.length > 0 && pipelineVacanciesSlots !== pipelineVacanciesCount
-                    ? `${pipelineVacanciesCount} pipeline ${pipelineVacanciesCount === 1 ? "requisition" : "requisitions"}`
-                    : "Candidate onboarding pipeline"}
-                </div>
-              </div>
-
-              {/* Card 5: Leadership Team (Simple Card, Conditional Row Rendering) */}
-              <div className="rounded-xl border border-slate-200 dark:border-border-default bg-surface-base px-3 py-2 flex flex-col items-center justify-between text-center shadow-xs w-full">
-                <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-                  Leadership Team
-                </div>
-                <div className="w-full space-y-0.5 text-xs text-left my-auto px-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-text-muted font-medium shrink-0">OM:</span>
-                    <span className="font-semibold text-text-primary truncate" title={leadershipTeam.om}>
-                      {leadershipTeam.om}
-                    </span>
-                  </div>
-                  {leadershipTeam.tl && leadershipTeam.tl !== "—" && leadershipTeam.tl.trim() !== "" && (
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-text-muted font-medium shrink-0">TL:</span>
-                      <span className="font-semibold text-text-primary truncate" title={leadershipTeam.tl}>
-                        {leadershipTeam.tl}
-                      </span>
-                    </div>
-                  )}
-                  {leadershipTeam.atl && leadershipTeam.atl !== "—" && leadershipTeam.atl.trim() !== "" && (
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-text-muted font-medium shrink-0">ATL:</span>
-                      <span className="font-semibold text-text-primary truncate" title={leadershipTeam.atl}>
-                        {leadershipTeam.atl}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-text-muted font-medium shrink-0">HRCO:</span>
-                    <span className="font-semibold text-text-primary truncate" title={leadershipTeam.hrco}>
-                      {leadershipTeam.hrco}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-[10px] text-text-muted leading-tight">Assigned Account Leadership</div>
-              </div>
-            </div>
-          </section>
-
-          {/* 3. Search & Hierarchical Area -> City Filter Bar */}
           <div className="flex flex-1 min-h-0 flex-col gap-2">
             {/* Employee View Sub-Tabs (Hidden when mainView === "store") */}
             {mainView === "employee" && (

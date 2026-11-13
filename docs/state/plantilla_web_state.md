@@ -40,18 +40,23 @@ Like other modules in OHMployee Web, this is designed as a thin admin presentati
 
 ## 2. Dual Views Architecture (Employee vs. Store)
 
-Admin users can switch seamlessly between reviewing individual personnel and auditing store capacity compliance. The Plantilla module implements **Dual Views** driven by a top-right segmented pill toggle (`[ 👥 Employee View | 🏬 Store View ]`) beside the `+ Request Headcount` button:
+Admin users can switch seamlessly between reviewing individual personnel and auditing store capacity compliance. The Plantilla module implements **Dual Views** driven by a top-right segmented pill toggle (`[ Employee View | Store View ]`) beside uniform outlined action buttons (`+ Request Headcount`, `+ Coverage Group`, `Absorb Employees`):
 
 ```
-[ Plantilla Header ]                                           [ 👥 Employee View | 🏬 Store View ]  [ + Request Headcount ]  [ Absorb Employees ]
-================================================================================================================================
-[ Card 1: Overall MFR ] [ Card 2: Active Deployed ] [ Card 3: Open Vacancies ] [ Card 4: HR Pipeline ] [ Card 5: Leadership ]
-  (CENCOM Donut SVG)       (Active count)             (Approved slots)           (Candidate pipeline)     (OM, TL, ATL, HRCO)
---------------------------------------------------------------------------------------------------------------------------------
+[ Plantilla Header (← Accounts / ACCOUNT_NAME) ]     [ Employee View | Store View ]  [ + Request Headcount ]  [ + Coverage Group ]  [ Absorb Employees ]
+========================================================================================================================================================
 Search: "Search employees, IDs, stores..."    [ All Stores (Area -> City) ]    [ All Types (Stationary / Roving) ]
-================================================================================================================================
+========================================================================================================================================================
 [ 6 Status Sub-Tabs: Active (count) | On-Leave (count) | Vacancy (count) | Floating (count) | Deactivation (count) | Inactive (count) ]
 ```
+
+> [!NOTE]
+> **Layout & Header Modernization (ohm#u8s2d9k3)**:
+> In `ohm#u8s2d9k3`, the Plantilla account view was streamlined for enterprise density:
+> 1. **Summary Cards Removed**: The legacy 5-card top metric widget (Overall MFR, Active Deployed, Open Vacancies, HR Pipeline, Leadership Team) was completely removed to reclaim ~130px of vertical space, bringing the employee and store rosters above the fold without requiring initial scrolling. Core status counts remain directly accessible via the sub-tab badges (`Active`, `Vacancy`, etc.).
+> 2. **Account Breadcrumb Cleanup**: Removed the misplaced `{userRole}` pill badge previously rendered beside the account name (e.g. `← Accounts / MARIZ [Super Admin]`), avoiding confusion between billing account identity and user auth role.
+> 3. **Action Button Uniformity**: Standardized `+ Request Headcount` to match `+ Coverage Group` and `Absorb Employees` as uniform outlined enterprise action buttons (`border border-border-default bg-surface-base ...`).
+> 4. **Single-Icon View Switcher**: Removed duplicate emojis (`👥` and `🏬`) from the `Employee View` and `Store View` toggle buttons, standardizing exclusively on crisp Lucide SVG icons.
 
 > [!NOTE]
 > **Batch Import Entry Point & Contract**: Plantilla baseline batch roster imports are centralized under **More → Data Control → Batch Imports** (`/more?tab=data_control&subtab=batch_imports&import=plantilla`). The legacy inline "Import Plantilla" header action button and `<PlantillaImportModal>` mount on `/plantilla` were removed in `ohm#9b5t3c7e` to prevent inline layout overlaps after batch imports became full-page views.

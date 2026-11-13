@@ -1,5 +1,38 @@
 # AI Handoff
 
+## Execution Report — Plantilla Header & Layout Streamlining (ohm#u8s2d9k3)
+
+**Status: COMPLETE ON MAIN; REMOVED 5-CARD SUMMARY WIDGET (OVERALL MFR, ACTIVE DEPLOYED, OPEN VACANCIES, HR PIPELINE, LEADERSHIP TEAM) TO RECLAIM ~130PX OF VERTICAL SCREEN REAL ESTATE; REMOVED MISPLACED [ROLE] PILL NEXT TO ACCOUNT NAME IN BREADCRUMB; UNIFIED REQUEST HEADCOUNT BUTTON STYLING TO MATCH COVERAGE GROUP AND ABSORB EMPLOYEES OUTLINED TOKENS; DEDUPLICATED EMOJI ICONS ON EMPLOYEE VIEW AND STORE VIEW TOGGLE IN FAVOR OF SINGLE CRISP LUCIDE SVG ICONS; REMOVED UNUSED LOCAL HELPERS AND TEAM DIRECTORY QUERY; VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla Module), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Plantilla.
+
+### 1. Observation
+- User inquired whether it was safe to remove the top 5 summary cards and the `[role]` badge rendered beside the account name in Plantilla (`/plantilla`).
+- Evaluated against ADR-001/ADR-002: neither the top summary card layout nor the breadcrumb role badge is an architectural lock.
+- Confirmed that the `[role]` chip beside Account (e.g. `MARIZ [Super Admin]`) was confusingly displaying the logged-in user's role on top of the client account entity, while the 5 summary cards replicated counts already visible on the sub-tab badges (`Active 14`, `Vacancy 0`, etc.) and consumed ~130px of vertical height.
+- User selected Option 2 (complete removal) and requested two additional visual refinements:
+  1. Standardize `+ Request Headcount` button styling to match `+ Coverage Group` and `Absorb Employees` (replacing the solid blue button with the uniform outlined design token).
+  2. Clean up duplicate icons on `Employee View` and `Store View` toggle buttons (removing emojis `👥` and `🏬` to leave single Lucide SVG icons).
+
+### 2. Logic Chain & Surgical Changes
+1. **`src/app/(dashboard)/plantilla/page.tsx`**:
+   - Removed `{userRole && ...}` badge beside the account title in `AdminPageHeader` breadcrumb.
+   - Removed emojis from `<span>👥 Employee View</span>` and `<span>🏬 Store View</span>` in the view segmented switcher, preserving single Lucide SVG icons (`<Users />` and `<Building2 />`).
+   - Re-styled `+ Request Headcount` button with `border border-border-default bg-surface-base ... text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong` and `Plus className="w-3.5 h-3.5 shrink-0 text-brand-600"`, unifying it with `+ Coverage Group` and `Absorb Employees`.
+   - Removed `<section aria-label="Plantilla summary metrics" ...>` (Overall MFR donut, Active Deployed, Open Vacancies, HR Pipeline, Leadership Team), reclaiming ~130px of vertical screen real estate.
+   - Cleaned up unused helper functions (`formatLeadershipName`, `OverallMfrDonut`), queries (`teamDirectoryQuery`), and memos (`leadershipTeam`, `fulfillmentRate`, `requiredCount`, `effectiveVacancySlots`) to maintain 0 ESLint warnings.
+2. **Documentation**:
+   - Updated `docs/state/plantilla_web_state.md` (§ 2 Dual Views Architecture) documenting `ohm#u8s2d9k3`.
+
+### 3. Verification
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 631 migrations.
+- `npm test` → 211 tests passed, 0 failures.
+- `npm run lint` → 0 errors, 0 warnings.
+- `npm run build` → Next.js 16.2.4 production build compiled successfully (Exit Code 0).
+
+---
+
 ## Execution Report — MARIZ Account & Fallback Archival Reconciliation (ohm#m8r2a4k7)
 
 **Status: COMPLETE ON MAIN; STAGING DB DATA RECONCILED (14 ACTIVE PERSONNEL UNARCHIVED IN public.plantilla AND CANONICAL ALLOCATIONS REACTIVATED IN public.employee_store_allocations; v_account_allocation_kpi NOW COMPUTING 14 ACTUAL / 14 REQUIRED (100.0% MFR)); CLIENT FALLBACK IN listWebPlantillaEmployees PATCHED IN src/lib/queries/plantilla.ts TO STRICTLY ENFORCE ADR-001 ARCHIVAL/DELETION INVARIANTS; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
