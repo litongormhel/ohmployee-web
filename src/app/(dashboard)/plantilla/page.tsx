@@ -679,7 +679,7 @@ function PlantillaPageContent() {
     ],
     queryFn: async () => {
       const supabase = createClient();
-      const [kpiRes, leaveRes, poolEmpRes, poolSlotsRes] = await Promise.all([
+      const [kpiRes, leaveRes, activeEmpRes, poolSlotsRes, slotsRes] = await Promise.all([
         supabase
           .from("v_account_allocation_kpi")
           .select("account_id, actual_hc, slot_vacant_hc, pipeline_count, required_hc"),
@@ -693,9 +693,8 @@ function PlantillaPageContent() {
           .or("is_archived.is.null,is_archived.eq.false"),
         supabase
           .from("plantilla")
-          .select("id, account_id, account")
+          .select("id, account_id, account, is_pool_employee")
           .eq("status", "Active")
-          .or("is_pool_employee.eq.true,account.ilike.%moses hq%")
           .is("deactivated_at", null)
           .is("date_of_separation", null)
           .or("is_deleted.is.null,is_deleted.eq.false")
@@ -705,6 +704,11 @@ function PlantillaPageContent() {
           .select("id, status")
           .eq("is_active", true)
           .is("deleted_at", null),
+        supabase
+          .from("plantilla_slots")
+          .select("account_id, slot_status")
+          .neq("slot_status", "closed")
+          .is("closed_at", null),
       ]);
 
       if (kpiRes.error) {
@@ -722,15 +726,78 @@ function PlantillaPageContent() {
         }
       }
 
+      const totalSlotsMap = new Map<string, number>();
+      const openSlotsMap = new Map<string, number>();
+      if (!slotsRes.error && Array.isArray(slotsRes.data)) {
+        for (const slot of slotsRes.data) {
+          if (slot.account_id) {
+            const accId = String(slot.account_id);
+            totalSlotsMap.set(accId, (totalSlotsMap.get(accId) ?? 0) + 1);
+            if (slot.slot_status === "open") {
+              openSlotsMap.set(accId, (openSlotsMap.get(accId) ?? 0) + 1);
+            }
+          }
+        }
+      }
+
+      const activeEmpMap = new Map<string, number>();
+      const activeEmployees = !activeEmpRes.error && Array.isArray(activeEmpRes.data) ? activeEmpRes.data : [];
+      for (const emp of activeEmployees) {
+        if (emp.account_id) {
+          const accId = String(emp.account_id);
+          activeEmpMap.set(accId, (activeEmpMap.get(accId) ?? 0) + 1);
+        }
+      }
+
       const map = new Map<string, { actual: number; vacant: number; hrProcess: number; required: number; fillRate: number; leave: number }>();
+      const processedAccountIds = new Set<string>();
+
       (kpiRes.data ?? []).forEach((row) => {
-        const actual = Number(row.actual_hc ?? 0);
-        const vacant = Math.round(Number(row.slot_vacant_hc ?? 0));
+        const accId = String(row.account_id);
+        processedAccountIds.add(accId);
+
+        const kpiActual = Number(row.actual_hc ?? 0);
+        const activeCount = activeEmpMap.get(accId) ?? 0;
+        const actual = Math.max(kpiActual, activeCount);
+
         const hrProcess = Number(row.pipeline_count ?? 0);
-        const required = Number(row.required_hc ?? (actual + vacant));
+        const kpiRequired = Math.round(Number(row.required_hc ?? 0));
+        const slotTotal = totalSlotsMap.get(accId) ?? 0;
+
+        // Invariant: Required Headcount = Slots (total active slots under account)
+        const required =
+          slotTotal > 0
+            ? slotTotal
+            : kpiRequired > 0
+              ? kpiRequired
+              : actual + Math.round(Number(row.slot_vacant_hc ?? 0));
+
+        const openSlots = openSlotsMap.get(accId) ?? 0;
+        const vacant =
+          openSlots > 0
+            ? openSlots
+            : slotTotal > 0
+              ? Math.max(required - actual - hrProcess, 0)
+              : Math.round(Number(row.slot_vacant_hc ?? 0));
+
         const fillRate = required > 0 ? (actual / required) * 100 : 0;
-        const leave = leaveMap.get(String(row.account_id)) ?? 0;
-        map.set(String(row.account_id), { actual, vacant, hrProcess, required, fillRate, leave });
+        const leave = leaveMap.get(accId) ?? 0;
+        map.set(accId, { actual, vacant, hrProcess, required, fillRate, leave });
+      });
+
+      // Handle accounts present in allowedAccountsQuery but absent from v_account_allocation_kpi
+      (allowedAccountsQuery.data ?? []).forEach((a) => {
+        const accId = String(a.id);
+        if (!processedAccountIds.has(accId) && !a.isPoolAccount && a.name.trim().toLowerCase() !== "moses hq") {
+          const actual = activeEmpMap.get(accId) ?? 0;
+          const slotTotal = totalSlotsMap.get(accId) ?? 0;
+          const openSlots = openSlotsMap.get(accId) ?? 0;
+          const required = slotTotal > 0 ? slotTotal : actual;
+          const vacant = openSlots > 0 ? openSlots : Math.max(required - actual, 0);
+          const fillRate = required > 0 ? (actual / required) * 100 : 0;
+          const leave = leaveMap.get(accId) ?? 0;
+          map.set(accId, { actual, vacant, hrProcess: 0, required, fillRate, leave });
+        }
       });
 
       // Workforce Pool Account KPI integration (e.g. Moses HQ, is_pool_account: true)
@@ -743,14 +810,14 @@ function PlantillaPageContent() {
         }
       });
 
-      const poolEmployees = !poolEmpRes.error && Array.isArray(poolEmpRes.data) ? poolEmpRes.data : [];
       const poolSlots = !poolSlotsRes.error && Array.isArray(poolSlotsRes.data) ? poolSlotsRes.data : [];
       const openPoolSlotsCount = poolSlots.filter((s) => s.status === "open").length;
 
       for (const poolId of poolAccountIds) {
-        const poolActiveHc = poolEmployees.filter(
+        const poolActiveHc = activeEmployees.filter(
           (e) =>
             String(e.account_id) === poolId ||
+            (e.is_pool_employee && String(e.account_id) === poolId) ||
             String(e.account ?? "").trim().toLowerCase() === "moses hq",
         ).length;
         const vacant = poolSlots.length > 0 ? openPoolSlotsCount : 0;
@@ -1799,7 +1866,7 @@ function PlantillaPageContent() {
                   const vacant = summary.vacant;
                   const hrProcess = summary.hrProcess;
                   const leave = summary.leave;
-                  const required = actual + vacant;
+                  const required = summary.required;
                   const fillRate = required > 0 ? (actual / required) * 100 : 0;
 
                   return {

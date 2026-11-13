@@ -1,5 +1,38 @@
 # AI Handoff
 
+## Execution Report — Plantilla Cards vs Account Content Headcount Parity & Slots Invariant (ohm#s7k2p9m1)
+
+**Status: COMPLETE ON MAIN; ENFORCED ARCHITECTURAL INVARIANT: REQUIRED HEADCOUNT = TOTAL NON-CLOSED SLOTS (plantilla_slots WHERE slot_status <> 'closed' AND closed_at IS NULL); FIXED DIRECTORY CARD CALCULATION IN src/app/(dashboard)/plantilla/page.tsx BY BATCH-FETCHING PHYSICAL SLOTS FROM plantilla_slots AND ACTIVE EMPLOYEES FROM plantilla; ELIMINATED DEFECTIVE LOCAL OVERRIDE (required = actual + vacant); ALIGNED CARD METRICS (HC ACTUAL/REQUIRED, VACANT, MFR) 1:1 WITH INTERNAL ACCOUNT STAFFING; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla Module), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Module 1 (Plantilla).
+
+### 1. Observation & User Approval
+- User reported a headcount discrepancy: "Check Plantilla Cards number vs ung laman ng Plantilla accounts. e.g 3/4 but sa loob mas madami. Note that Required Headcount = Slots."
+- Diagnosed root causes:
+  1. `page.tsx` line 1802 overrode `summary.required` with `const required = actual + vacant;`, dropping pipeline slots and unallocated physical slots.
+  2. `v_account_allocation_kpi`'s `slot_vacant_non_roving` used an `INNER JOIN vacancies v ON v.vcode = ps.legacy_vcode`, silently excluding any slots in `plantilla_slots` that lacked an exact legacy `vcode` match.
+- Presented architectural remediation plan and regression risk assessment through the Approval Gate; explicit user approval received.
+
+### 2. Logic Chain & Surgical Changes
+1. **`src/app/(dashboard)/plantilla/page.tsx` (`accountMetricsQuery`)**:
+   - Concurrently fetched non-closed slots from `plantilla_slots` (`slot_status <> 'closed' AND closed_at IS NULL`) and active employees from `plantilla`.
+   - Mapped total physical slots (`totalSlots`) and open slots (`openSlots`) per account.
+   - Reconciled account metrics ensuring `required = slotTotal > 0 ? slotTotal : (kpiRequired > 0 ? kpiRequired : actual + vacant)`.
+   - Computed `vacant = openSlots > 0 ? openSlots : Math.max(required - actual - hrProcess, 0)`.
+   - Reconciled `actual = Math.max(kpiActual, activeEmpCount)`.
+2. **`src/app/(dashboard)/plantilla/page.tsx` (`sortedAccounts`)**:
+   - Fixed line 1802: replaced `const required = actual + vacant;` with `const required = summary.required;`.
+   - Guaranteed full parity so the card denominator strictly matches total physical slots inside the account.
+
+### 3. Verification
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 633 migrations.
+- `npm test` → 211 tests passed, 0 failures.
+- `npm run lint` → 0 errors, 0 warnings.
+- `npm run build` → Next.js 16.2.4 production build compiled successfully (Exit Code 0).
+
+---
+
 ## Execution Report — Phase 2: Operations Coverage Requesting & Tiered Review/Approval (ohm#o4p9s2k1)
 
 **Status: COMPLETE ON MAIN; AUTHORIZED OPERATIONS ROLES (OM, TL, ATL, HRCO) TO INITIATE COVERAGE GROUP OPERATIONS (CREATE, ADD STORE, REMOVE STORE, MERGE, DISSOLVE); IMPLEMENTED TIERED REVIEW MODEL (ENCODERS CAN REVIEW OPS-INITIATED REQUESTS; ENCODER-INITIATED REQUESTS STRICTLY REQUIRE HEAD ADMIN / SUPER ADMIN REVIEW); ENFORCED STRICT SELF-APPROVAL GUARDS ACROSS BACKEND AND UI; SHIPPED MIGRATION 107 (20262606000107_coverage_requests_ops_requesting_and_tiered_approval.sql); UNLOCKED CATEGORY 3 IN /approvals FOR ENCODERS (src/lib/rbac.ts); UPDATED CoverageGroupApprovalCard.tsx; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
