@@ -1035,6 +1035,18 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Crisp & Direct Messages**: Messages now read directly as `"Mismatched hired date across roving store rows."`, `"Underage employee. Minimum legal working age is 18."`, `"Hire date does not match master record in database."`, and `"Multiple employee numbers assigned to the same person. Roving employees must share the same Emp No."`.
   - **Signature Simplification**: Cleaned up function signature and call sites to remove unused parameter `_employeeName`.
 
+- **Comprehensive 5-Tab Coverage Group Management Architecture (`ohm#g9k2m4c8` — 2026-11-13)**:
+  - **Full Mobile Parity (`CreateCoverageGroupModal.tsx`)**: Upgraded `CreateCoverageGroupModal` to support all 5 core coverage group lifecycle workflows across horizontal tabs (`[ + Create Group | ➕ Add Store | ➖ Remove Store | 🔀 Merge Groups | ⚠️ Dissolve Group ]`):
+    1. **Create Coverage Group**: Strict stationary store footprint filtering ($\ge 2$ free stores, 1 designated anchor store).
+    2. **Add Store**: Scoped to selected coverage group with store picker restricted strictly to available stationary/unassigned stores.
+    3. **Remove Store**: Shows existing member stores of the target coverage group. Enforces $\ge 2$ remaining stores invariant (if removing leaves $< 2$ stores, actions are blocked and user is routed to Dissolve).
+    4. **Merge Coverage Groups**: Combines 2 distinct coverage groups (Source $\to$ Destination) under the same account.
+    5. **Dissolve Coverage Group**: Reverts all member stores to stationary. If active personnel exist in the group, renders interactive Home Store Assignment dropdowns for each employee (GAP-02 parity) persisted to `employee_home_stores`.
+  - **Dual Execution & Role Model**:
+    - **Head Admin & Super Admin**: Live direct execution (`Apply Directly` / `Create Directly` / `Dissolve Directly`) with immediate multi-cache invalidation.
+    - **Encoder**: Submits request for administrative review (`Submit for Approval`) routed to `/approvals` Category 3.
+  - **Data Layer Hooks (`src/lib/queries/more.ts`)**: Added `fetchCoverageGroupEmployees`, `useCoverageGroupEmployees`, and `executeCoverageOperation` / `useCoverageOperation` wrapping direct creation and coverage request lifecycles.
+
 - **Roving Coverage Group Direct Creation Integration (`ohm#c7v2k9m4` — 2026-11-13)**:
   - **Feature Parity with Mobile (`CreateCoverageGroupModal.tsx`)**: Built high-fidelity modal dialog for direct creation of multi-store roving coverage clusters in `src/components/modals/CreateCoverageGroupModal.tsx`, matching mobile `create_coverage_group_screen.dart` and `coverage_group_service.dart`.
   - **Dual Entry Points**:

@@ -39,7 +39,7 @@ This document captures the current stable architecture and navigation contract f
        - `edit_lock_control`: Edit Lock Control (Security).
        - `data_archival_control`: Data Archival & Recovery (Canonical single entry point; Level 100 / Super Admin).
        - `global_store_transfer`: Global Store Transfer requests.
-       - `roving_coverage_groups`: Roving coverage group pools (inspection modal with inline `+ Create Group` trigger opening `CreateCoverageGroupModal`).
+       - `roving_coverage_groups`: Roving coverage group pools (inspection modal with inline `+ Create Group` trigger opening `the unified 5-tab CreateCoverageGroupModal (Create, Add Store, Remove Store, Merge, Dissolve)`).
        - `payroll_review_center`: Payroll Review Center (Canonical review hub).
      - Sub-tab `batch_imports`:
        - Full-Page Architecture: All 5 batch imports are rendered as URL-driven full-page views via `BatchImportPageShell` rather than modals, providing full-width/full-height content, unclipped preview tables scrolling inside the page body, and a sticky action footer (`sticky bottom-0`).

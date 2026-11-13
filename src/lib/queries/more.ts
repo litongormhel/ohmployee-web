@@ -1752,6 +1752,173 @@ export function useCreateDirectCoverageGroup() {
   });
 }
 
+export interface CoverageGroupEmployeeItem {
+  id: string;
+  fullName: string;
+  employeeNo: string | null;
+  position: string | null;
+  status: string;
+}
+
+export async function fetchCoverageGroupEmployees(coverageGroupId: string): Promise<CoverageGroupEmployeeItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("plantilla")
+    .select("id, full_name, employee_no, position, status")
+    .eq("coverage_group_id", coverageGroupId)
+    .eq("status", "Active")
+    .eq("is_archived", false);
+
+  if (error || !data) return [];
+  return data.map((d) => ({
+    id: String(d.id),
+    fullName: String(d.full_name || "Unknown"),
+    employeeNo: d.employee_no ? String(d.employee_no) : null,
+    position: d.position ? String(d.position) : null,
+    status: String(d.status),
+  }));
+}
+
+export function useCoverageGroupEmployees(coverageGroupId: string | null) {
+  return useQuery({
+    queryKey: ["coverage-group-employees", coverageGroupId],
+    queryFn: () => (coverageGroupId ? fetchCoverageGroupEmployees(coverageGroupId) : Promise.resolve([])),
+    enabled: !!coverageGroupId,
+  });
+}
+
+export type CoverageOperationType =
+  | "create_coverage_group"
+  | "add_store"
+  | "remove_store"
+  | "merge_coverage_groups"
+  | "dissolve_coverage_group";
+
+export interface CoverageOperationPayload {
+  operationType: CoverageOperationType;
+  accountId: string;
+  positionId?: string;
+  employmentType?: string;
+  areaName?: string;
+  storeIds?: string[];
+  anchorStoreId?: string;
+  targetCoverageGroupId?: string;
+  sourceCoverageGroupId?: string;
+  destinationCoverageGroupId?: string;
+  employeeHomeStores?: Record<string, string>;
+  notes?: string;
+  autoApprove: boolean; // true for Head Admin and Super Admin
+}
+
+export async function executeCoverageOperation(params: CoverageOperationPayload): Promise<{
+  success: boolean;
+  requestId?: string;
+  coverageGroupId?: string;
+  coverageCode?: string;
+}> {
+  const supabase = createClient();
+
+  // Special direct creation RPC for HA/SA
+  if (params.operationType === "create_coverage_group" && params.autoApprove) {
+    const res = await createDirectCoverageGroup({
+      accountId: params.accountId,
+      positionId: params.positionId || "",
+      employmentType: params.employmentType || "Regular",
+      areaName: params.areaName,
+      storeIds: params.storeIds || [],
+      anchorStoreId: params.anchorStoreId || "",
+    });
+    return {
+      success: true,
+      coverageGroupId: res.coverage_group_id,
+      coverageCode: res.coverage_code,
+    };
+  }
+
+  // Construct request payload
+  const payload: Record<string, unknown> = {};
+  if (params.notes?.trim()) payload.notes = params.notes.trim();
+
+  if (params.operationType === "create_coverage_group") {
+    payload.store_ids = params.storeIds;
+    payload.anchor_store_id = params.anchorStoreId;
+    if (params.areaName?.trim()) payload.area_name = params.areaName.trim();
+  } else if (params.operationType === "add_store") {
+    payload.store_ids = params.storeIds;
+  } else if (params.operationType === "remove_store") {
+    payload.store_ids = params.storeIds;
+  } else if (params.operationType === "merge_coverage_groups") {
+    // merge requires no store_ids in payload
+  } else if (params.operationType === "dissolve_coverage_group") {
+    if (params.employeeHomeStores && Object.keys(params.employeeHomeStores).length > 0) {
+      payload.employee_home_stores = params.employeeHomeStores;
+    }
+  }
+
+  // 1. Create coverage request
+  const { data: createData, error: createError } = await supabase.rpc("create_coverage_request", {
+    p_request_type: params.operationType,
+    p_payload: payload,
+    p_account_id: params.accountId || null,
+    p_position_id: params.positionId || null,
+    p_employment_type: params.employmentType || null,
+    p_target_coverage_group_id: params.targetCoverageGroupId || null,
+    p_source_coverage_group_id: params.sourceCoverageGroupId || null,
+    p_destination_coverage_group_id: params.destinationCoverageGroupId || null,
+    p_reason: params.notes?.trim() || null,
+  });
+
+  if (createError) throw new Error(createError.message);
+  const reqObj = (createData || {}) as Record<string, unknown>;
+  const requestId = String(reqObj.coverage_request_id || reqObj.id || "");
+  if (!requestId) throw new Error("Failed to initialize coverage request.");
+
+  // 2. Submit draft to pending
+  const { error: submitError } = await supabase.rpc("submit_coverage_request", {
+    p_coverage_request_id: requestId,
+  });
+  if (submitError) throw new Error(submitError.message);
+
+  // 3. Auto-approve if Head Admin or Super Admin
+  if (params.autoApprove) {
+    const approveParams: Record<string, unknown> = {
+      p_coverage_request_id: requestId,
+      p_reviewer_remarks: "Approved and executed directly by administrator",
+    };
+    if (params.operationType === "dissolve_coverage_group" && params.employeeHomeStores) {
+      approveParams.p_employee_home_stores = params.employeeHomeStores;
+    }
+
+    const { error: approveError } = await supabase.rpc("approve_coverage_request", approveParams);
+    if (approveError) {
+      throw new Error(`Submitted as request #${requestId.slice(0, 8)}, but execution failed: ${approveError.message}`);
+    }
+  }
+
+  return {
+    success: true,
+    requestId,
+  };
+}
+
+export function useCoverageOperation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: executeCoverageOperation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["coverage-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-group-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-group-eligible-stores"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-group-employees"] });
+      queryClient.invalidateQueries({ queryKey: ["coverage-group-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["web-plantilla-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["store-staffing"] });
+    },
+  });
+}
+
 export interface AccountPositionOption {
   positionId: string;
   positionName: string;

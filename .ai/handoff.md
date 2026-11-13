@@ -1,5 +1,59 @@
 # AI Handoff
 
+## Execution Report — Coverage Group Management Modal Parity (ohm#g9k2m4c8)
+
+**Status: COMPLETE ON MAIN; UPGRADED CreateCoverageGroupModal INTO A UNIFIED 5-TAB COVERAGE GROUP MANAGEMENT MODAL (CREATE GROUP, ADD STORE, REMOVE STORE, MERGE GROUPS, DISSOLVE GROUP) MATCHING MOBILE PARITY AND ADR-001 § COVERAGE GROUPS; IMPLEMENTED STRICT FOOTPRINT FILTERING (STATIONARY/UNASSIGNED STORES ONLY FOR CREATE AND ADD STORE, CURRENT MEMBER STORES ONLY FOR REMOVE STORE WITH >= 2 STORES RETENTION INVARIANT, FULL DISSOLUTION REVERTING ALL STORES TO STATIONARY WITH GAP-02 ACTIVE PERSONNEL HOME STORE ASSIGNMENTS); IMPLEMENTED DUAL ROLE EXECUTION (HEAD ADMIN & SUPER ADMIN EXECUTE DIRECTLY, ENCODERS SUBMIT FOR APPROVAL TO /approvals CATEGORY 3); FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla & More Modules), `docs/state/plantilla_web_state.md`, `docs/state/more_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Module 11 (Coverage Groups), Module 1 (Plantilla).
+
+### 1. Observation
+- User requested full feature parity with Mobile for Coverage Group Management within the modal opened on Web (`/plantilla` and `/more`).
+- Previously, Web only featured group creation (`create_coverage_group`) and lacked the additional 4 coverage operations present in the Mobile repository:
+  1. `Create Coverage Group`: Stationary stores only; no existing coverage groups displayed; $\ge 2$ free stores; 1 anchor store.
+  2. `Add Store`: Add stationary store(s) to an existing coverage group; group picker shows only active coverage groups.
+  3. `Remove Store`: Remove member store(s) from a coverage group; requires group to retain $\ge 2$ member stores; otherwise directs user to Dissolve.
+  4. `Merge Coverage Groups`: Merge 2 coverage groups (Source $\to$ Destination) under the same account.
+  5. `Dissolve Coverage Group`: Dissolve a coverage group; all member stores revert to stationary. If active personnel exist in the group, prompt user for home store assignments per employee (GAP-02 parity).
+- **Role Authorization & Execution Decision (Option 1 approved by user)**:
+  - Super Admin (SA) & Head Admin (HA): Direct execution (`Apply Directly` / `Create Directly` / `Dissolve Directly`) applying live changes immediately.
+  - Encoder: Submits draft coverage request (`Submit for Approval`) routed to `/approvals` Category 3.
+  - Operations (OM, TL, ATL, HRCO): Slated for Phase 2 via tiered review (`Ops -> Encoder/HA/SA; Encoder -> HA/SA`) which will be added in mobile ADR and backed by a forward SQL migration.
+
+### 2. Logic Chain & Surgical Changes
+1. **`src/lib/queries/more.ts`**:
+   - Added `CoverageGroupEmployeeItem` interface and `fetchCoverageGroupEmployees` / `useCoverageGroupEmployees` querying active personnel assigned to a coverage group from `public.plantilla`.
+   - Added `executeCoverageOperation` and `useCoverageOperation` hook:
+     - Handles direct execution for HA/SA (`autoApprove: true`) via atomic direct creation or draft creation + submission + `approve_coverage_request`.
+     - Handles review submission for Encoder (`autoApprove: false`) via `create_coverage_request` + `submit_coverage_request`.
+     - Encapsulates `employee_home_stores` JSON payload mapping `{ plantilla_id: store_id }` for dissolve operations.
+     - Automatically invalidates `coverage-groups`, `coverage-group-detail`, `coverage-group-eligible-stores`, `coverage-group-employees`, `plantilla`, `web-plantilla-summary`, and `store-staffing` caches.
+2. **`src/components/modals/CreateCoverageGroupModal.tsx`**:
+   - Upgraded component into a comprehensive 5-tab management dialog (`Create Group`, `Add Store`, `Remove Store`, `Merge Groups`, `Dissolve Group`).
+   - Integrated `useCurrentUser()` and `isHeadOrSuperAdmin()` to toggle between Administrator direct execution mode and Encoder approval submission mode.
+   - Tab 1 (`create`): Stationary/free stores only, anchor selection, position and employment type selectors.
+   - Tab 2 (`add_store`): Target coverage group dropdown, current member store tags, available stationary stores picker.
+   - Tab 3 (`remove_store`): Target coverage group dropdown, member stores selection with validation requiring $\ge 2$ remaining stores.
+   - Tab 4 (`merge`): Source and destination group selectors with comparative stores preview.
+   - Tab 5 (`dissolve`): Target group selector, reverting stores preview, and interactive Home Store Assignment dropdowns for all active personnel.
+   - Declarative home store resolution: avoids `setState`-in-effect anti-patterns and defaults to group anchor store.
+3. **Documentation**:
+   - Updated `docs/state/plantilla_web_state.md` documenting 5-tab modal architecture and execution model.
+   - Updated `docs/state/more_state.md` under `roving_coverage_groups`.
+
+### 3. Verification
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 631 migrations.
+- `npm test` → 211 tests passed, 0 failures.
+- `npm run lint` → 0 errors, 0 warnings.
+- `npm run build` → Next.js 16.2.4 production build compiled successfully (Exit Code 0).
+
+### 4. ADR Updates Needed (Ohm applies in mobile repo for Phase 2)
+- Update `ADR-001 § Coverage Groups` and `fn_can_mutate_coverage_request` / `fn_can_review_coverage_request` in Mobile repository:
+  1. Authorize Operations roles (`Operations Manager`, `Team Leader`, `Assistant Team Leader`, `HR Coordinator`) to initiate coverage requests (`create_coverage_request` and `submit_coverage_request`).
+  2. Implement tiered review authorization: Encoders may review/approve requests submitted by Operations roles; Head Admin and Super Admin may review/approve requests submitted by Encoders or Operations roles.
+
+---
+
 ## Execution Report — Plantilla Table Pagination Standardization to 15 Rows (ohm#p5s1d8k2)
 
 **Status: COMPLETE ON MAIN; STANDARDIZED PLANTILLA EMPLOYEE VIEW DEFAULT PAGE SIZE FROM 10 TO 15 ROWS; STANDARDIZED pageSizeOptions ACROSS BOTH EMPLOYEE AND STORE VIEWS TO [15, 30, 50]; ALLOWS MEDIUM SIZED ROSTERS (SUCH AS MARIZ WITH 14 ACTIVE PERSONNEL) TO RENDER ENTIRELY ON PAGE 1 WITHOUT UNNECESSARY PAGINATION SPLITS; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
