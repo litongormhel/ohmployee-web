@@ -1,5 +1,32 @@
 # AI Handoff
 
+## Execution Report — Plantilla Table Pagination Standardization to 15 Rows (ohm#p5s1d8k2)
+
+**Status: COMPLETE ON MAIN; STANDARDIZED PLANTILLA EMPLOYEE VIEW DEFAULT PAGE SIZE FROM 10 TO 15 ROWS; STANDARDIZED pageSizeOptions ACROSS BOTH EMPLOYEE AND STORE VIEWS TO [15, 30, 50]; ALLOWS MEDIUM SIZED ROSTERS (SUCH AS MARIZ WITH 14 ACTIVE PERSONNEL) TO RENDER ENTIRELY ON PAGE 1 WITHOUT UNNECESSARY PAGINATION SPLITS; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla Module), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Plantilla.
+
+### 1. Observation
+- Following the removal of the top summary cards in `ohm#u8s2d9k3` which reclaimed ~130px of vertical space, user noted that the table could comfortably display 15 employees on the first page instead of 10.
+- Evaluated layout and viewport metrics: at 10 rows, accounts like MARIZ (14 active employees) were split awkwardly across two pages (10 on Page 1, only 4 on Page 2). Store View was already configured for `storePageSize = 15` with options `[15, 30, 50]`.
+- User approved Option A: default Employee View page size updated to 15, and `pageSizeOptions` standardized to `[15, 30, 50]` across both Employee View and Store View.
+
+### 2. Logic Chain & Surgical Changes
+1. **`src/app/(dashboard)/plantilla/page.tsx`**:
+   - Updated `const [pageSize, setPageSize] = useState<number>(15)` (from 10).
+   - Standardized `pageSizeOptions={[15, 30, 50]}` in `TablePagination` across all views.
+2. **Documentation**:
+   - Updated `docs/state/plantilla_web_state.md` (§ 2 Dual Views Architecture) documenting `ohm#p5s1d8k2`.
+
+### 3. Verification
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 631 migrations.
+- `npm test` → 211 tests passed, 0 failures.
+- `npm run lint` → 0 errors, 0 warnings.
+- `npm run build` → Next.js 16.2.4 production build compiled successfully (Exit Code 0).
+
+---
+
 ## Execution Report — Plantilla Header & Layout Streamlining (ohm#u8s2d9k3)
 
 **Status: COMPLETE ON MAIN; REMOVED 5-CARD SUMMARY WIDGET (OVERALL MFR, ACTIVE DEPLOYED, OPEN VACANCIES, HR PIPELINE, LEADERSHIP TEAM) TO RECLAIM ~130PX OF VERTICAL SCREEN REAL ESTATE; REMOVED MISPLACED [ROLE] PILL NEXT TO ACCOUNT NAME IN BREADCRUMB; UNIFIED REQUEST HEADCOUNT BUTTON STYLING TO MATCH COVERAGE GROUP AND ABSORB EMPLOYEES OUTLINED TOKENS; DEDUPLICATED EMOJI ICONS ON EMPLOYEE VIEW AND STORE VIEW TOGGLE IN FAVOR OF SINGLE CRISP LUCIDE SVG ICONS; REMOVED UNUSED LOCAL HELPERS AND TEAM DIRECTORY QUERY; VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
