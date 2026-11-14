@@ -1683,8 +1683,8 @@ export async function fetchCoverageGroupDetail(coverageGroupId: string): Promise
 
 export async function createDirectCoverageGroup(params: {
   accountId: string;
-  positionId: string;
-  employmentType: string;
+  positionId?: string | null;
+  employmentType?: string;
   areaName?: string;
   storeIds: string[];
   anchorStoreId: string;
@@ -1692,9 +1692,9 @@ export async function createDirectCoverageGroup(params: {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("create_coverage_group", {
     p_account_id: params.accountId,
-    p_position_id: params.positionId,
-    p_employment_type: params.employmentType,
-    p_area_name: params.areaName || null,
+    p_position_id: params.positionId || null,
+    p_employment_type: params.employmentType || "Regular",
+    p_area_name: params.areaName?.trim() || null,
     p_store_ids: params.storeIds,
     p_anchor_store_id: params.anchorStoreId,
   });
@@ -1823,7 +1823,7 @@ export async function executeCoverageOperation(params: CoverageOperationPayload)
   if (params.operationType === "create_coverage_group" && params.autoApprove) {
     const res = await createDirectCoverageGroup({
       accountId: params.accountId,
-      positionId: params.positionId || "",
+      positionId: params.positionId || null,
       employmentType: params.employmentType || "Regular",
       areaName: params.areaName,
       storeIds: params.storeIds || [],
@@ -1863,7 +1863,7 @@ export async function executeCoverageOperation(params: CoverageOperationPayload)
     p_payload: payload,
     p_account_id: params.accountId || null,
     p_position_id: params.positionId || null,
-    p_employment_type: params.employmentType || null,
+    p_employment_type: params.employmentType || "Regular",
     p_target_coverage_group_id: params.targetCoverageGroupId || null,
     p_source_coverage_group_id: params.sourceCoverageGroupId || null,
     p_destination_coverage_group_id: params.destinationCoverageGroupId || null,

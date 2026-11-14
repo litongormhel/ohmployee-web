@@ -1133,6 +1133,14 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Free stores render with enabled checkboxes and `Anchor` / `Set Anchor` controls.
     - Staging test cleanup: Archived empty test groups `CG-FG1-0002` and `CG-FG1-0003` to unlock 5 stores for Forever Office.
 
+- **Coverage Group UUID Empty String Cast Fix & Null-Safe Position Resolution (`ohm#n7v3k9m2` — 2026-11-14)**:
+  - **Root Cause**: In `src/lib/queries/more.ts`, direct execution fallback `params.positionId || ""` passed an empty string `""` to PostgreSQL RPC parameter `p_position_id uuid`, triggering error `22P02: invalid input syntax for type uuid: ""` when creating a group.
+  - **Client Fix**: Sanitized `params.positionId || null` in both `createDirectCoverageGroup` and `executeCoverageOperation`, and defaulted `employmentType` to `'Regular'`.
+  - **Database Migration (`20262606000112_coverage_group_null_safe_position.sql`)**:
+    - Upgraded `public.create_coverage_group` to declare `p_position_id uuid DEFAULT NULL`, `p_employment_type text DEFAULT 'Regular'`, and `p_area_name text DEFAULT NULL`.
+    - Auto-resolves `position_id` when omitted/null from any active employee in member stores (`public.plantilla`) or `public.v_account_position_options`, with safe fallback to `NULL`.
+    - Applied and validated against remote Staging (`qqiiznmqxfoamqytjica`) with live `pg_get_functiondef` parity.
+
 
 
 

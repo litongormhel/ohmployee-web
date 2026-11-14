@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Execution Report — Fix Coverage Group UUID Empty String Cast & Null-Safe Position Resolution (ohm#n7v3k9m2)
+
+**Status: COMPLETE ON MAIN; FIXED ERROR "invalid input syntax for type uuid: """ UPON CREATING A COVERAGE GROUP BY (1) SANITIZING FALSY POSITION_ID TO NULL IN MORE.TS INSTEAD OF EMPTY STRING, (2) SHIPPED MIGRATION 20262606000112 UPGRADING PUBLIC.CREATE_COVERAGE_GROUP WITH DEFAULT NULL PARAMETERS AND IN-FUNCTION AUTO-RESOLUTION OF POSITION_ID FROM ACTIVE MEMBER STORE EMPLOYEES OR ACCOUNT POSITION OPTIONS, AND (3) GUARANTEED EMPLOYMENT_TYPE DEFAULTS TO 'REGULAR' TO SATISFY PHYSICAL NOT NULL CONSTRAINT; APPLIED AND CONFIRMED WITH LIVE PG_GET_FUNCTIONDEF DIFF IN STAGING; FULL VERIFICATION PASSED (npm run check:adr FRESH, npm run check:sql OK, npm run lint 0 ERRORS, npm run build EXIT 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla & More Modules), `docs/state/plantilla_web_state.md`, `docs/state/more_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants & Plantilla Section.
+
+### 1. Observation & User Approval
+- User instruction:
+  > "error. Please do a sanity check against database per role and per selection. report if passed or failed.
+  > If Failed fix it."
+- Audit results presented:
+  - FAILED for Direct Execution (`Head Admin` / `Super Admin`) due to `params.positionId || ""` in `more.ts` sending `""` to PostgreSQL RPC parameter `p_position_id uuid`, triggering error `22P02: invalid input syntax for type uuid: ""`.
+  - AT RISK for Request Mode (`Encoder`) due to potential NULL `employment_type` violating table NOT NULL constraint upon execution.
+  - PASSED for Account & Store Selections.
+- Plan and regression risk assessment presented and explicitly approved by the user ("approved").
+
+### 2. Surgical Changes
+1. **`supabase/migrations/20262606000112_coverage_group_null_safe_position.sql`**:
+   - Upgraded `public.create_coverage_group`:
+     - Function parameters updated to: `p_account_id uuid, p_position_id uuid DEFAULT NULL, p_employment_type text DEFAULT 'Regular', p_area_name text DEFAULT NULL, p_store_ids uuid[] DEFAULT NULL, p_anchor_store_id uuid DEFAULT NULL`.
+     - Added sanitization defaults: `p_employment_type := COALESCE(NULLIF(TRIM(p_employment_type), ''), 'Regular'); p_area_name := NULLIF(TRIM(p_area_name), '');`.
+     - Added automatic `position_id` resolution when `p_position_id IS NULL`:
+       - First checks active employees in member stores (`public.plantilla`).
+       - Fallback to `public.v_account_position_options`.
+       - Fallback to `NULL` (since `coverage_groups.position_id` is nullable).
+     - Applied to remote Staging (`qqiiznmqxfoamqytjica`) with `--yes`.
+     - Confirmed live `pg_get_functiondef` parity.
+2. **`src/lib/queries/more.ts`**:
+   - In `createDirectCoverageGroup`: changed `p_position_id: params.positionId` to `p_position_id: params.positionId || null`, and ensured `p_employment_type: params.employmentType || "Regular"`.
+   - In `executeCoverageOperation`:
+     - Direct creation path (line 1826): replaced `positionId: params.positionId || ""` with `positionId: params.positionId || null`.
+     - Coverage request path (line 1866): ensured `p_employment_type: params.employmentType || "Regular"`.
+
+### 3. Verification & Sign-off
+- `npm run check:adr`: Remote check FRESH — ADR-001 (`3729ccb`), ADR-002 (`49d7a40`).
+- `npm run check:sql`: SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 637 migrations.
+- `npm run lint`: Clean (0 errors, 0 warnings).
+- `npm run build`: Production build succeeded (Next.js 16.2.4 compiled in 22.3s, TypeScript clean, all 20 pages statically generated).
+- Migration applied to Staging (`qqiiznmqxfoamqytjica`) and verified via `pg_get_functiondef`.
+
+---
+
 ## Execution Report — Coverage Group Creation Universal Store Footprint & Form Streamlining (ohm#p8c2m4k1)
 
 **Status: COMPLETE ON MAIN; STREAMLINED COVERAGE GROUP CREATION MODAL BY (1) REMOVING REDUNDANT TARGET POSITION AND EMPLOYMENT TYPE INPUTS, (2) UPGRADING RPC GET_COVERAGE_GROUP_ELIGIBLE_STORES (MIGRATION 20262606000111) TO RETURN ALL ACTIVE STORES UNDER THE ACCOUNT REGARDLESS OF VACANCY OR OCCUPANCY, (3) DISPLAYING ALL STORES WITH MOBILE PARITY WHERE CURRENTLY GROUPED STORES ARE VISIBLE WITH DISABLED CHECKBOXES AND "ALREADY IN <CGCode>" STATUS BADGES, AND (4) CLEANING UP EMPTY STAGING TEST GROUPS CG-FG1-0002 AND CG-FG1-0003 TO UNLOCK 5 STORES; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm run lint 0 ERRORS, npm run build EXIT 0); LOCAL COMMIT ON MAIN.**
