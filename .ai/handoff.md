@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — Dashboard Percentage Normalization & CENCOM Plantilla Source of Truth (ohm#d2c8m9p4)
+
+**Status: COMPLETE ON MAIN; NORMALIZED DASHBOARD WORKFORCE COVERAGE PERCENTAGE BY DERIVING FILL RATE DIRECTLY FROM PLANTILLA ACTIVE DEPLOYMENT (totalActivePlantilla / totalScopedDemand * 100), ELIMINATING THE REDUNDANT DOUBLE MULTIPLICATION (9350% GLITCH); ANCHORED CENCOM OVERVIEW & GROUPS IN PLANTILLA AS SINGLE SOURCE OF TRUTH (BATCH-QUERYING plantilla ACTIVE EMPLOYEES AND plantilla_slots NON-CLOSED SLOTS MAPPED BY ACCOUNT TO CENCOM GROUPS); RECONCILED DASHBOARD GROUP MATRIX VIA SYNCHRONIZED CENCOM GROUP KPIS; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Dashboard & CENCOM Modules), `docs/state/dashboard_state.md`, `docs/state/cencom_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Module 8 (Dashboard & CENCOM).
+
+### 1. Observation & User Approval
+- User requested: "Check CENCOM/DASHBOARD data dapat sa Plantilla sya kukuha kasi Plantilla is the source of truth and paki ayos ng % sa Dashboard".
+- Diagnosed root causes:
+  1. In `src/app/(dashboard)/dashboard/page.tsx`, `avgFillRatePct` was multiplied by 100 on top of the backend RPC `fn_dashboard_operational_analytics` which already returns percentage (e.g. 93.5), causing Card 1 to display 9350%.
+  2. CENCOM Overview and Groups derived headcount metrics solely from database views `v_cencom_allocation_kpi` and `v_cencom_group_allocation_kpi`, which rely on `employee_store_allocations` and an `INNER JOIN vacancies v ON v.vcode = ps.legacy_vcode`, omitting unlinked slots and active employees without ESA.
+- Presented architectural plan and regression risk assessment through the Approval Gate; explicit user approval received.
+
+### 2. Logic Chain & Surgical Changes
+1. **`src/app/(dashboard)/dashboard/page.tsx`**:
+   - Fixed `avgFillRatePct` to calculate directly from `(totalActivePlantilla / totalScopedDemand) * 100`, aligning Card 1's fill rate percentage 1:1 with the subtitle `${totalActivePlantilla} of ${totalScopedDemand} seats filled` and the segmented progress bar.
+2. **`src/lib/queries/cencom.ts` (`fetchCencomGroupAllocationKpi` & `fetchCencomAllocationKpi`)**:
+   - Enhanced `fetchCencomGroupAllocationKpi` to concurrently query active headcount from `public.plantilla` and physical non-closed slots from `public.plantilla_slots`.
+   - Correlated records by `account_id` -> `group_id`, establishing Plantilla as the single source of truth for group metrics (`actual`, `required`, `vacant`, `mfrPercent`, `healthStatus`).
+   - Enhanced `fetchCencomAllocationKpi` to aggregate across these authoritative reconciled groups, guaranteeing zero discrepancy between Overview Hero MFR gauge and Group table rows.
+   - Reconciled Dashboard Group Matrix which consumes `useCencomGroupKpi()`.
+
+### 3. Verification
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 633 migrations.
+- `npm test` → 211 tests passed, 0 failures.
+- `npm run lint` → 0 errors, 0 warnings.
+- `npm run build` → Next.js 16.2.4 production build compiled successfully (Exit Code 0).
+
+---
+
 ## Execution Report — Plantilla Cards vs Account Content Headcount Parity & Slots Invariant (ohm#s7k2p9m1)
 
 **Status: COMPLETE ON MAIN; ENFORCED ARCHITECTURAL INVARIANT: REQUIRED HEADCOUNT = TOTAL NON-CLOSED SLOTS (plantilla_slots WHERE slot_status <> 'closed' AND closed_at IS NULL); FIXED DIRECTORY CARD CALCULATION IN src/app/(dashboard)/plantilla/page.tsx BY BATCH-FETCHING PHYSICAL SLOTS FROM plantilla_slots AND ACTIVE EMPLOYEES FROM plantilla; ELIMINATED DEFECTIVE LOCAL OVERRIDE (required = actual + vacant); ALIGNED CARD METRICS (HC ACTUAL/REQUIRED, VACANT, MFR) 1:1 WITH INTERNAL ACCOUNT STAFFING; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

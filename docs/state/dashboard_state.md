@@ -132,3 +132,13 @@ Rendered in a 4-column responsive grid consuming shared `KpiCard` (`@/components
 - `fn_dashboard_metrics` filters `sla_breach_logs`, `possible_ghost_employees`, `hr_emploc`, `vacancies`, and all 11 request queues by `COALESCE(is_archived, FALSE) = FALSE AND suppressed_by_batch_id IS NULL` (preserving Account Sign-Ups).
 - `fn_dashboard_operational_analytics` filters applicants, hr_emploc, and separation logs by `COALESCE(is_archived, FALSE) = FALSE AND suppressed_by_batch_id IS NULL`.
 - All metrics correctly drop to 0 post QA Reset and restore atomically upon 72-hour batch rollback.
+
+---
+
+## 8. Plantilla Source of Truth & Percentage Alignment (`ohm#d2c8m9p4` — 2026-11-14)
+- **Dashboard Fill Rate Percentage Normalized**:
+  - Eliminated the double `* 100` multiplication on `avgFillRate` (where backend RPC already returns percentage e.g. `93.5`).
+  - Derived Card 1 (`Workforce Coverage`) fill rate directly from `(totalActivePlantilla / totalScopedDemand) * 100`, guaranteeing 100% mathematical cohesion with the subtitle `${totalActivePlantilla} of ${totalScopedDemand} seats filled` and the segmented progress bar.
+- **Plantilla as Authoritative Source of Truth**:
+  - In `src/lib/queries/cencom.ts`, `fetchCencomGroupAllocationKpi` and `fetchCencomAllocationKpi` query `plantilla` (active headcount) and `plantilla_slots` (non-closed slots), mapped by account to CENCOM group.
+  - The Dashboard Group Matrix (`displayedGroupRows`), which derives from `useCencomGroupKpi()`, automatically reflects these authoritative Plantilla-derived figures.

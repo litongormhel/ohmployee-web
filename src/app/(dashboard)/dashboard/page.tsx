@@ -128,10 +128,17 @@ export default function DashboardPage() {
   const hiresThisMonth = analytics?.hiresThisMonth ?? 0;
   const separationsThisMonth = analytics?.separationsThisMonth ?? 0;
   const avgFillRateNum = analytics?.avgFillRate ?? 0;
-  const avgFillRatePct = avgFillRateNum * 100;
 
   // Dynamic Scoped Demand Denominator: Actual + HR Pipeline + Vacancy
   const totalScopedDemand = totalActivePlantilla + totalHrEmplocPending + totalOpenVacancies;
+
+  // Authoritative fill rate percentage: derived from actual vs required demand without double multiplication
+  const avgFillRatePct =
+    totalScopedDemand > 0
+      ? (totalActivePlantilla / totalScopedDemand) * 100
+      : avgFillRateNum > 1
+      ? avgFillRateNum
+      : avgFillRateNum * 100;
 
   const activePlantillaWidthPct =
     totalScopedDemand > 0 ? ((totalActivePlantilla / totalScopedDemand) * 100).toFixed(1) : "0.0";

@@ -87,3 +87,11 @@ When `"All groups"` is selected, metrics match global baseline views 1:1. When a
 - **Stores & Groups**: Queries filter `stores` and `accounts` by `COALESCE(is_archived, FALSE) = FALSE AND suppressed_by_batch_id IS NULL`.
 - **Deployment Summary**: `fn_cencom_deployment_summary` filters `deleted_vcode` by `v.suppressed_by_batch_id IS NULL AND v.archive_batch_id IS NULL`, ensuring pre-existing deleted VCodes drop to 0 during QA Reset and restore on rollback without reopening into active operational views.
 - **Quick Reports Tab Badge**: Displays 0 when groups = 0 post QA Reset.
+
+---
+
+## 6. Plantilla Source of Truth Integration (`ohm#d2c8m9p4` — 2026-11-14)
+- **Authoritative Headcount & Slot Anchoring**:
+  - `fetchCencomGroupAllocationKpi` in `src/lib/queries/cencom.ts` concurrently queries `public.plantilla` (active employees) and `public.plantilla_slots` (non-closed slots) mapped across accounts to their CENCOM group.
+  - Sourced directly from physical slots and active employees, eliminating silent dropping of unlinked vacancy slots or missing ESA records.
+  - `fetchCencomAllocationKpi` aggregates across these reconciled groups, ensuring that the Overview Hero MFR gauge, KPIs, and Group Table rows remain 100% coherent and anchored in Plantilla as the single source of truth.
