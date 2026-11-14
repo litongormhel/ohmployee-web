@@ -27,6 +27,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { NotificationItem, ParsedDeepLink } from "@/lib/queries/notifications";
+import {
+  sanitizeNotificationDeepLink,
+  extractEntityCodeFromItem,
+} from "./deep_links";
 
 // ============================================================================
 // Types
@@ -66,36 +70,8 @@ export interface NotificationPresentation {
 // Entity Code Extractor
 // ============================================================================
 
-const ENTITY_PATTERNS = [
-  /\b(VCYG\d+_\d+)\b/i,           // VCode: VCYG1_0001
-  /\b([A-Z]{3,5}\d{2,})\b/,        // General Store / Outlet codes: CPSAJV31
-  /\b(AMR-\d+)\b/i,                // Applicant Movement Request: AMR-1002
-  /\b(AGT-\d{4}-\d+)\b/i,          // Account Group Transfer: AGT-2026-0001
-  /\b(REQ-\d+)\b/i,                // Generic Request: REQ-1234
-  /\b(BAT-[A-Z0-9]+)\b/i,          // Batch ID: BAT-0012
-];
-
 export function extractEntityCode(item: NotificationItem): string | null {
-  const payload = (item.data || {}) as Record<string, unknown>;
-  if (typeof payload.vcode === "string" && payload.vcode) return payload.vcode;
-  if (typeof payload.entity_code === "string" && payload.entity_code) return payload.entity_code;
-  if (typeof payload.request_number === "string" && payload.request_number) return payload.request_number;
-
-  // Check reference_id if formatted like a code
-  if (item.reference_id && !item.reference_id.includes("-") && item.reference_id.length <= 15) {
-    return item.reference_id;
-  }
-
-  // Scan title and message
-  const text = `${item.title} ${item.message}`;
-  for (const pattern of ENTITY_PATTERNS) {
-    const match = text.match(pattern);
-    if (match?.[1]) {
-      return match[1].toUpperCase();
-    }
-  }
-
-  return null;
+  return extractEntityCodeFromItem(item);
 }
 
 // ============================================================================
@@ -441,7 +417,7 @@ export function resolveNotificationPresentation(
   }
 
   // Resolve deep link
-  const deepLink = parseNotificationDeepLinkFallback(item, mod);
+  const deepLink = sanitizeNotificationDeepLink(item, mod);
 
   return {
     severity,
@@ -457,84 +433,4 @@ export function resolveNotificationPresentation(
     dotClass,
     deepLink,
   };
-}
-
-// ============================================================================
-// Safe Deep-Link Resolver with Fallbacks
-// ============================================================================
-
-function parseNotificationDeepLinkFallback(
-  item: NotificationItem,
-  mod: NotificationModule
-): ParsedDeepLink | null {
-  const payload = (item.data || {}) as Record<string, unknown>;
-  const rawRoute = (payload.route as string) || (payload.deep_link_route as string) || item.deep_link_route || "";
-  const refId = (payload.reference_id as string) || (payload.request_id as string) || item.reference_id || "";
-  const refType = (item.reference_type || "").toLowerCase();
-
-  // Approvals Category mappings
-  if (refType === "new_store_request" || rawRoute.includes("new_store")) {
-    return { route: "/approvals?tab=new_stores", referenceId: refId, label: "View in Approvals →" };
-  }
-  if (refType === "headcount_request" || rawRoute.includes("headcount")) {
-    return { route: "/approvals?tab=headcount", referenceId: refId, label: "View in Approvals →" };
-  }
-  if (refType === "coverage_request" || rawRoute.includes("coverage")) {
-    return { route: "/approvals?tab=coverage", referenceId: refId, label: "View in Approvals →" };
-  }
-  if (refType === "vacancy_closure" || rawRoute.includes("closure")) {
-    return { route: "/approvals?tab=vacancy_closures", referenceId: refId, label: "View in Approvals →" };
-  }
-  if (refType === "hr_emploc_deletion" || rawRoute.includes("deletion")) {
-    return { route: "/approvals?tab=hr_emploc_deletions", referenceId: refId, label: "View in Approvals →" };
-  }
-  if (refType === "deactivation_request" || refType === "deactivation_batch" || rawRoute.includes("deactivation")) {
-    return { route: "/approvals?tab=deactivations", referenceId: refId, label: "View in Approvals →" };
-  }
-  if (refType === "applicant_movement" || rawRoute.includes("movement")) {
-    return { route: "/approvals?tab=applicant_movements", referenceId: refId, label: "View in Approvals →" };
-  }
-  if (refType === "account_group_transfer_request" || rawRoute.includes("account_transfer") || rawRoute.includes("account-transfer")) {
-    return { route: "/approvals?tab=account_group_transfers", referenceId: refId, label: "View in Approvals →" };
-  }
-  if (refType === "workforce_pool_request" || rawRoute.includes("pool_request") || refType.startsWith("workforce_")) {
-    return { route: "/approvals?tab=relievers", referenceId: refId, label: "View in Approvals →" };
-  }
-
-  // Vacancy
-  if (mod === "vacancy" || rawRoute.startsWith("/vacancies") || refType === "vacancy") {
-    const vcode = extractEntityCode(item) || refId;
-    return {
-      route: vcode ? `/vacancy?q=${encodeURIComponent(vcode)}` : "/vacancy",
-      referenceId: refId,
-      label: "Inspect Vacancy →",
-    };
-  }
-
-  // Plantilla
-  if (mod === "plantilla" || rawRoute.includes("plantilla")) {
-    return { route: "/plantilla", referenceId: refId, label: "Inspect Plantilla →" };
-  }
-
-  // HR Emploc
-  if (mod === "hr_emploc" || rawRoute.includes("hr-emploc")) {
-    return { route: "/hr-emploc", referenceId: refId, label: "Inspect Emploc →" };
-  }
-
-  // Import
-  if (refType.includes("import") || rawRoute.includes("import")) {
-    return { route: "/hr-emploc/import", referenceId: refId, label: "Inspect Import Batch →" };
-  }
-
-  // Users
-  if (refType === "account_request" || rawRoute.includes("account-request") || rawRoute.includes("users")) {
-    return { route: "/users", referenceId: refId, label: "Review User Requests →" };
-  }
-
-  // Generic relative route
-  if (rawRoute.startsWith("/")) {
-    return { route: rawRoute, referenceId: refId, label: "View Details →" };
-  }
-
-  return null;
 }

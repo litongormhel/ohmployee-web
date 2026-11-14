@@ -43,7 +43,52 @@ Derives presentation strictly from `(type, event_type, title, sla_level)` using 
 1. **"Deletion Request Approved"**: Evaluates to **`Success`** (`Approved`, `CheckCircle2`) because positive resolution takes precedence over the word "deletion".
 2. **"Import Plantilla Batch Awaiting Approval"**: Evaluates to **`Pending`** (`Pending Approval`, `Clock`) because "awaiting approval" takes precedence over the word "approval".
 
+## Scoped Notification Delivery Architecture (Database Triggers)
+
+Database migration `supabase/migrations/20262606000113_scope_notification_delivery_and_actioned_status.sql` enforces tenant & role scoping per ADR-001 cross-module invariants:
+
+1. **Requisition Submission (`public.notify_hc_request_submitted`)**:
+   - Scopes recipient query strictly by `group_id` / `account_id` via `public.user_scopes` (with `users_profile` direct assignment fallback).
+   - Prevents multi-tenant fanout leaks across groups.
+   - Includes active scoped `Encoder` users alongside `Head Admin` upon submission for early requisition visibility.
+   - Honors `scope_type = 'global'` for unconstrained global admins.
+2. **Requisition Actioning (`public.notify_hc_request_actioned`)**:
+   - Updates approval tuple check to include `'approved_pending_vcode'`:
+     `IF v_status IN ('approved', 'head admin approved', 'ha approved', 'approved_pending_vcode')`
+   - Immediately dispatches approval notification to the Ops requestor (`requested_by_user_id` -> `_rnw_auth_uid`) upon Head Admin sign-off without awaiting downstream asynchronous steps.
+3. **Role-Based Scoped Fanout (`public._rnw_notify_roles`)**:
+   - Added 10-parameter signature `_rnw_notify_roles(..., p_group_id uuid, p_account_id uuid)` filtering Head Admin & Encoder recipients by target group/account while keeping Super Admin globally unscoped.
+   - Preserves 8-parameter overload redirecting to 10-parameter with `(NULL, NULL)` for 100% backward compatibility with external triggers.
+   - Permissions revoked from `PUBLIC` and `anon`.
+4. **Coverage Request Scoping (`public.trg_coverage_request_notify`)**:
+   - Resolves `account_id` and derived `group_id` across direct columns and linked `coverage_groups`, forwarding them to `_rnw_notify_roles()`.
+
+## Centralized Deep-Link Sanitization Engine (`src/lib/notifications/deep_links.ts`)
+
+Pure TypeScript engine with zero React dependencies (enabling native Node.js ESM test execution under `node --test`). Completely eliminates 404 broken links on Web by intercepting legacy/mobile route formats and routing to valid Next.js App Router paths:
+
+| Legacy / Backend Route | Sanitized Web Route Destination | Action Label |
+|---|---|---|
+| `/headcount-requests/*` | `/approvals?tab=headcount` | `View in Approvals →` |
+| `/vacancies/*/closure-request/*` | `/approvals?tab=vacancy_closures` | `View in Approvals →` |
+| `/deactivation-requests/*` | `/approvals?tab=deactivations` | `View in Approvals →` |
+| `/hr-emploc/deletion-requests/*` | `/approvals?tab=hr_emploc_deletions` | `View in Approvals →` |
+| `/requests/applicant-movement/*` | `/approvals?tab=applicant_movements` | `View in Approvals →` |
+| `/account-group-transfers/*` | `/approvals?tab=account_group_transfers` | `View in Approvals →` |
+| `/workforce/requests/*`, `/workforce/pool-requests/*` | `/approvals?tab=relievers` | `View in Approvals →` |
+| `/vacancies/:vcode` | `/vacancy?q=:vcode` (URL-encoded) | `Inspect Vacancy →` |
+| `/transfers/*` | `/plantilla` | `Inspect Plantilla →` |
+| `/account-requests/*` | `/users` | `Review User Requests →` |
+| `/access-requests/*` | `/more` | `View in More →` |
+| `/hr-emploc/:id/correction` | `/hr-emploc` | `Inspect Emploc →` |
+
+### 3-Tier Safe Fallback Protocol
+1. **Tier 1 (Whitelisted App Router Routes)**: Preserves valid App Router routes (`/approvals?tab=...`, `/plantilla/[id]`, `/hr-emploc/import`) and complex query parameters.
+2. **Tier 2 (Module Semantic Fallback)**: Unmapped routes with known `fallbackModule` map to module root (`/approvals`, `/vacancy`, `/plantilla`, `/hr-emploc`, `/cencom`, `/notifications`).
+3. **Tier 3 (Safe Null Termination)**: Completely unmapped routes terminate at `null`. `NotificationRow.tsx` conditionally renders `{p.deepLink ? <Link ...> : null}`, completely eliminating 404 links from rendering in the UI.
+
 ## Database & RLS Invariants
-- Zero DDL, zero schema changes, and zero migrations required.
+- Zero DDL schema table alterations (functions & triggers only).
+- Non-admin visibility strictly enforced via RLS `notif_select_own` (`recipient_user_id = auth.uid()`). All triggers fan out by resolving `auth_user_id`.
 - Realtime synchronization wired via Supabase `postgres_changes` on `public.notifications`.
 - Scoped mark-all and bulk mutations execute via client `.in("id", ids)` updates with fallback to `public.mark_notification_read(p_notification_id)`.

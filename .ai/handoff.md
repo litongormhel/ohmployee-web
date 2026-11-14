@@ -1,5 +1,61 @@
 # AI Handoff
 
+## Execution Report — Scoped Notification Delivery Across Roles & Deep-Link Sanitization (ohm#7k2m9x4q)
+
+**Status: COMPLETE ON MAIN; MULTI-AGENT TEAMWORK RUN (run-id: `5d08e93e-13f5-4366-8591-c855d7007ade`) FIXING ROLE-SCOPED NOTIFICATION DELIVERY AND ELIMINATING BROKEN 404 DEEP LINKS ON WEB: (1) SHIPPED DATABASE MIGRATION `20262606000113_scope_notification_delivery_and_actioned_status.sql` SCOPING `public.notify_hc_request_submitted()` BY `group_id` / `account_id` VIA `public.user_scopes` (AND `users_profile` FALLBACK) TO ELIMINATE MULTI-TENANT FANOUT LEAKS AND NOTIFY SCOPED ENCODERS UPON SUBMISSION FOR EARLY REQUISITION VISIBILITY; (2) UPDATED `public.notify_hc_request_actioned()` APPROVAL TUPLE TO INCLUDE `'approved_pending_vcode'`, IMMEDIATELY NOTIFYING THE OPS REQUESTOR UPON HEAD ADMIN APPROVAL; (3) OVERLOADED `public._rnw_notify_roles()` WITH 10-PARAM GROUP/ACCOUNT SIGNATURE WHILE PRESERVING 8-PARAM BACKWARD COMPATIBLE WRAPPER AND UPDATED `public.trg_coverage_request_notify()`; (4) AUTHORED CENTRALIZED PURE TYPESCRIPT SANITIZER `src/lib/notifications/deep_links.ts` MAPPING ALL 12 LEGACY/MOBILE ROUTE PATTERNS TO VALID APP ROUTER TABS (/approvals?tab=..., /vacancy?q=..., /plantilla, /users, /more, /hr-emploc) AND REPLACING BLIND FALLBACK WITH A 3-TIER SAFE FALLBACK (NULL TERMINATION PREVENTING BROKEN CTA LINKS); (5) AUTHORED 15 UNIT TESTS IN `src/lib/queries/__tests__/notifications_deep_links.test.mjs` (15/15 PASS); (6) UNANIMOUS MULTI-AGENT GATING (REVIEWERS 1 & 2 APPROVE, CHALLENGERS 1 & 2 CONFIRM CORRECTNESS, AUDITOR 1 CLEAN); (7) INDEPENDENT VICTORY AUDIT DELIVERED VERDICT `VICTORY CONFIRMED` (npm run check:adr FRESH, npm run check:sql OK ACROSS 638 MIGRATIONS, npm test 226/226 PASSED, npm run lint 0 ERRORS, npm run build EXIT 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Notifications & Approvals Modules), `docs/state/notifications_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants & § Approvals / Requisitions, `supabase/migrations/20260701000001_fix_hc_request_notification_fk.sql`, `supabase/migrations/20262606000008_reassert_function_bodies.sql`, `src/lib/notifications/severity.ts`, `src/lib/queries/notifications.ts`.
+
+### 1. Root Causes & Findings
+1. **Unscoped Headcount Requisition Delivery**:
+   - `public.notify_hc_request_submitted()` (`20260701000001:91–140`) queried all active Head Admins globally without `group_id`, `account_id`, or `user_scopes` filtering, broadcasting multi-tenant headcount requests across distinct account groups.
+   - Encoders were omitted from the submission recipient query, depriving them of early requisition pipeline visibility.
+2. **Missing Notification on Head Admin Approval**:
+   - `public.notify_hc_request_actioned()` checked `IF v_status IN ('approved', 'head admin approved', 'ha approved')`. However, `approve_headcount_request()` updates status to `'approved_pending_vcode'`. As a result, Ops requestors were never notified of requisition approvals.
+3. **Unscoped Coverage Request Notifications**:
+   - `public.trg_coverage_request_notify()` invoked `_rnw_notify_roles()`, which lacked scope parameters and broadcasted coverage request alerts globally to all approvers.
+4. **Broken 404 Deep Links on Web**:
+   - Both `severity.ts` and `queries/notifications.ts` fell back to `if (rawRoute.startsWith("/")) return rawRoute;`.
+   - Backend triggers generate mobile-oriented legacy routes (e.g., `/headcount-requests/:id`, `/vacancies/:vcode`, `/transfers/:id`, `/workforce/requests/:id`, `/deactivation-requests/:id`, `/hr-emploc/deletion-requests/:id`) that do not exist as top-level Next.js pages, causing 404 navigations when clicked.
+
+### 2. Surgical Solution & Deliverables
+1. **Database Migration (`supabase/migrations/20262606000113_scope_notification_delivery_and_actioned_status.sql`)**:
+   - `public.notify_hc_request_submitted()`: Surgically diffed from base `20260701000001`. Scopes recipients to `up.role IN ('Head Admin', 'Encoder')` and verifies account/group match via `public.user_scopes` (with `users_profile` fallback) while honoring `scope_type = 'global'`.
+   - `public.notify_hc_request_actioned()`: Surgically diffed from base `20260701000001`. Expanded approval tuple to `('approved', 'head admin approved', 'ha approved', 'approved_pending_vcode')` and dispatches immediate notification to `requested_by_user_id` (`_rnw_auth_uid`).
+   - `public._rnw_notify_roles()`: Added 10-parameter signature `(text[], text, text, text, text, text, text, text, uuid, uuid)` with `p_group_id` and `p_account_id` scoping Head Admin/Encoder while keeping Super Admin global. Added backward-compatible 8-parameter overload calling `(..., NULL, NULL)`. Revoked execution from `PUBLIC` and `anon`.
+   - `public.trg_coverage_request_notify()`: Surgically diffed from base `20262606000008`. Resolves `account_id` and derived `group_id` from request or linked `coverage_groups` and forwards to `_rnw_notify_roles()`.
+2. **Centralized Deep-Link Sanitization Engine (`src/lib/notifications/deep_links.ts`)**:
+   - Created pure TypeScript module with zero `@/` or React dependencies for 100% native ESM compatibility (`node --test`).
+   - Mapped all 12 legacy backend route patterns:
+     1. `/headcount-requests/*` -> `/approvals?tab=headcount`
+     2. `/vacancies/*/closure-request/*` -> `/approvals?tab=vacancy_closures`
+     3. `/deactivation-requests/*` -> `/approvals?tab=deactivations`
+     4. `/hr-emploc/deletion-requests/*` -> `/approvals?tab=hr_emploc_deletions`
+     5. `/requests/applicant-movement/*` -> `/approvals?tab=applicant_movements`
+     6. `/account-group-transfers/*` -> `/approvals?tab=account_group_transfers`
+     7. `/workforce/requests/*`, `/workforce/pool-requests/*` -> `/approvals?tab=relievers`
+     8. `/vacancies/:vcode` -> `/vacancy?q=:vcode` (URL-encoded)
+     9. `/transfers/*` -> `/plantilla`
+     10. `/account-requests/*` -> `/users`
+     11. `/access-requests/*` -> `/more`
+     12. `/hr-emploc/:id/correction` -> `/hr-emploc`
+   - Preserves valid existing App Router paths (`/approvals?tab=...`, `/plantilla/[id]`, `/hr-emploc/import`).
+   - Replaced blind passthrough with a 3-tier safe fallback: whitelist -> semantic module root -> `null` termination (never renders broken CTA links).
+3. **Presentation & Query Layer Delegation**:
+   - Replaced ~80 lines of duplicate fallback logic in `src/lib/notifications/severity.ts` and `src/lib/queries/notifications.ts` by delegating directly to `sanitizeNotificationDeepLink()`.
+4. **Unit Test Suite (`src/lib/queries/__tests__/notifications_deep_links.test.mjs`)**:
+   - 15 unit tests covering all 12 route families, URL encoding, query preservation, and 404 safe fallback behavior under `node --test` (15/15 passing).
+
+### 3. Multi-Agent Teamwork Gating & Victory Audit
+- **Reviewer 1**: APPROVE (Canonical test suite: 226/226 tests, 0 lint errors, clean build).
+- **Reviewer 2**: APPROVE (SQL function diffs and contract safety verified).
+- **Challenger 1**: CONFIRM CORRECTNESS (APPROVE) (35+ adversarial probes across traversal, ReDoS, malformed URLs, and XSS).
+- **Challenger 2**: CONFIRM CORRECTNESS (APPROVE) (PostgreSQL CTE simulation confirmed zero cross-group leaks, fail-closed NULL handling, and unambiguous overload dispatch).
+- **Auditor 1**: CLEAN (0 integrity violations; verified anti-cheating, static contracts, and genuine implementation).
+- **Victory Auditor**: **VICTORY CONFIRMED** (Phase A Timeline PASS, Phase B Integrity PASS, Phase C Tests PASS: check:adr FRESH, check:sql OK, 15/15 unit tests pass, 226/226 tests pass, 0 lint errors, build 20/20 clean).
+
+---
+
 ## Execution Report — Notifications Module Redesign: Alerts & Activity Center (ohm#7k2m9x4q)
 
 **Status: COMPLETE ON MAIN; FULL UI/UX REDESIGN OF ADMIN PANEL -> NOTIFICATIONS ("/notifications") FEATURING (1) CENTRAL SEVERITY & STATUS TAXONOMY ENGINE IN SEVERITY.TS RESOLVING ROOT CAUSE MISMATCHES ("DELETION REQUEST APPROVED" -> SUCCESS / APPROVED, "IMPORT PLANTILLA BATCH AWAITING APPROVAL" -> PENDING / PENDING APPROVAL), (2) HIGH-DENSITY COMPACT ROWS (~68PX) WITH UNREAD DOT, TINTED BACKGROUND, COPYABLE MONOSPACE ENTITY CODE PILLS, ACTOR BADGES, HOVER TOOLTIPS FOR ABSOLUTE TIMESTAMPS, AND INLINE CTAS THAT AUTO-MARK READ, (3) STICKY CHRONOLOGICAL DATE GROUPING (TODAY, YESTERDAY, THIS WEEK, EARLIER), (4) CONSECUTIVE SAME-TYPE BURST COLLAPSING VIA NOTIFICATIONBURSTROW.TSX, (5) MULTI-MODULE FILTER CHIPS, SEARCH, AND "NEEDS ACTION ONLY" SWITCH, (6) MULTI-SELECT CHECKBOXES WITH STICKY FLOATING BULK BAR (MARK READ / UNREAD / CLEAR), (7) SCOPE-AWARE MARK ALL WITH CONFIRMATION MODAL AND 5-SECOND COUNTDOWN UNDO TOAST; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build EXIT 0); LOCAL COMMIT ON MAIN.**

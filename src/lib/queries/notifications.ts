@@ -3,6 +3,13 @@
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import {
+  sanitizeNotificationDeepLink,
+  type ParsedDeepLink,
+} from "@/lib/notifications/deep_links";
+
+export type { ParsedDeepLink };
+export { sanitizeNotificationDeepLink };
 
 // ============================================================================
 // Types & Contracts
@@ -48,12 +55,7 @@ export interface NotificationCounts {
   system: number;
 }
 
-export interface ParsedDeepLink {
-  route: string;
-  referenceId?: string | null;
-  requestId?: string | null;
-  label: string;
-}
+
 
 // ============================================================================
 // Categorization Helpers
@@ -163,178 +165,7 @@ export function matchesTabFilter(item: NotificationItem, tab: NotificationTabFil
 // ============================================================================
 
 export function parseNotificationDeepLink(item: NotificationItem): ParsedDeepLink | null {
-  const payload = (item.data || {}) as Record<string, unknown>;
-  const rawRoute = (payload.route as string) || (payload.deep_link_route as string) || item.deep_link_route || "";
-  const refId = (payload.reference_id as string) || (payload.request_id as string) || item.reference_id || "";
-  const reqId = (payload.request_id as string) || (payload.reference_id as string) || item.reference_id || "";
-  const refType = item.reference_type || "";
-
-  // 1. New Store Requests
-  if (refType === "new_store_request" || rawRoute.includes("new_store_request")) {
-    return {
-      route: "/approvals?tab=new_stores",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "View in Approvals →",
-    };
-  }
-
-  // 2. Headcount Requests
-  if (refType === "headcount_request" || rawRoute.includes("headcount-request") || rawRoute.includes("headcount")) {
-    return {
-      route: "/approvals?tab=headcount",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "View in Approvals →",
-    };
-  }
-
-  // 3. Coverage Requests
-  if (refType === "coverage_request" || rawRoute.includes("coverage")) {
-    return {
-      route: "/approvals?tab=coverage",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "View in Approvals →",
-    };
-  }
-
-  // 4. Vacancy Closure Requests
-  if (refType === "vacancy_closure" || rawRoute.includes("closure-request") || rawRoute.includes("vacancy_closure")) {
-    return {
-      route: "/approvals?tab=vacancy_closures",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "View in Approvals →",
-    };
-  }
-
-  // 5. HR Emploc Deletions
-  if (refType === "hr_emploc_deletion" || rawRoute.includes("deletion")) {
-    return {
-      route: "/approvals?tab=hr_emploc_deletions",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "View in Approvals →",
-    };
-  }
-
-  // 6. Deactivations
-  if (
-    refType === "deactivation_request" ||
-    refType === "deactivation_batch" ||
-    rawRoute.includes("deactivation")
-  ) {
-    return {
-      route: "/approvals?tab=deactivations",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "View in Approvals →",
-    };
-  }
-
-  // 7. Applicant Movements
-  if (refType === "applicant_movement" || rawRoute.includes("applicant_movement")) {
-    return {
-      route: "/approvals?tab=applicant_movements",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "View in Approvals →",
-    };
-  }
-
-  // 8. Account Group Transfers
-  if (
-    refType === "account_group_transfer_request" ||
-    rawRoute.includes("account_transfer") ||
-    rawRoute.includes("account-transfer")
-  ) {
-    return {
-      route: "/approvals?tab=account_group_transfers",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "View in Approvals →",
-    };
-  }
-
-  // 9. Workforce Pool / Relievers
-  if (refType === "workforce_pool_request" || rawRoute.includes("pool_request")) {
-    return {
-      route: "/approvals?tab=relievers",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "View in Approvals →",
-    };
-  }
-
-  // 10. Account Requests
-  if (refType === "account_request" || rawRoute.includes("account-request")) {
-    return {
-      route: "/users",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "Review User Requests →",
-    };
-  }
-
-  // 11. Vacancy / Vcode
-  if (refType === "vacancy" || rawRoute.startsWith("/vacancies")) {
-    const vcode = refId || (rawRoute.split("/vacancies/")[1]?.split("/")[0] ?? "");
-    const cleanVcode = vcode ? encodeURIComponent(vcode) : "";
-    return {
-      route: cleanVcode ? `/vacancy?q=${cleanVcode}` : "/vacancy",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "Inspect Vacancy →",
-    };
-  }
-
-  // 12. Plantilla
-  if (refType === "plantilla" || rawRoute.includes("plantilla")) {
-    return {
-      route: "/plantilla",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "Inspect Plantilla →",
-    };
-  }
-
-  // 13. HR Emploc
-  if (refType === "hr_emploc" || rawRoute.includes("hr-emploc")) {
-    return {
-      route: "/hr-emploc",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "Inspect Emploc →",
-    };
-  }
-
-  // 14. Import Batches
-  if (
-    refType === "plantilla_import_batch" ||
-    refType === "vacancy_import_batch" ||
-    refType === "mika_import" ||
-    refType === "store_import"
-  ) {
-    return {
-      route: "/hr-emploc/import",
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "Inspect Import Batch →",
-    };
-  }
-
-  // 15. Generic fallback with explicit valid relative route
-  if (rawRoute.startsWith("/")) {
-    return {
-      route: rawRoute,
-      referenceId: refId || null,
-      requestId: reqId || null,
-      label: "View Details →",
-    };
-  }
-
-  return null;
+  return sanitizeNotificationDeepLink(item);
 }
 
 // ============================================================================
