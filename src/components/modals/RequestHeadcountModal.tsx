@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -20,12 +20,14 @@ import {
   ArrowLeft,
   Search,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import {
   useSubmitHeadcountRequest,
+  useAvailableHeadcountAccounts,
+  useHeadcountModalMasterData,
   type SubmitHeadcountRequestInput,
   type SubmitHeadcountRequestResult,
 } from "@/lib/queries/requests";
+import { useRefCities } from "@/lib/queries/locations";
 import { NewStoreRequestModal } from "@/components/modals/NewStoreRequestModal";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
@@ -61,25 +63,6 @@ interface StoreItem {
   island_group?: string | null;
   account_id?: string | null;
   is_active?: boolean;
-}
-
-interface PositionItem {
-  id: string;
-  position_name: string;
-  position_code?: string | null;
-}
-
-interface RecentRequestItem {
-  id: string;
-  store_id?: string | null;
-  store_name_snapshot?: string | null;
-  position_id?: string | null;
-  position_name_snapshot?: string | null;
-  headcount_needed?: number;
-  employment_type?: string | null;
-  vacant_date?: string | null;
-  status?: string | null;
-  request_type?: string | null;
 }
 
 function formatDate(date: Date): string {
@@ -179,21 +162,47 @@ function RequestHeadcountModalDialog({
   );
 
   // Account State
-  const [selectedAccountId, setSelectedAccountId] = useState<string>(propAccountId || "");
-  const [selectedAccountName, setSelectedAccountName] = useState<string>(propAccountName || "");
-  const [availableAccounts, setAvailableAccounts] = useState<{ id: string; name: string }[]>([]);
+  const { data: accountsData = [] } = useAvailableHeadcountAccounts({
+    enabled: !propAccountId,
+  });
+
+  const availableAccounts = useMemo(() => {
+    if (propAccountId) return [];
+    return accountsData;
+  }, [propAccountId, accountsData]);
+
+  const [customAccountId, setCustomAccountId] = useState<string>("");
+  const [customAccountName, setCustomAccountName] = useState<string>("");
+
+  const selectedAccountId =
+    propAccountId ||
+    customAccountId ||
+    (availableAccounts.length > 0 ? availableAccounts[0].id : "");
+
+  const selectedAccountName =
+    propAccountName ||
+    customAccountName ||
+    (availableAccounts.find((a) => a.id === selectedAccountId)?.name ?? "");
+
+  const setSelectedAccountId = setCustomAccountId;
+  const setSelectedAccountName = setCustomAccountName;
 
   // Workforce Type
   const [workforceType, setWorkforceType] = useState<WorkforceType>("stationary");
 
-  // Master Data & Options
-  const [isLoadingMasterData, setIsLoadingMasterData] = useState(false);
-  const [stores, setStores] = useState<StoreItem[]>([]);
-  const [positions, setPositions] = useState<PositionItem[]>([]);
-  const [provinces, setProvinces] = useState<string[]>([]);
-  const [cities, setCities] = useState<string[]>([]);
-  const [recentRequests, setRecentRequests] = useState<RecentRequestItem[]>([]);
-  const [isRecruitmentFreezeActive, setIsRecruitmentFreezeActive] = useState(false);
+  // Master Data & Options (Derived from React Query)
+  const {
+    data: masterData,
+    isLoading: isLoadingMasterData,
+  } = useHeadcountModalMasterData(selectedAccountId, {
+    enabled: Boolean(selectedAccountId),
+  });
+
+  const stores = useMemo(() => masterData?.stores ?? [], [masterData?.stores]);
+  const positions = useMemo(() => masterData?.positions ?? [], [masterData?.positions]);
+  const provinces = useMemo(() => masterData?.provinces ?? [], [masterData?.provinces]);
+  const recentRequests = useMemo(() => masterData?.recentRequests ?? [], [masterData?.recentRequests]);
+  const isRecruitmentFreezeActive = masterData?.isRecruitmentFreezeActive ?? false;
 
   // Form Fields - Stationary
   const [selectedProvince, setSelectedProvince] = useState<string>(initialProvince || "");
@@ -216,7 +225,11 @@ function RequestHeadcountModalDialog({
   const [rovingSearch, setRovingSearch] = useState<string>("");
 
   // Form Fields - Position & Quota
-  const [selectedPositionId, setSelectedPositionId] = useState<string>("");
+  const [customPositionId, setCustomPositionId] = useState<string>("");
+  const selectedPositionId =
+    customPositionId || (positions.length > 0 ? positions[0].id : "");
+  const setSelectedPositionId = setCustomPositionId;
+
   const [requestType, setRequestType] = useState<RequestType>("Additional Headcount");
   const [headcountNeeded, setHeadcountNeeded] = useState<number>(1);
 
@@ -232,255 +245,35 @@ function RequestHeadcountModalDialog({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
-  // Load available accounts if accountId is not provided
-  useEffect(() => {
-    if (propAccountId) return;
-    const supabase = createClient();
-    async function loadAccounts() {
-      try {
-        const { data, error } = await supabase
-          .from("accounts")
-          .select("id, account_name")
-          .eq("is_active", true)
-          .order("account_name");
-        if (!error && data) {
-          const mapped = data.map((d) => ({ id: d.id, name: d.account_name }));
-          setAvailableAccounts(mapped);
-          if (mapped.length > 0) {
-            setSelectedAccountId((curr) => curr || mapped[0].id);
-            setSelectedAccountName((curr) => curr || mapped[0].name);
-          }
+  // Cities (Derived from React Query and loaded stores)
+  const { data: dbCities = [] } = useRefCities(selectedProvince, {
+    enabled: Boolean(selectedProvince),
+  });
+
+  const cities = useMemo(() => {
+    if (!selectedProvince) return [];
+    if (dbCities.length > 0) return dbCities;
+    const storeCitiesMap = new Map<string, string>();
+    stores
+      .filter(
+        (s) =>
+          (s.province || s.area_province || "").toLowerCase() ===
+          selectedProvince.toLowerCase()
+      )
+      .map((s) => (s.area_city || "").trim())
+      .filter(Boolean)
+      .forEach((c: string) => {
+        const key = c.toLowerCase();
+        if (!storeCitiesMap.has(key)) {
+          storeCitiesMap.set(key, c);
         }
-      } catch {
-        // Safe fallback
-      }
-    }
-    loadAccounts();
-  }, [propAccountId]);
-
-  // Load Master Data (stores, positions, locations, freeze, recent requests) for account
-  useEffect(() => {
-    if (!selectedAccountId) return;
-    const supabase = createClient();
-    let isMounted = true;
-
-    async function loadAccountData() {
-      setIsLoadingMasterData(true);
-      try {
-        // 1. Fetch stores
-        const storesQuery = supabase
-          .from("stores")
-          .select("id, store_name, area_city, area_province, province, island_group, is_active, account_id")
-          .eq("account_id", selectedAccountId)
-          .eq("is_active", true)
-          .order("store_name");
-
-        // 2. Fetch positions
-        const positionsRpc = supabase.rpc("get_positions_by_account", {
-          p_account_id: selectedAccountId,
-        });
-
-        // 3. Fetch provinces
-        const provincesQuery = supabase
-          .from("ref_locations")
-          .select("province")
-          .eq("is_active", true)
-          .order("province", { ascending: true });
-
-        // 4. Check recruitment freeze
-        const freezeRpc = supabase.rpc("fn_check_freeze_active", {
-          p_freeze_key: "recruitment_freeze",
-        });
-
-        // 5. Fetch recent requests for duplicate warning
-        const recentRequestsQuery = supabase
-          .from("headcount_requests")
-          .select("id, store_id, store_name_snapshot, position_id, position_name_snapshot, headcount_needed, employment_type, vacant_date, status, request_type")
-          .eq("account_id", selectedAccountId)
-          .order("created_at", { ascending: false })
-          .limit(30);
-
-        const [storesRes, positionsRes, provincesRes, freezeRes, recentRes] =
-          await Promise.allSettled([
-            storesQuery,
-            positionsRpc,
-            provincesQuery,
-            freezeRpc,
-            recentRequestsQuery,
-          ]);
-
-        if (!isMounted) return;
-
-        // Process Stores
-        let loadedStores: StoreItem[] = [];
-        if (storesRes.status === "fulfilled" && !storesRes.value.error && storesRes.value.data) {
-          loadedStores = storesRes.value.data as StoreItem[];
-          setStores(loadedStores);
-
-          if (initialStoreId) {
-            const found = loadedStores.find((s) => s.id === initialStoreId);
-            if (found) {
-              setSelectedStore(found);
-              const prov = found.province || found.area_province || "";
-              const city = found.area_city || "";
-              if (prov) setSelectedProvince(prov);
-              if (city) setSelectedCity(city);
-            }
-          }
-        }
-
-        // Process Positions
-        if (positionsRes.status === "fulfilled" && !positionsRes.value.error && positionsRes.value.data) {
-          const rows = positionsRes.value.data as {
-            position_id: string;
-            position_name: string;
-            position_code?: string;
-          }[];
-          const posList = rows.map((r) => ({
-            id: r.position_id,
-            position_name: r.position_name,
-            position_code: r.position_code,
-          }));
-          setPositions(posList);
-          setSelectedPositionId((curr) => curr || (posList.length > 0 ? posList[0].id : ""));
-        } else {
-          // Fallback to table query if RPC is empty or fails
-          const { data: posData } = await supabase
-            .from("positions")
-            .select("id, position_name")
-            .eq("is_active", true)
-            .order("position_name");
-          if (posData && posData.length > 0) {
-            const posList = posData.map((p) => ({
-              id: p.id,
-              position_name: p.position_name,
-            }));
-            setPositions(posList);
-            setSelectedPositionId((curr) => curr || posList[0].id);
-          }
-        }
-
-        // Process Provinces
-        if (provincesRes.status === "fulfilled" && !provincesRes.value.error && provincesRes.value.data) {
-          const rawProvinces = provincesRes.value.data.map(
-            (p: { province: string | null }) => p.province?.trim() || ""
-          );
-          const uniqueProvincesMap = new Map<string, string>();
-          rawProvinces.filter(Boolean).forEach((p: string) => {
-            const key = p.toLowerCase();
-            if (!uniqueProvincesMap.has(key)) {
-              uniqueProvincesMap.set(key, p);
-            }
-          });
-          const uniqueProvinces = Array.from(uniqueProvincesMap.values()).sort((a, b) => a.localeCompare(b));
-          const mmIndex = uniqueProvinces.findIndex(
-            (p) => p.toLowerCase() === "metro manila"
-          );
-          if (mmIndex > 0) {
-            const mm = uniqueProvinces.splice(mmIndex, 1)[0];
-            uniqueProvinces.unshift(mm);
-          }
-          setProvinces(uniqueProvinces);
-        } else {
-          const storeProvincesMap = new Map<string, string>();
-          loadedStores.forEach((s) => {
-            const p = (s.province || s.area_province || "").trim();
-            if (p && !storeProvincesMap.has(p.toLowerCase())) {
-              storeProvincesMap.set(p.toLowerCase(), p);
-            }
-          });
-          setProvinces(Array.from(storeProvincesMap.values()).sort((a, b) => a.localeCompare(b)));
-        }
-
-        // Process Freeze
-        if (freezeRes.status === "fulfilled" && !freezeRes.value.error) {
-          setIsRecruitmentFreezeActive(freezeRes.value.data === true);
-        }
-
-        // Process Recent Requests
-        if (recentRes.status === "fulfilled" && !recentRes.value.error && recentRes.value.data) {
-          setRecentRequests(recentRes.value.data as RecentRequestItem[]);
-        }
-      } catch {
-        // Non-blocking catch
-      } finally {
-        if (isMounted) setIsLoadingMasterData(false);
-      }
-    }
-
-    loadAccountData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedAccountId, initialStoreId]);
-
-  // Load Cities when Province changes
-  useEffect(() => {
-    if (!selectedProvince) {
-      return;
-    }
-    const supabase = createClient();
-    let isMounted = true;
-
-    async function loadCities() {
-      try {
-        const { data, error } = await supabase
-          .from("ref_locations")
-          .select("city")
-          .eq("province", selectedProvince)
-          .eq("is_active", true)
-          .order("city", { ascending: true });
-
-        if (!isMounted) return;
-
-        if (!error && data && data.length > 0) {
-          const rawCities = data.map((c: { city: string | null }) => c.city?.trim() || "");
-          const uniqueCitiesMap = new Map<string, string>();
-          rawCities.filter(Boolean).forEach((c: string) => {
-            const key = c.toLowerCase();
-            if (!uniqueCitiesMap.has(key)) {
-              uniqueCitiesMap.set(key, c);
-            }
-          });
-          const uniqueCities = Array.from(uniqueCitiesMap.values()).sort((a, b) => a.localeCompare(b));
-          setCities(uniqueCities);
-        } else {
-          const storeCitiesMap = new Map<string, string>();
-          stores
-            .filter(
-              (s) =>
-                (s.province || s.area_province || "").toLowerCase() ===
-                selectedProvince.toLowerCase()
-            )
-            .map((s) => (s.area_city || "").trim())
-            .filter(Boolean)
-            .forEach((c: string) => {
-              const key = c.toLowerCase();
-              if (!storeCitiesMap.has(key)) {
-                storeCitiesMap.set(key, c);
-              }
-            });
-          setCities(Array.from(storeCitiesMap.values()).sort((a, b) => a.localeCompare(b)));
-        }
-      } catch {
-        if (isMounted) setCities([]);
-      }
-    }
-
-    loadCities();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedProvince, stores]);
+      });
+    return Array.from(storeCitiesMap.values()).sort((a, b) => a.localeCompare(b));
+  }, [selectedProvince, dbCities, stores]);
 
   const handleProvinceChange = (province: string) => {
     setSelectedProvince(province);
     setSelectedCity("");
-    if (!province) {
-      setCities([]);
-    }
   };
 
   const handleVacantDateChange = (date: string) => {

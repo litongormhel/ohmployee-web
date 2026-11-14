@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2, UserCheck } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/lib/auth";
-import { fetchPlantillaScopedAccounts } from "@/lib/queries/plantilla";
+import {
+  usePlantillaScopedAccounts,
+  useAccountStores,
+} from "@/lib/queries/plantilla";
 import {
   useRequestRelieverCoverage,
   type WorkforcePoolEmployee,
@@ -48,37 +49,10 @@ export function RequestRelieverCoverageModal({
   const currentUser = useCurrentUser();
 
   // Load active accounts strictly respecting user scope
-  const accountsQuery = useQuery({
-    queryKey: ["plantilla", "request-accounts", currentUser?.accountScope, currentUser?.groupScope],
-    queryFn: async () => {
-      const accounts = await fetchPlantillaScopedAccounts(currentUser);
-      return accounts.map((r) => ({ id: r.id, name: r.name }));
-    },
-    enabled: isOpen && !!currentUser,
-  });
+  const accountsQuery = usePlantillaScopedAccounts(currentUser, { enabled: isOpen });
 
   // Load stores when account is selected
-  const storesQuery = useQuery({
-    queryKey: ["plantilla", "request-stores", accountId],
-    queryFn: async () => {
-      if (!accountId) return [];
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("stores")
-        .select("id, store_name, store_branch, area_city")
-        .eq("account_id", accountId)
-        .eq("is_active", true)
-        .order("store_name");
-      if (error) throw error;
-      return (data ?? []).map((r) => ({
-        id: String(r.id),
-        name: String(r.store_name),
-        branch: r.store_branch ? String(r.store_branch) : null,
-        city: r.area_city ? String(r.area_city) : null,
-      }));
-    },
-    enabled: isOpen && Boolean(accountId),
-  });
+  const storesQuery = useAccountStores(accountId, { enabled: isOpen });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

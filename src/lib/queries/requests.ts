@@ -854,6 +854,242 @@ export function useSubmitHeadcountRequest() {
   });
 }
 
+export interface HeadcountAccountOption {
+  id: string;
+  name: string;
+}
+
+export interface HeadcountStoreOption {
+  id: string;
+  store_name: string;
+  area_city?: string | null;
+  area_province?: string | null;
+  province?: string | null;
+  island_group?: string | null;
+  account_id?: string | null;
+  is_active?: boolean;
+}
+
+export interface HeadcountPositionOption {
+  id: string;
+  position_name: string;
+  position_code?: string | null;
+}
+
+export interface HeadcountRecentRequestOption {
+  id: string;
+  store_id?: string | null;
+  store_name_snapshot?: string | null;
+  position_id?: string | null;
+  position_name_snapshot?: string | null;
+  headcount_needed?: number;
+  employment_type?: string | null;
+  vacant_date?: string | null;
+  status?: string | null;
+  request_type?: string | null;
+}
+
+export interface HeadcountModalMasterData {
+  stores: HeadcountStoreOption[];
+  positions: HeadcountPositionOption[];
+  provinces: string[];
+  isRecruitmentFreezeActive: boolean;
+  recentRequests: HeadcountRecentRequestOption[];
+}
+
+export async function fetchAvailableHeadcountAccounts(): Promise<HeadcountAccountOption[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("id, account_name")
+    .eq("is_active", true)
+    .order("account_name");
+
+  if (error) {
+    console.error("[PostgREST Schema Error] fetchAvailableHeadcountAccounts failed:", error);
+    throw error;
+  }
+
+  return (data ?? []).map((d) => ({ id: d.id, name: d.account_name }));
+}
+
+export function useAvailableHeadcountAccounts(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["accounts", "headcount-available"],
+    queryFn: fetchAvailableHeadcountAccounts,
+    staleTime: 1000 * 60 * 10,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export async function fetchHeadcountModalMasterData(
+  accountId: string
+): Promise<HeadcountModalMasterData> {
+  if (!accountId) {
+    return {
+      stores: [],
+      positions: [],
+      provinces: [],
+      isRecruitmentFreezeActive: false,
+      recentRequests: [],
+    };
+  }
+
+  const supabase = createClient();
+
+  // 1. Fetch stores
+  const storesQuery = supabase
+    .from("stores")
+    .select("id, store_name, area_city, area_province, province, island_group, is_active, account_id")
+    .eq("account_id", accountId)
+    .eq("is_active", true)
+    .order("store_name");
+
+  // 2. Fetch positions via RPC
+  const positionsRpc = supabase.rpc("get_positions_by_account", {
+    p_account_id: accountId,
+  });
+
+  // 3. Fetch provinces
+  const provincesQuery = supabase
+    .from("ref_locations")
+    .select("province")
+    .eq("is_active", true)
+    .order("province", { ascending: true });
+
+  // 4. Check recruitment freeze
+  const freezeRpc = supabase.rpc("fn_check_freeze_active", {
+    p_freeze_key: "recruitment_freeze",
+  });
+
+  // 5. Fetch recent requests for duplicate warning
+  const recentRequestsQuery = supabase
+    .from("headcount_requests")
+    .select(
+      "id, store_id, store_name_snapshot, position_id, position_name_snapshot, headcount_needed, employment_type, vacant_date, status, request_type"
+    )
+    .eq("account_id", accountId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  const [storesRes, positionsRes, provincesRes, freezeRes, recentRes] =
+    await Promise.allSettled([
+      storesQuery,
+      positionsRpc,
+      provincesQuery,
+      freezeRpc,
+      recentRequestsQuery,
+    ]);
+
+  let loadedStores: HeadcountStoreOption[] = [];
+  if (storesRes.status === "fulfilled" && !storesRes.value.error && storesRes.value.data) {
+    loadedStores = storesRes.value.data as HeadcountStoreOption[];
+  }
+
+  let loadedPositions: HeadcountPositionOption[] = [];
+  if (positionsRes.status === "fulfilled" && !positionsRes.value.error && positionsRes.value.data) {
+    const rows = positionsRes.value.data as {
+      position_id: string;
+      position_name: string;
+      position_code?: string;
+    }[];
+    loadedPositions = rows.map((r) => ({
+      id: r.position_id,
+      position_name: r.position_name,
+      position_code: r.position_code,
+    }));
+  } else {
+    // Fallback to table query
+    const { data: posData } = await supabase
+      .from("positions")
+      .select("id, position_name")
+      .eq("is_active", true)
+      .order("position_name");
+    if (posData && posData.length > 0) {
+      loadedPositions = posData.map((p) => ({
+        id: p.id,
+        position_name: p.position_name,
+      }));
+    }
+  }
+
+  let loadedProvinces: string[] = [];
+  if (provincesRes.status === "fulfilled" && !provincesRes.value.error && provincesRes.value.data) {
+    const rawProvinces = provincesRes.value.data.map(
+      (p: { province: string | null }) => p.province?.trim() || ""
+    );
+    const uniqueProvincesMap = new Map<string, string>();
+    rawProvinces.filter(Boolean).forEach((p: string) => {
+      const key = p.toLowerCase();
+      if (!uniqueProvincesMap.has(key)) {
+        uniqueProvincesMap.set(key, p);
+      }
+    });
+    const uniqueProvinces = Array.from(uniqueProvincesMap.values()).sort((a, b) =>
+      a.localeCompare(b)
+    );
+    const mmIndex = uniqueProvinces.findIndex(
+      (p) => p.toLowerCase() === "metro manila"
+    );
+    if (mmIndex > 0) {
+      const mm = uniqueProvinces.splice(mmIndex, 1)[0];
+      uniqueProvinces.unshift(mm);
+    }
+    loadedProvinces = uniqueProvinces;
+  } else {
+    const storeProvincesMap = new Map<string, string>();
+    loadedStores.forEach((s) => {
+      const p = (s.province || s.area_province || "").trim();
+      if (p && !storeProvincesMap.has(p.toLowerCase())) {
+        storeProvincesMap.set(p.toLowerCase(), p);
+      }
+    });
+    loadedProvinces = Array.from(storeProvincesMap.values()).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }
+
+  const isRecruitmentFreezeActive =
+    freezeRes.status === "fulfilled" && !freezeRes.value.error
+      ? freezeRes.value.data === true
+      : false;
+
+  const recentRequests =
+    recentRes.status === "fulfilled" && !recentRes.value.error && recentRes.value.data
+      ? (recentRes.value.data as HeadcountRecentRequestOption[])
+      : [];
+
+  return {
+    stores: loadedStores,
+    positions: loadedPositions,
+    provinces: loadedProvinces,
+    isRecruitmentFreezeActive,
+    recentRequests,
+  };
+}
+
+export function useHeadcountModalMasterData(
+  accountId?: string | null,
+  options?: { enabled?: boolean }
+) {
+  const cleanAccountId = accountId || null;
+  return useQuery({
+    queryKey: ["requests", "headcount-master-data", cleanAccountId],
+    queryFn: () =>
+      cleanAccountId
+        ? fetchHeadcountModalMasterData(cleanAccountId)
+        : Promise.resolve({
+            stores: [],
+            positions: [],
+            provinces: [],
+            isRecruitmentFreezeActive: false,
+            recentRequests: [],
+          }),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: (options?.enabled ?? true) && Boolean(cleanAccountId),
+  });
+}
+
 // ─── New Store Requests ──────────────────────────────────────────────────────
 
 export type NewStoreRequestItem = {
@@ -1331,6 +1567,35 @@ export function useSubmitNewStoreRequest() {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
     },
+  });
+}
+
+export async function fetchAccountGroupId(accountId: string): Promise<string | null> {
+  if (!accountId) return null;
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("group_id")
+    .eq("id", accountId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(`[PostgREST Schema Error] fetchAccountGroupId for ${accountId} failed:`, error);
+    return null;
+  }
+
+  return (data?.group_id as string | null) ?? null;
+}
+
+export function useAccountGroupId(
+  accountId?: string | null,
+  options?: { enabled?: boolean }
+) {
+  const cleanAccountId = accountId || null;
+  return useQuery({
+    queryKey: ["accounts", "group_id", cleanAccountId],
+    queryFn: () => (cleanAccountId ? fetchAccountGroupId(cleanAccountId) : Promise.resolve(null)),
+    enabled: (options?.enabled ?? true) && Boolean(cleanAccountId),
   });
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -13,9 +13,10 @@ import {
 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
-import { createClient } from "@/lib/supabase/client";
+import { useRefProvinces, useRefCities } from "@/lib/queries/locations";
 import {
   useSubmitNewStoreRequest,
+  useAccountGroupId,
   type SubmitNewStoreRequestResult,
 } from "@/lib/queries/requests";
 
@@ -76,118 +77,38 @@ function NewStoreRequestModalDialog({
   const [province, setProvince] = useState(initialProvince || "");
   const [city, setCity] = useState(initialCity || "");
   const [reason, setReason] = useState("");
-  const [fetchedGroupId, setFetchedGroupId] = useState<string | null>(null);
-  const resolvedGroupId = initialGroupId || fetchedGroupId;
-  const [fetchedProvinces, setFetchedProvinces] = useState<string[]>([]);
-  const [fetchedCities, setFetchedCities] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [submittedResult, setSubmittedResult] =
     useState<SubmitNewStoreRequestResult | null>(null);
 
   // Look up account group_id if not provided
-  useEffect(() => {
-    if (initialGroupId || !initialAccountId) return;
-    const supabase = createClient();
-    let isMounted = true;
-    async function loadAccountGroup() {
-      try {
-        const { data } = await supabase
-          .from("accounts")
-          .select("group_id")
-          .eq("id", initialAccountId)
-          .maybeSingle();
-        if (isMounted && data?.group_id) {
-          setFetchedGroupId(data.group_id);
-        }
-      } catch {
-        // Fallback
-      }
-    }
-    loadAccountGroup();
-    return () => {
-      isMounted = false;
-    };
-  }, [initialAccountId, initialGroupId]);
+  const { data: fetchedAccountGroupId } = useAccountGroupId(initialAccountId, {
+    enabled: !initialGroupId && Boolean(initialAccountId),
+  });
+  const resolvedGroupId = initialGroupId || fetchedAccountGroupId || null;
 
-  // Available provinces
+  // Load provinces if not provided via props
+  const { data: dbProvinces = [] } = useRefProvinces({
+    enabled: !propProvinces || propProvinces.length === 0,
+  });
+
   const availableProvinces = useMemo(() => {
     if (propProvinces && propProvinces.length > 0) return propProvinces;
-    return fetchedProvinces;
-  }, [propProvinces, fetchedProvinces]);
+    return dbProvinces;
+  }, [propProvinces, dbProvinces]);
 
-  // Load provinces if not provided
-  useEffect(() => {
-    if (propProvinces && propProvinces.length > 0) return;
-    const supabase = createClient();
-    let isMounted = true;
-    async function loadProvinces() {
-      try {
-        const { data } = await supabase
-          .from("ref_locations")
-          .select("province")
-          .eq("is_active", true)
-          .order("province");
-        if (isMounted && data) {
-          const unique = Array.from(
-            new Set(
-              data
-                .map((r: { province: string | null }) => r.province?.trim() || "")
-                .filter(Boolean)
-            )
-          ).sort();
-          setFetchedProvinces(unique);
-        }
-      } catch {
-        // Fallback
-      }
-    }
-    loadProvinces();
-    return () => {
-      isMounted = false;
-    };
-  }, [propProvinces]);
+  // Load cities when province changes
+  const { data: dbCities = [] } = useRefCities(province, {
+    enabled: Boolean(province),
+  });
 
-  // Available cities
   const availableCities = useMemo(() => {
-    if (fetchedCities.length > 0) return fetchedCities;
+    if (dbCities.length > 0) return dbCities;
     if (propCities && propCities.length > 0 && province === initialProvince) {
       return propCities;
     }
     return [];
-  }, [fetchedCities, propCities, province, initialProvince]);
-
-  // Load cities when province changes
-  useEffect(() => {
-    if (!province) return;
-    const supabase = createClient();
-    let isMounted = true;
-    async function loadCities() {
-      try {
-        const { data } = await supabase
-          .from("ref_locations")
-          .select("city")
-          .eq("province", province)
-          .eq("is_active", true)
-          .order("city");
-        if (isMounted && data) {
-          const unique = Array.from(
-            new Set(
-              data
-                .map((r: { city: string | null }) => r.city?.trim() || "")
-                .filter(Boolean)
-            )
-          ).sort();
-          setFetchedCities(unique);
-        }
-      } catch {
-        if (isMounted) setFetchedCities([]);
-      }
-    }
-    loadCities();
-    return () => {
-      isMounted = false;
-    };
-  }, [province]);
+  }, [dbCities, propCities, province, initialProvince]);
 
   // Client duplicate warning check
   const duplicateWarning = (() => {
@@ -427,7 +348,6 @@ function NewStoreRequestModalDialog({
                     onChange={(e) => {
                       setProvince(e.target.value);
                       setCity("");
-                      setFetchedCities([]);
                     }}
                     className="w-full rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500"
                     required

@@ -1098,6 +1098,64 @@ export async function fetchPlantillaScopedAccounts(
   }));
 }
 
+export interface AccountStoreOption {
+  id: string;
+  name: string;
+  branch: string | null;
+  city: string | null;
+}
+
+export function usePlantillaScopedAccounts(
+  currentUser: WebCurrentUserContext | null,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: [
+      "plantilla",
+      "scoped-accounts",
+      currentUser?.accountScope,
+      currentUser?.groupScope,
+    ],
+    queryFn: () => fetchPlantillaScopedAccounts(currentUser),
+    enabled: (options?.enabled ?? true) && Boolean(currentUser),
+  });
+}
+
+export async function fetchAccountStores(accountId: string): Promise<AccountStoreOption[]> {
+  if (!accountId) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("stores")
+    .select("id, store_name, store_branch, area_city")
+    .eq("account_id", accountId)
+    .eq("is_active", true)
+    .order("store_name");
+
+  if (error) {
+    console.error(`[PostgREST Schema Error] fetchAccountStores for ${accountId} failed:`, error);
+    throwPlantillaError(error);
+  }
+
+  return (data ?? []).map((r) => ({
+    id: String(r.id),
+    name: String(r.store_name),
+    branch: r.store_branch ? String(r.store_branch) : null,
+    city: r.area_city ? String(r.area_city) : null,
+  }));
+}
+
+export function useAccountStores(
+  accountId?: string | null,
+  options?: { enabled?: boolean }
+) {
+  const cleanAccountId = accountId || null;
+  return useQuery({
+    queryKey: ["plantilla", "request-stores", cleanAccountId],
+    queryFn: () => (cleanAccountId ? fetchAccountStores(cleanAccountId) : Promise.resolve([])),
+    enabled: (options?.enabled ?? true) && Boolean(cleanAccountId),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Public RPC wrappers
 // ---------------------------------------------------------------------------
