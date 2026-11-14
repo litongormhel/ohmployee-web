@@ -481,17 +481,14 @@ export default function CencomGroupDetailPage() {
                       </td>
 
                       {/* Active Stores */}
-                      <td className="px-3 py-3.5 text-center">
-                        <span className="inline-flex items-center gap-1 font-medium text-text-primary">
-                          <Store className="h-3.5 w-3.5 text-text-muted" />
-                          {account.activeStores}
-                          {account.totalStores > 0 &&
-                            account.totalStores !== account.activeStores && (
-                              <span className="text-xs text-text-muted">
-                                /{account.totalStores}
-                              </span>
-                            )}
-                        </span>
+                      <td className="px-3 py-3.5 text-center font-mono font-semibold text-text-primary">
+                        {account.activeStores}
+                        {account.totalStores > 0 &&
+                          account.totalStores !== account.activeStores && (
+                            <span className="text-xs font-normal text-text-muted">
+                              /{account.totalStores}
+                            </span>
+                          )}
                       </td>
 
                       {/* Required HC */}
@@ -500,24 +497,13 @@ export default function CencomGroupDetailPage() {
                       </td>
 
                       {/* Actual HC */}
-                      <td className="px-3 py-3.5 text-center">
-                        <span className="inline-flex items-center gap-1 font-mono font-semibold text-text-primary">
-                          <Users className="h-3.5 w-3.5 text-text-muted" />
-                          {account.actual}
-                        </span>
+                      <td className="px-3 py-3.5 text-center font-mono font-semibold text-text-primary">
+                        {account.actual}
                       </td>
 
                       {/* Vacancies */}
-                      <td className="px-3 py-3.5 text-center">
-                        {account.vacant === 0 ? (
-                          <span className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-muted border border-border-default">
-                            0 vacant
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-mono font-bold text-text-primary border border-border-default">
-                            {account.vacant}
-                          </span>
-                        )}
+                      <td className="px-3 py-3.5 text-center font-mono font-semibold text-text-primary">
+                        {account.vacant}
                       </td>
 
                       {/* MFR Progress */}

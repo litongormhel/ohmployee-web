@@ -1,5 +1,21 @@
 # AI Handoff
 
+## Execution Report — CENCOM Table Cell Plain Text & Vacancies Number Uniformity (ohm#cencom-table-cell-uniformity)
+
+**Status: COMPLETE ON MAIN; UNIFIED TABLE CELL PRESENTATIONS ACROSS CENCOM DRILLDOWN VIEWS (`src/app/(dashboard)/cencom/groups/[id]/page.tsx` AND `src/components/cencom/CencomGroupTable.tsx`): (1) REMOVED `<Store />` AND `<Users />` ICONS FROM `Active Stores` AND `Actual HC` CELLS; (2) CONVERTED `Vacancies` FROM BADGE/PILL ("0 vacant" / BADGE) TO RAW NUMBERS; (3) RENDERED `Active Stores`, `Required HC`, `Actual HC`, AND `Vacancies` IN UNIFORM PLAIN TEXT (`font-mono font-semibold text-text-primary`) ACROSS BOTH TABLES; (4) UPDATED `docs/state/cencom_state.md`; VERIFIED WITH 0 ERRORS VIA `npm run check:adr` (FRESH), `npm run check:sql` (639 MIGRATIONS OK), `npm test` (226/226 PASSED), AND `npm run lint` (0 ERRORS); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/cencom_state.md`, `src/app/(dashboard)/cencom/groups/[id]/page.tsx`, `src/components/cencom/CencomGroupTable.tsx`.
+
+### 1. Changes Delivered
+1. **`src/app/(dashboard)/cencom/groups/[id]/page.tsx` ("Accounts under {group.groupName}")**:
+   - `Active Stores`: Removed `<Store className="h-3.5 w-3.5 text-text-muted" />` icon, styled cell with `font-mono font-semibold text-text-primary`. Preserved total stores suffix `/{account.totalStores}` with subtle text-muted styling.
+   - `Actual HC`: Removed `<Users className="h-3.5 w-3.5 text-text-muted" />` icon, styled cell with `font-mono font-semibold text-text-primary`.
+   - `Vacancies`: Replaced rounded badge/pill (`0 vacant` / `{account.vacant}`) with raw number `{account.vacant}` in `font-mono font-semibold text-text-primary` matching Required HC and Actual HC.
+2. **`src/components/cencom/CencomGroupTable.tsx` (Groups List Table)**:
+   - Applied identical uniformity across `Active Stores`, `Actual HC`, and `Vacancies` columns, eliminating visual drift between the parent groups list and the child group account drilldown. Cleaned up unused Lucide icon imports.
+
+---
+
 ## Execution Report — 5 Workflow Hardening Rules & Auto-Numbered Migration Generator (ohm#workflow-rules-hardening)
 
 **Status: COMPLETE ON MAIN; CODIFIED 5 ARCHITECTURAL WORKFLOW RULES AND DELIVERED AUTO-NUMBERED MIGRATION GENERATOR: (1) AUTONOMOUS SINGLE-TURN EXECUTION BY DEFAULT (PLAN -> IMPLEMENT -> VERIFY -> TEST/LINT -> STAGING MIGRATION AUTO-PUSH -> COMMIT) SO THE USER NEVER NEEDS TO REMEMBER "DIRECT" OR "PROCEED" KEYWORDS, PAUSING ONLY ON EXPLICIT "PLAN ONLY" REQUESTS, GENUINE REQUIREMENT AMBIGUITY, OR ADR/DESTRUCTIVE CONFLICT; (2) NON-BREAKING VIEW & RPC PARITY RULE ENFORCING APPEND-ONLY COLUMNS ON VIEWS AND `DEFAULT NULL` ON RPC ARGUMENTS TO PERMANENTLY SAFEGUARD MOBILE APP (`OHMployee`) COMPATIBILITY; (3) NO SILENT CATCH & POSTGREST COLUMN GUARD IN `src/lib/queries/*.ts` MANDATING SCHEMA LOGGING AND PREVENTING INVALID COLUMN QUERIES; (4) COLLISION-PROOF MIGRATION GENERATOR `scripts/new-migration.mjs` (`npm run db:new <name>`) AUTOMATICALLY RESOLVING THE NEXT SEQUENTIAL NUMERIC PREFIX ACROSS WEB AND MOBILE REPOSITORIES; (5) PROD VS. STAGING MIGRATION COUNTER WITH EXACT PENDING FILENAMES; VERIFIED VIA `npm run check:adr` (FRESH), `npm run check:sql` (639 MIGRATIONS OK), `npm test` (226/226 PASSED), AND `npm run lint` (0 ERRORS); LOCAL COMMIT ON MAIN.**

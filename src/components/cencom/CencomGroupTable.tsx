@@ -5,8 +5,6 @@ import Link from "next/link";
 import {
   ArrowUpDown,
   ShieldCheck,
-  Store,
-  Users,
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DataState } from "@/components/shared/DataState";
@@ -256,14 +254,11 @@ export function CencomGroupTable({
                   </td>
 
                   {/* Active Stores */}
-                  <td className="px-3 py-4 text-center">
-                    <span className="inline-flex items-center gap-1 font-medium text-text-primary">
-                      <Store className="h-3.5 w-3.5 text-text-muted" />
-                      {group.activeStores}
-                      {group.totalStores > 0 && group.totalStores !== group.activeStores && (
-                        <span className="text-xs text-text-muted">/{group.totalStores}</span>
-                      )}
-                    </span>
+                  <td className="px-3 py-4 text-center font-mono font-semibold text-text-primary">
+                    {group.activeStores}
+                    {group.totalStores > 0 && group.totalStores !== group.activeStores && (
+                      <span className="text-xs font-normal text-text-muted">/{group.totalStores}</span>
+                    )}
                   </td>
 
                   {/* Required HC */}
@@ -272,24 +267,13 @@ export function CencomGroupTable({
                   </td>
 
                   {/* Actual HC */}
-                  <td className="px-3 py-4 text-center">
-                    <span className="inline-flex items-center gap-1 font-mono font-semibold text-text-primary">
-                      <Users className="h-3.5 w-3.5 text-text-muted" />
-                      {group.actual}
-                    </span>
+                  <td className="px-3 py-4 text-center font-mono font-semibold text-text-primary">
+                    {group.actual}
                   </td>
 
                   {/* Vacancies */}
-                  <td className="px-3 py-4 text-center">
-                    {group.vacant === 0 ? (
-                      <span className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-muted border border-border-default">
-                        0 vacant
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-mono font-bold text-text-primary border border-border-default">
-                        {group.vacant}
-                      </span>
-                    )}
+                  <td className="px-3 py-4 text-center font-mono font-semibold text-text-primary">
+                    {group.vacant}
                   </td>
 
                   {/* MFR Progress Bar */}
