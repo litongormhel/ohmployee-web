@@ -1,5 +1,33 @@
 # AI Handoff
 
+## Execution Report — Plantilla Table Pagination Ergonomics: Employee 10 Rows & Store 15 Rows (ohm#k8v4p1m2)
+
+**Status: COMPLETE ON MAIN; RESTORED PLANTILLA EMPLOYEE VIEW DEFAULT PAGE SIZE TO 10 ROWS (WITH [10, 15, 25, 50] OPTIONS) TO FIT COMFORTABLY ABOVE THE FOLD WITHOUT INTERNAL SCROLLING ON 1080P LAPTOP DISPLAYS; PRESERVED STORE VIEW AT 15 ROWS (WITH [15, 30, 50] OPTIONS) PER EXPLICIT USER APPROVAL; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla Module), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Plantilla Section, `docs/architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md`.
+
+### 1. Observation & User Approval
+- User reported: "check this. Hindi kasya sa screen ung 15 rows. ano maganda gawin? ibalik sa 10?"
+- Diagnosed root cause: On typical 1080p laptop displays with 125%/150% scaling, available viewport height for table rows is ~380px–450px after deducting the top header, status tabs, search filter toolbar, and pagination footer. At ~46px per row (avatar + padding + borders), 10 rows fits comfortably (~460px) while 15 rows (~690px) causes the table's internal `overflow-auto` scroll area to hide rows 11–15 below the fold.
+- Proposed implementation plan through the Approval Gate: Employee View defaults to 10 rows with `[10, 15, 25, 50]` dropdown options, while Store View retains 15 rows.
+- User explicitly approved: "Approved for 10 but for Store View 15".
+
+### 2. Surgical Changes
+1. **`src/app/(dashboard)/plantilla/page.tsx`**:
+   - Updated `pageSize` default state from 15 to 10 for Employee View.
+   - Retained `storePageSize` default state at 15 for Store View.
+   - Updated `<TablePagination>` prop `pageSizeOptions` dynamically: `mainView === "store" ? [15, 30, 50] : [10, 15, 25, 50]`.
+2. **`docs/state/plantilla_web_state.md`**:
+   - Documented the ergonomic page size configuration (Employee 10 rows, Store 15 rows).
+
+### 3. Verification
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 633 migrations.
+- `npm test` → 211 tests passed, 0 failures.
+- `npm run lint` → 0 errors, 0 warnings.
+
+---
+
 ## Execution Report — Dashboard Percentage Normalization & CENCOM Plantilla Source of Truth (ohm#d2c8m9p4)
 
 **Status: COMPLETE ON MAIN; NORMALIZED DASHBOARD WORKFORCE COVERAGE PERCENTAGE BY DERIVING FILL RATE DIRECTLY FROM PLANTILLA ACTIVE DEPLOYMENT (totalActivePlantilla / totalScopedDemand * 100), ELIMINATING THE REDUNDANT DOUBLE MULTIPLICATION (9350% GLITCH); ANCHORED CENCOM OVERVIEW & GROUPS IN PLANTILLA AS SINGLE SOURCE OF TRUTH (BATCH-QUERYING plantilla ACTIVE EMPLOYEES AND plantilla_slots NON-CLOSED SLOTS MAPPED BY ACCOUNT TO CENCOM GROUPS); RECONCILED DASHBOARD GROUP MATRIX VIA SYNCHRONIZED CENCOM GROUP KPIS; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build NEXT.JS 16.2.4 EXIT CODE 0); LOCAL COMMIT ON MAIN.**

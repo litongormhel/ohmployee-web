@@ -479,7 +479,7 @@ function PlantillaPageContent() {
   const urlPageParam = searchParams.get("page");
   const initialPage = urlPageParam ? Math.max(1, parseInt(urlPageParam, 10) || 1) : 1;
   const [page, setPage] = useState(initialPage);
-  const [pageSize, setPageSize] = useState<number>(15);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Store View table pagination (default 15 rows per page)
   const [storePage, setStorePage] = useState<number>(1);
@@ -3012,7 +3012,7 @@ function PlantillaPageContent() {
                 page={mainView === "store" ? storePage : page}
                 pageSize={mainView === "store" ? storePageSize : pageSize}
                 totalCount={currentTotalCount}
-                pageSizeOptions={[15, 30, 50]}
+                pageSizeOptions={mainView === "store" ? [15, 30, 50] : [10, 15, 25, 50]}
                 onPageChange={(newPage) => {
                   if (mainView === "store") {
                     setStorePage(newPage);
