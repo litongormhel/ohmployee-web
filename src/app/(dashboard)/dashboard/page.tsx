@@ -35,6 +35,9 @@ import { Toast } from "@/components/shared/Toast";
 import { useCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
+import { AnnouncementBannerStrip } from "@/components/dashboard/AnnouncementBannerStrip";
+import { UrgentAnnouncementModal } from "@/components/dashboard/UrgentAnnouncementModal";
+import { fetchUnacknowledgedUrgentAnnouncement } from "@/lib/queries/announcements";
 
 // ---------------------------------------------------------------------------
 // Helpers & Types
@@ -266,6 +269,14 @@ export default function DashboardPage() {
   }, [displayedGroupRows]);
 
   const currentUser = useCurrentUser();
+
+  // Check for unacknowledged urgent announcement
+  const { data: unacknowledgedUrgent, refetch: refetchUrgent } = useQuery({
+    queryKey: ["dashboard", "urgent-announcement-ack", currentUser?.profileId],
+    queryFn: () => fetchUnacknowledgedUrgentAnnouncement(currentUser?.profileId),
+    enabled: !!currentUser?.profileId,
+    staleTime: 30 * 1000,
+  });
   const isSuperAdmin = useMemo(() => {
     const key = (currentUser?.roleKey || currentUser?.roleName || "").toLowerCase();
     return key === "super_admin" || key === "super admin";
@@ -390,6 +401,18 @@ export default function DashboardPage() {
           />
         </div>
       </header>
+
+      {/* =================================================================== */}
+      {/* 1.5. ANNOUNCEMENTS STRIP                                            */}
+      {/* =================================================================== */}
+      <AnnouncementBannerStrip currentUser={currentUser} />
+
+      {/* Urgent Announcement Mandatory Acknowledgement Modal */}
+      <UrgentAnnouncementModal
+        announcement={unacknowledgedUrgent ?? null}
+        profileId={currentUser?.profileId}
+        onAcknowledged={() => refetchUrgent()}
+      />
 
       {/* =================================================================== */}
       {/* 2. KPI ROW: 4 CARDS (Replaces 5 cards + analytics strip)             */}

@@ -46,6 +46,15 @@ Both RPCs are `SECURITY DEFINER` and derive caller identity from `auth.uid()` on
   - Group Scope Selector (`ScopeDropdown`) dynamically populated across all organizational groups (`All Retail Groups`, `Group 1`, `Group 2`, `Group 3`, `Group 4`, `Group 5`, `MOSES HQ`).
   - Header triage and sync triggers removed: `CENCOM Triage` and `"Sync MIKA"` buttons removed from the header.
 
+### 4.1.5 Dashboard Announcements Banner Strip & Urgent Acknowledgements
+- **Placement:** Dedicated prominent card strip placed directly below the header bar and above the 4 KPI cards.
+- **Components:**
+  - `AnnouncementBannerStrip` (`src/components/dashboard/AnnouncementBannerStrip.tsx`): Displays active, non-expired announcements sorted with pinned items first. Features color-coded priority styling (`urgent`: red border/badge with AlertOctagon icon, `important`: amber border/badge with AlertTriangle icon, `info`: blue border/badge with Megaphone icon).
+  - `CreateAnnouncementModal` (`src/components/dashboard/CreateAnnouncementModal.tsx`): Restricted to Super Admin & Head Admin via "+ New Announcement" button. Allows setting title, body, priority, pinned status, role targeting, and optional expiry date.
+  - `UrgentAnnouncementModal` (`src/components/dashboard/UrgentAnnouncementModal.tsx`): Mandatory one-time acknowledgement modal for any active `urgent` announcements not yet acknowledged by the user (tracked in `public.announcement_acknowledgements`).
+- **Live Realtime:** Subscribes to Supabase Realtime channel `realtime:announcements` to reactively update the feed upon new posts or updates without full page reloads.
+- **Push Notification Fanout:** Backed by database trigger `public.trg_announcement_notify()` which fans out notification items to `public.notifications` for all targeted roles, automatically dispatching In-App and Mobile Push Notifications.
+
 ### 4.2 Top Executive KPI Grid (4 Responsive Module Cards)
 Rendered in a 4-column responsive grid consuming shared `KpiCard` (`@/components/shared/KpiCard`) with direct routing links to primary modules:
 1. **`Workforce Coverage`:** Fill rate % (`avgFillRatePct.toFixed(1)}%`), `"X of Y seats filled"` subtitle, prominent 10px (~8px inner) segmented 3-color progress bar (Active Plantilla, HR Emploc Pending, Open Vacancies) with legends, and `"Above 80% target"` / `"Below 80% target"` status pill. Clickable; routes to `/plantilla`.
