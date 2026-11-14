@@ -216,6 +216,12 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
   - In `src/lib/queries/vacancy.ts`, `listVacancies` and `getVacancySummary` now ensure that inactive unassigned personnel from active rosters (excluding deleted/archived records) are seamlessly merged into the Open queue (`currentTab === "open"`).
   - Guarantees that ALTURAS vacancies (`VCBPIG1_0183`, `VCBPIG1_0049`, `VCBPIG1_0050`) appear in `/vacancy` on the Open tab (with `Open (3)` badge and `Showing 1-3 of 3 records` pagination), matching the Plantilla Vacancy tab and Directory cards.
 
+- **Coverage Group Vacancy Consolidation & Fractional Capacity Parity (`ohm#cg-vac-frac`, 2026-11-14)**:
+  - **Single Row Consolidation**: When member stores are organized into a Coverage Group (e.g., `CG-FG1-0005`), all member stores consolidate into **one single row** under the minted `CGCode` in the Vacancy list view. The individual store `VCode`s and store assignments are retained inside the record details (`assignedStoreDetails`, `assignedStores`).
+  - **Schema Column Alignment**: Fixed PostgREST schema error in `src/lib/queries/vacancy.ts` (lines 2663 & 3617) by replacing invalid `stores(..., area_name)` select with canonical columns `stores(id, store_name, vcode, area_city, area_province)`. This resolves the silent catch that previously caused coverage group consolidation to fail.
+  - **Fractional Slot Display**: Added `slotFraction` (`"1/N"`, e.g. `"1/2"`) and `slotShare` (`1/N`, e.g. `0.5`) to `VacancyListItem`. Rows consolidated from coverage groups now accurately reflect roving fractional capacity rather than full stationary headcount.
+  - **ADR-001 Lock**: Inscribed in `ADR-001-ohmployee-system-architecture.md` under Coverage Semantics (§ Core Cross-Module Invariants).
+
 - **Landing Page Integration**: Vacancy (`/vacancy`) serves as the primary operational landing workspace for authenticated OHMployee Web sessions; the application root (`/`), successful authentication redirects, and fallback redirects route to `/vacancy` instead of `/dashboard`.
 - `src/lib/queries/vacancy.ts` now calls the approved read RPC names: `get_web_vacancy_summary(...)` for KPI counts and `list_web_vacancies(...)` for dense list rows.
 - The query layer sends flat individual params matching the deployed backend signatures (OHM2026_1071 fix — see `.ai/handoff.md`). It does not pass caller identity, role, profile, account, or group ids as authority.

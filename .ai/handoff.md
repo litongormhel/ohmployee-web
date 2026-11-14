@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Execution Report — Coverage Group Vacancy Consolidation & Fractional Slot Display (ohm#c5g9v2m1)
+
+**Status: COMPLETE ON MAIN; RESOLVED COVERAGE GROUP VACANCY ROW CONSOLIDATION AND FRACTIONAL ROVING CAPACITY DISPARITY FOR `CG-FG1-0005` & MULTI-STORE ROVING CLUSTERS: (1) FIXED POSTGREST COLUMN SELECT IN `src/lib/queries/vacancy.ts` (REPLACED INVALID `s.area_name` WITH `s.area_city, s.area_province`), ALLOWING VACANCY ROWS TO CLEANLY MERGE INTO ONE ROW UNDER THE MINTED `CGCode` (ANCHOR + MEMBER STORES IN DETAILS); (2) ADDED `slotFraction` (`"1/N"`, e.g. `"1/2"`) AND `slotShare` (`1/N`, e.g. `0.5`) TO `VacancyListItem` AND DISPLAYED IN `StoreVacancyTable` AND `VacancyCard` (`src/app/(dashboard)/plantilla/page.tsx`) AS `${rovingSlotShare} Vacant` (E.G. `0.5 Vacant`); (3) HARDENED SYNTHESIZED INACTIVE DEDUPLICATION IN `plantilla/page.tsx` BY REGISTERING ALL MEMBER STORE VCODES AND NAMES IN `registerSeenKeys()`, PREVENTING SECONDARY MEMBER STORES FROM SPAWNING DUPLICATE VACANCY ROWS; (4) SHIPPED DATABASE MIGRATION `20262606000113_coverage_group_vacant_roving_slot_and_capacity.sql` UPDATING `public.create_coverage_group` TO TRANSITION PLANTILLA SLOTS TO `is_roving = true, employment_type = 'Roving'` FOR STRUCTURE-ONLY VACANT GROUPS AND RETROACTIVELY UPDATING `CG-FG1-0005`; (5) ADDED COVERAGE GROUP VACANCY CONSOLIDATION & FRACTIONAL CAPACITY CONTRACT (`ohm#cg-vac-frac`) TO ADR-001 IN MOBILE REPO (`D:\Projects\OHMployee`) AND SYNCED WEB MIRROR; VERIFIED WITH 0 ERRORS VIA `npm run check:adr` (FRESH), `npm run check:sql` (639 MIGRATIONS OK), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Vacancy & Plantilla Modules), `docs/state/vacancy_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants & § HC Request & Coverage Semantics.
+
+### 1. Root Causes & Findings
+1. **Vacancy Module Merging Failure (Root Cause A)**:
+   In `src/lib/queries/vacancy.ts` (lines 2663 & 3617), the consolidation subquery selected `stores (id, store_name, vcode, area_name)`. Because `area_name` is not a column on `public.stores` (which instead has `area_city, area_province`), PostgREST returned `42703: column s.area_name does not exist`. The query function caught the exception and silently fell back to raw unconsolidated rows, leaving member stores unmerged.
+2. **Plantilla Vacancy Duplicate Synthesis (Root Cause B)**:
+   In `src/app/(dashboard)/plantilla/page.tsx`, `inactiveEmployees` synthesized an open vacancy for separated personnel (e.g. `BACULI, EURIE FERAER` at `CPPGJV19`) because `seenVcodes` only recorded the anchor store `CPSAJV27`, ignoring secondary member stores.
+3. **Capacity Badge Roving Disparity (Root Cause C)**:
+   In both `/vacancy` and the Plantilla Vacancy tab, roving slots rendered stationary integer capacity (`1 Vacant`) instead of fractional roving capacity (`0.5 Vacant` for 2 stores, `0.33 Vacant` for 3 stores).
+4. **Trigger Invariant Verification**:
+   Inspected `public.fn_coverage_group_structure_only_hc_guard()`: verifies that `coverage_groups.required_headcount := 0` is strictly enforced by design for structure-only groups; workforce capacity is governed by `plantilla_slots` and fractional `hc_share = 1.0 / count(stores)`.
+
+### 2. Implementation Deliverables
+1. **Query & Consolidation Normalization (`src/lib/queries/vacancy.ts`)**:
+   - Replaced invalid column select `area_name` with `area_city, area_province`.
+   - Exposed `slotFraction: string | null` and `slotShare: number | null` on `VacancyListItem`.
+   - Populated `slotFraction` (`"1/N"`) and `slotShare` (`1.0 / N`) during consolidation.
+2. **Plantilla Vacancy Tab & Deduplication (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Registered all member store VCodes and store names from `assignedStoreDetails` and `assignedStores` in `registerSeenKeys()`.
+   - Filtered synthesized inactive vacancies against `seenStoreNames` and `seenVcodes`.
+   - In `StoreVacancyTable` and `VacancyCard`, rendered `slotDisplay = `${rovingSlotShare} Vacant`` with hover tooltip indicating fraction (`1/2`).
+3. **Database Migration (`20262606000113_coverage_group_vacant_roving_slot_and_capacity.sql`)**:
+   - Updated `public.create_coverage_group` so that when `v_employees_converted = 0`, member store `plantilla_slots` transition to `is_roving = true, employment_type = 'Roving'`.
+   - Retroactively updated member store slots for `CG-FG1-0005`.
+   - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`).
+4. **ADR-001 Lock & Mirror Sync**:
+   - In `D:\Projects\OHMployee\.ai\architecture_locks/ADR-001-ohmployee-system-architecture.md`, added **Coverage Group Vacancy Consolidation & Fractional Capacity Contract (`ohm#cg-vac-frac`, 2026-11-14)**.
+   - Committed locally in mobile repo (`04ff5f0`).
+   - Ran `npm run sync:adr` in web repo; verified `npm run check:adr` is FRESH.
+
+### 3. Verification & Quality Gates
+- `npm run check:adr`: FRESH (ADR-001 `04ff5f0 2026-11-14T17:18:17+08:00`, ADR-002 `49d7a40`).
+- `npm run check:sql`: PASS (28 core tables & 19 cross-module RPC contracts verified across 639 migrations).
+- `npm run lint`: PASS (0 errors, 0 warnings).
+- `npm run build`: PASS (Turbopack exit 0, 20/20 routes built).
+
+---
+
 ## Execution Report — CENCOM Group Detail Navigation & Dedicated Account Drilldown (ohm#g1c4d7k9)
 
 **Status: COMPLETE ON MAIN; REMOVED EXPANDABLE CHEVRON AND SUBTITLE PREVIEW LIST FROM CENCOM GROUP PERFORMANCE TABLE (`CencomGroupTable.tsx`), REPLACED WITH INTERACTIVE LINK (`{group.groupName} ({count} accounts)`) DIRECTLY NAVIGATING TO DEDICATED FULL-PAGE DRILLDOWN VIEW AT `/cencom/groups/[id]` (`src/app/(dashboard)/cencom/groups/[id]/page.tsx`); BUILT 5X KPI SUMMARY TILES (REQUIRED HC, ACTUAL HC, VACANCIES, ACTIVE STORES, MFR), INSTANT CLIENT SEARCH & HEALTH STATUS FILTER (`All`, `Healthy`, `At Risk`, `Critical`), SORTABLE ACCOUNTS BREAKDOWN TABLE WITH ACTIVE STORES, REQUIRED HC, ACTUAL HC, VACANCIES, MFR PERCENTAGE BAR, HEALTH BADGE, AND QUICK ACTIONS SHORTCUTS TO VIEW PLANTILLA (`/plantilla?account=...`) AND VACANCY (`/vacancy?account=...`); AUTHORED `fetchCencomGroupDetail` AND `useCencomGroupDetail` IN `src/lib/queries/cencom.ts` RECONCILING `v_cencom_account_allocation_kpi`, `accounts`, `stores`, `plantilla`, AND `plantilla_slots` WITH PLANTILLA SOURCE-OF-TRUTH INVARIANTS; VERIFIED WITH 0 ERRORS VIA `npm run lint` AND `npm run build` (20/20 PAGES); LOCAL COMMIT ON MAIN.**

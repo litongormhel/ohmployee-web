@@ -1149,6 +1149,7 @@ function PlantillaPageContent() {
   const allVacancies = useMemo(() => {
     const raw = vacancyListQuery.data?.data ?? [];
     const seenVcodes = new Set<string>();
+    const seenStoreNames = new Set<string>();
 
     const filtered = raw.filter((v) => {
       const vk = (v.vcode || "").trim().toUpperCase();
@@ -1160,9 +1161,25 @@ function PlantillaPageContent() {
         v.derivedStatus?.toLowerCase() === "hired";
       if (isFilled) return false;
 
+      const registerSeenKeys = () => {
+        if (lookupKey) seenVcodes.add(lookupKey);
+        if (vk) seenVcodes.add(vk);
+        if (cg) seenVcodes.add(cg);
+        if (v.storeName) seenStoreNames.add(v.storeName.replace(/\s*\[Roving\]/i, "").toLowerCase().trim());
+        if (v.assignedStores) {
+          v.assignedStores.forEach((st) => seenStoreNames.add(st.toLowerCase().trim()));
+        }
+        if (v.assignedStoreDetails) {
+          v.assignedStoreDetails.forEach((sd) => {
+            if (sd.vcode) seenVcodes.add(sd.vcode.trim().toUpperCase());
+            if (sd.storeName) seenStoreNames.add(sd.storeName.toLowerCase().trim());
+          });
+        }
+      };
+
       // Multi-headcount retention: If database quota indicates unfilled capacity, keep visible
       if (v.hcTotal != null && v.hcFilled != null && v.hcFilled < v.hcTotal) {
-        if (lookupKey) seenVcodes.add(lookupKey);
+        registerSeenKeys();
         return true;
       }
 
@@ -1172,7 +1189,7 @@ function PlantillaPageContent() {
         const required = v.hcTotal ?? v.headcount ?? 1;
         if (activeCount >= required && required > 0) return false;
       }
-      if (lookupKey) seenVcodes.add(lookupKey);
+      registerSeenKeys();
       return true;
     });
 
@@ -1187,6 +1204,7 @@ function PlantillaPageContent() {
       const storeNameKey = (emp.primaryStoreName || "").toLowerCase().trim();
       const storeInfo = storeNameKey ? storeLookupMap.get(storeNameKey) : null;
       if (!storeInfo) return; // Do not synthesize for stores that are closed, archived, or not active under account
+      if (storeNameKey && seenStoreNames.has(storeNameKey)) return; // Already covered by active coverage group or vacancy
 
       const isOccupiedByActive = activeOccupiedVcodes.has(vk);
       const alreadyInVacancies = seenVcodes.has(vk);
@@ -3732,7 +3750,11 @@ function StoreVacancyTable({
               const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
               const rowHcFilled = row.hcFilled ?? 0;
               const remainingCapacity = getVacancyRemainingCapacity(row);
-              const slotDisplay = remainingCapacity;
+              const assignedCount = row.assignedStoreDetails?.length || row.assignedStores?.length || 0;
+              const rovingSlotShare = row.slotShare ?? (isRoving && assignedCount > 1 ? Math.round((1.0 / assignedCount) * 100) / 100 : null);
+              const slotDisplay = isRoving && rovingSlotShare != null
+                ? rovingSlotShare
+                : remainingCapacity;
 
               return (
                 <tr
@@ -3796,7 +3818,9 @@ function StoreVacancyTable({
                   <td className="px-3.5 py-2 whitespace-nowrap">
                     <span
                       title={
-                        rowHcTotal > 1
+                        isRoving && rovingSlotShare != null
+                          ? `${slotDisplay} roving slot share (${row.slotFraction || `1/${assignedCount}`}) across ${assignedCount} stores`
+                          : rowHcTotal > 1
                           ? `${slotDisplay} open slot${slotDisplay === 1 ? "" : "s"} (${rowHcFilled}/${rowHcTotal} filled)`
                           : `${slotDisplay} open slot`
                       }
@@ -4724,7 +4748,11 @@ function VacancyCard({
   const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
   const rowHcFilled = row.hcFilled ?? 0;
   const remainingCapacity = getVacancyRemainingCapacity(row);
-  const slotDisplay = remainingCapacity;
+  const assignedCount = row.assignedStoreDetails?.length || row.assignedStores?.length || 0;
+  const rovingSlotShare = row.slotShare ?? (isRoving && assignedCount > 1 ? Math.round((1.0 / assignedCount) * 100) / 100 : null);
+  const slotDisplay = isRoving && rovingSlotShare != null
+    ? rovingSlotShare
+    : remainingCapacity;
   const remarksDisplay = (
     row.remarks ||
     row.opsRemarks ||
@@ -4773,7 +4801,9 @@ function VacancyCard({
           <div className="flex items-center gap-1.5 shrink-0">
             <span
               title={
-                rowHcTotal > 1
+                isRoving && rovingSlotShare != null
+                  ? `${slotDisplay} roving slot share (${row.slotFraction || `1/${assignedCount}`}) across ${assignedCount} stores`
+                  : rowHcTotal > 1
                   ? `${slotDisplay} open slot${slotDisplay === 1 ? "" : "s"} (${rowHcFilled}/${rowHcTotal} filled)`
                   : `${slotDisplay} open slot`
               }

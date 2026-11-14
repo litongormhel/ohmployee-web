@@ -113,6 +113,8 @@ export type VacancyListItem = {
   hcFilled?: number;
   hcTotal?: number;
   hcDisplay?: string;
+  slotFraction?: string | null;
+  slotShare?: number | null;
   hrProcessingCount?: number;
   lastActivityAt: string | null;
   rowCapabilities: VacancyRowCapabilities;
@@ -2660,7 +2662,7 @@ export async function listVacancies(params: VacancyListParams) {
               store_id,
               is_anchor,
               hc_share,
-              stores (id, store_name, vcode, area_name),
+              stores (id, store_name, vcode, area_city, area_province),
               coverage_groups (id, coverage_code, status, required_headcount)
             `)
             .in("coverage_group_id", cgIds)
@@ -2796,12 +2798,16 @@ export async function listVacancies(params: VacancyListParams) {
               }
 
               seenCgInVacancies.add(cgId);
+              const numStores = cgInfo.storeDetails.length || 1;
+              const calcShare = Math.round((1.0 / numStores) * 100) / 100;
               row.cgCode = cgInfo.cgCode;
               row.vcode = cgInfo.anchorVcode || row.vcode;
               row.storeName = `${cgInfo.anchorStoreName} [Roving]`;
               row.employmentType = "Roving";
               row.assignedStores = cgInfo.storeNames;
               row.assignedStoreDetails = cgInfo.storeDetails;
+              row.slotFraction = cgInfo.storeDetails[0]?.slotFraction || (numStores > 1 ? `1/${numStores}` : "1");
+              row.slotShare = calcShare;
               row.headcount = cgInfo.requiredHc;
               row.hcTotal = cgInfo.requiredHc;
               consolidatedRows.push(row);

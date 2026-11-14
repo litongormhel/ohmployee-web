@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: 3729ccb 2026-11-12T10:33:06+08:00
-source_sha256: 773e3ff47d26bff4ddc54a0bf0119f6ee0d9fcb16197093bf9deb2f06e029f5c
-synced_at: 2026-11-12T09:36:28.879Z
+source_commit: 04ff5f0 2026-11-14T17:18:17+08:00
+source_sha256: 5ed41a6cdb6aec4fcc0186c262f756220f225eddb62aec20248260fda3988720
+synced_at: 2026-11-14T09:18:28.314Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -130,6 +130,11 @@ User Management (`public.user_scopes` joined to `public.users_profile` with `rol
 **Coverage Group Island Group Constraint** — a Coverage Group must never span more than one island group (Luzon, Visayas, Mindanao). Enforcement: backend hard block in `submit_headcount_request` and `create_plantilla_slot_from_request`; client-side pre-validation via `fn_validate_coverage_island_group(account_id, store_ids)`.
 
 **VCode vs CGCode Namespace** — VCode: per-store vacancy identity, one per store vacancy. CGCode: Coverage Group identifier, groups N VCodes for roving workforce. Disjoint namespaces — CGCode never replaces VCode. VCodes are never deleted when a store is removed from a Coverage Group.
+
+**Coverage Group Vacancy Consolidation & Fractional Capacity Contract (`ohm#cg-vac-frac`, 2026-11-14)** — When stores are assembled into a Coverage Group (roving cluster), whether occupied or vacant:
+1. **Vacancy Row Consolidation**: In Vacancy Management (`/vacancy`) and the Plantilla Vacancy tab (`/plantilla`), member stores belonging to an active Coverage Group must consolidate into **one single row** under the minted `CGCode` (with underlying store `VCode`s preserved). Member stores never render as separate standalone vacancy rows once grouped.
+2. **Fractional Slot Allocation**: In Plantilla and Vacancy views, each roving member store's slot allocation reflects the shared roving capacity fraction ($\text{Slot} = 1/N$, e.g., $0.5$ for 2 stores, $1/3$ for 3 stores). The total headcount demand across the cluster remains governed by the 1-employee-per-roving-slot invariant, while store-level capacity denotes fractional roving coverage.
+3. **Structure-Only & Vacant Grouping**: If a Coverage Group is formed from vacant stores without an active employee (`v_employees_converted = 0`), member stores' plantilla slots transition to `is_roving = true, employment_type = 'Roving'`, and their vacancies are unified under the group's `CGCode`.
 
 ### Deprecated Concepts
 
