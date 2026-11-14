@@ -22,6 +22,7 @@ All paths are relative to THIS web repo. If a required file is missing, STOP and
 | More | `docs/state/more_state.md` | More Module |
 | Approvals | `docs/state/approvals_web_state.md` | HC Request & Coverage Semantics |
 | Auth / RBAC | `docs/state/web_auth_rbac_state.md` | — (Core Rule 7) |
+| Notifications | `docs/state/notifications_state.md` | — |
 | UI System / Tokens | `docs/state/web_ui_system_state.md`, `docs/state/web_design_tokens.md` | — |
 | OHMni Copilot | `docs/state/ohmni_copilot_state.md` | — |
 | Foundation / Target | `docs/state/web_foundation_state.md`, `docs/state/web_target_state.md` | — |

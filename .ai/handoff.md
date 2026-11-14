@@ -1,5 +1,46 @@
 # AI Handoff
 
+## Execution Report — Notifications Module Redesign: Alerts & Activity Center (ohm#7k2m9x4q)
+
+**Status: COMPLETE ON MAIN; FULL UI/UX REDESIGN OF ADMIN PANEL -> NOTIFICATIONS ("/notifications") FEATURING (1) CENTRAL SEVERITY & STATUS TAXONOMY ENGINE IN SEVERITY.TS RESOLVING ROOT CAUSE MISMATCHES ("DELETION REQUEST APPROVED" -> SUCCESS / APPROVED, "IMPORT PLANTILLA BATCH AWAITING APPROVAL" -> PENDING / PENDING APPROVAL), (2) HIGH-DENSITY COMPACT ROWS (~68PX) WITH UNREAD DOT, TINTED BACKGROUND, COPYABLE MONOSPACE ENTITY CODE PILLS, ACTOR BADGES, HOVER TOOLTIPS FOR ABSOLUTE TIMESTAMPS, AND INLINE CTAS THAT AUTO-MARK READ, (3) STICKY CHRONOLOGICAL DATE GROUPING (TODAY, YESTERDAY, THIS WEEK, EARLIER), (4) CONSECUTIVE SAME-TYPE BURST COLLAPSING VIA NOTIFICATIONBURSTROW.TSX, (5) MULTI-MODULE FILTER CHIPS, SEARCH, AND "NEEDS ACTION ONLY" SWITCH, (6) MULTI-SELECT CHECKBOXES WITH STICKY FLOATING BULK BAR (MARK READ / UNREAD / CLEAR), (7) SCOPE-AWARE MARK ALL WITH CONFIRMATION MODAL AND 5-SECOND COUNTDOWN UNDO TOAST; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS, npm run build EXIT 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Notifications & UI System), `docs/state/notifications_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, `docs/state/web_ui_system_state.md`, `docs/state/web_design_tokens.md`, `src/lib/queries/notifications.ts`, `src/components/notifications/NotificationCard.tsx`, `src/app/(dashboard)/notifications/page.tsx`, `D:/Projects/OHMployee/lib/shared/navigation/notification_navigation_service.dart`.
+
+### 1. Problem Identification & Root Cause
+- **Severity & Status Mismatch**: In legacy `NotificationCard.tsx`, substring matching checked `"delet"` before `"approv"`, erroneously rendering *"Deletion Request Approved"* in red/critical with badge `Attention Required`. Conversely, *"Import Plantilla Batch Awaiting Approval"* rendered green/success with badge `Approved` because it contained `"approv"` and lacked specific exclusion keywords.
+- **Fatigue & Low Density**: Flat stream of tall cards (~130px) without date separation, no entity code highlights, and weak unread signals (thin bar only). No bulk selection, no undo, and "Mark All as Read" lacked confirmation and scope awareness.
+
+### 2. Architectural & Surgical Solution
+1. **Central Taxonomy Engine (`src/lib/notifications/severity.ts`)**:
+   - Single source of truth deriving `(severity, statusLabel, icon, module, entityCode, actor, isAttentionRequired, containerClass, badgeClass, dotClass, deepLink)` strictly from theme tokens (`status-success`, `status-warning`, `status-danger`, `status-info`, `status-neutral`).
+   - Prioritizes terminal success/resolution over action keywords: *"Deletion Request Approved"* -> `Success` (`Approved`, `CheckCircle2`).
+   - Distinguishes passive approval from pending staging: *"Import Plantilla Batch Awaiting Approval"* -> `Pending` (`Pending Approval`, `Clock`).
+   - Regex-based entity extractor extracts VCodes (`VCYG1_0001`), Store codes (`CPSAJV31`), AMR numbers (`AMR-1002`), and AGT codes (`AGT-2026-0001`).
+2. **High-Density Row Component (`src/components/notifications/NotificationRow.tsx`)**:
+   - Compact ~68px row with selection checkbox, unread dot, tinted background (`bg-brand-50/25`), bold unread title, status chip, 1-line truncated message, copyable `.mono-pill` entity code, relative time, and inline primary CTA that auto-marks read.
+3. **Consecutive Burst Collapsing (`src/components/notifications/NotificationBurstRow.tsx`)**:
+   - Groups consecutive same-type notifications within a date bucket into one expandable card with count badge and "Mark all read" button.
+4. **Bulk Mode Toolbar (`src/components/notifications/NotificationBulkBar.tsx`)**:
+   - Sticky floating bar displaying selected count with `Mark as read`, `Mark as unread`, and `Clear selection`.
+5. **Undo Toast (`src/components/notifications/NotificationUndoToast.tsx`)**:
+   - Floating 5-second snackbar with countdown to revert accidental mark-all or bulk-read actions.
+6. **Activity Center Shell (`src/app/(dashboard)/notifications/page.tsx`)**:
+   - Summary strip (`Unread`, `Needs Action`, `Today`), 5 category tabs (`All`, `Unread`, `Requests & Approvals`, `SLA & Alerts`, `System`), multi-module chips, search input, "Needs action only" toggle, sticky date headers (`Today`, `Yesterday`, `This week`, `Earlier`), pagination, and confirmation dialog for scoped mark-all.
+7. **Query & Mutation Enhancements (`src/lib/queries/notifications.ts`)**:
+   - Added `useMarkNotificationsReadBatch` supporting optimistic cache updates and multi-query invalidation.
+8. **Documentation**:
+   - Created `docs/state/notifications_state.md` and registered Notifications in `.ai/current_state.md`.
+
+### 3. Verification & Sign-off
+- `npm run check:adr`: Remote check FRESH — ADR-001 (`3729ccb`), ADR-002 (`49d7a40`).
+- `npm run check:sql`: SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 637 migrations.
+- `npm test`: 211/211 tests passed cleanly.
+- `npm run lint`: Clean (0 errors, 0 warnings).
+- `npm run build`: Production build succeeded (Next.js 16.2.4 compiled in 22.9s, TypeScript clean, all 20 pages statically generated).
+- Subagent Regression Audit: 10/10 checks verified and passed (Severity mappings, Deep-links, Scoped mark-all, Undo toast, Burst collapse, Entity pill copies).
+
+---
+
 ## Execution Report — Fix Coverage Group UUID Empty String Cast & Null-Safe Position Resolution (ohm#n7v3k9m2)
 
 **Status: COMPLETE ON MAIN; FIXED ERROR "invalid input syntax for type uuid: """ UPON CREATING A COVERAGE GROUP BY (1) SANITIZING FALSY POSITION_ID TO NULL IN MORE.TS INSTEAD OF EMPTY STRING, (2) SHIPPED MIGRATION 20262606000112 UPGRADING PUBLIC.CREATE_COVERAGE_GROUP WITH DEFAULT NULL PARAMETERS AND IN-FUNCTION AUTO-RESOLUTION OF POSITION_ID FROM ACTIVE MEMBER STORE EMPLOYEES OR ACCOUNT POSITION OPTIONS, AND (3) GUARANTEED EMPLOYMENT_TYPE DEFAULTS TO 'REGULAR' TO SATISFY PHYSICAL NOT NULL CONSTRAINT; APPLIED AND CONFIRMED WITH LIVE PG_GET_FUNCTIONDEF DIFF IN STAGING; FULL VERIFICATION PASSED (npm run check:adr FRESH, npm run check:sql OK, npm run lint 0 ERRORS, npm run build EXIT 0); LOCAL COMMIT ON MAIN.**

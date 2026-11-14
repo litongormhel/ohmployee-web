@@ -1,24 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import {
-  AlertCircle,
-  Bell,
-  BellOff,
-  Check,
-  CheckCircle2,
-  Clock,
-  Mail,
-} from "lucide-react";
-import type { ComponentType } from "react";
-import {
-  parseNotificationDeepLink,
-  type NotificationItem,
-} from "@/lib/queries/notifications";
-import { formatDisplayText } from "@/lib/utils/displayText";
+import { BellOff, RotateCcw } from "lucide-react";
+import type { NotificationItem } from "@/lib/queries/notifications";
+import { NotificationRow, type NotificationRowProps } from "@/components/notifications/NotificationRow";
 
 // ============================================================================
-// Relative Timestamp Formatter
+// Relative Timestamp Formatter (Re-exported for backwards compatibility)
 // ============================================================================
 
 export function formatRelativeTime(dateString: string | null | undefined): string {
@@ -56,227 +43,40 @@ export function formatRelativeTime(dateString: string | null | undefined): strin
 }
 
 // ============================================================================
-// Visual Severity & Tone Categorization
+// NotificationCard: High-Fidelity Row Adapter
 // ============================================================================
 
-interface ToneConfig {
-  icon: ComponentType<{ className?: string }>;
-  containerClass: string;
-  badgeClass: string;
-  badgeLabel: string;
-}
-
-function resolveNotificationTone(item: NotificationItem): ToneConfig {
-  const type = (item.notification_type || "").toLowerCase();
-  const event = (item.event_type || "").toLowerCase();
-  const title = (item.title || "").toLowerCase();
-
-  // 1. Danger / Rejections / Urgent
-  if (
-    type.includes("reject") ||
-    event.includes("reject") ||
-    title.includes("reject") ||
-    type.includes("escalat") ||
-    event.includes("escalat") ||
-    event.includes("breach") ||
-    title.includes("breach") ||
-    title.includes("incident") ||
-    event.includes("delet") ||
-    title.includes("deletion")
-  ) {
-    return {
-      icon: AlertCircle,
-      containerClass: "bg-surface-subtle text-danger-text border border-border-default",
-      badgeClass: "bg-surface-subtle text-danger-text border-border-default",
-      badgeLabel: item.sla_level ? `SLA Breach (L${item.sla_level})` : "Attention Required",
-    };
-  }
-
-  // 2. Success / Approved / Finalized
-  if (
-    (type.includes("approv") ||
-      event.includes("approv") ||
-      title.includes("approv") ||
-      title.includes("created") ||
-      event.includes("completed") ||
-      title.includes("completed") ||
-      type.includes("success")) &&
-    !event.includes("required") &&
-    !title.includes("needed") &&
-    !title.includes("request")
-  ) {
-    return {
-      icon: CheckCircle2,
-      containerClass: "bg-surface-subtle text-text-primary border border-border-default ring-2 ring-border-default/20",
-      badgeClass: "bg-surface-subtle text-text-primary border-border-default",
-      badgeLabel: "Approved",
-    };
-  }
-
-  // 3. Warning / SLA / Submissions / Pending Action
-  if (
-    (item.sla_level !== null && item.sla_level !== undefined && item.sla_level > 0) ||
-    event.includes("sla") ||
-    title.includes("sla") ||
-    type.includes("submit") ||
-    event.includes("submit") ||
-    title.includes("request") ||
-    title.includes("pending") ||
-    title.includes("needed") ||
-    event.includes("approval_required") ||
-    title.includes("closure")
-  ) {
-    return {
-      icon: Clock,
-      containerClass: "bg-surface-subtle text-text-secondary border border-border-default ring-2 ring-border-default/20",
-      badgeClass: "bg-surface-subtle text-text-secondary border-border-default",
-      badgeLabel: item.sla_level ? `SLA Alert (L${item.sla_level})` : "Pending Action",
-    };
-  }
-
-  // 4. Info / System Default
-  return {
-    icon: Bell,
-    containerClass: "bg-surface-subtle text-text-secondary border border-border-default ring-2 ring-border-default/20",
-    badgeClass: "bg-surface-subtle text-text-secondary border-border-default",
-    badgeLabel: "Notice",
-  };
-}
-
-// ============================================================================
-// Notification Card Component
-// ============================================================================
-
-export interface NotificationCardProps {
+export interface NotificationCardProps extends NotificationRowProps {
   notification: NotificationItem;
-  onToggleRead: (item: NotificationItem) => void;
-  isToggling?: boolean;
 }
 
-export function NotificationCard({
-  notification,
-  onToggleRead,
-  isToggling = false,
-}: NotificationCardProps) {
-  const tone = resolveNotificationTone(notification);
-  const ToneIcon = tone.icon;
-  const deepLink = parseNotificationDeepLink(notification);
-  const formattedTime = formatRelativeTime(notification.created_at);
-  const fullDateTime = notification.created_at
-    ? new Date(notification.created_at).toLocaleString()
-    : "";
-
-  return (
-    <article
-      className={`group relative flex flex-col sm:flex-row sm:items-start gap-3.5 rounded-xl border p-4 transition duration-150 ${
-        !notification.is_read
-          ? "border-border-default bg-surface-base shadow-xs"
-          : "border-border-subtle bg-surface-base/60 hover:bg-surface-base hover:border-border-default"
-      }`}
-    >
-      {/* Unread Accent Pill Indicator */}
-      {!notification.is_read && (
-        <span
-          className="absolute left-0 top-3 h-7 w-1 rounded-r-md bg-brand-500"
-          aria-label="Unread notification indicator"
-        />
-      )}
-
-      {/* Avatar Icon Container with Tone Tinting */}
-      <div
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-transform group-hover:scale-105 ${tone.containerClass}`}
-        aria-hidden="true"
-      >
-        <ToneIcon className="h-4.5 w-4.5" />
-      </div>
-
-      {/* Center Details Column */}
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {/* Headline Title */}
-          <div className="flex items-center gap-2 min-w-0">
-            <h3
-              className={`text-sm truncate ${
-                !notification.is_read
-                  ? "font-bold text-text-primary"
-                  : "font-semibold text-text-secondary"
-              }`}
-            >
-              {formatDisplayText(notification.title)}
-            </h3>
-
-            {/* Categorical Badge */}
-            <span
-              className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tracking-tight ${tone.badgeClass}`}
-            >
-              {tone.badgeLabel}
-            </span>
-          </div>
-
-          {/* Timestamp */}
-          <time
-            dateTime={notification.created_at}
-            title={fullDateTime}
-            className="shrink-0 text-xs text-text-muted font-medium whitespace-nowrap"
-          >
-            {formattedTime}
-          </time>
-        </div>
-
-        {/* Message Summary Text */}
-        <p className="mt-1 text-xs text-text-secondary leading-relaxed sm:pr-8">
-          {notification.message}
-        </p>
-
-        {/* Actionable Deep Link & Controls */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-border-subtle/60">
-          {deepLink ? (
-            <Link
-              href={deepLink.route}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline transition"
-            >
-              <span>{deepLink.label}</span>
-            </Link>
-          ) : (
-            <div />
-          )}
-
-          {/* Toggle Read/Unread Action Button */}
-          <button
-            type="button"
-            onClick={() => onToggleRead(notification)}
-            disabled={isToggling}
-            title={notification.is_read ? "Mark as unread" : "Mark as read"}
-            className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-secondary hover:border-border-strong hover:bg-surface-hover hover:text-text-primary transition cursor-pointer disabled:opacity-50"
-          >
-            {notification.is_read ? (
-              <>
-                <Mail className="h-3 w-3 text-text-muted" aria-hidden="true" />
-                <span>Mark unread</span>
-              </>
-            ) : (
-              <>
-                <Check className="h-3 w-3 text-pct-high" aria-hidden="true" />
-                <span>Mark read</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </article>
-  );
+export function NotificationCard(props: NotificationCardProps) {
+  return <NotificationRow {...props} />;
 }
 
 // ============================================================================
-// Empty State Component
+// NotificationEmptyState: State Boundary with Reset Filters Action
 // ============================================================================
 
 export interface NotificationEmptyStateProps {
   tab: string;
+  hasActiveFilters?: boolean;
+  onResetFilters?: () => void;
 }
 
-export function NotificationEmptyState({ tab }: NotificationEmptyStateProps) {
+export function NotificationEmptyState({
+  tab,
+  hasActiveFilters = false,
+  onResetFilters,
+}: NotificationEmptyStateProps) {
   const getMessage = () => {
+    if (hasActiveFilters) {
+      return {
+        title: "No matching notifications",
+        desc: "No notifications match your current filter, module, or search criteria.",
+      };
+    }
+
     switch (tab) {
       case "unread":
         return {
@@ -318,6 +118,17 @@ export function NotificationEmptyState({ tab }: NotificationEmptyStateProps) {
       <p className="mt-1 text-xs text-text-muted max-w-sm leading-relaxed">
         {info.desc}
       </p>
+
+      {hasActiveFilters && onResetFilters && (
+        <button
+          type="button"
+          onClick={onResetFilters}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
+        >
+          <RotateCcw className="h-3 w-3 text-text-muted" />
+          <span>Reset all filters</span>
+        </button>
+      )}
     </div>
   );
 }

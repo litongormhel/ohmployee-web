@@ -689,3 +689,70 @@ export function useMarkAllAsRead() {
     },
   });
 }
+
+/**
+ * Bulk updates an array of notification IDs to read or unread status.
+ */
+export function useMarkNotificationsReadBatch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ ids, isRead }: { ids: string[]; isRead: boolean }) => {
+      if (!ids.length) return;
+      const supabase = createClient();
+
+      const { error } = await supabase
+        .from("notifications")
+        .update({
+          is_read: isRead,
+          read_at: isRead ? new Date().toISOString() : null,
+        })
+        .in("id", ids);
+
+      if (error) {
+        console.warn("[useMarkNotificationsReadBatch] Update error:", error);
+        throw error;
+      }
+    },
+    onMutate: async ({ ids, isRead }) => {
+      if (!ids.length) return;
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      await queryClient.cancelQueries({ queryKey: ["notifications-unread-count"] });
+
+      const idSet = new Set(ids);
+
+      queryClient.setQueriesData<NotificationItem[]>(
+        { queryKey: ["notifications"] },
+        (old) => {
+          if (!old) return [];
+          return old.map((n) =>
+            idSet.has(n.id)
+              ? { ...n, is_read: isRead, read_at: isRead ? new Date().toISOString() : null }
+              : n
+          );
+        }
+      );
+
+      queryClient.setQueryData<number>(["notifications-unread-count"], (prev) => {
+        const current = prev ?? 0;
+        return isRead ? Math.max(0, current - ids.length) : current + ids.length;
+      });
+
+      queryClient.setQueryData<NotificationCounts>(["notifications-counts"], (prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          unread: isRead
+            ? Math.max(0, prev.unread - ids.length)
+            : prev.unread + ids.length,
+        };
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-counts"] });
+    },
+  });
+}
+
