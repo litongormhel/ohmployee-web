@@ -179,17 +179,17 @@ export default function DashboardPage() {
   const mosesPlantilla = useMemo(() => {
     if (totalActivePlantilla > 0 && cencomTotalPlantilla > 0) {
       const diff = totalActivePlantilla - cencomTotalPlantilla;
-      return diff > 0 ? diff : 2;
+      return diff >= 0 ? diff : 0;
     }
-    return 2;
+    return 0;
   }, [totalActivePlantilla, cencomTotalPlantilla]);
 
   const mosesHrEmploc = useMemo(() => {
     if (totalHrEmplocPending > 0 && cencomTotalPipeline > 0) {
       const diff = totalHrEmplocPending - cencomTotalPipeline;
-      return diff > 0 ? diff : 2;
+      return diff >= 0 ? diff : 0;
     }
-    return 2;
+    return 0;
   }, [totalHrEmplocPending, cencomTotalPipeline]);
 
   // Canonical Group matrix rows: Always list Group 1 to Group 5 by default, with MOSES HQ below Group 5

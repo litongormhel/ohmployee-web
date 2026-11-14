@@ -8,6 +8,13 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Thin Architecture Streamlining for Vacancy Summary (`ohm#thin-arch-vacancy-dashboard` — 2026-11-15)**:
+  - Enforced the KISS ("Database Computes, UI Renders") architectural principle on the `/vacancy` summary metrics query.
+  - In `src/lib/queries/vacancy.ts`, eliminated 190 lines of bloated client-side querying and in-memory loops in `getVacancySummary`:
+    - Removed `pipelinePromise` and `failedPromise` that previously downloaded the entire active `applicants` table and `vw_vacancy_list` rows over the network to filter in JavaScript. The database RPC `get_web_vacancy_summary` already authoritatively computes `pipeline` (`sum(ar.active_pipeline_count)`) and `failedBackout` (`rejected + backout`) in SQL.
+    - Converted `closurePromise` to PostgREST exact head count (`select("id", { count: "exact", head: true })`) with `.or()` filter, eliminating downloading all raw vacancy rows into memory.
+  - In `src/app/(dashboard)/dashboard/page.tsx`, cleaned up MOSES HQ derivation to `Math.max(0, diff)`, removing magic fallback numbers.
+
 - **Coverage Group Vacancy Consolidation & Active Manpower Merge (`ohm#c4g9m2k7` — 2026-11-14)**:
   - **The Requirement**:
     1. In Vacancy views (`/vacancy` and Plantilla Tab 3 Vacancy), an open Coverage Group must render as **one single consolidated row** with its `CGCode` in the `VCode / CGCode` column while preserving individual store `VCode`s intact.

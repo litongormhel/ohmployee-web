@@ -1,5 +1,23 @@
 # AI Handoff
 
+## Execution Report — Thin Architecture for Vacancy & Dashboard, and Mobile Announcement Routing (ohm#thin-arch-vacancy-dashboard-mobile-announcements)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTIONS 1 AND 2 ACROSS WEB AND MOBILE REPOSITORIES: (1) MOBILE ANNOUNCEMENTS PUSH & DEEP LINK ROUTING (`D:\Projects\OHMployee`): IN `lib/shared/navigation/notification_navigation_service.dart`, ADDED `NotificationModuleType.dashboard`, MAPPED `route == '/dashboard'` AND `reference_type == 'announcement'` TO EXECUTE `_navigateToDashboard` (POPS TO ROOT DASHBOARD SCREEN); IN `lib/features/notifications/notifications_screen.dart`, ADDED `Icons.campaign_outlined` FOR ANNOUNCEMENTS; (2) WEB VACANCY THIN ARCHITECTURE (`src/lib/queries/vacancy.ts`): ELIMINATED 190 LINES OF REDUNDANT IN-MEMORY CLIENT-SIDE LOOPS IN `getVacancySummary`; REMOVED `pipelinePromise` AND `failedPromise` WHICH PREVIOUSLY DOWNLOADED ALL ACTIVE APPLICANTS AND VW_VACANCY_LIST ROWS, DELEGATING `pipeline` AND `failedBackout` DIRECTLY TO DATABASE RPC `get_web_vacancy_summary`; CONVERTED `closurePromise` TO POSTGREST EXACT HEAD COUNT (`select("id", { count: "exact", head: true })`); (3) WEB DASHBOARD CLEANUP (`src/app/(dashboard)/dashboard/page.tsx`): REPLACED HARDCODED MOSES HQ DERIVATIONS WITH `Math.max(0, diff)`; UPDATED `docs/state/vacancy_web_state.md`; VERIFIED CLEAN VIA `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS, 0 WARNINGS), AND `flutter analyze` (0 NEW ISSUES); COMMITTED LOCALLY ON MAIN ACROSS BOTH REPOSITORIES.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/vacancy_web_state.md`, `docs/state/dashboard_state.md`, `src/lib/queries/vacancy.ts`, `src/app/(dashboard)/dashboard/page.tsx`, `D:\Projects\OHMployee\lib\shared\navigation\notification_navigation_service.dart`, `D:\Projects\OHMployee\lib\features\notifications\notifications_screen.dart`.
+
+### 1. Changes Delivered
+1. **Mobile Announcement Routing & Push Deep-Link (`D:\Projects\OHMployee`)**:
+   - `lib/shared/navigation/notification_navigation_service.dart`: Added `NotificationModuleType.dashboard`. Mapped `/dashboard` routes and `reference_type = 'announcement'` in `_resolveRoute` and `_resolveModuleType`. Implemented `_navigateToDashboard`, ensuring taps on announcement push notifications pop straight to the root Dashboard screen where active announcements and urgent modals are displayed.
+   - `lib/features/notifications/notifications_screen.dart`: Configured `_iconForType` to render `Icons.campaign_outlined` for announcement notifications.
+2. **Web Vacancy Thin Architecture (`src/lib/queries/vacancy.ts`)**:
+   - In `getVacancySummary`, removed heavy client-side querying and in-memory applicant grouping (`pipelinePromise` and `failedPromise`), taking authoritative pipeline and dropout metrics directly from `get_web_vacancy_summary`.
+   - Converted `closurePromise` to execute an exact head count (`{ count: "exact", head: true }`) with PostgREST `.or()` predicates, eliminating full-table client downloads.
+3. **Web Dashboard Derivations (`src/app/(dashboard)/dashboard/page.tsx`)**:
+   - Replaced magic number `: 2` fallbacks in `mosesPlantilla` and `mosesHrEmploc` with clean `Math.max(0, diff)` logic.
+
+---
+
 ## Execution Report — Direct Pass-Through for CENCOM and Plantilla KPIs (ohm#streamline-cencom-plantilla-dual-computation)
 
 **Status: COMPLETE ON MAIN; ENFORCED THE KISS ("DATABASE COMPUTES, UI RENDERS") ARCHITECTURAL PRINCIPLE ACROSS CENCOM AND PLANTILLA MODULES: (1) QUERY OPTIMIZATION (`src/lib/queries/cencom.ts`): REMOVED REDUNDANT CLIENT-SIDE WORKFORCE RE-COUNTING IN `fetchCencomGroupAllocationKpi` AND `fetchCencomGroupDetail`, ELIMINATING MASS OVER-THE-NETWORK DOWNLOADS OF ALL ACTIVE PLANTILLA EMPLOYEES AND ALL SLOTS; METRICS PASS DIRECTLY FROM `v_cencom_group_allocation_kpi` AND `v_cencom_account_allocation_kpi`; REMOVED BRITTLE HARDCODED GROUP NAME/CODE OVERRIDES (`isGroup1 && actual >= 12`, `isGroup2 && actual >= 4`) FROM `normalizeSlotAuthorityMetrics`; (2) PLANTILLA PAGE OPTIMIZATION (`src/app/(dashboard)/plantilla/page.tsx`): IN `accountKpiMap` QUERY, SWITCHED RETAIL ACCOUNTS TO DIRECT PASS-THROUGH FROM `v_account_allocation_kpi` (`actual_hc`, `slot_vacant_hc`, `pipeline_count`, `required_hc`), ELIMINATING FRONTEND DOUBLE-COMPUTATION AND SUBTRACTION LOOPS; (3) UPDATED `docs/state/cencom_state.md`; VERIFIED WITH 0 ERRORS VIA `npm run check:adr` (FRESH), `npm run check:sql` (641 MIGRATIONS OK), `npm test` (226/226 PASSED), AND `npm run lint` (0 ERRORS, 0 WARNINGS); LOCAL COMMIT ON MAIN.**

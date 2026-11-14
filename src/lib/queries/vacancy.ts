@@ -1068,150 +1068,11 @@ export async function getVacancySummary(
   const supabase = createClient();
   const summaryRpcParams = getSummaryRpcParams(params);
 
+  // Authoritative Database Summary RPC (KISS - Database Computes, UI Renders)
   const summaryPromise = supabase.rpc(
     "get_web_vacancy_summary",
     summaryRpcParams,
   );
-
-  // Pipeline tab count: active pipeline applicants (per person / applicant, matching table rows and export)
-  const pipelinePromise = (async () => {
-    try {
-      const TERMINAL_STATUSES = [
-        "failed",
-        "backout",
-        "rejected",
-        "did_not_report",
-        "did not report",
-        "rejected_by_ops",
-        "rejected by ops",
-        "withdrew",
-        "confirmed_onboard",
-        "confirmed onboard",
-        "hired",
-      ];
-
-      const { data: pipelineApplicants, error: appsError } = await supabase
-        .from("applicants")
-        .select(`
-          id,
-          vacancy_vcode,
-          first_name,
-          last_name,
-          middle_name,
-          full_name,
-          status,
-          created_at
-        `)
-        .eq("is_archived", false)
-        .order("created_at", { ascending: false });
-
-      if (appsError || !Array.isArray(pipelineApplicants) || pipelineApplicants.length === 0) {
-        return 0;
-      }
-
-      const activeCandidates = pipelineApplicants.filter((a) => {
-        const normStatus = (asString(a.status) || "").toLowerCase().trim().replace(/[\s-]+/g, "_");
-        return !TERMINAL_STATUSES.some((t) => t.replace(/[\s-]+/g, "_") === normStatus);
-      });
-
-      if (activeCandidates.length === 0) return 0;
-
-      const vcodes = Array.from(
-        new Set(activeCandidates.map((c) => asString(c.vacancy_vcode)).filter(Boolean)),
-      ) as string[];
-
-      if (vcodes.length === 0) return 0;
-
-      let vacQuery = supabase
-        .from("vw_vacancy_list")
-        .select(`
-          id,
-          vcode,
-          store_name,
-          store_branch,
-          position,
-          account,
-          account_id,
-          group_id,
-          vacant_date,
-          created_at,
-          urgency_level,
-          status,
-          is_archived
-        `)
-        .in("vcode", vcodes)
-        .eq("is_archived", false);
-
-      if (params.accountId) {
-        vacQuery = vacQuery.eq("account_id", params.accountId);
-      }
-      if (params.groupId) {
-        vacQuery = vacQuery.eq("group_id", params.groupId);
-      }
-      if (params.urgency) {
-        vacQuery = vacQuery.ilike("urgency_level", params.urgency);
-      }
-      if (params.vacantFrom) {
-        vacQuery = vacQuery.gte("vacant_date", params.vacantFrom);
-      }
-      if (params.vacantTo) {
-        vacQuery = vacQuery.lte("vacant_date", params.vacantTo);
-      }
-
-      const { data: vacData, error: vacError } = await vacQuery;
-      if (vacError || !vacData) return 0;
-
-      const vacMap = new Map(
-        vacData
-          .filter((v) => {
-            const st = (v.status || "").toLowerCase().trim();
-            return st !== "filled" && st !== "closed" && st !== "archived";
-          })
-          .map((v) => [v.vcode, v]),
-      );
-
-      let validCandidates = activeCandidates.filter((c) => vacMap.has(asString(c.vacancy_vcode)));
-
-      if (params.search) {
-        const q = params.search.toLowerCase().trim();
-        validCandidates = validCandidates.filter((c) => {
-          const vac = vacMap.get(asString(c.vacancy_vcode));
-          const vcode = asString(c.vacancy_vcode) || "";
-          const candidateName = (asString(c.full_name) || `${asString(c.first_name)} ${asString(c.last_name)}`).toLowerCase();
-          const pos = asString(vac?.position) || "";
-          const store = asString(vac?.store_name ?? vac?.store_branch) || "";
-          const acc = asString(vac?.account) || "";
-          const st = asString(c.status) || "";
-          return (
-            vcode.toLowerCase().includes(q) ||
-            candidateName.includes(q) ||
-            pos.toLowerCase().includes(q) ||
-            store.toLowerCase().includes(q) ||
-            acc.toLowerCase().includes(q) ||
-            st.toLowerCase().includes(q)
-          );
-        });
-      }
-
-      if (params.agingBucket) {
-        validCandidates = validCandidates.filter((c) => {
-          const vac = vacMap.get(asString(c.vacancy_vcode));
-          const vDateStr = asString(vac?.vacant_date ?? vac?.created_at ?? c.created_at);
-          if (!vDateStr) return false;
-          const diffDays = Math.max(0, Math.floor((Date.now() - new Date(vDateStr).getTime()) / (1000 * 60 * 60 * 24)));
-          let bucket = "31_plus";
-          if (diffDays <= 7) bucket = "0_7";
-          else if (diffDays <= 14) bucket = "8_14";
-          else if (diffDays <= 30) bucket = "15_30";
-          return bucket === params.agingBucket;
-        });
-      }
-
-      return validCandidates.length;
-    } catch {
-      return 0;
-    }
-  })();
 
   // Hired tab count: query fn_get_hired_applicants matching mobile service
   const hiredPromise = (async () => {
@@ -1233,17 +1094,17 @@ export async function getVacancySummary(
       // 1. Fetch pending requests from vacancy_closure_requests
       const { data: rawRequests } = await supabase
         .from("vacancy_closure_requests")
-        .select("id, vacancy_vcode, status")
+        .select("vacancy_vcode")
         .ilike("status", "pending");
 
       const pendingVcodes = new Set(
         (rawRequests ?? []).map((r) => r.vacancy_vcode).filter(Boolean),
       );
 
-      // 2. Query active vacancies that match either the pending requests, has_pending_closure, or closure status
+      // 2. Query active vacancies using PostgREST exact head count
       let vacQuery = supabase
         .from("vacancies")
-        .select("id, vcode, account_id, group_id, has_pending_closure, closure_request_status, status, is_archived, deleted_at")
+        .select("id", { count: "exact", head: true })
         .eq("is_archived", false)
         .is("deleted_at", null);
 
@@ -1254,74 +1115,30 @@ export async function getVacancySummary(
         vacQuery = vacQuery.eq("group_id", params.groupId);
       }
 
-      const { data: activeVacs, error: vacError } = await vacQuery;
-      if (vacError || !activeVacs) {
+      const orConditions = [
+        "status.in.(closure,for_closure,Closure,For Closure)",
+        "has_pending_closure.eq.true",
+        "closure_request_status.ilike.pending",
+      ];
+      if (pendingVcodes.size > 0) {
+        orConditions.push(`vcode.in.(${Array.from(pendingVcodes).join(",")})`);
+      }
+      vacQuery = vacQuery.or(orConditions.join(","));
+
+      const { count, error } = await vacQuery;
+      if (error) {
         return pendingVcodes.size;
       }
-
-      const closureVacs = activeVacs.filter((v) => {
-        const vcode = v.vcode;
-        const statusLower = (v.status || "").toLowerCase().trim();
-        const closureReqStatusLower = (v.closure_request_status || "").toLowerCase().trim();
-        const isClosureStatus = statusLower === "closure" || statusLower === "for_closure";
-        const hasPendingFlag = v.has_pending_closure === true || closureReqStatusLower === "pending";
-        const hasPendingRequest = vcode ? pendingVcodes.has(vcode) : false;
-
-        return isClosureStatus || hasPendingFlag || hasPendingRequest;
-      });
-
-      return closureVacs.length;
+      return count ?? 0;
     } catch {
       return 0;
     }
   })();
 
-  // Failed / Backout tab count: all dropout applicants on non-deleted vacancies
-  const failedPromise = (async () => {
-    try {
-      const { data: dropouts, error } = await supabase
-        .from("applicants")
-        .select("id, vacancy_vcode, status, is_archived")
-        .in("status", [
-          "Backout", "backout",
-          "Rejected", "rejected",
-          "Failed", "failed",
-          "Did Not Report", "did not report",
-          "Rejected by Ops", "rejected by ops",
-        ]);
-
-      if (error || !dropouts || dropouts.length === 0) return 0;
-
-      const vcodes = Array.from(new Set(dropouts.map((d) => d.vacancy_vcode).filter(Boolean)));
-      if (vcodes.length === 0) return 0;
-
-      let vacQuery = supabase
-        .from("vacancies")
-        .select("vcode, account_id, group_id")
-        .in("vcode", vcodes)
-        .is("deleted_at", null);
-
-      if (params.accountId) {
-        vacQuery = vacQuery.eq("account_id", params.accountId);
-      }
-      if (params.groupId) {
-        vacQuery = vacQuery.eq("group_id", params.groupId);
-      }
-
-      const { data: activeVacs } = await vacQuery;
-      const activeVcodeSet = new Set((activeVacs ?? []).map((v) => v.vcode));
-      return dropouts.filter((d) => activeVcodeSet.has(d.vacancy_vcode)).length;
-    } catch {
-      return 0;
-    }
-  })();
-
-  const [summaryRes, pipelineCountResult, hiredCountResult, closureCountResult, failedCountResult] = await Promise.allSettled([
+  const [summaryRes, hiredCountResult, closureCountResult] = await Promise.allSettled([
     summaryPromise,
-    pipelinePromise,
     hiredPromise,
     closurePromise,
-    failedPromise,
   ]);
 
   if (summaryRes.status === "rejected") {
@@ -1333,11 +1150,6 @@ export async function getVacancySummary(
 
   const baseSummary = normalizeSummary(summaryRes.value.data);
 
-  const pipelineCount =
-    pipelineCountResult.status === "fulfilled"
-      ? pipelineCountResult.value
-      : baseSummary.pipeline;
-
   const hiredCount =
     hiredCountResult.status === "fulfilled"
       ? hiredCountResult.value
@@ -1348,12 +1160,9 @@ export async function getVacancySummary(
       ? closureCountResult.value
       : 0;
 
-  const failedCount =
-    failedCountResult.status === "fulfilled"
-      ? failedCountResult.value
-      : 0;
-
   const openCount = baseSummary.open;
+  const pipelineCount = baseSummary.pipeline;
+  const failedCount = baseSummary.failedBackout;
 
   return {
     ...baseSummary,
