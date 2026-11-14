@@ -1,5 +1,70 @@
 # AI Handoff
 
+## Execution Report — Align Account Card Vacant to Open Unassigned Headcount (ohm#u5v8p2k4)
+
+**Status: COMPLETE ON MAIN; ALIGNED PLANTILLA DIRECTORY ACCOUNT CARD METRICS TO MUTUALLY EXCLUSIVE HEADCOUNT ACCOUNTING INVARIANT; VACANT METRIC ON ACCOUNT CARDS STRICTLY DERIVES FROM OPEN / UNASSIGNED SLOTS (TOTAL UNFILLED SLOTS - PIPELINE COUNT), ELIMINATING CANDIDATE DOUBLE-COUNTING; REQUIRED HEADCOUNT FORMULA STANDARDIZED AS REQUIRED = ACTUAL + ON-LEAVE + VACANT (OPEN) + PIPELINE; FOR FOREVER OFFICE, RECONCILED EXACT USER SPECIFICATION: VACANT = 5, PIPELINE = 1, ACTIVE = 4, ON-LEAVE = 1, TOTAL REQUIRED = 11, ACTUAL = 4 (MFR 36.36%); FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm run lint 0 ERRORS); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla Module), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Plantilla Section, `docs/architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md`.
+
+### 1. Observation & User Approval
+- User instruction:
+  > "5 lang dapat ang vacant ng Forever Office dapat Open/Unassigned ang kinukuha nya not the all vacancies kasi kasama don ung pipeline.
+  > ADD this to ADR if not existing
+  > So the total for Forever Office
+  > Vacanct - 5
+  > Pipeline - 1
+  > Active - 4
+  > On-Leave - 1
+  > Required - 11
+  > Actual - 4"
+- Forensic analysis of Forever Office:
+  - Inside Account View:
+    - Tab 1 Active: 4 employees (`actual = 4`)
+    - Tab 2 On-Leave: 1 employee (`leave = 1`)
+    - Tab 3 Vacancy sub-tabs:
+      - `All Vacancies (5 · 6 slots)`: 6 total unfilled physical slots.
+      - `Open / Unassigned (4 · 5 slots)`: 5 slots with status `Vacancy - Open`.
+      - `HR Pipeline (For Emploc) (1)`: 1 slot (`CPSAJV27` Puregold General Trias) with applicant `Al, James N/A` in `HR Emploc - Pending`.
+  - Account Card previously displayed: `HC 4/12 • Vacant 6 • Pipeline 1 • Leave 1` because it used `openSlots` (6 total unfilled slots) directly as `vacant`, double-counting the pipeline candidate who occupies one of those unfilled slots.
+  - Presenting `Vacant` as Open/Unassigned slots yields:
+    - `vacant = Math.max(0, totalUnfilled - hrProcess) = 6 - 1 = 5`
+    - `required = actual + leave + vacant + hrProcess = 4 + 1 + 5 + 1 = 11`
+    - `actual = 4`
+    - `fillRate = 4 / 11 = 36.36%`
+- Presented plan through the Approval Gate; user explicitly approved: "approved".
+
+### 2. Surgical Changes
+1. **`src/app/(dashboard)/plantilla/page.tsx`**:
+   - Updated `accountMetricsQuery` in lines 755–802:
+     - `const actual = activeCount > 0 ? activeCount : kpiActual;`
+     - `const leave = leaveMap.get(accId) ?? 0;`
+     - `const openSlots = openSlotsMap.get(accId) ?? 0;`
+     - `const totalUnfilled = openSlots > 0 ? openSlots : Math.round(Number(row.slot_vacant_hc ?? 0));`
+     - Enforced mutually exclusive Vacant: `const vacant = Math.max(0, totalUnfilled - hrProcess);`
+     - Enforced canonical Required: `const required = actual + leave + vacant + hrProcess;`
+     - Applied matching logic to non-KPI fallback accounts.
+2. **`docs/state/plantilla_web_state.md`**:
+   - Documented the Mutually Exclusive Account Card Vacant & Pipeline Headcount Reconciliation invariant (`ohm#u5v8p2k4`).
+
+### 3. ADR updates needed (Ohm applies in mobile repo)
+- Per the user's explicit directive ("ADD this to ADR if not existing") and AGENTS.md § ADR Mirrors (read-only mirrors, source of truth is mobile repo):
+  - **Target Document**: `ADR-001-ohmployee-system-architecture.md` (and `adr002_plantilla_import_store_identity_and_governance.md` § Headcount Accounting).
+  - **Proposed Section**: § Headcount Governance & Roster Parity Invariants → `Invariant: Mutually Exclusive Directory Vacant & Pipeline Metrics`.
+  - **Proposed Specification Text**:
+    > **Invariant: Mutually Exclusive Account Card Vacancy & Pipeline Accounting**
+    > On executive and directory account portfolio cards (such as `/plantilla` Directory Grid), the `Vacant` badge must strictly represent **Open / Unassigned headcount** (`vacant = Math.max(0, total_unfilled_slots - pipeline_count)`).
+    > Applicants and candidates progressing through onboarding compliance (`HR Emploc - *` or `Vacancy - Pipeline`) are classified under `Pipeline` and must never be double-counted under `Vacant`.
+    > Total Required Headcount across all account views is governed by:
+    > $$\text{Required HC} = \text{Actual Deployed} + \text{On-Leave} + \text{Vacant (Open/Unassigned)} + \text{Pipeline (Onboarding)}$$
+    > This guarantees exact mathematical reconciliation: $\text{Required} = 4 + 1 + 5 + 1 = 11$, with $\text{MFR} = \frac{\text{Actual}}{\text{Required}} = \frac{4}{11} \approx 36.36\%$.
+
+### 4. Verification
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb 2026-11-12T10:33:06+08:00), ADR-002 (49d7a40 2026-11-12T17:34:47+08:00).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 634 migrations.
+- `npm run lint` → 0 errors, 0 warnings.
+
+---
+
 ## Execution Report — Plantilla Forever Office Borillo Slot & VCode Reconciliation (ohm#b7v6m1k9)
 
 **Status: COMPLETE ON MAIN; RECONCILED FOREVER OFFICE HEADCOUNT METRICS BY RESOLVING VCODE MISMATCH AND PHYSICAL SLOT OCCUPANCY FOR EMPLOYEE FRED RICHARD BORILLO (2021-11468) AT SMCO KAWIT; APPLIED SURGICAL MIGRATION 20262606000109_reconcile_forever_office_borillo_slot.sql UPDATING BORILLO'S VCODE FROM CPRVJV13 TO CPSMJV21, BINDING SMCO KAWIT PHYSICAL SLOT 1 IN plantilla_slots AS OCCUPIED, AND ACTIVATING HIS STORE ALLOCATION IN employee_store_allocations; RESTORED VISIBILITY OF DIVIMART GENERAL TRIAS (CPRVJV13) IN TAB 3 VACANCY; CARD (VACANT 6) AND TAB (6 SLOTS ACROSS 6 STORES) RECONCILED 1:1; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm run lint 0 ERRORS); LOCAL COMMIT ON MAIN.**

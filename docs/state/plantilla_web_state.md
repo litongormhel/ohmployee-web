@@ -1101,17 +1101,22 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Dynamically resolves pool accounts (`isPoolAccount: true` or name matching `"Moses HQ"`), mapping live active headcount (`actual = 3`), open pool slots (`vacant = 20`), and total budgeted pool capacity (`required = 23`).
     - Matches 100% parity with the internal `MosesHqPoolView` metric cards (Active: 3, Vacant: 20, Budgeted: 23), presenting `HC 3/23 · Vacant 20` on the Moses HQ card.
 
-- **Plantilla Cards vs Account Content Headcount Parity & Slots Invariant (`ohm#s7k2p9m1` — 2026-11-14)**:
-  - **Root Cause Resolved**: Plantilla Directory cards previously displayed deflated headcount fractions (e.g. `HC 2/4` or `3/4`) while the staffing inside the account ("sa loob") showed significantly more slots and employees. This was caused by two issues:
-    1. In `src/app/(dashboard)/plantilla/page.tsx`, the card sorting/mapping logic hardcoded `const required = actual + vacant;`, completely overriding `summary.required` and ignoring pipeline demand or unlinked slots.
-    2. In `v_account_allocation_kpi`, `slot_vacant_non_roving` used an `INNER JOIN public.vacancies v ON v.vcode = ps.legacy_vcode`, silently excluding any slot in `plantilla_slots` that lacked an exact legacy `vcode` match or was unlinked.
-  - **Architectural Invariant Enforced**: **`Required Headcount = Total Non-Closed Slots`** (`plantilla_slots` where `slot_status <> 'closed' AND closed_at IS NULL`).
-  - **Surgical Remediation (`src/app/(dashboard)/plantilla/page.tsx`)**:
-    - Enhanced `accountMetricsQuery` to concurrently fetch physical non-closed slots from `plantilla_slots` and active employee counts from `plantilla`.
-    - Grouped slots per account to derive total active slots (`totalSlots`) and open slots (`openSlots`).
-    - Calculated `required = totalSlots > 0 ? totalSlots : (kpiRequired > 0 ? kpiRequired : actual + vacant)` and `vacant = openSlots > 0 ? openSlots : Math.max(required - actual - hrProcess, 0)`.
-    - Updated card mapper to preserve `required = summary.required` instead of overriding with `actual + vacant`.
-    - Guaranteed full parity between directory cards and internal account store/employee rosters.
+- **Mutually Exclusive Account Card Vacant & Pipeline Headcount Reconciliation (`ohm#u5v8p2k4` — 2026-11-14)**:
+  - **Contract Enforced**: The Plantilla Directory Account Card `Vacant` metric strictly reflects **Open / Unassigned slots only** (`totalUnfilled - hrProcess`), preventing double-counting of candidates who are already progressing through the HR Onboarding Pipeline (`pipeline_count`).
+  - **Required Headcount Formula**:
+    $$\text{Required HC} = \text{Actual Deployed} + \text{On-Leave} + \text{Vacant (Open/Unassigned)} + \text{Pipeline (Onboarding)}$$
+  - **Forever Office Parity Example**:
+    - **Active**: 4 (deployed store employees)
+    - **On-Leave**: 1
+    - **Vacant**: 5 (open/unassigned slots, derived from $6 \text{ total unfilled slots} - 1 \text{ candidate in pipeline}$)
+    - **Pipeline**: 1 (`Al, James N/A` in `HR Emploc - Pending` at `CPSAJV27` Puregold General Trias)
+    - **Total Required**: 11 ($4 + 1 + 5 + 1 = 11$)
+    - **Actual Deployed**: 4 (Fill Rate: $4 / 11 = 36.36\%$)
+  - **Surgical Implementation (`src/app/(dashboard)/plantilla/page.tsx`)**:
+    - Updated `accountMetricsQuery` so `vacant = Math.max(0, totalUnfilled - hrProcess)`.
+    - Computed `required = actual + leave + vacant + hrProcess`.
+    - Applied identical formula across both KPI-backed and fallback accounts in the account selection grid.
+
 
 
 

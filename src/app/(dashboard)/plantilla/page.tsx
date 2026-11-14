@@ -758,30 +758,25 @@ function PlantillaPageContent() {
 
         const kpiActual = Number(row.actual_hc ?? 0);
         const activeCount = activeEmpMap.get(accId) ?? 0;
-        const actual = Math.max(kpiActual, activeCount);
+        const actual = activeCount > 0 ? activeCount : kpiActual;
 
         const hrProcess = Number(row.pipeline_count ?? 0);
-        const kpiRequired = Math.round(Number(row.required_hc ?? 0));
-        const slotTotal = totalSlotsMap.get(accId) ?? 0;
-
-        // Invariant: Required Headcount = Slots (total active slots under account)
-        const required =
-          slotTotal > 0
-            ? slotTotal
-            : kpiRequired > 0
-              ? kpiRequired
-              : actual + Math.round(Number(row.slot_vacant_hc ?? 0));
+        const leave = leaveMap.get(accId) ?? 0;
 
         const openSlots = openSlotsMap.get(accId) ?? 0;
-        const vacant =
+        const totalUnfilled =
           openSlots > 0
             ? openSlots
-            : slotTotal > 0
-              ? Math.max(required - actual - hrProcess, 0)
-              : Math.round(Number(row.slot_vacant_hc ?? 0));
+            : Math.round(Number(row.slot_vacant_hc ?? 0));
+
+        // Mutually exclusive Vacancy & Pipeline display contract:
+        // Vacant strictly reflects Open / Unassigned slots (excluding candidates in pipeline)
+        const vacant = Math.max(0, totalUnfilled - hrProcess);
+
+        // Required Headcount Invariant: Actual + On-Leave + Vacant (Open) + Pipeline
+        const required = actual + leave + vacant + hrProcess;
 
         const fillRate = required > 0 ? (actual / required) * 100 : 0;
-        const leave = leaveMap.get(accId) ?? 0;
         map.set(accId, { actual, vacant, hrProcess, required, fillRate, leave });
       });
 
@@ -790,13 +785,13 @@ function PlantillaPageContent() {
         const accId = String(a.id);
         if (!processedAccountIds.has(accId) && !a.isPoolAccount && a.name.trim().toLowerCase() !== "moses hq") {
           const actual = activeEmpMap.get(accId) ?? 0;
-          const slotTotal = totalSlotsMap.get(accId) ?? 0;
-          const openSlots = openSlotsMap.get(accId) ?? 0;
-          const required = slotTotal > 0 ? slotTotal : actual;
-          const vacant = openSlots > 0 ? openSlots : Math.max(required - actual, 0);
-          const fillRate = required > 0 ? (actual / required) * 100 : 0;
           const leave = leaveMap.get(accId) ?? 0;
-          map.set(accId, { actual, vacant, hrProcess: 0, required, fillRate, leave });
+          const openSlots = openSlotsMap.get(accId) ?? 0;
+          const vacant = openSlots;
+          const hrProcess = 0;
+          const required = actual + leave + vacant + hrProcess;
+          const fillRate = required > 0 ? (actual / required) * 100 : 0;
+          map.set(accId, { actual, vacant, hrProcess, required, fillRate, leave });
         }
       });
 
