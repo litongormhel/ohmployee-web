@@ -1125,6 +1125,14 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Tab 3 Vacancy recognizes the active roving employee coverage via `activeOccupiedVcodes` and suppresses covered member stores.
   - **UI Parity**: `StoreVacancyTable` and `VacancyCard` render `row.cgCode || row.vcode`, and `VacancyDetailDrawer` renders itemized Assigned Stores cards with store name, `Anchor` tag, individual intact `VCode`, and $1/3$ HC badge.
 
+- **Coverage Group Creation Universal Store Footprint & Form Streamlining (`ohm#p8c2m4k1` — 2026-11-14)**:
+  - **Removed Redundant Fields**: Permanently removed `Target Position` and `Employment Type` form selectors from `CreateCoverageGroupModal.tsx`. Backend RPC executes with `positionId: undefined` and `employmentType: 'Regular'` without redundant UI input.
+  - **Universal Store Footprint Visibility**:
+    - Upgraded RPC `get_coverage_group_eligible_stores` (migration `20262606000111_coverage_group_universal_store_picker.sql`) to return **all active stationary stores** under the account regardless of vacancy status or employee occupancy.
+    - In `CreateCoverageGroupModal.tsx`, all stores are displayed in the footprint picker. Stores already belonging to an active coverage group render with disabled checkboxes and an `Already in <CGCode>` tag (matching mobile Flutter behavior in `create_coverage_group_screen.dart`), preventing overlap while maintaining full footprint awareness.
+    - Free stores render with enabled checkboxes and `Anchor` / `Set Anchor` controls.
+    - Staging test cleanup: Archived empty test groups `CG-FG1-0002` and `CG-FG1-0003` to unlock 5 stores for Forever Office.
+
 
 
 

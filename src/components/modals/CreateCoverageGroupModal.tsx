@@ -22,7 +22,6 @@ import {
 import { Modal } from "@/components/shared/Modal";
 import { useCurrentUser, isHeadOrSuperAdmin } from "@/lib/auth";
 import {
-  useAccountPositionOptions,
   useCoverageGroupEligibleStores,
   useCoverageGroups,
   useCoverageGroupDetail,
@@ -41,8 +40,6 @@ export interface CreateCoverageGroupModalProps {
   initialTab?: CoverageTabType;
   onSuccess?: (result: { coverageGroupId?: string; coverageCode?: string }) => void;
 }
-
-const EMPLOYMENT_TYPES = ["Regular", "Probationary", "Seasonal", "Agency"] as const;
 
 export function CreateCoverageGroupModal({
   isOpen,
@@ -69,8 +66,6 @@ export function CreateCoverageGroupModal({
   }
 
   // Tab 1: Create State
-  const [selectedPositionId, setSelectedPositionId] = useState<string>("");
-  const [selectedEmploymentType, setSelectedEmploymentType] = useState<string>("Regular");
   const [areaName, setAreaName] = useState<string>("");
   const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
   const [anchorStoreId, setAnchorStoreId] = useState<string | null>(null);
@@ -105,7 +100,6 @@ export function CreateCoverageGroupModal({
 
   // Queries
   const { data: accounts = [], isLoading: isLoadingAccounts } = useScopeAccounts();
-  const { data: positions = [], isLoading: isLoadingPositions } = useAccountPositionOptions(selectedAccountId);
   const {
     data: stores = [],
     isLoading: isLoadingStores,
@@ -145,21 +139,35 @@ export function CreateCoverageGroupModal({
 
   const operationMutation = useCoverageOperation();
 
-  // Filtered stationary/free stores (for Create and Add Store)
-  const stationaryStores = useMemo(() => {
+  // Free stationary stores (not currently in an active coverage group)
+  const freeStores = useMemo(() => {
     return stores.filter((s) => !s.alreadyGroupedCode);
   }, [stores]);
 
-  const filteredStationaryStores = useMemo(() => {
-    if (!storeSearch.trim()) return stationaryStores;
+  // All stores filtered by search term (for Create Group footprint)
+  const filteredStores = useMemo(() => {
+    if (!storeSearch.trim()) return stores;
     const q = storeSearch.toLowerCase();
-    return stationaryStores.filter(
+    return stores.filter(
+      (s) =>
+        s.storeName.toLowerCase().includes(q) ||
+        s.areaCity.toLowerCase().includes(q) ||
+        s.areaProvince.toLowerCase().includes(q) ||
+        (s.alreadyGroupedCode && s.alreadyGroupedCode.toLowerCase().includes(q))
+    );
+  }, [stores, storeSearch]);
+
+  // Free stores filtered by search term (for Add Store footprint)
+  const filteredFreeStores = useMemo(() => {
+    if (!storeSearch.trim()) return freeStores;
+    const q = storeSearch.toLowerCase();
+    return freeStores.filter(
       (s) =>
         s.storeName.toLowerCase().includes(q) ||
         s.areaCity.toLowerCase().includes(q) ||
         s.areaProvince.toLowerCase().includes(q)
     );
-  }, [stationaryStores, storeSearch]);
+  }, [freeStores, storeSearch]);
 
   // Tab switching handler
   const handleTabChange = (newTab: CoverageTabType) => {
@@ -174,8 +182,6 @@ export function CreateCoverageGroupModal({
     if (!defaultAccountId) {
       setSelectedAccountId("");
     }
-    setSelectedPositionId("");
-    setSelectedEmploymentType("Regular");
     setAreaName("");
     setSelectedStoreIds(new Set());
     setAnchorStoreId(null);
@@ -236,7 +242,7 @@ export function CreateCoverageGroupModal({
     if (!selectedAccountId || operationMutation.isPending) return true;
 
     if (activeTab === "create") {
-      return !selectedPositionId || selectedStoreIds.size < 2 || !anchorStoreId;
+      return selectedStoreIds.size < 2 || !anchorStoreId;
     }
 
     if (activeTab === "add_store") {
@@ -269,7 +275,6 @@ export function CreateCoverageGroupModal({
     selectedAccountId,
     operationMutation.isPending,
     activeTab,
-    selectedPositionId,
     selectedStoreIds.size,
     anchorStoreId,
     addStoreTargetGroupId,
@@ -297,10 +302,6 @@ export function CreateCoverageGroupModal({
 
     try {
       if (activeTab === "create") {
-        if (!selectedPositionId) {
-          setErrorMessage("Please select a target position.");
-          return;
-        }
         if (selectedStoreIds.size < 2) {
           setErrorMessage("Coverage groups require at least 2 member stores.");
           return;
@@ -313,8 +314,8 @@ export function CreateCoverageGroupModal({
         const res = await operationMutation.mutateAsync({
           operationType: "create_coverage_group",
           accountId: selectedAccountId,
-          positionId: selectedPositionId,
-          employmentType: selectedEmploymentType,
+          positionId: undefined,
+          employmentType: "Regular",
           areaName: areaName.trim() || undefined,
           storeIds: Array.from(selectedStoreIds),
           anchorStoreId,
@@ -594,7 +595,6 @@ export function CreateCoverageGroupModal({
                   value={selectedAccountId}
                   onChange={(e) => {
                     setSelectedAccountId(e.target.value);
-                    setSelectedPositionId("");
                     setSelectedStoreIds(new Set());
                     setAnchorStoreId(null);
                     setAddStoreTargetGroupId("");
@@ -629,54 +629,6 @@ export function CreateCoverageGroupModal({
                   </span>
                 </div>
 
-                {/* Position & Employment Type Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-text-primary">
-                      Target Position <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={selectedPositionId}
-                      onChange={(e) => setSelectedPositionId(e.target.value)}
-                      disabled={!selectedAccountId || isLoadingPositions || operationMutation.isPending}
-                      className="w-full h-9 rounded-lg border border-border-default bg-surface-base px-3 text-xs text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
-                    >
-                      <option value="">
-                        {!selectedAccountId
-                          ? "-- Select Account First --"
-                          : isLoadingPositions
-                          ? "Loading positions..."
-                          : positions.length === 0
-                          ? "-- No Positions Configured --"
-                          : "-- Select Position --"}
-                      </option>
-                      {positions.map((p) => (
-                        <option key={p.positionId} value={p.positionId}>
-                          {p.positionName} {p.positionCode ? `(${p.positionCode})` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-text-primary">
-                      Employment Type <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={selectedEmploymentType}
-                      onChange={(e) => setSelectedEmploymentType(e.target.value)}
-                      disabled={operationMutation.isPending}
-                      className="w-full h-9 rounded-lg border border-border-default bg-surface-base px-3 text-xs text-text-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                    >
-                      {EMPLOYMENT_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
                 {/* Area Name */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-text-primary">
@@ -692,7 +644,7 @@ export function CreateCoverageGroupModal({
                   />
                 </div>
 
-                {/* Store Footprint Picker (Stationary Stores Only) */}
+                {/* Store Footprint Picker */}
                 <div className="space-y-2 pt-2 border-t border-border-subtle">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -701,24 +653,24 @@ export function CreateCoverageGroupModal({
                         <span className="text-red-500">*</span>
                       </label>
                       <p className="text-[11px] text-text-muted">
-                        Only stationary stores not currently in any coverage group are shown.
+                        All stationary stores under this account. Stores already in an active coverage group are locked.
                       </p>
                     </div>
-                    {stationaryStores.length > 0 && (
+                    {freeStores.length > 0 && (
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => {
-                            const next = new Set(stationaryStores.map((s) => s.storeId));
+                            const next = new Set(freeStores.map((s) => s.storeId));
                             setSelectedStoreIds(next);
                             if (!anchorStoreId && next.size > 0) {
-                              setAnchorStoreId(Array.from(next)[0]);
+                              setAnchorStoreId(freeStores[0].storeId);
                             }
                           }}
                           disabled={operationMutation.isPending}
                           className="text-[11px] font-semibold text-brand-600 hover:text-brand-700 cursor-pointer disabled:opacity-50"
                         >
-                          Select All ({stationaryStores.length})
+                          Select All ({freeStores.length})
                         </button>
                         <span className="text-text-muted/50">•</span>
                         <button
@@ -755,7 +707,7 @@ export function CreateCoverageGroupModal({
                         type="text"
                         value={storeSearch}
                         onChange={(e) => setStoreSearch(e.target.value)}
-                        placeholder="Filter stationary stores..."
+                        placeholder="Filter stores by name, city, province, or group..."
                         className="w-full h-8 pl-8 pr-3 rounded-lg border border-border-default bg-surface-base text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                       />
                     </div>
@@ -772,18 +724,53 @@ export function CreateCoverageGroupModal({
                         <Loader2 className="h-4 w-4 animate-spin text-brand-primary" />
                         <span>Loading stores...</span>
                       </div>
-                    ) : stationaryStores.length === 0 ? (
+                    ) : stores.length === 0 ? (
                       <div className="p-6 text-center text-xs text-text-muted">
-                        No unassigned stationary stores found for this account.
+                        No stationary stores found for this account.
                       </div>
-                    ) : filteredStationaryStores.length === 0 ? (
+                    ) : filteredStores.length === 0 ? (
                       <div className="p-6 text-center text-xs text-text-muted">
-                        No stationary stores match &quot;{storeSearch}&quot;.
+                        No stores match &quot;{storeSearch}&quot;.
                       </div>
                     ) : (
-                      filteredStationaryStores.map((store) => {
+                      filteredStores.map((store) => {
+                        const isGrouped = !!store.alreadyGroupedCode;
                         const isSelected = selectedStoreIds.has(store.storeId);
                         const isAnchor = anchorStoreId === store.storeId;
+
+                        if (isGrouped) {
+                          return (
+                            <div
+                              key={store.storeId}
+                              className="flex items-center justify-between p-2 rounded-lg border border-border-default/60 bg-surface-subtle/40 opacity-70"
+                            >
+                              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  checked={false}
+                                  disabled={true}
+                                  className="h-4 w-4 rounded border-border-default text-text-muted cursor-not-allowed opacity-50"
+                                />
+                                <div className="truncate">
+                                  <span className="text-xs font-semibold text-text-secondary truncate block">
+                                    {store.storeName}
+                                  </span>
+                                  {(store.areaCity || store.areaProvince) && (
+                                    <span className="text-[11px] text-text-muted block truncate">
+                                      {[store.areaCity, store.areaProvince].filter(Boolean).join(", ")}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="shrink-0 ml-2">
+                                <span className="inline-flex items-center gap-1 rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                                  Already in {store.alreadyGroupedCode}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div
                             key={store.storeId}
@@ -931,16 +918,16 @@ export function CreateCoverageGroupModal({
                       <div className="p-6 text-center text-xs text-text-muted">
                         Select a target coverage group above to view available stores.
                       </div>
-                    ) : stationaryStores.length === 0 ? (
+                    ) : freeStores.length === 0 ? (
                       <div className="p-6 text-center text-xs text-text-muted">
                         No unassigned stationary stores available to add.
                       </div>
-                    ) : filteredStationaryStores.length === 0 ? (
+                    ) : filteredFreeStores.length === 0 ? (
                       <div className="p-6 text-center text-xs text-text-muted">
                         No stores match &quot;{storeSearch}&quot;.
                       </div>
                     ) : (
-                      filteredStationaryStores.map((store) => {
+                      filteredFreeStores.map((store) => {
                         const isSelected = selectedStoresToAdd.has(store.storeId);
                         return (
                           <label

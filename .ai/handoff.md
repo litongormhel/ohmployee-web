@@ -1,5 +1,51 @@
 # AI Handoff
 
+## Execution Report — Coverage Group Creation Universal Store Footprint & Form Streamlining (ohm#p8c2m4k1)
+
+**Status: COMPLETE ON MAIN; STREAMLINED COVERAGE GROUP CREATION MODAL BY (1) REMOVING REDUNDANT TARGET POSITION AND EMPLOYMENT TYPE INPUTS, (2) UPGRADING RPC GET_COVERAGE_GROUP_ELIGIBLE_STORES (MIGRATION 20262606000111) TO RETURN ALL ACTIVE STORES UNDER THE ACCOUNT REGARDLESS OF VACANCY OR OCCUPANCY, (3) DISPLAYING ALL STORES WITH MOBILE PARITY WHERE CURRENTLY GROUPED STORES ARE VISIBLE WITH DISABLED CHECKBOXES AND "ALREADY IN <CGCode>" STATUS BADGES, AND (4) CLEANING UP EMPTY STAGING TEST GROUPS CG-FG1-0002 AND CG-FG1-0003 TO UNLOCK 5 STORES; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm run lint 0 ERRORS, npm run build EXIT 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla & More Modules), `docs/state/plantilla_web_state.md`, `docs/state/more_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants & Plantilla Section.
+
+### 1. Observation & User Approval
+- User instruction:
+  > "Remove Target Position and Employment Type hindi naman yan need
+  > Upon checking 3 stores lang ang available na dapat lahat ng stationary stores ang makikita regardless if vacant or may employee."
+- Plan presented and approved explicitly by the user ("approved"):
+  - Remove Target Position and Employment Type fields from the modal UI; pass `positionId: undefined` and `employmentType: 'Regular'` to the creation RPC.
+  - Return all active stationary stores for the account via `public.get_coverage_group_eligible_stores`.
+  - In the modal store footprint picker, render all stores. Free stores are checkable with anchor controls; stores already in an active coverage group remain visible but locked with disabled checkboxes and an `Already in <CGCode>` tag (full mobile Flutter parity).
+  - Clean up empty test groups `CG-FG1-0002` and `CG-FG1-0003` from Staging.
+
+### 2. Surgical Changes
+1. **`supabase/migrations/20262606000111_coverage_group_universal_store_picker.sql`**:
+   - Upgraded `public.get_coverage_group_eligible_stores`:
+     - Retained full table return signature `TABLE(store_id uuid, store_name text, store_code text, area_city text, area_province text, already_grouped_id uuid, already_grouped_code text)`.
+     - Filtered strictly on active account stores (`WHERE account_id = p_account_id AND is_active = true AND lower(COALESCE(status, 'active')) <> 'archived'`).
+     - Removed restrictive slot and vacancy filters that previously hid occupied stationary stores.
+   - Performed Staging data cleanup archiving empty test groups `CG-FG1-0002` and `CG-FG1-0003` (created during earlier test turns with 0 employees and 0 requests), which had locked 5 stores (`Puregold Noveleta Oasis`, `Puregold - Hugo Perez`, `Emilus Tanza`, `Puergold General Trias`, `Puregold Centenial Kawit`).
+   - Applied to remote Staging (`qqiiznmqxfoamqytjica`) with `--yes`.
+2. **`src/components/modals/CreateCoverageGroupModal.tsx`**:
+   - Removed `useAccountPositionOptions` query and import.
+   - Removed `selectedPositionId` and `selectedEmploymentType` state, setters, and validation.
+   - In Tab 1 JSX:
+     - Removed the Target Position and Employment Type form grid.
+     - Updated Store Footprint Picker header to show `Stationary Stores Footprint ({selectedStoreIds.size} Selected) *`.
+     - "Select All" button uses `freeStores.length` (`Select All (${freeStores.length})`), selecting only free stores.
+     - Store search filters by store name, city, province, or coverage code.
+     - Iterates over `filteredStores`:
+       - If `store.alreadyGroupedCode`: renders row with disabled checkbox, muted text, and badge `Already in {store.alreadyGroupedCode}` (mobile Flutter parity).
+       - If free (`!store.alreadyGroupedCode`): renders row with enabled checkbox, selection toggle, and "Anchor" / "Set Anchor" controls.
+   - In Tab 2 JSX (Add Store): updated store list and counts to use `freeStores` and `filteredFreeStores`.
+
+### 3. Verification & Sign-off
+- `npm run check:adr`: Remote check FRESH — ADR-001 (`3729ccb`), ADR-002 (`49d7a40`).
+- `npm run check:sql`: SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 636 migrations.
+- `npm run lint`: Clean (0 errors, 0 warnings).
+- `npm run build`: Production build succeeded (Next.js 16.2.4 compiled in 25.2s, TypeScript clean, all 20 pages statically generated).
+- Remote Staging verification: 8 stores in Forever Office are now free stationary stores (`already_grouped_code = null`); 3 stores in `CG-FG1-0004` display `already_grouped_code = 'CG-FG1-0004'`.
+
+---
+
 ## Execution Report — Coverage Group Manpower Merge, Approvals Recording & Vacancy 1-Row Consolidation (ohm#c4g9m2k7)
 
 **Status: COMPLETE ON MAIN; ENHANCED COVERAGE GROUP ARCHITECTURE SO THAT (1) MEMBER STORE VACANCIES ARE FULFILLED AND SUPPRESSED WHEN AN ACTIVE EMPLOYEE IS ASSIGNED, (2) OPEN COVERAGE GROUPS CONSOLIDATE INTO 1 SINGLE VACANCY ROW WITH CGCODE DISPLAYED WHILE RETAINING INTACT VCODES, (3) ALLOCATIONS REFLECT 1/N FRACTIONAL HEADCOUNT (1/3 HC) IN STORE STAFFING AND VACANCY DRAWER, AND (4) DIRECT CREATION BY HA/SA CREATES CANONICAL APPROVAL RECORDS AND AUDIT LOGS FOR RECENT ACTIVITY; MIGRATION 20262606000110 APPLIED AND RECONCILED IN STAGING; FULL VERIFICATION PASSED (npm run check:adr FRESH, npm run check:sql OK, npm run lint 0 ERRORS, npm run build EXIT 0); LOCAL COMMIT ON MAIN.**
