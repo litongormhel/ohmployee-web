@@ -362,5 +362,24 @@ The authoritative 55-item matrix governs operational drawer actions, mutations, 
 - **Danger Zone Actions:** Matches table kebab menu items with status toggle, password reset, and soft archival.
 - **Activity Log Conversational Translation:** Raw action blocks (e.g. `UPDATE_USER_ROLE`, `TOGGLE_USER_STATUS`) translated into conversational sentences answering *what, who, and when* with circular initials avatar (e.g. *Avatar* `Litong, Ohm (Super Admin) changed the user's role from HR Personnel to HRCO on Nov 9, 2026 at 09:38 AM.`).
 
+---
+
+## Administrative Immunity Architecture (ohm#rbac-admin-immunity-lock)
+
+To eliminate false-positive "Access Restricted" lockouts for Super Admin (100) and Head Admin (90):
+1. **Database RPC Lock (`public.get_web_current_user_context` in `20262606000115_rbac_admin_immunity_lock.sql`):**
+   - For `v_role_level >= 90` or `v_email = 'ohmpayatt@proton.me'`, all modules (`dashboard`, `cencom`, `vacancy`, `hr_emploc`, `plantilla`, `approvals`, `users`, `reports`) are unconditionally granted.
+   - Any conflicting `deny` rows in `public.module_visibility_overrides` are strictly bypassed for administrative roles.
+   - Emergency identity fallback guarantees `ohmpayatt@proton.me` retains active Super Admin status even if unlinked from role profiles.
+2. **Frontend RBAC Immunity (`src/lib/rbac.ts`):**
+   - `isModuleAllowedForUser` grants unconditional access if `hasFullAccess(user)` or `getRoleLevel(user) >= 90`.
+   - `getAllowedApprovalCategories` returns all queue categories for `hasFullAccess` users.
+   - `extractRoleString` and `getRoleLevel` support all property aliases (`roleKey`, `role_key`, `roleName`, `role_name`, `role`, `roleLevel`, `role_level`).
+3. **Shell Navigation Immunity (`src/lib/auth.ts`):**
+   - `getVisibleModules` returns all `webModules` when `hasFullAccess(currentUser)` is true.
+4. **Approvals Page Guard Hardening (`src/app/(dashboard)/approvals/page.tsx`):**
+   - Guard checks `!isAdmin` (`!hasFullAccess(currentUser)`) rather than strict `isOwner`, guaranteeing Head Admin and Super Admin never trigger `<DataState kind="access_denied">`.
+
+
 
 

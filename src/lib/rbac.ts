@@ -29,7 +29,10 @@ export enum AppRole {
 
 export type RoleIdentifiable = {
   roleKey?: string | null;
+  role_key?: string | null;
   roleName?: string | null;
+  role_name?: string | null;
+  role?: string | null;
   roleLevel?: number | null;
   role_level?: number | null;
   email?: string | null;
@@ -106,7 +109,14 @@ export function getRoleLevel(userOrRole?: RoleIdentifiable | string | null): num
       return userOrRole.role_level;
     }
   }
-  const roleName = typeof userOrRole === "string" ? userOrRole : userOrRole.roleKey || userOrRole.roleName;
+  const roleName =
+    typeof userOrRole === "string"
+      ? userOrRole
+      : userOrRole.roleKey ||
+        userOrRole.role_key ||
+        userOrRole.roleName ||
+        userOrRole.role_name ||
+        userOrRole.role;
   const role = normalizeRole(roleName);
   switch (role) {
     case AppRole.SUPER_ADMIN:
@@ -264,7 +274,14 @@ export function canReviseHeadcountQuota(userOrRole?: RoleIdentifiable | string |
 function extractRoleString(userOrRole?: RoleIdentifiable | string | null): string | null {
   if (!userOrRole) return null;
   if (typeof userOrRole === "string") return userOrRole;
-  return userOrRole.roleKey || userOrRole.roleName || null;
+  return (
+    userOrRole.roleKey ||
+    userOrRole.role_key ||
+    userOrRole.roleName ||
+    userOrRole.role_name ||
+    userOrRole.role ||
+    null
+  );
 }
 
 // ── Module Permission Getters (Mobile auth_service.dart parity) ─────────────
@@ -389,7 +406,7 @@ export function getAllowedApprovalCategories(
   const role = normalizeRole(extractRoleString(userOrRole));
   const level = getRoleLevel(userOrRole);
 
-  if (role === AppRole.HEAD_ADMIN || level === 90) {
+  if (role === AppRole.HEAD_ADMIN || level === 90 || hasFullAccess(userOrRole)) {
     return [
       "all_requests",
       "new_stores",
@@ -433,8 +450,8 @@ export function isModuleAllowedForUser(
 ): boolean {
   if (!user) return false;
 
-  // Super Admin universal bypass: unrestricted access to all modules and tools
-  if (isOwner(user)) return true;
+  // Administrative Universal Immunity: Super Admin (100) & Head Admin (90) bypass all restrictions
+  if (hasFullAccess(user) || isOwner(user) || getRoleLevel(user) >= 90) return true;
 
   const role = normalizeRole(extractRoleString(user));
 

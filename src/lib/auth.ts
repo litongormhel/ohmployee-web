@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { webModules, type WebModule } from "@/lib/modules";
-import { isModuleAllowedForUser, isOwner, getRoleLevel } from "@/lib/rbac";
+import { isModuleAllowedForUser, isOwner, hasFullAccess, getRoleLevel } from "@/lib/rbac";
 
 export type WebModuleAccess = {
   visible: boolean;
@@ -59,6 +59,7 @@ type WebCurrentUserContextRpcRow = {
   email?: string | null;
   role_key?: string | null;
   role_name?: string | null;
+  role_level?: number | null;
   group_scope?: unknown;
   account_scope?: unknown;
   access_status?: string | null;
@@ -345,6 +346,8 @@ export async function loadCurrentUserContext(): Promise<{
 
     const derivedRoleLevel = isSuperAdminUser
       ? 100
+      : typeof rpcRow.role_level === "number" && rpcRow.role_level > 0
+      ? rpcRow.role_level
       : getRoleLevel(rpcRow.role_name || rpcRow.role_key);
 
     console.info(
@@ -393,6 +396,11 @@ export function getVisibleModules(
 ): WebModule[] {
   if (!currentUser) {
     return [];
+  }
+
+  // Administrative Universal Immunity: Super Admin & Head Admin see all modules
+  if (hasFullAccess(currentUser) || isOwner(currentUser) || getRoleLevel(currentUser) >= 90) {
+    return webModules;
   }
 
   return webModules.filter(
