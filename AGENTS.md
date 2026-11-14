@@ -19,12 +19,13 @@
   mirrors and write "ADR freshness: NOT VERIFIED" in the report. Never edit mirrors by hand.
 - The post-prompt documentation update is mandatory on EVERY prompt, even if the prompt body
   does not mention it. Checklist: `.ai/briefing.md` § After Every Completed Prompt.
-- Approval & Regression Gate (Smart Fast-Track vs Full Gate):
-  - **Full Approval Gate (STOP & WAIT)**: Before introducing any database migration (`.sql`), modifying schema/DDL, rewriting SQL RPC/trigger functions, or changing cross-module state transitions, present a short plan + regression risk assessment, then STOP and WAIT for explicit user approval. Do not implement in the same turn.
-  - **Fast-Track Auto-Execute (Single Turn)**: The agent may proceed directly without a separate approval turn ONLY for:
-    (1) Documentation and agent rules updates (`AGENTS.md`, `.ai/*`, `docs/*`),
-    (2) Pure UI copy/label/styling tweaks with zero business logic change, OR
-    (3) Prompts where the user explicitly includes "Direct" or "Proceed".
+- Autonomous Single-Turn Execution Rule (Default Mode):
+  - **Single-Turn by Default**: The agent automatically executes and verifies tasks end-to-end in a **single turn** (Plan -> Implement -> Verify -> Test/Lint -> Commit -> Staging Auto-Push) without requiring the user to type "Direct" or "Proceed".
+  - **When to STOP and WAIT (Approval / Clarification Gate)**: The agent pauses and waits for user input ONLY if:
+    (1) The user explicitly says "Plan only", "Plan muna", or asks for review/options first,
+    (2) There is genuine ambiguity or uncertainty in business requirements (present 1–3 concrete recommendations and ask),
+    (3) The change directly conflicts with an ADR architecture lock or contract invariant, OR
+    (4) Irreversible destructive actions are involved (e.g. dropping production tables or deleting production assets).
 - Non-Breaking View & RPC Parity Rule (Mobile Protection Lock):
   The Supabase database serves BOTH Web and Mobile (`OHMployee`).
   1. **Views (Append-Only)**: In `CREATE OR REPLACE VIEW`, any new column MUST be appended to the very end of the column list. Never reorder, rename, or drop existing columns in views.
