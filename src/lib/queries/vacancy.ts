@@ -251,6 +251,9 @@ export type VacancyListParams = {
   vacantTo?: string;
   page: number;
   pageSize: number;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+  consolidateCoverageGroups?: boolean;
 };
 
 export type VacancySummary = {
@@ -2778,6 +2781,7 @@ export async function listVacancies(params: VacancyListParams) {
             }
           }
 
+          const shouldConsolidate = params.consolidateCoverageGroups !== false;
           const seenCgInVacancies = new Set<string>();
           const consolidatedRows: VacancyListItem[] = [];
 
@@ -2792,25 +2796,38 @@ export async function listVacancies(params: VacancyListParams) {
                 continue;
               }
 
-              if (seenCgInVacancies.has(cgId)) {
-                // Open coverage group: consolidate multiple member store rows into 1
-                continue;
-              }
-
-              seenCgInVacancies.add(cgId);
               const numStores = cgInfo.storeDetails.length || 1;
               const calcShare = Math.round((1.0 / numStores) * 100) / 100;
-              row.cgCode = cgInfo.cgCode;
-              row.vcode = cgInfo.anchorVcode || row.vcode;
-              row.storeName = `${cgInfo.anchorStoreName} [Roving]`;
-              row.employmentType = "Roving";
-              row.assignedStores = cgInfo.storeNames;
-              row.assignedStoreDetails = cgInfo.storeDetails;
-              row.slotFraction = cgInfo.storeDetails[0]?.slotFraction || (numStores > 1 ? `1/${numStores}` : "1");
-              row.slotShare = calcShare;
-              row.headcount = cgInfo.requiredHc;
-              row.hcTotal = cgInfo.requiredHc;
-              consolidatedRows.push(row);
+
+              if (shouldConsolidate) {
+                // Vacancy Module (/vacancy): Merge multiple member stores into 1 row under CGCode
+                if (seenCgInVacancies.has(cgId)) {
+                  continue;
+                }
+                seenCgInVacancies.add(cgId);
+                row.cgCode = cgInfo.cgCode;
+                row.vcode = cgInfo.anchorVcode || row.vcode;
+                row.storeName = `${cgInfo.anchorStoreName} [Roving]`;
+                row.employmentType = "Roving";
+                row.assignedStores = cgInfo.storeNames;
+                row.assignedStoreDetails = cgInfo.storeDetails;
+                row.slotShare = calcShare;
+                row.headcount = cgInfo.requiredHc;
+                row.hcTotal = cgInfo.requiredHc;
+                row.hcDisplay = `${row.confirmedOnboardCount ?? row.hcFilled ?? 0}/${cgInfo.requiredHc}`;
+                consolidatedRows.push(row);
+              } else {
+                // Plantilla Vacancy tab (/plantilla): Keep 1:1 row per store, annotate roving slot = 0.5
+                row.cgCode = cgInfo.cgCode;
+                if (!row.storeName?.includes("[Roving]")) {
+                  row.storeName = `${row.storeName || ""} [Roving]`.trim();
+                }
+                row.employmentType = "Roving";
+                row.assignedStores = cgInfo.storeNames;
+                row.assignedStoreDetails = cgInfo.storeDetails;
+                row.slotShare = calcShare;
+                consolidatedRows.push(row);
+              }
             } else {
               consolidatedRows.push(row);
             }

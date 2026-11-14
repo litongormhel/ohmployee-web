@@ -2,36 +2,39 @@
 
 ## Execution Report — Coverage Group Vacancy Consolidation & Fractional Slot Display (ohm#c5g9v2m1)
 
-**Status: COMPLETE ON MAIN; RESOLVED COVERAGE GROUP VACANCY ROW CONSOLIDATION AND FRACTIONAL ROVING CAPACITY DISPARITY FOR `CG-FG1-0005` & MULTI-STORE ROVING CLUSTERS: (1) FIXED POSTGREST COLUMN SELECT IN `src/lib/queries/vacancy.ts` (REPLACED INVALID `s.area_name` WITH `s.area_city, s.area_province`), ALLOWING VACANCY ROWS TO CLEANLY MERGE INTO ONE ROW UNDER THE MINTED `CGCode` (ANCHOR + MEMBER STORES IN DETAILS); (2) ADDED `slotFraction` (`"1/N"`, e.g. `"1/2"`) AND `slotShare` (`1/N`, e.g. `0.5`) TO `VacancyListItem` AND DISPLAYED IN `StoreVacancyTable` AND `VacancyCard` (`src/app/(dashboard)/plantilla/page.tsx`) AS `${rovingSlotShare} Vacant` (E.G. `0.5 Vacant`); (3) HARDENED SYNTHESIZED INACTIVE DEDUPLICATION IN `plantilla/page.tsx` BY REGISTERING ALL MEMBER STORE VCODES AND NAMES IN `registerSeenKeys()`, PREVENTING SECONDARY MEMBER STORES FROM SPAWNING DUPLICATE VACANCY ROWS; (4) SHIPPED DATABASE MIGRATION `20262606000113_coverage_group_vacant_roving_slot_and_capacity.sql` UPDATING `public.create_coverage_group` TO TRANSITION PLANTILLA SLOTS TO `is_roving = true, employment_type = 'Roving'` FOR STRUCTURE-ONLY VACANT GROUPS AND RETROACTIVELY UPDATING `CG-FG1-0005`; (5) ADDED COVERAGE GROUP VACANCY CONSOLIDATION & FRACTIONAL CAPACITY CONTRACT (`ohm#cg-vac-frac`) TO ADR-001 IN MOBILE REPO (`D:\Projects\OHMployee`) AND SYNCED WEB MIRROR; VERIFIED WITH 0 ERRORS VIA `npm run check:adr` (FRESH), `npm run check:sql` (639 MIGRATIONS OK), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+**Status: COMPLETE ON MAIN; RESOLVED COVERAGE GROUP VACANCY ROW CONSOLIDATION AND FRACTIONAL ROVING CAPACITY DISPARITY FOR `CG-FG1-0005` & MULTI-STORE ROVING CLUSTERS: (1) FIXED POSTGREST COLUMN SELECT IN `src/lib/queries/vacancy.ts` (REPLACED INVALID `s.area_name` WITH `s.area_city, s.area_province`), ALLOWING VACANCY ROWS TO CLEANLY MERGE INTO ONE ROW UNDER THE MINTED `CGCode` IN `/vacancy` (ANCHOR + MEMBER STORES IN DETAILS, RECRUITMENT HC = `0/1`); (2) INTRODUCED `consolidateCoverageGroups` IN `VacancyListParams` (DEFAULTS TO `true` FOR `/vacancy`, `false` FOR `/plantilla`), KEEPING MEMBER STORES UNMERGED 1:1 PER STORE IN PLANTILLA VACANCY WITH DEDICATED STORE `VCode`S AND `Slot = 0.5 Vacant`; (3) REMOVED CONFUSING FRACTIONAL `1/2` LABELS FROM TABLE TOOLTIPS AND `VacancyDetailDrawer.tsx`; (4) SHIPPED DATABASE MIGRATION `20262606000113_coverage_group_vacant_roving_slot_and_capacity.sql` UPDATING `public.create_coverage_group` TO TRANSITION PLANTILLA SLOTS TO `is_roving = true, employment_type = 'Roving'` FOR STRUCTURE-ONLY VACANT GROUPS AND RETROACTIVELY UPDATING `CG-FG1-0005`; (5) ADDED COVERAGE GROUP VACANCY CONSOLIDATION & FRACTIONAL CAPACITY CONTRACT (`ohm#cg-vac-frac`) TO ADR-001 IN MOBILE REPO (`D:\Projects\OHMployee`) AND SYNCED WEB MIRROR; VERIFIED WITH 0 ERRORS VIA `npm run check:adr` (FRESH), `npm run check:sql` (639 MIGRATIONS OK), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
 
 - **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Vacancy & Plantilla Modules), `docs/state/vacancy_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants & § HC Request & Coverage Semantics.
 
 ### 1. Root Causes & Findings
 1. **Vacancy Module Merging Failure (Root Cause A)**:
    In `src/lib/queries/vacancy.ts` (lines 2663 & 3617), the consolidation subquery selected `stores (id, store_name, vcode, area_name)`. Because `area_name` is not a column on `public.stores` (which instead has `area_city, area_province`), PostgREST returned `42703: column s.area_name does not exist`. The query function caught the exception and silently fell back to raw unconsolidated rows, leaving member stores unmerged.
-2. **Plantilla Vacancy Duplicate Synthesis (Root Cause B)**:
-   In `src/app/(dashboard)/plantilla/page.tsx`, `inactiveEmployees` synthesized an open vacancy for separated personnel (e.g. `BACULI, EURIE FERAER` at `CPPGJV19`) because `seenVcodes` only recorded the anchor store `CPSAJV27`, ignoring secondary member stores.
-3. **Capacity Badge Roving Disparity (Root Cause C)**:
-   In both `/vacancy` and the Plantilla Vacancy tab, roving slots rendered stationary integer capacity (`1 Vacant`) instead of fractional roving capacity (`0.5 Vacant` for 2 stores, `0.33 Vacant` for 3 stores).
+2. **Plantilla Vacancy 1:1 vs Module Scope**:
+   In Plantilla Vacancy tab, each store slot represents a store-level allocation and must remain 1:1 per store with its own VCode and branch name, rather than merging into a single cluster row.
+3. **Capacity Badge Roving Disparity**:
+   For roving stores in Plantilla Vacancy, the slot renders fractional roving capacity (`0.5 Vacant` for 2 stores, `0.33 Vacant` for 3 stores). Confusing fractional labels like `1/2 HC` were removed from table tooltips and the detail drawer.
 4. **Trigger Invariant Verification**:
    Inspected `public.fn_coverage_group_structure_only_hc_guard()`: verifies that `coverage_groups.required_headcount := 0` is strictly enforced by design for structure-only groups; workforce capacity is governed by `plantilla_slots` and fractional `hc_share = 1.0 / count(stores)`.
 
 ### 2. Implementation Deliverables
 1. **Query & Consolidation Normalization (`src/lib/queries/vacancy.ts`)**:
    - Replaced invalid column select `area_name` with `area_city, area_province`.
-   - Exposed `slotFraction: string | null` and `slotShare: number | null` on `VacancyListItem`.
-   - Populated `slotFraction` (`"1/N"`) and `slotShare` (`1.0 / N`) during consolidation.
-2. **Plantilla Vacancy Tab & Deduplication (`src/app/(dashboard)/plantilla/page.tsx`)**:
-   - Registered all member store VCodes and store names from `assignedStoreDetails` and `assignedStores` in `registerSeenKeys()`.
-   - Filtered synthesized inactive vacancies against `seenStoreNames` and `seenVcodes`.
-   - In `StoreVacancyTable` and `VacancyCard`, rendered `slotDisplay = `${rovingSlotShare} Vacant`` with hover tooltip indicating fraction (`1/2`).
-3. **Database Migration (`20262606000113_coverage_group_vacant_roving_slot_and_capacity.sql`)**:
+   - Added `consolidateCoverageGroups?: boolean` to `VacancyListParams` (defaults to `true`).
+   - In `/vacancy`, merges member stores into 1 row under `CGCode` with recruitment HC `0/1`.
+   - In `/plantilla`, keeps member stores unmerged 1:1 per store, annotating `isRoving = true` and `slotShare = 0.5`.
+2. **Plantilla Vacancy Tab (`src/app/(dashboard)/plantilla/page.tsx`)**:
+   - Passed `consolidateCoverageGroups: false` in `vacancyListQuery`.
+   - Single-VCode deduplication tracks only the row's own VCode and store name.
+   - `StoreVacancyTable` and `VacancyCard` render `codeDisplay = row.vcode || row.cgCode || "—"` and `slotDisplay = `${rovingSlotShare} Vacant`` (`0.5 Vacant`).
+3. **Detail Drawer Cleanliness (`src/components/vacancy/VacancyDetailDrawer.tsx`)**:
+   - Removed confusing fractional `{st.slotFraction} HC` badge from assigned store list.
+4. **Database Migration (`20262606000113_coverage_group_vacant_roving_slot_and_capacity.sql`)**:
    - Updated `public.create_coverage_group` so that when `v_employees_converted = 0`, member store `plantilla_slots` transition to `is_roving = true, employment_type = 'Roving'`.
    - Retroactively updated member store slots for `CG-FG1-0005`.
    - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`).
-4. **ADR-001 Lock & Mirror Sync**:
-   - In `D:\Projects\OHMployee\.ai\architecture_locks/ADR-001-ohmployee-system-architecture.md`, added **Coverage Group Vacancy Consolidation & Fractional Capacity Contract (`ohm#cg-vac-frac`, 2026-11-14)**.
-   - Committed locally in mobile repo (`04ff5f0`).
+5. **ADR-001 Lock & Mirror Sync**:
+   - In `D:\Projects\OHMployee\.ai\architecture_locks/ADR-001-ohmployee-system-architecture.md`, added **Coverage Group Vacancy Consolidation & Fractional Capacity Contract (`ohm#cg-vac-frac`, 2026-11-14)** with explicit scoping for `/vacancy` (consolidated) vs `/plantilla` (1:1 per store).
+   - Committed locally in mobile repo (`390162b`).
    - Ran `npm run sync:adr` in web repo; verified `npm run check:adr` is FRESH.
 
 ### 3. Verification & Quality Gates

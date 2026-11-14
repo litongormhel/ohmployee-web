@@ -974,6 +974,7 @@ function PlantillaPageContent() {
         accountId: accountId || undefined,
         page: 1,
         pageSize: 2000,
+        consolidateCoverageGroups: false,
       }),
     enabled: !!accountId && isAccountAuthorized,
     staleTime: 30000,
@@ -1154,7 +1155,6 @@ function PlantillaPageContent() {
     const filtered = raw.filter((v) => {
       const vk = (v.vcode || "").trim().toUpperCase();
       const cg = (v.cgCode || "").trim().toUpperCase();
-      const lookupKey = cg || vk;
       const isFilled =
         v.vacancyStatus?.toLowerCase() === "filled" ||
         v.pipelineStatus?.toLowerCase() === "hired" ||
@@ -1162,19 +1162,8 @@ function PlantillaPageContent() {
       if (isFilled) return false;
 
       const registerSeenKeys = () => {
-        if (lookupKey) seenVcodes.add(lookupKey);
         if (vk) seenVcodes.add(vk);
-        if (cg) seenVcodes.add(cg);
         if (v.storeName) seenStoreNames.add(v.storeName.replace(/\s*\[Roving\]/i, "").toLowerCase().trim());
-        if (v.assignedStores) {
-          v.assignedStores.forEach((st) => seenStoreNames.add(st.toLowerCase().trim()));
-        }
-        if (v.assignedStoreDetails) {
-          v.assignedStoreDetails.forEach((sd) => {
-            if (sd.vcode) seenVcodes.add(sd.vcode.trim().toUpperCase());
-            if (sd.storeName) seenStoreNames.add(sd.storeName.toLowerCase().trim());
-          });
-        }
       };
 
       // Multi-headcount retention: If database quota indicates unfilled capacity, keep visible
@@ -3727,7 +3716,7 @@ function StoreVacancyTable({
           </thead>
           <tbody className="divide-y divide-table-rule">
             {rows.map((row) => {
-              const codeDisplay = row.cgCode || row.vcode || "—";
+              const codeDisplay = row.vcode || row.cgCode || "—";
               const rawName = row.storeName || "Unnamed Store";
               const cleanStoreName = formatStoreName(rawName).replace(/\s*\([^)]*\)/g, "").trim();
               const isRoving = Boolean(
@@ -3819,7 +3808,7 @@ function StoreVacancyTable({
                     <span
                       title={
                         isRoving && rovingSlotShare != null
-                          ? `${slotDisplay} roving slot share (${row.slotFraction || `1/${assignedCount}`}) across ${assignedCount} stores`
+                          ? `${slotDisplay} roving slot share across ${assignedCount} stores`
                           : rowHcTotal > 1
                           ? `${slotDisplay} open slot${slotDisplay === 1 ? "" : "s"} (${rowHcFilled}/${rowHcTotal} filled)`
                           : `${slotDisplay} open slot`
@@ -4734,7 +4723,7 @@ function VacancyCard({
   onSelect: () => void;
   storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
 }) {
-  const codeDisplay = row.cgCode || row.vcode || "—";
+  const codeDisplay = row.vcode || row.cgCode || "—";
   const rawName = row.storeName || "Unnamed Store";
   const cleanStoreName = formatStoreName(rawName).replace(/\s*\([^)]*\)/g, "").trim();
   const isRoving = Boolean(

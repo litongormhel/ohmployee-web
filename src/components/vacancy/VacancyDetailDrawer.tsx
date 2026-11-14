@@ -1181,9 +1181,6 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                     {st.vcode}
                                   </span>
                                 )}
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded font-mono text-[10px] font-semibold bg-surface-base text-text-secondary border border-border-subtle shadow-2xs">
-                                  {st.slotFraction || "1/3"} HC
-                                </span>
                               </div>
                             </div>
                           ))}
