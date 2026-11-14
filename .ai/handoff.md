@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — Staging Database Migration Auto-Push & Mobile-to-Web Migration Sync (ohm#db-push-staging)
+
+**Status: COMPLETE ON MAIN; IMPLEMENTED OPTION 1 AUTOMATED STAGING MIGRATION PIPELINE (`npm run db:push:staging` / `npm run sync:migrations`) AND RECONCILED MIGRATION HISTORY ACROSS WEB (`d:\Projects\ohmployee-web`), MOBILE (`D:\Projects\OHMployee`), AND SUPABASE STAGING (`qqiiznmqxfoamqytjica`): (1) AUTHORED `scripts/sync-migrations.mjs` COPYING 71 UNIQUE-VERSION MIGRATIONS FROM MOBILE TO WEB (TOTALING 608 UNIQUE-VERSION FILES IN WEB AND 639 COMBINED ECOSYSTEM MIGRATIONS) WHILE SAFELY ISOLATING 31 HISTORICAL NUMERIC VERSION PREFIX COLLISIONS (`20262606000010`..`20262606000065`); (2) RESOLVED LOCAL `20262606000113` PREFIX COLLISION BY RENAMING `20262606000113_coverage_group_vacant_roving_slot_and_capacity.sql` -> `20262606000114_coverage_group_vacant_roving_slot_and_capacity.sql` AND RECONCILED `supabase_migrations.schema_migrations` ON STAGING FOR `20262606000110`..`20262606000113`; (3) AUTHORED `scripts/push-staging-migrations.mjs` ENFORCING A 5-STAGE SAFETY GATE (HARD PRODUCTION LOCK BLOCKING `rwxelulyapjgaarlwkus`, MOBILE MIGRATION SYNC, UNIQUE NUMERIC PREFIX VERIFICATION, `npm run check:sql` CONTRACT GATE, AND `npx supabase db push --linked --yes`); (4) ADDED DUPLICATE VERSION PREFIX ENFORCEMENT TO `scripts/check-sql-contracts.mjs`; (5) APPLIED `20262606000114` TO STAGING VIA `npm run db:push:staging` AND CONFIRMED IDEMPOTENT `upToDate: true` STATUS; (6) UPDATED `.ai/briefing.md` WITH THE STANDING STAGING MIGRATION AUTO-PUSH RULE; VERIFIED VIA `npm run check:adr` (FRESH), `npm run check:sql` (639 MIGRATIONS OK), `npm test` (226/226 PASSED), AND `npm run lint` (0 ERRORS); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `scripts/check-sql-contracts.mjs`, `scripts/adr-mirror.mjs`, `scripts/finish.js`, `package.json`.
+
+### 1. Root Cause of Previous `DbPushMissingLocalError`
+- Mobile repository (`D:\Projects\OHMployee\supabase\migrations`) had **603 `.sql` files** while Web repository (`d:\Projects\ohmployee-web\supabase\migrations`) had **537 `.sql` files**.
+- Specifically, **71 unique-version migrations** (`20260713133000`..`20261220000000`) had been applied to Staging (`qqiiznmqxfoamqytjica`) from the Mobile repo and recorded in `supabase_migrations.schema_migrations`, but the `.sql` files were absent from the Web repo's `supabase/migrations/` directory.
+- Additionally, **31 historical migrations** (`20262606000010`..`20262606000065`) in Mobile shared the same numeric prefix (`<version>_*.sql`) with different files in Web, and **1 local pair** (`20262606000113_scope_notification_delivery_and_actioned_status.sql` and `20262606000113_coverage_group_vacant_roving_slot_and_capacity.sql`) shared prefix `20262606000113`.
+
+### 2. Implementation Deliverables
+1. **Migration Directory Synchronizer (`scripts/sync-migrations.mjs` / `npm run sync:migrations`)**:
+   - Strictly copy-only (never deletes or overwrites files in Web; strictly read-only against Mobile).
+   - Copies all `.sql` files from Mobile whose numeric version prefix (`file.split('_')[0]`) is not already present in Web, isolating the 31 historical prefix collisions so `supabase_migrations.schema_migrations` primary key integrity is preserved while `check-sql-contracts.mjs` continues validating all 639 combined files.
+2. **Staging Migration Auto-Push Runner (`scripts/push-staging-migrations.mjs` / `npm run db:push:staging`)**:
+   - **Gate 1 (Hard Production Lock)**: Verifies `.env` and `supabase/.temp/project-ref` resolve to Staging (`qqiiznmqxfoamqytjica`); hard-aborts (`process.exit(1)`) if Production (`rwxelulyapjgaarlwkus`) is detected.
+   - **Gate 2 (Migration Sync)**: Runs `node scripts/sync-migrations.mjs`.
+   - **Gate 3 (Unique Version Prefix Gate)**: Verifies all `.sql` files in `supabase/migrations/` have unique numeric version prefixes.
+   - **Gate 4 (SQL Contract Gate)**: Runs `node scripts/check-sql-contracts.mjs` across all 28 core tables and 19 cross-module RPC contracts.
+   - **Gate 5 (Supabase CLI Push)**: Runs `npx supabase db push --linked --yes` (or `--dry-run`).
+3. **Contract Guard Enhancement (`scripts/check-sql-contracts.mjs`)**:
+   - Added Step 3 checking `supabase/migrations/` for duplicate numeric version prefixes on every `npm test` and `npm run lint`.
+4. **Staging Schema Migrations Reconciliation & Live Push**:
+   - Renamed `20262606000113_coverage_group_vacant_roving_slot_and_capacity.sql` -> `20262606000114_coverage_group_vacant_roving_slot_and_capacity.sql`.
+   - Reconciled `20262606000110`..`20262606000113` in `supabase_migrations.schema_migrations` on Staging.
+   - Executed `npm run db:push:staging`, applying `20262606000114_coverage_group_vacant_roving_slot_and_capacity.sql` cleanly and confirming subsequent run returns `"upToDate": true, "message": "Remote database is up to date."`
+   - Verified `pg_get_functiondef` of `public.create_coverage_group(uuid, uuid, text, text, uuid[], uuid)` live on Staging.
+
+---
+
 ## Execution Report — Coverage Group Vacancy Consolidation & Fractional Slot Display (ohm#c5g9v2m1)
 
 **Status: COMPLETE ON MAIN; RESOLVED COVERAGE GROUP VACANCY ROW CONSOLIDATION AND FRACTIONAL ROVING CAPACITY DISPARITY FOR `CG-FG1-0005` & MULTI-STORE ROVING CLUSTERS: (1) FIXED POSTGREST COLUMN SELECT IN `src/lib/queries/vacancy.ts` (REPLACED INVALID `s.area_name` WITH `s.area_city, s.area_province`), ALLOWING VACANCY ROWS TO CLEANLY MERGE INTO ONE ROW UNDER THE MINTED `CGCode` IN `/vacancy` (ANCHOR + MEMBER STORES IN DETAILS, RECRUITMENT HC = `0/1`); (2) INTRODUCED `consolidateCoverageGroups` IN `VacancyListParams` (DEFAULTS TO `true` FOR `/vacancy`, `false` FOR `/plantilla`), KEEPING MEMBER STORES UNMERGED 1:1 PER STORE IN PLANTILLA VACANCY WITH DEDICATED STORE `VCode`S AND `Slot = 0.5 Vacant`; (3) REMOVED CONFUSING FRACTIONAL `1/2` LABELS FROM TABLE TOOLTIPS AND `VacancyDetailDrawer.tsx`; (4) SHIPPED DATABASE MIGRATION `20262606000113_coverage_group_vacant_roving_slot_and_capacity.sql` UPDATING `public.create_coverage_group` TO TRANSITION PLANTILLA SLOTS TO `is_roving = true, employment_type = 'Roving'` FOR STRUCTURE-ONLY VACANT GROUPS AND RETROACTIVELY UPDATING `CG-FG1-0005`; (5) ADDED COVERAGE GROUP VACANCY CONSOLIDATION & FRACTIONAL CAPACITY CONTRACT (`ohm#cg-vac-frac`) TO ADR-001 IN MOBILE REPO (`D:\Projects\OHMployee`) AND SYNCED WEB MIRROR; VERIFIED WITH 0 ERRORS VIA `npm run check:adr` (FRESH), `npm run check:sql` (639 MIGRATIONS OK), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**

@@ -631,6 +631,24 @@ function main() {
     }
   }
 
+  // 3. Enforce unique numeric version prefixes inside local supabase/migrations/
+  if (fs.existsSync(MIGRATIONS_DIR)) {
+    const localByPrefix = new Map();
+    for (const file of fs.readdirSync(MIGRATIONS_DIR)) {
+      if (!file.endsWith(".sql")) continue;
+      const prefix = file.split("_")[0];
+      if (!localByPrefix.has(prefix)) localByPrefix.set(prefix, []);
+      localByPrefix.get(prefix).push(file);
+    }
+    for (const [prefix, list] of localByPrefix.entries()) {
+      if (list.length > 1) {
+        violations.push(
+          `[Duplicate Migration Version Prefix] Numeric version "${prefix}" is used by multiple files in supabase/migrations/: ${list.join(", ")}. Each migration must have a unique version prefix.`
+        );
+      }
+    }
+  }
+
   if (violations.length > 0) {
     console.error("\n======================================================================");
     console.error("  [SQL CONTRACT & ANTI-REGRESSION GATE FAILED]");

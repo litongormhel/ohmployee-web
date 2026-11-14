@@ -1,0 +1,76 @@
+-- ============================================================
+-- ohm#3xk7m2wq — Mark 6 scope/role-check functions STABLE
+-- Migration: 20260817092056_mark_scope_check_functions_stable.sql
+-- ============================================================
+-- Context
+-- -------
+-- Follow-up to ohm#7wq3n9km Part A (RLS timeout root cause) and the
+-- Part B read-only RLS policy inventory (ohm#3xk7m2wq). Investigation
+-- confirmed 6 functions used directly inside RLS policies are marked
+-- VOLATILE (the unmarked Postgres default) despite being pure reads
+-- with no side effects:
+--
+--   get_my_allowed_accounts()   - 51 RLS call sites / 31 tables
+--   i_have_full_access()        - 186 RLS call sites / 100 tables
+--   get_my_role()                - 7 RLS call sites / 6 tables
+--   get_effective_role()         - not called directly in RLS, but
+--                                   reached indirectly (get_my_role,
+--                                   get_my_role_level, i_am_data_team,
+--                                   etc.) — same fix applies
+--   get_effective_account_ids()  - indirect only (get_effective_role's
+--                                   sibling; reached via
+--                                   get_my_scoped_accounts)
+--   get_effective_group_ids()    - indirect only, same as above
+--
+-- Verification performed before this migration (see conversation log,
+-- ohm#3xk7m2wq):
+--   1. Read every function body via pg_get_functiondef() — confirmed
+--      pure SELECT / RETURN logic only. No INSERT/UPDATE/DELETE, no
+--      nextval(), no other write or non-deterministic construct in
+--      any of the 6 functions, nor in their shared dependency
+--      get_active_acting_session() (also pure SELECT).
+--   2. Confirmed via pg_proc.provolatile (not just def-text parsing)
+--      that these 6 are the *only* VOLATILE functions in the whole
+--      scope/role-check family — every sibling function
+--      (get_my_allowed_account_ids, get_my_role_level,
+--      get_my_scoped_accounts, i_am_assigned_to_vacancy, i_am_ops,
+--      i_am_recruitment, i_am_hrco_only, i_am_backoffice, i_am_hr_dept,
+--      i_am_data_team, i_am_encoder, i_am_super_admin,
+--      i_have_hrco_global_visibility, get_my_scoped_vcodes,
+--      get_my_profile_id, get_my_full_name, get_my_scope_type) is
+--      already STABLE.
+--   3. Grepped every function in `public` for one that both writes to
+--      user_scopes/accounts/groups/temp_permission_overrides AND
+--      reads get_my_allowed_accounts() or any of the 31 tables gated
+--      by it, in the same function body (a superset check of "same
+--      statement"). Zero matches — the 7 functions that do write to
+--      those 4 tables (approve_account_group_transfer_request,
+--      approve_account_request_v2, expire_temp_overrides,
+--      fn_sync_account_assignments_to_user_scopes,
+--      grant_temp_permission_override,
+--      revoke_temp_permission_override,
+--      upsert_user_profile_and_scopes) never call get_my_allowed_accounts()
+--      nor read any RLS-gated table. Also confirmed directly that none
+--      of the 4 tables' own RLS policies call get_my_allowed_accounts()
+--      (they gate on i_have_full_access()/get_my_profile_id() only),
+--      ruling out a self-referential same-statement caching hazard.
+--
+-- Regression risk: none expected in practice. The only theoretical
+-- vector (a single statement that writes one of the 4 scope tables
+-- and reads a get_my_allowed_accounts()-gated table in the same
+-- statement) was searched for and not found anywhere in the schema.
+--
+-- Scope: this migration ONLY changes function volatility via
+-- ALTER FUNCTION (catalog flag only — no body redefinition, so zero
+-- risk of introducing a body diff). It does NOT touch any RLS policy
+-- text. The separate `(select ...)` InitPlan-wrapping fix for the
+-- per-row re-evaluation defect itself is deferred to a future,
+-- separately-approved migration.
+-- ============================================================
+
+ALTER FUNCTION public.get_my_allowed_accounts() STABLE;
+ALTER FUNCTION public.i_have_full_access() STABLE;
+ALTER FUNCTION public.get_my_role() STABLE;
+ALTER FUNCTION public.get_effective_role() STABLE;
+ALTER FUNCTION public.get_effective_account_ids() STABLE;
+ALTER FUNCTION public.get_effective_group_ids() STABLE;

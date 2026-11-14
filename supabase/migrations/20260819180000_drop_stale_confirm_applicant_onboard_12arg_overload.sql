@@ -1,0 +1,52 @@
+-- Migration: 20260819180000_drop_stale_confirm_applicant_onboard_12arg_overload
+-- Prompt ID: ohm#4j9k2wtq
+--
+-- BUG-03: "Approving an applicant fails with PostgrestException: Could not
+-- choose the best candidate function between public.confirm_applicant_onboard(...)"
+--
+-- Root cause (investigated live via pg_proc on staging, qqiiznmqxfoamqytjica):
+-- three overloads of confirm_applicant_onboard exist simultaneously:
+--   1. 11-arg legacy (no p_hired_date, no p_vacancy_requirement_id) — intentional,
+--      explicitly preserved (see 20262606000021/20262606000031 comments). NOT touched.
+--   2. 12-arg (adds p_hired_date only) — STALE. Reintroduced accidentally by
+--      20262606000043_pool_slot_hr_processing_reservation.sql (real commit date
+--      2026-08-11), whose header cites 20260813000002 as its "latest version"
+--      source without being aware that 20262606000012/000021/000031 (real commit
+--      dates 2026-07-29 / 2026-08-03 / 2026-08-05) had already superseded that
+--      body with the 13-arg overload below. No DROP FUNCTION was ever issued for
+--      the 12-arg signature, so CREATE OR REPLACE just kept it alive as a second
+--      overload instead of replacing anything.
+--   3. 13-arg current (adds p_hired_date AND p_vacancy_requirement_id) — carries
+--      the ADR-001 Rule 2 derived-HC fix (20262606000021) and the slot-linkage
+--      fix (20262606000031, hr_emploc_state.md ohm#8f3k2n9q). This is the correct
+--      / actively maintained version.
+--
+-- lib/data/services/vacancy_service.dart's confirmApplicantOnboardWithAttribution
+-- (the hired-date + attribution onboarding flow) always sends p_hired_date and
+-- only conditionally sends p_vacancy_requirement_id (omitted for pool/roving/
+-- coverage hires, per its own inline comment). When omitted, that named-parameter
+-- call matches the 12-arg overload exactly AND the 13-arg overload via its
+-- defaulted p_vacancy_requirement_id — Postgres cannot rank one candidate over
+-- the other, producing the reported PostgrestException.
+--
+-- Fix (surgical, drop-only): remove the stale 12-arg overload. The 11-arg
+-- legacy and 13-arg current overloads are untouched — no function body changes.
+--
+-- Explicitly OUT OF SCOPE (flagged as a separate future follow-up, not fixed
+-- here per approved plan): vacancy_service.dart's confirmApplicantOnboard
+-- (no-attribution variant, called from the generic status-transition path at
+-- vacancy_service.dart:1964) never sends p_hired_date or p_vacancy_requirement_id
+-- when vacancyRequirementId is null, so it remains ambiguous between the 11-arg
+-- and 13-arg overloads even after this migration. Not addressed in this prompt.
+--
+-- Validation (run after apply):
+--   SELECT pg_get_function_identity_arguments(oid)
+--     FROM pg_proc
+--    WHERE proname = 'confirm_applicant_onboard'
+--      AND pronamespace = 'public'::regnamespace
+--    ORDER BY 1;
+--   -- Must show exactly 2 rows: the 11-arg and 13-arg signatures.
+
+DROP FUNCTION IF EXISTS public.confirm_applicant_onboard(
+  uuid, text, text, text, text, text, text, uuid, uuid, uuid, text, date
+);
