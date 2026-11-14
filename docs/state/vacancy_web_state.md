@@ -8,6 +8,21 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Coverage Group Vacancy Consolidation & Active Manpower Merge (`ohm#c4g9m2k7` — 2026-11-14)**:
+  - **The Requirement**:
+    1. In Vacancy views (`/vacancy` and Plantilla Tab 3 Vacancy), an open Coverage Group must render as **one single consolidated row** with its `CGCode` in the `VCode / CGCode` column while preserving individual store `VCode`s intact.
+    2. Member store allocations reflect fractional headcount ($1/N$, e.g., $1/3$ HC for 3 stores).
+    3. Direct creation of a Coverage Group by Head Admin/Super Admin must create a canonical `coverage_requests` record with `status = 'approved'` and audit logging so it surfaces in Approvals > Coverage > Approved and Dashboard Recent Activity.
+    4. When a Coverage Group is created where member store(s) have active employee(s) and vacant store(s), the vacant store(s) are automatically fulfilled and closed in Vacancies, merging them into the active employee as Roving.
+  - **Database Migration 110 (`20262606000110_coverage_direct_creation_and_manpower_merge.sql`)**:
+    - Upgraded `public.create_coverage_group` to convert active employees to Roving under the coverage group with fractional allocations ($1/N$) in `employee_store_allocations` and `plantilla_store_links`, auto-fulfill and close open vacancies in member stores (`vacancies.status = 'Filled'`), and insert approved `coverage_requests`, `coverage_request_history`, and `audit_logs` records.
+    - Reconciled existing Forever Office coverage group `CG-FG1-0004` (Puregold Tanza, Waltermart General Trias, Emilus Rosario): active employee Delfina Juaphel Dolar (`2019-08946`) converted to Roving with 0.3333 HC across all 3 stores, `CPSAJV31` (Emilus Rosario) vacancy fulfilled and closed.
+  - **Frontend Query & UI Enforcements**:
+    - `src/lib/queries/vacancy.ts`: `listVacancies` queries `coverage_group_stores` joined with `coverage_groups` and `stores`. Open coverage groups consolidate into 1 single row displaying `cgCode`, anchor store with `[Roving]`, and itemized store details. Member store vacancies covered by active employees are suppressed.
+    - `src/components/vacancy/VacancyDetailDrawer.tsx`: Assigned Stores section renders rich cards displaying each store's name, `Anchor` tag, individual intact `VCode`, and $1/3$ HC badge.
+    - `src/app/(dashboard)/plantilla/page.tsx`: `StoreVacancyTable` and `VacancyCard` display `row.cgCode || row.vcode` with secondary intact `row.vcode` hint; `allVacancies` filter recognizes active roving employee coverage and suppresses covered vacancies.
+
+
 - **Vacancy Detail Drawer UI Redesign (`ohm#7k3q9d2m` — 2026-11-12)**:
   - **The Requirement**: Redesign the Vacancy detail drawer (`src/components/vacancy/VacancyDetailDrawer.tsx`) for scannability, reduced scroll depth, and eliminated redundancy (presentation-layer redesign only; zero behavior, data, or RBAC changes).
   - **Layout & Hierarchy Overhaul**:

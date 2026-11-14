@@ -46,11 +46,20 @@ export type VacancyRowCapabilities = {
   raw: Record<string, boolean>;
 };
 
+export type AssignedStoreDetail = {
+  storeId?: string;
+  storeName: string;
+  vcode?: string | null;
+  isAnchor?: boolean;
+  slotFraction?: string | null;
+};
+
 export type VacancyListItem = {
   id: string;
   vcode: string;
   cgCode?: string | null;
   assignedStores?: string[];
+  assignedStoreDetails?: AssignedStoreDetail[];
   accountId: string | null;
   accountName: string | null;
   groupId: string | null;
@@ -150,6 +159,7 @@ export type VacancyDetailItem = {
   vcode: string;
   cgCode?: string | null;
   assignedStores?: string[];
+  assignedStoreDetails?: AssignedStoreDetail[];
   source?: string | null;
   vacancyType?: string | null;
   createdAt?: string | null;
@@ -2618,58 +2628,190 @@ export async function listVacancies(params: VacancyListParams) {
   }
 
   // Enrich coverage group CGCode and assigned stores for multi-store / coverage group vacancies
-  if (allVcodes.length > 0) {
+  if (allVcodes.length > 0 || rows.some((r) => r.storeId)) {
     try {
-      const { data: cgShadowData } = await supabase
-        .from("vw_slot_derived_vacancy_cg_covered_shadow")
-        .select("legacy_vcode, cg_code, coverage_group_id")
-        .in("legacy_vcode", allVcodes);
-
-      if (cgShadowData && cgShadowData.length > 0) {
-        const cgIdMap = new Map<string, { cgCode: string; coverageGroupId: string }>();
-        const cgIds: string[] = [];
-        for (const item of cgShadowData as Array<{ legacy_vcode: string; cg_code: string; coverage_group_id: string }>) {
-          if (item.legacy_vcode) {
-            cgIdMap.set(item.legacy_vcode, {
-              cgCode: item.cg_code,
-              coverageGroupId: item.coverage_group_id,
-            });
-            if (item.coverage_group_id) {
-              cgIds.push(item.coverage_group_id);
-            }
-          }
+      const explicitStoreIds = rows.map((r) => r.storeId).filter(Boolean) as string[];
+      let matchedStoreIds: string[] = [];
+      if (allVcodes.length > 0) {
+        const { data: storeRows } = await supabase
+          .from("stores")
+          .select("id, vcode")
+          .in("vcode", allVcodes);
+        if (storeRows) {
+          matchedStoreIds = storeRows.map((s) => s.id as string).filter(Boolean);
         }
+      }
+      const allTargetStoreIds = Array.from(new Set([...explicitStoreIds, ...matchedStoreIds]));
 
-        const cgStoresMap = new Map<string, string[]>();
-        if (cgIds.length > 0) {
-          const { data: cgsData } = await supabase
+      if (allTargetStoreIds.length > 0) {
+        const { data: cgsMatch } = await supabase
+          .from("coverage_group_stores")
+          .select("coverage_group_id, store_id")
+          .in("store_id", allTargetStoreIds)
+          .is("archived_at", null);
+
+        if (cgsMatch && cgsMatch.length > 0) {
+          const cgIds = Array.from(new Set(cgsMatch.map((c) => asString(c.coverage_group_id)).filter(Boolean) as string[]));
+
+          const { data: allGroupStoresData } = await supabase
             .from("coverage_group_stores")
-            .select("coverage_group_id, stores(store_name)")
-            .in("coverage_group_id", Array.from(new Set(cgIds)))
+            .select(`
+              coverage_group_id,
+              store_id,
+              is_anchor,
+              hc_share,
+              stores (id, store_name, vcode, area_name),
+              coverage_groups (id, coverage_code, status, required_headcount)
+            `)
+            .in("coverage_group_id", cgIds)
             .is("archived_at", null);
 
-          if (cgsData) {
-            for (const item of cgsData as Array<Record<string, unknown>>) {
-              const cgId = asString(item.coverage_group_id);
-              const storeObj = item.stores as Record<string, unknown> | null;
-              const storeName = asString(storeObj?.store_name);
-              if (cgId && storeName) {
-                if (!cgStoresMap.has(cgId)) cgStoresMap.set(cgId, []);
-                cgStoresMap.get(cgId)!.push(storeName);
-              }
-            }
-          }
-        }
+          const { data: activeSlots } = await supabase
+            .from("coverage_slots")
+            .select("coverage_group_id, slot_status, current_occupant_plantilla_id")
+            .in("coverage_group_id", cgIds)
+            .eq("slot_status", "active")
+            .not("current_occupant_plantilla_id", "is", null);
 
-        for (const row of rows) {
-          const cgInfo = cgIdMap.get(row.vcode);
-          if (cgInfo) {
-            row.cgCode = cgInfo.cgCode;
-            const stores = cgStoresMap.get(cgInfo.coverageGroupId);
-            if (stores && stores.length > 0) {
-              row.assignedStores = stores;
+          const filledCgIds = new Set<string>();
+          if (activeSlots) {
+            for (const slot of activeSlots) {
+              if (slot.coverage_group_id) filledCgIds.add(slot.coverage_group_id);
             }
           }
+
+          type GroupStoreInfo = {
+            cgId: string;
+            cgCode: string;
+            isFilled: boolean;
+            requiredHc: number;
+            anchorStoreName: string;
+            anchorVcode: string;
+            memberStoreIds: Set<string>;
+            memberVcodes: Set<string>;
+            storeNames: string[];
+            storeDetails: AssignedStoreDetail[];
+          };
+
+          const cgMap = new Map<string, GroupStoreInfo>();
+          const storeIdToCgId = new Map<string, string>();
+          const vcodeToCgId = new Map<string, string>();
+
+          if (allGroupStoresData) {
+            const grouped = new Map<string, Array<Record<string, unknown>>>();
+            for (const item of allGroupStoresData as Array<Record<string, unknown>>) {
+              const cgId = asString(item.coverage_group_id);
+              if (!cgId) continue;
+              if (!grouped.has(cgId)) grouped.set(cgId, []);
+              grouped.get(cgId)!.push(item);
+            }
+
+            for (const [cgId, items] of grouped.entries()) {
+              const cgRaw = items[0]?.coverage_groups as unknown;
+              const firstCg = Array.isArray(cgRaw) ? (cgRaw[0] as Record<string, unknown> | undefined) : (cgRaw as Record<string, unknown> | null);
+              const cgCode = asString(firstCg?.coverage_code) || "";
+              const cgStatus = (asString(firstCg?.status) || "").toLowerCase();
+              const isFilled = cgStatus === "filled" || filledCgIds.has(cgId);
+              const requiredHc = asNumber(firstCg?.required_headcount) || 1;
+              const count = items.length || 1;
+              const defaultFraction = `1/${count}`;
+
+              let anchorName = "";
+              let anchorVk = "";
+              const memberStoreIds = new Set<string>();
+              const memberVcodes = new Set<string>();
+              const storeNames: string[] = [];
+              const storeDetails: AssignedStoreDetail[] = [];
+
+              for (const item of items) {
+                const sObj = (item.stores as unknown) as Record<string, unknown> | null;
+                const sid = asString(item.store_id) || asString(sObj?.id) || "";
+                const sname = asString(sObj?.store_name) || "";
+                const svcode = asString(sObj?.vcode) || "";
+                const isAnchor = asBoolean(item.is_anchor);
+                const hcShare = asNumber(item.hc_share);
+                const slotFraction = hcShare
+                  ? hcShare === 0.5
+                    ? "1/2"
+                    : hcShare >= 0.33 && hcShare <= 0.34
+                    ? "1/3"
+                    : hcShare === 0.25
+                    ? "1/4"
+                    : defaultFraction
+                  : defaultFraction;
+
+                if (sid) memberStoreIds.add(sid);
+                if (svcode) memberVcodes.add(svcode.toUpperCase());
+                if (sname && !storeNames.includes(sname)) storeNames.push(sname);
+
+                if (isAnchor || !anchorName) {
+                  anchorName = sname;
+                  anchorVk = svcode;
+                }
+
+                storeDetails.push({
+                  storeId: sid || undefined,
+                  storeName: sname,
+                  vcode: svcode || null,
+                  isAnchor,
+                  slotFraction,
+                });
+
+                if (sid) storeIdToCgId.set(sid, cgId);
+                if (svcode) vcodeToCgId.set(svcode.toUpperCase(), cgId);
+              }
+
+              cgMap.set(cgId, {
+                cgId,
+                cgCode,
+                isFilled,
+                requiredHc,
+                anchorStoreName: anchorName,
+                anchorVcode: anchorVk,
+                memberStoreIds,
+                memberVcodes,
+                storeNames,
+                storeDetails,
+              });
+            }
+          }
+
+          const seenCgInVacancies = new Set<string>();
+          const consolidatedRows: VacancyListItem[] = [];
+
+          for (const row of rows) {
+            const rowVk = (row.vcode || "").trim().toUpperCase();
+            const cgId = (row.storeId ? storeIdToCgId.get(row.storeId) : null) || (rowVk ? vcodeToCgId.get(rowVk) : null);
+
+            if (cgId && cgMap.has(cgId)) {
+              const cgInfo = cgMap.get(cgId)!;
+              if (cgInfo.isFilled) {
+                // Member store covered by active employee -> fulfilled, suppressed from vacancy
+                continue;
+              }
+
+              if (seenCgInVacancies.has(cgId)) {
+                // Open coverage group: consolidate multiple member store rows into 1
+                continue;
+              }
+
+              seenCgInVacancies.add(cgId);
+              row.cgCode = cgInfo.cgCode;
+              row.vcode = cgInfo.anchorVcode || row.vcode;
+              row.storeName = `${cgInfo.anchorStoreName} [Roving]`;
+              row.employmentType = "Roving";
+              row.assignedStores = cgInfo.storeNames;
+              row.assignedStoreDetails = cgInfo.storeDetails;
+              row.headcount = cgInfo.requiredHc;
+              row.hcTotal = cgInfo.requiredHc;
+              consolidatedRows.push(row);
+            } else {
+              consolidatedRows.push(row);
+            }
+          }
+
+          rows.length = 0;
+          rows.push(...consolidatedRows);
         }
       }
     } catch {
@@ -3422,35 +3564,100 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
     }
   }
 
-  // Enrich assigned stores for coverage groups if not already present
-  if (!normalized.assignedStores || normalized.assignedStores.length === 0) {
+  // Enrich assigned stores and slot fraction details for coverage groups if not already present
+  if (!normalized.assignedStores || normalized.assignedStores.length === 0 || !normalized.assignedStoreDetails) {
     try {
-      const { data: cgShadowData } = await supabase
-        .from("vw_slot_derived_vacancy_cg_covered_shadow")
-        .select("legacy_vcode, cg_code, coverage_group_id")
-        .eq("legacy_vcode", normalized.vcode)
-        .maybeSingle();
+      let targetCgId: string | null = null;
+      let targetCgCode: string | null = normalized.cgCode || null;
 
-      if (cgShadowData?.coverage_group_id) {
-        if (cgShadowData.cg_code) normalized.cgCode = cgShadowData.cg_code;
-        const { data: cgsData } = await supabase
+      if (normalized.cgCode) {
+        const { data: cgRow } = await supabase
+          .from("coverage_groups")
+          .select("id, coverage_code")
+          .eq("coverage_code", normalized.cgCode)
+          .maybeSingle();
+        if (cgRow?.id) targetCgId = cgRow.id;
+      }
+
+      if (!targetCgId && (normalized.storeId || normalized.vcode)) {
+        let sid = normalized.storeId;
+        if (!sid && normalized.vcode) {
+          const { data: sRow } = await supabase
+            .from("stores")
+            .select("id")
+            .eq("vcode", normalized.vcode)
+            .maybeSingle();
+          if (sRow?.id) sid = sRow.id;
+        }
+
+        if (sid) {
+          const { data: cgsMatch } = await supabase
+            .from("coverage_group_stores")
+            .select("coverage_group_id, coverage_groups(coverage_code)")
+            .eq("store_id", sid)
+            .is("archived_at", null)
+            .maybeSingle();
+          if (cgsMatch?.coverage_group_id) {
+            targetCgId = cgsMatch.coverage_group_id;
+            const cgRaw = cgsMatch.coverage_groups as unknown;
+            const cgObj = Array.isArray(cgRaw) ? (cgRaw[0] as Record<string, unknown> | undefined) : (cgRaw as Record<string, unknown> | null);
+            if (cgObj?.coverage_code) targetCgCode = asString(cgObj.coverage_code);
+          }
+        }
+      }
+
+      if (targetCgId) {
+        if (targetCgCode) normalized.cgCode = targetCgCode;
+
+        const { data: allCgs } = await supabase
           .from("coverage_group_stores")
-          .select("coverage_group_id, stores(store_name)")
-          .eq("coverage_group_id", cgShadowData.coverage_group_id)
+          .select(`
+            coverage_group_id,
+            store_id,
+            is_anchor,
+            hc_share,
+            stores(id, store_name, vcode)
+          `)
+          .eq("coverage_group_id", targetCgId)
           .is("archived_at", null);
 
-        if (cgsData && cgsData.length > 0) {
-          const stores: string[] = [];
-          for (const item of cgsData as Array<Record<string, unknown>>) {
-            const storeObj = item.stores as Record<string, unknown> | null;
-            const sName = asString(storeObj?.store_name);
-            if (sName && !stores.includes(sName)) {
-              stores.push(sName);
+        if (allCgs && allCgs.length > 0) {
+          const count = allCgs.length;
+          const defaultFraction = `1/${count}`;
+          const storesList: string[] = [];
+          const detailsList: AssignedStoreDetail[] = [];
+
+          for (const item of allCgs as Array<Record<string, unknown>>) {
+            const sObj = (item.stores as unknown) as Record<string, unknown> | null;
+            const sname = asString(sObj?.store_name) || "";
+            const svcode = asString(sObj?.vcode) || "";
+            const sid = asString(item.store_id) || asString(sObj?.id) || "";
+            const isAnchor = asBoolean(item.is_anchor);
+            const hcShare = asNumber(item.hc_share);
+            const slotFraction = hcShare
+              ? hcShare === 0.5
+                ? "1/2"
+                : hcShare >= 0.33 && hcShare <= 0.34
+                ? "1/3"
+                : hcShare === 0.25
+                ? "1/4"
+                : defaultFraction
+              : defaultFraction;
+
+            if (sname && !storesList.includes(sname)) {
+              storesList.push(sname);
             }
+            detailsList.push({
+              storeId: sid || undefined,
+              storeName: sname,
+              vcode: svcode || null,
+              isAnchor,
+              slotFraction,
+            });
           }
-          if (stores.length > 0) {
-            normalized.assignedStores = stores;
-          }
+
+          if (storesList.length > 0) normalized.assignedStores = storesList;
+          if (detailsList.length > 0) normalized.assignedStoreDetails = detailsList;
         }
       }
     } catch {

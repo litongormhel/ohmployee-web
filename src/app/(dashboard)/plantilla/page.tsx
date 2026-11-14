@@ -1137,6 +1137,10 @@ function PlantillaPageContent() {
       if (vk) {
         map.set(vk, (map.get(vk) ?? 0) + 1);
       }
+      const cg = emp.cgCode?.trim().toUpperCase();
+      if (cg) {
+        map.set(cg, (map.get(cg) ?? 0) + 1);
+      }
     });
     return map;
   }, [activeEmployees]);
@@ -1147,7 +1151,9 @@ function PlantillaPageContent() {
     const seenVcodes = new Set<string>();
 
     const filtered = raw.filter((v) => {
-      const vk = (v.vcode || v.cgCode || "").trim().toUpperCase();
+      const vk = (v.vcode || "").trim().toUpperCase();
+      const cg = (v.cgCode || "").trim().toUpperCase();
+      const lookupKey = cg || vk;
       const isFilled =
         v.vacancyStatus?.toLowerCase() === "filled" ||
         v.pipelineStatus?.toLowerCase() === "hired" ||
@@ -1156,17 +1162,17 @@ function PlantillaPageContent() {
 
       // Multi-headcount retention: If database quota indicates unfilled capacity, keep visible
       if (v.hcTotal != null && v.hcFilled != null && v.hcFilled < v.hcTotal) {
-        if (vk) seenVcodes.add(vk);
+        if (lookupKey) seenVcodes.add(lookupKey);
         return true;
       }
 
       // Filter out slots that are already fully occupied by active employees in Plantilla
-      if (vk && activeOccupiedVcodes.has(vk)) {
-        const activeCount = activeOccupiedVcodes.get(vk) ?? 0;
+      if ((vk && activeOccupiedVcodes.has(vk)) || (cg && activeOccupiedVcodes.has(cg))) {
+        const activeCount = (cg ? activeOccupiedVcodes.get(cg) : 0) || (vk ? activeOccupiedVcodes.get(vk) : 0) || 0;
         const required = v.hcTotal ?? v.headcount ?? 1;
         if (activeCount >= required && required > 0) return false;
       }
-      if (vk) seenVcodes.add(vk);
+      if (lookupKey) seenVcodes.add(lookupKey);
       return true;
     });
 
@@ -3703,7 +3709,7 @@ function StoreVacancyTable({
           </thead>
           <tbody className="divide-y divide-table-rule">
             {rows.map((row) => {
-              const codeDisplay = row.vcode || row.cgCode || "—";
+              const codeDisplay = row.cgCode || row.vcode || "—";
               const rawName = row.storeName || "Unnamed Store";
               const cleanStoreName = formatStoreName(rawName).replace(/\s*\([^)]*\)/g, "").trim();
               const isRoving = Boolean(
@@ -3744,7 +3750,12 @@ function StoreVacancyTable({
                   aria-label={`Open vacancy details for slot ${codeDisplay}`}
                 >
                   <td className="px-3.5 py-2 font-mono text-xs font-bold text-text-primary whitespace-nowrap">
-                    {codeDisplay}
+                    <div>{codeDisplay}</div>
+                    {row.cgCode && row.vcode && row.cgCode !== row.vcode && (
+                      <div className="font-mono text-[10px] font-normal text-text-muted mt-0.5">
+                        {row.vcode}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3.5 py-2 font-medium text-table-text">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -4699,7 +4710,7 @@ function VacancyCard({
   onSelect: () => void;
   storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
 }) {
-  const codeDisplay = row.vcode || row.cgCode || "—";
+  const codeDisplay = row.cgCode || row.vcode || "—";
   const rawName = row.storeName || "Unnamed Store";
   const cleanStoreName = formatStoreName(rawName).replace(/\s*\([^)]*\)/g, "").trim();
   const isRoving = Boolean(
@@ -4743,6 +4754,11 @@ function VacancyCard({
               <span className="font-mono text-xs font-bold text-text-primary">
                 {codeDisplay}
               </span>
+              {row.cgCode && row.vcode && row.cgCode !== row.vcode && (
+                <span className="font-mono text-[10px] text-text-muted">
+                  ({row.vcode})
+                </span>
+              )}
               {isRoving && (
                 <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-50 text-brand-700 border border-brand-200 dark:bg-brand-950 dark:text-brand-300 dark:border-brand-800">
                   Roving

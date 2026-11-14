@@ -1117,6 +1117,14 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Computed `required = actual + leave + vacant + hrProcess`.
     - Applied identical formula across both KPI-backed and fallback accounts in the account selection grid.
 
+- **Coverage Group Vacancy & Roving Manpower Integration (`ohm#c4g9m2k7` — 2026-11-14)**:
+  - **Contract Enforced**: In Plantilla Tab 3 Vacancy (and `/vacancy`), open Coverage Groups consolidate into **1 single row** displaying `cgCode` (e.g. `CG-FG1-0004`) in `VCode / CGCode` while retaining the anchor store's individual `VCode` as a subtitle/secondary identifier.
+  - **Active Manpower Merge**: When a Coverage Group is formed with an active employee (e.g. Delfina Juaphel Dolar at Puregold Tanza, Waltermart General Trias, Emilus Rosario):
+    - The active employee becomes Roving under the coverage group with fractional $1/N$ ($0.3333$ HC for 3 stores) in `employee_store_allocations` and `plantilla_store_links`.
+    - Vacant member stores (such as `CPSAJV31` Emilus Rosario) are automatically fulfilled and closed in `vacancies` (`status = 'Filled'`), merging into the active employee.
+    - Tab 3 Vacancy recognizes the active roving employee coverage via `activeOccupiedVcodes` and suppresses covered member stores.
+  - **UI Parity**: `StoreVacancyTable` and `VacancyCard` render `row.cgCode || row.vcode`, and `VacancyDetailDrawer` renders itemized Assigned Stores cards with store name, `Anchor` tag, individual intact `VCode`, and $1/3$ HC badge.
+
 
 
 

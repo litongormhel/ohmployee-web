@@ -1,5 +1,55 @@
 # AI Handoff
 
+## Execution Report — Coverage Group Manpower Merge, Approvals Recording & Vacancy 1-Row Consolidation (ohm#c4g9m2k7)
+
+**Status: COMPLETE ON MAIN; ENHANCED COVERAGE GROUP ARCHITECTURE SO THAT (1) MEMBER STORE VACANCIES ARE FULFILLED AND SUPPRESSED WHEN AN ACTIVE EMPLOYEE IS ASSIGNED, (2) OPEN COVERAGE GROUPS CONSOLIDATE INTO 1 SINGLE VACANCY ROW WITH CGCODE DISPLAYED WHILE RETAINING INTACT VCODES, (3) ALLOCATIONS REFLECT 1/N FRACTIONAL HEADCOUNT (1/3 HC) IN STORE STAFFING AND VACANCY DRAWER, AND (4) DIRECT CREATION BY HA/SA CREATES CANONICAL APPROVAL RECORDS AND AUDIT LOGS FOR RECENT ACTIVITY; MIGRATION 20262606000110 APPLIED AND RECONCILED IN STAGING; FULL VERIFICATION PASSED (npm run check:adr FRESH, npm run check:sql OK, npm run lint 0 ERRORS, npm run build EXIT 0); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Vacancy, Plantilla, and More Modules), `docs/state/vacancy_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/state/more_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Vacancy & Plantilla Sections.
+
+### 1. Observation & User Approval
+- User instruction:
+  > "/grill-me this is created in via coverage group. Check mobile repo if ano ang logic ng coverage group
+  > dapat in Vacancy Module magiging isang rows nalang ang na create na cg group then magkakaroon ng GCCode but the individual VCode is still intact.
+  > Also if these 3 (Waltermart General Trias, Emilus Rosario and Puregold Tanza ) dapat ung slot nila ay magiging 1/3
+  > Also this coverage group is created by HA (uat3@ohmployee.com) dapat lalabas sya sa Approvals > Coverage > Approved and also dapat makikita din sa Recent Activity
+  > Also kapag na create ng cg group na may active employee at ung store ay vacant dapat mawawala na sya sa vacancy at mag memerge don sa active employee"
+- Plan and regression risk assessment presented and explicitly approved by the user ("approved").
+
+### 2. Surgical Changes
+1. **`supabase/migrations/20262606000110_coverage_direct_creation_and_manpower_merge.sql`**:
+   - Enhanced `public.create_coverage_group`:
+     - Checks active employees in member stores; converts them to Roving under the new group with `1/N` (`0.3333`) allocations in `employee_store_allocations` and `plantilla_store_links`.
+     - Automatically marks member store open vacancies as `Filled` (`closed_at = now()`), merging them into the active employee.
+     - Creates canonical `coverage_requests` record with `status = 'approved'`, `reviewer_remarks = 'Directly created and approved by Administrator.'`, and execution metadata.
+     - Logs `coverage_request_history` and `audit_logs` (`APPROVE_REQUEST`), ensuring the event appears in Approvals > Coverage > Approved and Dashboard Recent Activity.
+   - Performed data reconciliation for Forever Office coverage group `CG-FG1-0004` (Puregold Tanza, Waltermart General Trias, Emilus Rosario):
+     - Active employee Delfina Juaphel Dolar (`2019-08946`) updated to Roving with 0.3333 HC active allocations across the 3 stores.
+     - `coverage_group_stores` updated with `hc_share = 0.3333`.
+     - Emilus Rosario vacancy `CPSAJV31` marked `Filled`.
+2. **`src/lib/queries/vacancy.ts`**:
+   - Replaced deprecated query against non-existent `vw_slot_derived_vacancy_cg_covered_shadow` with direct multi-store relational query on `coverage_group_stores` joined with `stores` and `coverage_groups`.
+   - In `listVacancies`:
+     - Suppresses member store vacancies if the coverage group is filled by an active employee.
+     - Consolidates multiple member store vacancy rows for open coverage groups into **1 single consolidated row** with `cgCode`, `storeName: anchorStoreName + ' [Roving]'`, `headcount: cg.required_headcount || 1`, and `assignedStoreDetails: Array<{ storeName, vcode, isAnchor, slotFraction }>`.
+   - In `getVacancyDetail`:
+     - Enriches `assignedStoreDetails` with `{ storeId, storeName, vcode, isAnchor, slotFraction }`.
+3. **`src/components/vacancy/VacancyDetailDrawer.tsx`**:
+   - Upgraded Assigned Stores section: renders each assigned store card showing store name, `Anchor` tag, individual intact `VCode`, and `1/3 HC` quota badge.
+4. **`src/app/(dashboard)/plantilla/page.tsx`**:
+   - In `StoreVacancyTable` and `VacancyCard`: updated `codeDisplay` to prioritize `row.cgCode || row.vcode` so `CG-FG1-0004` appears in the `VCode / CGCode` column, while rendering intact `row.vcode` as a secondary line when distinct.
+   - In `activeOccupiedVcodes` and `allVacancies`: indexed `emp.cgCode` and ensured that vacancies covered by active roving employees do not reappear in open vacancies.
+5. **`src/lib/queries/more.ts`**:
+   - Updated `createDirectCoverageGroup` and `executeCoverageOperation` to return `requestId` from the direct creation RPC.
+
+### 3. Verification & Sign-off
+- `npm run check:adr`: FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40).
+- `npm run check:sql`: SQL_CONTRACTS_OK — 28 core tables & 19 cross-module RPC contracts verified.
+- `npm run lint`: Clean (0 errors).
+- `npm run build`: Production build succeeded (Next.js 16.2.4 exit code 0).
+- Migration applied to Staging (`qqiiznmqxfoamqytjica`).
+
+---
+
 ## Execution Report — Align Account Card Vacant to Open Unassigned Headcount (ohm#u5v8p2k4)
 
 **Status: COMPLETE ON MAIN; ALIGNED PLANTILLA DIRECTORY ACCOUNT CARD METRICS TO MUTUALLY EXCLUSIVE HEADCOUNT ACCOUNTING INVARIANT; VACANT METRIC ON ACCOUNT CARDS STRICTLY DERIVES FROM OPEN / UNASSIGNED SLOTS (TOTAL UNFILLED SLOTS - PIPELINE COUNT), ELIMINATING CANDIDATE DOUBLE-COUNTING; REQUIRED HEADCOUNT FORMULA STANDARDIZED AS REQUIRED = ACTUAL + ON-LEAVE + VACANT (OPEN) + PIPELINE; FOR FOREVER OFFICE, RECONCILED EXACT USER SPECIFICATION: VACANT = 5, PIPELINE = 1, ACTIVE = 4, ON-LEAVE = 1, TOTAL REQUIRED = 11, ACTUAL = 4 (MFR 36.36%); FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm run lint 0 ERRORS); LOCAL COMMIT ON MAIN.**

@@ -1688,7 +1688,7 @@ export async function createDirectCoverageGroup(params: {
   areaName?: string;
   storeIds: string[];
   anchorStoreId: string;
-}): Promise<{ coverage_group_id: string; coverage_code: string }> {
+}): Promise<{ coverage_group_id: string; coverage_code: string; request_id?: string }> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("create_coverage_group", {
     p_account_id: params.accountId,
@@ -1703,6 +1703,7 @@ export async function createDirectCoverageGroup(params: {
   return {
     coverage_group_id: String(row.coverage_group_id || ""),
     coverage_code: String(row.coverage_code || ""),
+    request_id: row.request_id ? String(row.request_id) : undefined,
   };
 }
 
@@ -1830,6 +1831,7 @@ export async function executeCoverageOperation(params: CoverageOperationPayload)
     });
     return {
       success: true,
+      requestId: res.request_id,
       coverageGroupId: res.coverage_group_id,
       coverageCode: res.coverage_code,
     };

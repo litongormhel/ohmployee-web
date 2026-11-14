@@ -1146,8 +1146,50 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                       </span>
                     </div>
 
-                    {/* Assigned Stores tags (only rendered if multi-store roving assignment) */}
-                    {storesList.length > 1 && (
+                    {/* Assigned Stores cards/tags (multi-store roving assignment) */}
+                    {(detail.assignedStoreDetails && detail.assignedStoreDetails.length > 1) ? (
+                      <div className="col-span-2">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-medium text-text-muted">
+                            Assigned Stores ({detail.assignedStoreDetails.length})
+                          </span>
+                          {detail.cgCode && (
+                            <span className="font-mono text-[10px] font-semibold text-brand-700 dark:text-brand-300">
+                              {detail.cgCode}
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 gap-1.5">
+                          {detail.assignedStoreDetails.map((st, i) => (
+                            <div
+                              key={st.storeId || i}
+                              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-border-subtle bg-surface-muted/60 text-xs"
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="font-medium text-text-primary truncate">
+                                  {st.storeName}
+                                </span>
+                                {st.isAnchor && (
+                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold bg-brand-50 text-brand-700 border border-brand-200 shrink-0 dark:bg-brand-950/60 dark:text-brand-300 dark:border-brand-800">
+                                    Anchor
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {st.vcode && (
+                                  <span className="font-mono text-[11px] text-text-muted font-medium">
+                                    {st.vcode}
+                                  </span>
+                                )}
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded font-mono text-[10px] font-semibold bg-surface-base text-text-secondary border border-border-subtle shadow-2xs">
+                                  {st.slotFraction || "1/3"} HC
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : storesList.length > 1 ? (
                       <div className="col-span-2">
                         <span className="text-[10px] font-medium text-text-muted block mb-1">
                           Assigned Stores ({storesList.length})
@@ -1160,7 +1202,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                           ))}
                         </div>
                       </div>
-                    )}
+                    ) : null}
 
                     {detail.employmentType && (
                       <div className="col-span-2">
