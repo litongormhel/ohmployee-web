@@ -68,35 +68,16 @@ export type NormalizedSlotAuthority = {
 export function normalizeSlotAuthorityMetrics(
   rawRequired: number,
   rawActual: number,
-  rawVacant: number,
-  options?: {
-    groupCode?: string | null;
-    groupName?: string | null;
-    accountNames?: string[];
-  }
+  rawVacant: number
 ): NormalizedSlotAuthority {
   const actual = Math.max(0, Math.round(Number(rawActual) || 0));
   let required = Math.max(0, Math.round(Number(rawRequired) || 0));
   let vacant = Math.max(0, Math.round(Number(rawVacant) || 0));
 
-  const code = (options?.groupCode ?? "").trim().toUpperCase();
-  const name = (options?.groupName ?? "").trim().toUpperCase();
-  const accounts = (options?.accountNames ?? []).map((a) => a.trim().toUpperCase());
-
-  const isGroup1 = code === "G1" || name.includes("GROUP 1") || accounts.includes("BANKO");
-  const isGroup2 = code === "G2" || name.includes("GROUP 2") || accounts.includes("THREE");
-
   let isNormalized = false;
 
-  if (isGroup1 && actual >= 12 && vacant > 0) {
-    vacant = 0;
-    required = actual;
-    isNormalized = true;
-  } else if (isGroup2 && actual >= 4 && vacant > 0) {
-    vacant = 0;
-    required = actual;
-    isNormalized = true;
-  } else if (vacant > 0 && actual > 0 && required > 0 && actual >= required) {
+  // ADR-001 Slot Authority: When actual >= required, no vacancies exist
+  if (vacant > 0 && actual > 0 && required > 0 && actual >= required) {
     vacant = 0;
     required = actual;
     isNormalized = true;
@@ -326,7 +307,6 @@ export async function fetchCencomGroupAllocationKpi(): Promise<CencomGroupKpiIte
 
   // 2. Fetch active accounts to correlate accounts with groups
   let accountNamesByGroup: Record<string, string[]> = {};
-  const accountToGroupMap = new Map<string, string>();
   try {
     const { data: accountsData } = await supabase
       .from("accounts")
@@ -339,14 +319,11 @@ export async function fetchCencomGroupAllocationKpi(): Promise<CencomGroupKpiIte
       for (const acc of accountsData) {
         const gid = acc.group_id as string | null;
         const name = (acc.account_name as string | null)?.trim() ?? "";
-        if (gid) {
-          accountToGroupMap.set(String(acc.id), gid);
-          if (name) {
-            if (!accountNamesByGroup[gid]) {
-              accountNamesByGroup[gid] = [];
-            }
-            accountNamesByGroup[gid].push(name);
+        if (gid && name) {
+          if (!accountNamesByGroup[gid]) {
+            accountNamesByGroup[gid] = [];
           }
+          accountNamesByGroup[gid].push(name);
         }
       }
     }
@@ -383,57 +360,7 @@ export async function fetchCencomGroupAllocationKpi(): Promise<CencomGroupKpiIte
     storeStatsByGroup = {};
   }
 
-  // 4. Plantilla as Source of Truth: Fetch active plantilla employees & physical slots
-  const plantillaActiveByGroup: Record<string, number> = {};
-  const slotsRequiredByGroup: Record<string, number> = {};
-  const slotsOpenByGroup: Record<string, number> = {};
-
-  try {
-    const [plantillaRes, slotsRes] = await Promise.all([
-      supabase
-        .from("plantilla")
-        .select("account_id")
-        .eq("status", "Active")
-        .is("deactivated_at", null)
-        .is("date_of_separation", null)
-        .or("is_deleted.is.null,is_deleted.eq.false")
-        .or("is_archived.is.null,is_archived.eq.false"),
-      supabase
-        .from("plantilla_slots")
-        .select("account_id, slot_status")
-        .neq("slot_status", "closed")
-        .is("closed_at", null),
-    ]);
-
-    if (plantillaRes.data) {
-      for (const p of plantillaRes.data) {
-        if (p.account_id) {
-          const gid = accountToGroupMap.get(String(p.account_id));
-          if (gid) {
-            plantillaActiveByGroup[gid] = (plantillaActiveByGroup[gid] ?? 0) + 1;
-          }
-        }
-      }
-    }
-
-    if (slotsRes.data) {
-      for (const s of slotsRes.data) {
-        if (s.account_id) {
-          const gid = accountToGroupMap.get(String(s.account_id));
-          if (gid) {
-            slotsRequiredByGroup[gid] = (slotsRequiredByGroup[gid] ?? 0) + 1;
-            if (s.slot_status === "open") {
-              slotsOpenByGroup[gid] = (slotsOpenByGroup[gid] ?? 0) + 1;
-            }
-          }
-        }
-      }
-    }
-  } catch {
-    // Non-blocking fallback
-  }
-
-  // 5. Map & normalize each group row
+  // 4. Map & normalize each group row directly from v_cencom_group_allocation_kpi
   const rows = (groupRows ?? []) as Array<Record<string, unknown>>;
 
   return rows.map((row) => {
@@ -447,30 +374,7 @@ export async function fetchCencomGroupAllocationKpi(): Promise<CencomGroupKpiIte
     const rawRequired = Number(row.required_hc ?? 0);
     const pipeline = Number(row.pipeline_count ?? 0);
 
-    // Anchor to Plantilla as source of truth
-    const plantillaActual = plantillaActiveByGroup[groupId] ?? 0;
-    const slotRequired = slotsRequiredByGroup[groupId] ?? 0;
-    const slotOpen = slotsOpenByGroup[groupId] ?? 0;
-
-    const effectiveActual = plantillaActual > 0 ? plantillaActual : rawActual;
-    const effectiveRequired =
-      slotRequired > 0
-        ? slotRequired
-        : rawRequired > 0
-        ? rawRequired
-        : effectiveActual + rawVacant;
-    const effectiveVacant =
-      slotOpen > 0
-        ? slotOpen
-        : slotRequired > 0
-        ? Math.max(effectiveRequired - effectiveActual - pipeline, 0)
-        : rawVacant;
-
-    const normalized = normalizeSlotAuthorityMetrics(effectiveRequired, effectiveActual, effectiveVacant, {
-      groupCode,
-      groupName,
-      accountNames: accounts,
-    });
+    const normalized = normalizeSlotAuthorityMetrics(rawRequired, rawActual, rawVacant);
 
     const rawProjected = Number(row.projected_mfr ?? 0);
     const projectedMfr =
@@ -669,57 +573,7 @@ export async function fetchCencomGroupDetail(groupId: string): Promise<CencomGro
     }
   }
 
-  // 5. Plantilla as Source of Truth: Active employees & non-closed slots for accounts
-  const plantillaActiveByAccount: Record<string, number> = {};
-  const slotsRequiredByAccount: Record<string, number> = {};
-  const slotsOpenByAccount: Record<string, number> = {};
-
-  if (accountIds.length > 0) {
-    try {
-      const [plantillaRes, slotsRes] = await Promise.all([
-        supabase
-          .from("plantilla")
-          .select("account_id")
-          .in("account_id", accountIds)
-          .eq("status", "Active")
-          .is("deactivated_at", null)
-          .is("date_of_separation", null)
-          .or("is_deleted.is.null,is_deleted.eq.false")
-          .or("is_archived.is.null,is_archived.eq.false"),
-        supabase
-          .from("plantilla_slots")
-          .select("account_id, slot_status")
-          .in("account_id", accountIds)
-          .neq("slot_status", "closed")
-          .is("closed_at", null),
-      ]);
-
-      if (plantillaRes.data) {
-        for (const p of plantillaRes.data) {
-          if (p.account_id) {
-            const accId = String(p.account_id);
-            plantillaActiveByAccount[accId] = (plantillaActiveByAccount[accId] ?? 0) + 1;
-          }
-        }
-      }
-
-      if (slotsRes.data) {
-        for (const s of slotsRes.data) {
-          if (s.account_id) {
-            const accId = String(s.account_id);
-            slotsRequiredByAccount[accId] = (slotsRequiredByAccount[accId] ?? 0) + 1;
-            if (s.slot_status === "open") {
-              slotsOpenByAccount[accId] = (slotsOpenByAccount[accId] ?? 0) + 1;
-            }
-          }
-        }
-      }
-    } catch {
-      // Non-blocking fallback
-    }
-  }
-
-  // 6. Map each account item
+  // 5. Map each account item directly from authoritative v_account_allocation_kpi
   let groupActiveStores = 0;
   let groupTotalStores = 0;
   let groupRequired = 0;
@@ -738,29 +592,7 @@ export async function fetchCencomGroupDetail(groupId: string): Promise<CencomGro
     const rawRequired = Number(kpiRow.required_hc ?? 0);
     const pipeline = Number(kpiRow.pipeline_count ?? 0);
 
-    const plantillaActual = plantillaActiveByAccount[accId] ?? 0;
-    const slotRequired = slotsRequiredByAccount[accId] ?? 0;
-    const slotOpen = slotsOpenByAccount[accId] ?? 0;
-
-    const effectiveActual = plantillaActual > 0 ? plantillaActual : rawActual;
-    const effectiveRequired =
-      slotRequired > 0
-        ? slotRequired
-        : rawRequired > 0
-        ? rawRequired
-        : effectiveActual + rawVacant;
-    const effectiveVacant =
-      slotOpen > 0
-        ? slotOpen
-        : slotRequired > 0
-        ? Math.max(effectiveRequired - effectiveActual - pipeline, 0)
-        : rawVacant;
-
-    const normalized = normalizeSlotAuthorityMetrics(effectiveRequired, effectiveActual, effectiveVacant, {
-      accountNames: [accName],
-      groupCode,
-      groupName,
-    });
+    const normalized = normalizeSlotAuthorityMetrics(rawRequired, rawActual, rawVacant);
 
     const rawProjected = Number(kpiRow.projected_mfr ?? 0);
     const projectedMfr =
@@ -795,11 +627,7 @@ export async function fetchCencomGroupDetail(groupId: string): Promise<CencomGro
     };
   });
 
-  const groupNormalized = normalizeSlotAuthorityMetrics(groupRequired, groupActual, groupVacant, {
-    groupCode,
-    groupName,
-    accountNames: accounts.map((a) => a.account_name ?? ""),
-  });
+  const groupNormalized = normalizeSlotAuthorityMetrics(groupRequired, groupActual, groupVacant);
 
   return {
     groupId,

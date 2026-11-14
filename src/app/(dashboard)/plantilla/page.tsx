@@ -756,25 +756,12 @@ function PlantillaPageContent() {
         const accId = String(row.account_id);
         processedAccountIds.add(accId);
 
-        const kpiActual = Number(row.actual_hc ?? 0);
-        const activeCount = activeEmpMap.get(accId) ?? 0;
-        const actual = activeCount > 0 ? activeCount : kpiActual;
-
+        // Database-as-Truth: Direct pass-through from authoritative v_account_allocation_kpi
+        const actual = Number(row.actual_hc ?? 0);
         const hrProcess = Number(row.pipeline_count ?? 0);
+        const vacant = Math.round(Number(row.slot_vacant_hc ?? 0));
+        const required = Number(row.required_hc ?? (actual + vacant + hrProcess));
         const leave = leaveMap.get(accId) ?? 0;
-
-        const openSlots = openSlotsMap.get(accId) ?? 0;
-        const totalUnfilled =
-          openSlots > 0
-            ? openSlots
-            : Math.round(Number(row.slot_vacant_hc ?? 0));
-
-        // Mutually exclusive Vacancy & Pipeline display contract:
-        // Vacant strictly reflects Open / Unassigned slots (excluding candidates in pipeline)
-        const vacant = Math.max(0, totalUnfilled - hrProcess);
-
-        // Required Headcount Invariant: Actual + On-Leave + Vacant (Open) + Pipeline
-        const required = actual + leave + vacant + hrProcess;
 
         const fillRate = required > 0 ? (actual / required) * 100 : 0;
         map.set(accId, { actual, vacant, hrProcess, required, fillRate, leave });

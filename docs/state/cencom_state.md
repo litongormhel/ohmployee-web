@@ -1,12 +1,18 @@
 # CENCOM State & Technical Architecture Specification
 
 **Module Route:** `/cencom`  
-**Primary Schema / Sources:** `v_cencom_allocation_kpi`, `v_cencom_group_allocation_kpi`, `fn_cencom_deployment_summary`, `stores`, `accounts`  
-**Last Updated:** 2026-10-25 (`ohm#l3c8m1q5`)
+**Primary Schema / Sources:** `v_cencom_allocation_kpi`, `v_cencom_group_allocation_kpi`, `v_account_allocation_kpi`, `v_cencom_account_allocation_kpi`, `fn_cencom_deployment_summary`, `stores`, `accounts`  
+**Last Updated:** 2026-11-15 (`ohm#streamline-cencom-plantilla-dual-computation`)
 
 ---
 
 ## 1. Overview & Architecture
+
+- **Authoritative Database Pass-Through Architecture (`ohm#streamline-cencom-plantilla-dual-computation` — 2026-11-15)**:
+  - Adheres strictly to the KISS ("Database Computes, UI Renders") principle across CENCOM and Plantilla.
+  - Eliminated redundant client-side workforce counting: `fetchCencomGroupAllocationKpi` and `fetchCencomGroupDetail` no longer download the entire active workforce (`plantilla`) and all slots across the network to re-sum in memory. Group metrics and account breakdowns are passed directly from `v_cencom_group_allocation_kpi` and `v_cencom_account_allocation_kpi`.
+  - Removed brittle hardcoded group name/code hacks from `normalizeSlotAuthorityMetrics` (formerly hardcoded thresholds for Group 1 and Group 2), delegating slot authority purely to ADR-001 generic invariants.
+  - In `src/app/(dashboard)/plantilla/page.tsx`, retail accounts in `accountKpiMap` consume database-computed columns from `v_account_allocation_kpi` directly (`actual_hc`, `slot_vacant_hc`, `pipeline_count`, `required_hc`), eliminating frontend double-computation.
 
 - **`v_account_allocation_kpi` Actual Headcount Active Plantilla Guard (`ohm#4x7n2k9w` — Phase 10, `20261028033655_fix_account_allocation_kpi_actual_hc_active_plantilla_guard.sql`)**:
   - Guarded the `filled` CTE by joining active plantilla records (`JOIN plantilla p ON p.id = a.plantilla_id WHERE a.is_active AND p.status IN ('Active', 'For Deactivation', 'On Leave') AND NOT p.is_deleted AND NOT p.is_archived`).

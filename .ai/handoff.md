@@ -1,5 +1,23 @@
 # AI Handoff
 
+## Execution Report — Direct Pass-Through for CENCOM and Plantilla KPIs (ohm#streamline-cencom-plantilla-dual-computation)
+
+**Status: COMPLETE ON MAIN; ENFORCED THE KISS ("DATABASE COMPUTES, UI RENDERS") ARCHITECTURAL PRINCIPLE ACROSS CENCOM AND PLANTILLA MODULES: (1) QUERY OPTIMIZATION (`src/lib/queries/cencom.ts`): REMOVED REDUNDANT CLIENT-SIDE WORKFORCE RE-COUNTING IN `fetchCencomGroupAllocationKpi` AND `fetchCencomGroupDetail`, ELIMINATING MASS OVER-THE-NETWORK DOWNLOADS OF ALL ACTIVE PLANTILLA EMPLOYEES AND ALL SLOTS; METRICS PASS DIRECTLY FROM `v_cencom_group_allocation_kpi` AND `v_cencom_account_allocation_kpi`; REMOVED BRITTLE HARDCODED GROUP NAME/CODE OVERRIDES (`isGroup1 && actual >= 12`, `isGroup2 && actual >= 4`) FROM `normalizeSlotAuthorityMetrics`; (2) PLANTILLA PAGE OPTIMIZATION (`src/app/(dashboard)/plantilla/page.tsx`): IN `accountKpiMap` QUERY, SWITCHED RETAIL ACCOUNTS TO DIRECT PASS-THROUGH FROM `v_account_allocation_kpi` (`actual_hc`, `slot_vacant_hc`, `pipeline_count`, `required_hc`), ELIMINATING FRONTEND DOUBLE-COMPUTATION AND SUBTRACTION LOOPS; (3) UPDATED `docs/state/cencom_state.md`; VERIFIED WITH 0 ERRORS VIA `npm run check:adr` (FRESH), `npm run check:sql` (641 MIGRATIONS OK), `npm test` (226/226 PASSED), AND `npm run lint` (0 ERRORS, 0 WARNINGS); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/cencom_state.md`, `docs/state/plantilla_state.md`, `src/lib/queries/cencom.ts`, `src/app/(dashboard)/plantilla/page.tsx`.
+
+### 1. Changes Delivered
+1. **`src/lib/queries/cencom.ts` (Authoritative Database Pass-Through)**:
+   - Simplified `normalizeSlotAuthorityMetrics(rawRequired, rawActual, rawVacant)`: removed hardcoded Group 1 (`isGroup1 && actual >= 12`) and Group 2 (`isGroup2 && actual >= 4`) branches. Group/account name parsing is completely removed. Slot authority is handled uniformly via generic ADR-001 rules (`actual >= required -> vacant = 0`).
+   - `fetchCencomGroupAllocationKpi`: Removed queries downloading all active `plantilla` employees (`.from("plantilla").select(...)`) and all `plantilla_slots` across all accounts. Group metrics (`active_stores`, `required_hc`, `actual_hc`, `slot_vacant_hc`, `pipeline_count`, `fulfillment_rate`) now pass directly from `v_cencom_group_allocation_kpi`.
+   - `fetchCencomGroupDetail`: Removed queries fetching all group active plantilla employees and slots. Account breakdown rows now pass directly from `v_cencom_account_allocation_kpi`.
+2. **`src/app/(dashboard)/plantilla/page.tsx` (Plantilla Retail Account KPI Pass-Through)**:
+   - Switched the retail accounts branch in `accountKpiMap` to consume database-computed columns directly from `v_account_allocation_kpi` (`row.actual_hc`, `row.slot_vacant_hc`, `row.pipeline_count`, `row.required_hc`), completely bypassing client-side in-memory counting loops and ensuring exact parity with CENCOM.
+3. **Architecture Documentation (`docs/state/cencom_state.md`)**:
+   - Documented the Authoritative Database Pass-Through Architecture under Section 1.
+
+---
+
 ## Execution Report — Full Hard Admin Immunity Bypass across Web and Mobile Codebases (ohm#rbac-admin-immunity-bypass-web-mobile)
 
 **Status: COMPLETE ON MAIN; STRENGTHENED ADMINISTRATIVE UNIVERSAL IMMUNITY FOR SUPER ADMIN (100) AND HEAD ADMIN (90) ACROSS BOTH WEB AND MOBILE CODEBASES TO GUARANTEE ADMINS NEVER ENCOUNTER FALSE-POSITIVE "ACCESS RESTRICTED" LOCKOUTS: (1) WEB RBAC GATEWAY (`src/lib/rbac.ts`): UPDATED `canPerformDrawerAction` TO GRANT IMMEDIATE BYPASS FOR SUPER ADMIN (`level >= 100`) AND HEAD ADMIN (`level >= 90` FOR ALL OPERATIONAL, PLANTILLA, VACANCY, DATA CONTROL, AND APPROVAL ACTIONS), AND UPDATED `canViewHrEmploc` TO EVALUATE `hasFullAccess`; (2) WEB DASHBOARD SHELL (`src/components/DashboardAuthShell.tsx`): UPDATED `canViewActiveModule` WITH IMMEDIATE IMMUNITY BYPASS FOR `hasFullAccess(currentUser) || roleLevel >= 90`, PREVENTING UNWANTED REDIRECTS AWAY FROM VALID MATCHED MODULES; (3) MOBILE AUTH & NAVIGATION (`D:\Projects\OHMployee`): IN `lib/core/auth/auth_service.dart`, ADDED `hasFullAccess` TO `canSeeHREmploc`, `canEndorseToOps`, AND `canConfirmOnboard`; IN `lib/core/auth/module_visibility.dart`, UPDATED `roleDefault` AND `canViewModule` SO `hasFullAccess || roleLevel >= 90` UNCONDITIONALLY BYPASSES ANY RESTRICTIVE DENY OVERRIDES; IN `lib/features/more/more_screen.dart`, ADDED HARD ADMIN BYPASS IN `_canSeeItem` SO ADMINS ARE NEVER LOCKED OUT OF REQUEST CENTER OR APPROVAL QUEUES; VERIFIED WITH 0 ERRORS VIA `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `flutter analyze` (0 ISSUES); COMMITTED LOCALLY ON MAIN ACROSS BOTH REPOSITORIES.**
