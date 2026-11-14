@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Execution Report — Plantilla Forever Office Borillo Slot & VCode Reconciliation (ohm#b7v6m1k9)
+
+**Status: COMPLETE ON MAIN; RECONCILED FOREVER OFFICE HEADCOUNT METRICS BY RESOLVING VCODE MISMATCH AND PHYSICAL SLOT OCCUPANCY FOR EMPLOYEE FRED RICHARD BORILLO (2021-11468) AT SMCO KAWIT; APPLIED SURGICAL MIGRATION 20262606000109_reconcile_forever_office_borillo_slot.sql UPDATING BORILLO'S VCODE FROM CPRVJV13 TO CPSMJV21, BINDING SMCO KAWIT PHYSICAL SLOT 1 IN plantilla_slots AS OCCUPIED, AND ACTIVATING HIS STORE ALLOCATION IN employee_store_allocations; RESTORED VISIBILITY OF DIVIMART GENERAL TRIAS (CPRVJV13) IN TAB 3 VACANCY; CARD (VACANT 6) AND TAB (6 SLOTS ACROSS 6 STORES) RECONCILED 1:1; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm run lint 0 ERRORS); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> Plantilla Module), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants, Plantilla Section, `docs/architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md`.
+
+### 1. Observation & User Approval
+- User reported: "investigate why this has 7 vacant in account card but 6 lang sa loob."
+- User provided 2 screenshot images:
+  1. Image 1: Inside Plantilla account view for `FOREVER OFFICE` under Tab 3: Vacancy showing 5 records with 6 total slots (`Vacancy 5 (6 slots)`).
+  2. Image 2: Account Card for `FOREVER OFFICE` showing `HC 4/12 • Vacant 7 • Pipeline 1 • Leave 1`.
+- Forensic DB tracing identified:
+  1. `plantilla_slots` physically had 7 slots with `slot_status = 'open'` under `FOREVER OFFICE` (`account_id = 'd0533fbc-3cce-4d0a-a619-ad0539dbc66d'`), explaining why the Account Card computed `Vacant 7`.
+  2. Tab 3 Vacancy in the frontend checks `activeOccupiedVcodes` and hides any vacancy where an active employee has the same VCode. Employee Fred Richard Borillo (`2021-11468`, active at `SMCO KAWIT`) retained old vcode `CPRVJV13` (belonging to `DIVIMART GENERAL TRIAS`) following a historical floating redeployment before commit `261fd89` auto-bound vcodes.
+  3. Because Borillo was active on `CPRVJV13`, the client-side vacancy filter suppressed `DIVIMART GENERAL TRIAS` (`CPRVJV13`) from Tab 3 Vacancy.
+  4. Concurrently, Borillo's deployment to `SMCO KAWIT` did not bind either of SMCO Kawit's 2 physical slots in `plantilla_slots`, leaving `SMCO KAWIT` showing 2 open slots instead of 1.
+- Presented implementation plan and regression risk assessment through the Approval Gate; user explicitly replied "confirmed".
+
+### 2. Surgical Changes & Execution
+1. **Migration `supabase/migrations/20262606000109_reconcile_forever_office_borillo_slot.sql`**:
+   - Reconciled Borillo's VCode in `public.plantilla` from `CPRVJV13` to `CPSMJV21` (SMCO Kawit).
+   - Bound slot `ee1cb318-c3d2-4232-9979-2378a005cd8e` (`CPSMJV21`) in `public.plantilla_slots` as `slot_status = 'occupied'`, `current_occupant_plantilla_id = '9d908f13-2496-41f1-a881-d5a2a0ec7057'`.
+   - Activated Borillo's allocation in `public.employee_store_allocations` for SMCO Kawit (`filled_hc = 1.0000`, `is_active = true`).
+2. **Applied migration to Staging database (`qqiiznmqxfoamqytjica`)**:
+   - Verified that `plantilla_slots` open count dropped from 7 to exactly 6 open slots.
+   - Verified that `DIVIMART GENERAL TRIAS` (`CPRVJV13`) is no longer suppressed by active occupancy and now surfaces cleanly in Tab 3 Vacancy.
+   - Verified that `SMCO KAWIT` (`CPSMJV21`) capacity updated from 2 open slots to 1 open slot.
+   - Account Card and Tab 3 Vacancy now match 1:1 with **6 vacant slots**.
+3. **`docs/state/plantilla_web_state.md`**:
+   - Documented the VCode parity and slot reconciliation for FOREVER OFFICE.
+
+### 3. Verification
+- `npm run check:adr` → FRESH — ADR-001 (3729ccb), ADR-002 (49d7a40).
+- `npm run check:sql` → SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 634 migrations.
+- `npm run lint` → 0 errors, 0 warnings.
+- Live database queries confirmed:
+  - Borillo `vcode = 'CPSMJV21'`
+  - `plantilla_slots` under FOREVER OFFICE: 6 open, 6 occupied (12 total).
+  - `employee_store_allocations` active row present for SMCO KAWIT.
+
+---
+
 ## Execution Report — Plantilla Table Pagination Ergonomics: Employee 10 Rows & Store 15 Rows (ohm#k8v4p1m2)
 
 **Status: COMPLETE ON MAIN; RESTORED PLANTILLA EMPLOYEE VIEW DEFAULT PAGE SIZE TO 10 ROWS (WITH [10, 15, 25, 50] OPTIONS) TO FIT COMFORTABLY ABOVE THE FOLD WITHOUT INTERNAL SCROLLING ON 1080P LAPTOP DISPLAYS; PRESERVED STORE VIEW AT 15 ROWS (WITH [15, 30, 50] OPTIONS) PER EXPLICIT USER APPROVAL; FULL VERIFICATION SUITE PASSED (npm run check:adr FRESH, npm run check:sql OK, npm test 211/211 PASSED, npm run lint 0 ERRORS); LOCAL COMMIT ON MAIN.**
