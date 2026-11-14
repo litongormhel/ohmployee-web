@@ -15,6 +15,7 @@
     "check:sql": "node scripts/check-sql-contracts.mjs",
     "sync:migrations": "node scripts/sync-migrations.mjs",
     "db:push:staging": "node scripts/push-staging-migrations.mjs",
+    "db:new": "node scripts/new-migration.mjs",
     "finish": "node scripts/finish.js",
     "check:adr": "node scripts/adr-mirror.mjs check",
     "sync:adr": "node scripts/adr-mirror.mjs sync"

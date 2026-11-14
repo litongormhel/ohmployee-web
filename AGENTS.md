@@ -19,9 +19,22 @@
   mirrors and write "ADR freshness: NOT VERIFIED" in the report. Never edit mirrors by hand.
 - The post-prompt documentation update is mandatory on EVERY prompt, even if the prompt body
   does not mention it. Checklist: `.ai/briefing.md` § After Every Completed Prompt.
-- Approval & Regression Gate: before any code, schema, or migration change, present a short
-  plan + regression risk assessment, then STOP and WAIT for explicit user approval. Do not
-  implement in the same turn.
+- Approval & Regression Gate (Smart Fast-Track vs Full Gate):
+  - **Full Approval Gate (STOP & WAIT)**: Before introducing any database migration (`.sql`), modifying schema/DDL, rewriting SQL RPC/trigger functions, or changing cross-module state transitions, present a short plan + regression risk assessment, then STOP and WAIT for explicit user approval. Do not implement in the same turn.
+  - **Fast-Track Auto-Execute (Single Turn)**: The agent may proceed directly without a separate approval turn ONLY for:
+    (1) Documentation and agent rules updates (`AGENTS.md`, `.ai/*`, `docs/*`),
+    (2) Pure UI copy/label/styling tweaks with zero business logic change, OR
+    (3) Prompts where the user explicitly includes "Direct" or "Proceed".
+- Non-Breaking View & RPC Parity Rule (Mobile Protection Lock):
+  The Supabase database serves BOTH Web and Mobile (`OHMployee`).
+  1. **Views (Append-Only)**: In `CREATE OR REPLACE VIEW`, any new column MUST be appended to the very end of the column list. Never reorder, rename, or drop existing columns in views.
+  2. **RPC Functions (Default-Safe)**: Any new parameter added to existing RPC functions MUST specify `DEFAULT NULL` (or provide a backward-compatible wrapper overload) so Mobile app calls without the new parameter never fail.
+- No Silent Catch & PostgREST Column Guard (`src/lib/queries/*.ts`):
+  - Never use empty or unlogged `catch {}` blocks around Supabase queries.
+  - Always log PostgREST errors via `console.error('[PostgREST Schema Error]', error)` with the query context.
+  - Before querying joined columns in `.select()`, cross-check the physical table columns in `scripts/check-sql-contracts.mjs` to ensure the column physically exists on that table (e.g. `stores` has `area_city, area_province`, NOT `area_name`).
+- Auto-Numbered Migration Generation Rule:
+  - Never guess or manually concoct migration timestamps. Always generate new migrations using `npm run db:new <migration_name>` (`scripts/new-migration.mjs`), which automatically increments the highest numeric version prefix across Web and Mobile, guaranteeing zero duplicate version prefix collisions.
 - Uncertainty & Clarification Gate: If requirements, user intent, edge cases, or scope boundaries
   are unclear or ambiguous, NEVER make assumptions or proceed blindly. Always STOP, ask clarifying
   questions, and explicitly provide 1–3 concrete recommendations with rationale.
@@ -59,12 +72,14 @@
 - Environment Safety Guard: If the workspace or Supabase CLI is detected pointing to Production (`rwxelulyapjgaarlwkus` in `.env` or `supabase/.temp/project-ref`), immediately switch back to Staging (`qqiiznmqxfoamqytjica` via `.env.staging` / `npx supabase link --project-ref qqiiznmqxfoamqytjica`) before executing tasks.
 - Staging Migration Pre-Push Validation & Prod Delta Reporting Rule:
   1. **Pre-Push Error Gate**: Before pushing any migration to Staging (`qqiiznmqxfoamqytjica`), always validate that the migration has zero errors (`npm run check:sql` and `npx supabase db push --dry-run --linked` via `npm run db:push:staging`). If any error occurs (syntax, constraint, prefix collision, or contract error), fix the migration first and re-validate until it passes with 0 errors before pushing to Staging.
-  2. **End-of-Turn Prod vs. Staging Migration Counter**: Whenever a prompt includes or touches database migrations, query the read-only migration lists for Production (`rwxelulyapjgaarlwkus`) and Staging (`qqiiznmqxfoamqytjica`) via the Supabase MCP `list_migrations` tool (strictly read-only metadata check; never link `.env` or execute DDL/SQL against Prod) and include the following summary block at the end of the turn report:
+  2. **End-of-Turn Prod vs. Staging Migration Counter**: Whenever a prompt includes or touches database migrations, query the read-only migration lists for Production (`rwxelulyapjgaarlwkus`) and Staging (`qqiiznmqxfoamqytjica`) via the Supabase MCP `list_migrations` tool (strictly read-only metadata check; never link `.env` or execute DDL/SQL against Prod) and include the following summary block at the end of the turn report, listing the exact filenames of any pending migrations:
      ```text
      prod: <X> migrations
      staging: <Y> migrations
 
-     <N> migrations are not on prod.
+     <N> migrations are not on prod:
+     - <filename_1>
+     - <filename_2>
      ```
 - Conclude every turn report with both: (1) an explicit **Next Steps** section covering immediate actions/guidance, and (2) a helpful `> [!TIP]` callout covering operational tips, verification commands, or deployment commands.
 
