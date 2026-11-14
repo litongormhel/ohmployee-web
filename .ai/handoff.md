@@ -54,6 +54,22 @@
 - **Auditor 1**: CLEAN (0 integrity violations; verified anti-cheating, static contracts, and genuine implementation).
 - **Victory Auditor**: **VICTORY CONFIRMED** (Phase A Timeline PASS, Phase B Integrity PASS, Phase C Tests PASS: check:adr FRESH, check:sql OK, 15/15 unit tests pass, 226/226 tests pass, 0 lint errors, build 20/20 clean).
 
+### 4. Staging Deployment & Live Diff Verification (Briefing.md § Post-Migration Live Diff Rule)
+- **Staging Database Target**: `qqiiznmqxfoamqytjica` (Production ref `rwxelulyapjgaarlwkus` strictly protected).
+- **Deployment Tool**: Supabase MCP `apply_migration` applied `supabase/migrations/20262606000113_scope_notification_delivery_and_actioned_status.sql` returning `{"success": true}`.
+- **Live Function Definitions**: Live query via `execute_sql` with `SELECT proname, pg_get_functiondef(oid) FROM pg_proc WHERE proname IN ('notify_hc_request_submitted', 'notify_hc_request_actioned', '_rnw_notify_roles', 'trg_coverage_request_notify')`:
+  - `_rnw_notify_roles(text[], text, text, text, text, text, text, text, uuid, uuid)`: Live plpgsql implementation confirmed with group/account tenant scoping and Super Admin global preservation.
+  - `_rnw_notify_roles(text[], text, text, text, text, text, text, text)`: Live 8-param backward-compatible wrapper calling 10-param overload with `NULL, NULL`.
+  - `notify_hc_request_submitted()`: Live trigger function confirming group/account scoping via `public.user_scopes` and `public.users_profile` fallback, with scoped Encoders and Head Admins notified upon submission.
+  - `notify_hc_request_actioned()`: Live trigger function confirming approval status tuple includes `'approved_pending_vcode'`, immediately notifying Ops requestor upon Head Admin approval.
+  - `trg_coverage_request_notify()`: Live trigger function resolving `account_id` and `group_id` from request/coverage groups and forwarding to `_rnw_notify_roles`.
+- **Function Permissions**: Revoked from `PUBLIC` and `anon`; granted to `authenticated` and `service_role`.
+- **Project Verification**:
+  - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`
+  - `npm run check:sql`: `SQL_CONTRACTS_OK` (28 core tables & 19 cross-module RPC contracts across 638 migrations)
+  - `npm test`: 226 passed, 0 failed
+  - `npm run lint`: 0 errors, 0 warnings
+
 ---
 
 ## Execution Report — Notifications Module Redesign: Alerts & Activity Center (ohm#7k2m9x4q)
