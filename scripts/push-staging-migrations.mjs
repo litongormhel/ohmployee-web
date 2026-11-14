@@ -151,16 +151,45 @@ function main() {
     stdio: "inherit",
   });
 
-  // Gate 5: Push pending migrations to Staging
-  const cmd = isDryRun
-    ? "npx supabase db push --dry-run --linked"
-    : "npx supabase db push --linked --yes";
-
-  console.log(`[db:push:staging] Executing: ${cmd}`);
-  execSync(cmd, {
+  // Gate 5A: Mandatory Pre-Push Dry-Run Validation
+  console.log(
+    "[db:push:staging] Gate 5A: Running pre-push dry-run validation..."
+  );
+  const dryRunOut = execSync("npx supabase db push --dry-run --linked", {
     cwd: ROOT,
-    stdio: "inherit",
+    encoding: "utf8",
   });
+  process.stdout.write(dryRunOut);
+
+  if (!isDryRun) {
+    // Parse dry-run JSON line if present to skip live push when already up to date
+    const jsonLine = dryRunOut
+      .split("\n")
+      .find((l) => l.trim().startsWith("{") && l.includes('"upToDate"'));
+    let alreadyUpToDate = false;
+    if (jsonLine) {
+      try {
+        const parsed = JSON.parse(jsonLine.trim());
+        alreadyUpToDate = parsed.upToDate === true;
+      } catch {
+        // Proceed with live push if JSON parsing fails
+      }
+    }
+
+    if (alreadyUpToDate) {
+      console.log(
+        "[db:push:staging] ✔ Remote Staging database is already up to date (0 pending migrations)."
+      );
+    } else {
+      console.log(
+        "[db:push:staging] Gate 5B: Pre-push dry-run clean. Applying migrations to Staging..."
+      );
+      execSync("npx supabase db push --linked --yes", {
+        cwd: ROOT,
+        stdio: "inherit",
+      });
+    }
+  }
 
   console.log("======================================================");
   console.log(

@@ -57,6 +57,15 @@
 - After items 1-3 of the checklist, make a LOCAL commit of only the files this prompt changed
   (explicit paths, never `git add .`). NEVER push. Rules: `.ai/briefing.md` § Local Commit Rule.
 - Environment Safety Guard: If the workspace or Supabase CLI is detected pointing to Production (`rwxelulyapjgaarlwkus` in `.env` or `supabase/.temp/project-ref`), immediately switch back to Staging (`qqiiznmqxfoamqytjica` via `.env.staging` / `npx supabase link --project-ref qqiiznmqxfoamqytjica`) before executing tasks.
+- Staging Migration Pre-Push Validation & Prod Delta Reporting Rule:
+  1. **Pre-Push Error Gate**: Before pushing any migration to Staging (`qqiiznmqxfoamqytjica`), always validate that the migration has zero errors (`npm run check:sql` and `npx supabase db push --dry-run --linked` via `npm run db:push:staging`). If any error occurs (syntax, constraint, prefix collision, or contract error), fix the migration first and re-validate until it passes with 0 errors before pushing to Staging.
+  2. **End-of-Turn Prod vs. Staging Migration Counter**: Whenever a prompt includes or touches database migrations, query the read-only migration lists for Production (`rwxelulyapjgaarlwkus`) and Staging (`qqiiznmqxfoamqytjica`) via the Supabase MCP `list_migrations` tool (strictly read-only metadata check; never link `.env` or execute DDL/SQL against Prod) and include the following summary block at the end of the turn report:
+     ```text
+     prod: <X> migrations
+     staging: <Y> migrations
+
+     <N> migrations are not on prod.
+     ```
 - Conclude every turn report with both: (1) an explicit **Next Steps** section covering immediate actions/guidance, and (2) a helpful `> [!TIP]` callout covering operational tips, verification commands, or deployment commands.
 
 <!-- BEGIN:nextjs-agent-rules -->

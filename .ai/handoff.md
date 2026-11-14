@@ -20,7 +20,8 @@
    - **Gate 2 (Migration Sync)**: Runs `node scripts/sync-migrations.mjs`.
    - **Gate 3 (Unique Version Prefix Gate)**: Verifies all `.sql` files in `supabase/migrations/` have unique numeric version prefixes.
    - **Gate 4 (SQL Contract Gate)**: Runs `node scripts/check-sql-contracts.mjs` across all 28 core tables and 19 cross-module RPC contracts.
-   - **Gate 5 (Supabase CLI Push)**: Runs `npx supabase db push --linked --yes` (or `--dry-run`).
+   - **Gate 5A (Pre-Push Dry-Run Validation)**: Runs `npx supabase db push --dry-run --linked` before any live push. If any error occurs, the script aborts so the migration can be fixed before pushing.
+   - **Gate 5B (Supabase CLI Live Push)**: Runs `npx supabase db push --linked --yes` when dry-run succeeds and pending migrations exist.
 3. **Contract Guard Enhancement (`scripts/check-sql-contracts.mjs`)**:
    - Added Step 3 checking `supabase/migrations/` for duplicate numeric version prefixes on every `npm test` and `npm run lint`.
 4. **Staging Schema Migrations Reconciliation & Live Push**:
@@ -28,6 +29,11 @@
    - Reconciled `20262606000110`..`20262606000113` in `supabase_migrations.schema_migrations` on Staging.
    - Executed `npm run db:push:staging`, applying `20262606000114_coverage_group_vacant_roving_slot_and_capacity.sql` cleanly and confirming subsequent run returns `"upToDate": true, "message": "Remote database is up to date."`
    - Verified `pg_get_functiondef` of `public.create_coverage_group(uuid, uuid, text, text, uuid[], uuid)` live on Staging.
+5. **Agent Rule Codification (`AGENTS.md` & `.ai/briefing.md`)**:
+   - Codified the **Staging Migration Pre-Push Validation & Prod Delta Reporting Rule**:
+     - Before pushing to Staging, verify zero errors via `npm run check:sql` and `npx supabase db push --dry-run --linked`; fix any error before pushing.
+     - At the end of every prompt involving migrations, query read-only `list_migrations` for Production (`rwxelulyapjgaarlwkus`) and Staging (`qqiiznmqxfoamqytjica`) and output:
+       `prod: 603 migrations` / `staging: 608 migrations` / `5 migrations are not on prod.`
 
 ---
 
