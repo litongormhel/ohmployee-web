@@ -1,5 +1,61 @@
 # AI Handoff
 
+## Execution Report — CENCOM Group Detail Navigation & Dedicated Account Drilldown (ohm#g1c4d7k9)
+
+**Status: COMPLETE ON MAIN; REMOVED EXPANDABLE CHEVRON AND SUBTITLE PREVIEW LIST FROM CENCOM GROUP PERFORMANCE TABLE (`CencomGroupTable.tsx`), REPLACED WITH INTERACTIVE LINK (`{group.groupName} ({count} accounts)`) DIRECTLY NAVIGATING TO DEDICATED FULL-PAGE DRILLDOWN VIEW AT `/cencom/groups/[id]` (`src/app/(dashboard)/cencom/groups/[id]/page.tsx`); BUILT 5X KPI SUMMARY TILES (REQUIRED HC, ACTUAL HC, VACANCIES, ACTIVE STORES, MFR), INSTANT CLIENT SEARCH & HEALTH STATUS FILTER (`All`, `Healthy`, `At Risk`, `Critical`), SORTABLE ACCOUNTS BREAKDOWN TABLE WITH ACTIVE STORES, REQUIRED HC, ACTUAL HC, VACANCIES, MFR PERCENTAGE BAR, HEALTH BADGE, AND QUICK ACTIONS SHORTCUTS TO VIEW PLANTILLA (`/plantilla?account=...`) AND VACANCY (`/vacancy?account=...`); AUTHORED `fetchCencomGroupDetail` AND `useCencomGroupDetail` IN `src/lib/queries/cencom.ts` RECONCILING `v_cencom_account_allocation_kpi`, `accounts`, `stores`, `plantilla`, AND `plantilla_slots` WITH PLANTILLA SOURCE-OF-TRUTH INVARIANTS; VERIFIED WITH 0 ERRORS VIA `npm run lint` AND `npm run build` (20/20 PAGES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index -> CENCOM & Dashboard Modules), `docs/state/cencom_state.md`, `docs/state/dashboard_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` -> Core Cross-Module Invariants & § Dashboard & CENCOM.
+
+### 1. Requirements & Problem Statement
+- **User Request**: "Remove Chevron ang dapat clickable ung per Group. e.g Group 1 (15 accounts) when i click this it opens new page then nandon lahat ng mga accounts under that group then ung makikita ung details like required hc, total vacant etc. /grill-me if unsure on my instructions".
+- **Identified Pain Point**: In `CencomGroupTable.tsx`, clicking the chevron merely expanded an inline list of account chips under the group row, cluttering the table layout without providing individual account-level headcount quota, open vacancy, active stores, or MFR metrics.
+- **Grill-me Alignments**:
+  1. Dedicated Page Route `/cencom/groups/[id]` with `← Back to CENCOM` link, top summary KPIs, and detailed accounts table.
+  2. Main CENCOM table group cell displays clean clickable link: `{group.groupName} ({count} accounts)` with group code and slot authority badge, removing the chevron and removing the subtitle preview list.
+  3. Accounts table includes search, status filters, and quick shortcuts to inspect the account's Plantilla roster (`/plantilla?account=...`) and Vacancy pipeline (`/vacancy?account=...`).
+
+### 2. Implementation Deliverables
+1. **Query & Data Normalization Layer (`src/lib/queries/cencom.ts`)**:
+   - Defined TypeScript interfaces `CencomGroupAccountItem` and `CencomGroupDetail`.
+   - Authored `fetchCencomGroupDetail(groupId: string)`:
+     - Queries `groups` table for group metadata, group code, and CENCOM scope.
+     - Queries `accounts` table for active non-archived accounts assigned to `group_id`.
+     - Queries `v_cencom_account_allocation_kpi` for baseline account quotas.
+     - Queries `stores` table to compute active and total stores per account.
+     - Concurrently queries `public.plantilla` (active employees) and `public.plantilla_slots` (non-closed slots) mapped by `account_id` to enforce Plantilla as the single source of truth.
+     - Applies `normalizeSlotAuthorityMetrics` per account and for group aggregate metrics.
+   - Authored React Query hook `useCencomGroupDetail(groupId)`.
+2. **CENCOM Main Table Refinement (`src/components/cencom/CencomGroupTable.tsx`)**:
+   - Removed `ChevronDown`, `ChevronRight`, and `Building2` imports.
+   - Removed `expandedGroups` and `toggleGroupExpand` state.
+   - Replaced chevron + title + preview subtitle layout with a clean Next.js `Link` navigating to `/cencom/groups/${group.groupId}`:
+     `<Link href="/cencom/groups/...">Group Name (N accounts)</Link>` alongside group code badge and slot authority badge.
+3. **Dedicated Group Accounts Page (`src/app/(dashboard)/cencom/groups/[id]/page.tsx`)**:
+   - Top breadcrumb bar with accessible `← Back to CENCOM` (`/cencom?tab=groups`) navigation.
+   - Group header title, group code pill, total accounts chip, slot authority indicator, and data refresh button.
+   - 5-tile KPI summary card row:
+     - `Required HC`: slot-authority capacity
+     - `Actual HC`: active deployed personnel
+     - `Open Vacancies`: slot-backed openings
+     - `Active Stores`: staffed stores vs total stores
+     - `Group MFR`: percentage with `PercentageBar`
+   - Instant search bar (search by account name or code) and Health Status dropdown (`All`, `Healthy`, `At Risk`, `Critical`) with reset trigger.
+   - Sortable table columns: `Account Name`, `Active Stores`, `Required HC`, `Actual HC`, `Vacancies`, `MFR Fulfillment`, `Status`, `Quick Actions`.
+   - Direct quick-action shortcuts for each account:
+     - `Plantilla`: `/plantilla?account=${encodeURIComponent(account.accountName)}`
+     - `Vacancy`: `/vacancy?account=${encodeURIComponent(account.accountName)}`
+   - Tokenized `DataState` for loading, error (with retry), and empty results.
+4. **Documentation**:
+   - Updated `docs/state/cencom_state.md` with § 7 documenting the new Group Detail & Account Breakdown Navigation.
+
+### 3. Verification & Quality Gates
+- `npm run check:adr`: FRESH (ADR-001 `3729ccb`, ADR-002 `49d7a40`).
+- `npm run check:sql`: PASS (28 core tables & 19 cross-module RPC contracts verified across 638 migrations).
+- `npm run lint`: PASS (0 errors, 0 warnings).
+- `npm run build`: PASS (Turbopack exit 0, 20/20 routes built including dynamic `/cencom/groups/[id]`).
+
+---
+
 ## Execution Report — Scoped Notification Delivery Across Roles & Deep-Link Sanitization (ohm#7k2m9x4q)
 
 **Status: COMPLETE ON MAIN; MULTI-AGENT TEAMWORK RUN (run-id: `5d08e93e-13f5-4366-8591-c855d7007ade`) FIXING ROLE-SCOPED NOTIFICATION DELIVERY AND ELIMINATING BROKEN 404 DEEP LINKS ON WEB: (1) SHIPPED DATABASE MIGRATION `20262606000113_scope_notification_delivery_and_actioned_status.sql` SCOPING `public.notify_hc_request_submitted()` BY `group_id` / `account_id` VIA `public.user_scopes` (AND `users_profile` FALLBACK) TO ELIMINATE MULTI-TENANT FANOUT LEAKS AND NOTIFY SCOPED ENCODERS UPON SUBMISSION FOR EARLY REQUISITION VISIBILITY; (2) UPDATED `public.notify_hc_request_actioned()` APPROVAL TUPLE TO INCLUDE `'approved_pending_vcode'`, IMMEDIATELY NOTIFYING THE OPS REQUESTOR UPON HEAD ADMIN APPROVAL; (3) OVERLOADED `public._rnw_notify_roles()` WITH 10-PARAM GROUP/ACCOUNT SIGNATURE WHILE PRESERVING 8-PARAM BACKWARD COMPATIBLE WRAPPER AND UPDATED `public.trg_coverage_request_notify()`; (4) AUTHORED CENTRALIZED PURE TYPESCRIPT SANITIZER `src/lib/notifications/deep_links.ts` MAPPING ALL 12 LEGACY/MOBILE ROUTE PATTERNS TO VALID APP ROUTER TABS (/approvals?tab=..., /vacancy?q=..., /plantilla, /users, /more, /hr-emploc) AND REPLACING BLIND FALLBACK WITH A 3-TIER SAFE FALLBACK (NULL TERMINATION PREVENTING BROKEN CTA LINKS); (5) AUTHORED 15 UNIT TESTS IN `src/lib/queries/__tests__/notifications_deep_links.test.mjs` (15/15 PASS); (6) UNANIMOUS MULTI-AGENT GATING (REVIEWERS 1 & 2 APPROVE, CHALLENGERS 1 & 2 CONFIRM CORRECTNESS, AUDITOR 1 CLEAN); (7) INDEPENDENT VICTORY AUDIT DELIVERED VERDICT `VICTORY CONFIRMED` (npm run check:adr FRESH, npm run check:sql OK ACROSS 638 MIGRATIONS, npm test 226/226 PASSED, npm run lint 0 ERRORS, npm run build EXIT 0); LOCAL COMMIT ON MAIN.**

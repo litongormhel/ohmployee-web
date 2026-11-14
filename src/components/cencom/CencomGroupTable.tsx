@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   ArrowUpDown,
-  Building2,
-  ChevronDown,
-  ChevronRight,
   ShieldCheck,
   Store,
   Users,
@@ -44,19 +42,6 @@ export function CencomGroupTable({
 }: CencomGroupTableProps) {
   const [sortField, setSortField] = useState<CencomSortField>("mfr");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-
-  const toggleGroupExpand = (groupId: string) => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) {
-        next.delete(groupId);
-      } else {
-        next.add(groupId);
-      }
-      return next;
-    });
-  };
 
   const handleSort = (field: CencomSortField) => {
     if (sortField === field) {
@@ -231,7 +216,6 @@ export function CencomGroupTable({
           </thead>
           <tbody className="divide-y divide-border-default bg-surface-base">
             {filteredAndSortedGroups.map((group) => {
-              const isExpanded = expandedGroups.has(group.groupId);
               const mfrRate = group.mfrPercent;
               const isHealthy = group.required > 0 && (group.healthStatus === "healthy" || mfrRate >= 100);
               const isAtRisk = group.required > 0 && group.healthStatus === "at_risk";
@@ -247,67 +231,27 @@ export function CencomGroupTable({
                 >
                   {/* Group & Accounts */}
                   <td className="py-4 pl-4 pr-3 sm:pl-6">
-                    <div className="flex items-start gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => toggleGroupExpand(group.groupId)}
-                        className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-sm text-text-muted hover:bg-surface-muted hover:text-text-primary"
-                        aria-label={isExpanded ? "Collapse account list" : "Expand account list"}
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/cencom/groups/${group.groupId}`}
+                        className="font-semibold text-brand-600 hover:text-brand-700 hover:underline transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/20 rounded"
                       >
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </button>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-text-primary">
-                            {group.groupName}
-                          </span>
-                          {group.groupCode && (
-                            <span className="inline-flex items-center rounded-md border border-border-default bg-surface-muted px-1.5 py-0.5 text-xs font-mono font-medium text-text-secondary">
-                              {group.groupCode}
-                            </span>
-                          )}
-                          {group.isNormalized && (
-                            <span
-                              title="Slot authority enforced (Actual >= Required -> Vacant = 0)"
-                              className="inline-flex items-center gap-1 rounded-full bg-status-info-bg px-2 py-0.5 text-[10px] font-medium text-status-info-text border border-status-info-border"
-                            >
-                              <ShieldCheck className="h-3 w-3" />
-                              Slot Authority
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Account Preview / List */}
-                        {group.accountNames.length > 0 && (
-                          <div className="mt-1 flex flex-wrap gap-1.5">
-                            {isExpanded ? (
-                              group.accountNames.map((acc) => (
-                                <span
-                                  key={acc}
-                                  className="inline-flex items-center gap-1 rounded-md bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary border border-border-default"
-                                >
-                                  <Building2 className="h-3 w-3 text-text-muted" />
-                                  {acc}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-xs text-text-muted">
-                                {group.accountNames.slice(0, 3).join(", ")}
-                                {group.accountNames.length > 3 && (
-                                  <span className="font-medium text-brand-600">
-                                    {" "}
-                                    +{group.accountNames.length - 3} more
-                                  </span>
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                        {group.groupName} ({group.accountNames.length} accounts)
+                      </Link>
+                      {group.groupCode && (
+                        <span className="inline-flex items-center rounded-md border border-border-default bg-surface-muted px-1.5 py-0.5 text-xs font-mono font-medium text-text-secondary">
+                          {group.groupCode}
+                        </span>
+                      )}
+                      {group.isNormalized && (
+                        <span
+                          title="Slot authority enforced (Actual >= Required -> Vacant = 0)"
+                          className="inline-flex items-center gap-1 rounded-full bg-status-info-bg px-2 py-0.5 text-[10px] font-medium text-status-info-text border border-status-info-border"
+                        >
+                          <ShieldCheck className="h-3 w-3" />
+                          Slot Authority
+                        </span>
+                      )}
                     </div>
                   </td>
 

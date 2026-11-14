@@ -181,6 +181,43 @@ export type CencomGroupKpiItem = {
   isNormalized: boolean;
 };
 
+export type CencomGroupAccountItem = {
+  accountId: string;
+  accountName: string;
+  accountCode: string | null;
+  activeStores: number;
+  totalStores: number;
+  required: number;
+  actual: number;
+  vacant: number;
+  pipeline: number;
+  mfr: number;
+  mfrPercent: number;
+  projectedMfr: number;
+  projectedMfrPercent: number;
+  healthStatus: "healthy" | "at_risk" | "critical";
+  isNormalized: boolean;
+};
+
+export type CencomGroupDetail = {
+  groupId: string;
+  groupName: string;
+  groupCode: string | null;
+  cencomScope: boolean;
+  totalAccounts: number;
+  activeStores: number;
+  totalStores: number;
+  required: number;
+  actual: number;
+  vacant: number;
+  pipeline: number;
+  mfr: number;
+  mfrPercent: number;
+  healthStatus: "healthy" | "at_risk" | "critical";
+  isNormalized: boolean;
+  accounts: CencomGroupAccountItem[];
+};
+
 export type CencomDeploymentSummary = {
   totalDepartures: number;
   additionalHc: number;
@@ -539,6 +576,256 @@ export function useCencomGroupKpi() {
   return useQuery({
     queryKey: ["cencom", "group-kpi"],
     queryFn: fetchCencomGroupAllocationKpi,
+    staleTime: 30000,
+  });
+}
+
+export async function fetchCencomGroupDetail(groupId: string): Promise<CencomGroupDetail> {
+  const supabase = createClient();
+
+  // 1. Fetch group info
+  const { data: groupData, error: groupError } = await supabase
+    .from("groups")
+    .select("id, group_name, group_code, cencom_scope")
+    .eq("id", groupId)
+    .single();
+
+  if (groupError || !groupData) {
+    if (groupError) {
+      throwCencomError(groupError);
+    }
+    throw new CencomDataError("retryable", "Operational group not found.");
+  }
+
+  const groupName = String(groupData.group_name ?? "Group");
+  const groupCode = groupData.group_code ? String(groupData.group_code) : null;
+  const cencomScope = Boolean(groupData.cencom_scope);
+
+  // 2. Fetch accounts under this group
+  const { data: accountsData, error: accountsError } = await supabase
+    .from("accounts")
+    .select("id, account_name, account_code")
+    .eq("group_id", groupId)
+    .eq("is_active", true)
+    .or("is_archived.is.null,is_archived.eq.false")
+    .is("suppressed_by_batch_id", null)
+    .order("account_name", { ascending: true });
+
+  if (accountsError) {
+    throwCencomError(accountsError);
+  }
+
+  const accounts = accountsData ?? [];
+  const accountIds = accounts.map((a) => String(a.id));
+
+  // 3. Fetch account allocation KPI from view for this group
+  let kpiByAccount: Record<string, Record<string, unknown>> = {};
+  if (accountIds.length > 0) {
+    try {
+      const { data: kpiRows } = await supabase
+        .from("v_cencom_account_allocation_kpi")
+        .select()
+        .eq("group_id", groupId);
+
+      if (kpiRows) {
+        for (const row of kpiRows) {
+          if (row.account_id) {
+            kpiByAccount[String(row.account_id)] = row as Record<string, unknown>;
+          }
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+      kpiByAccount = {};
+    }
+  }
+
+  // 4. Fetch store statistics for each account
+  let storeStatsByAccount: Record<string, { total: number; active: number }> = {};
+  if (accountIds.length > 0) {
+    try {
+      const { data: storeRows } = await supabase
+        .from("stores")
+        .select("id, account_id, is_active")
+        .in("account_id", accountIds)
+        .or("is_archived.is.null,is_archived.eq.false")
+        .is("suppressed_by_batch_id", null);
+
+      if (storeRows) {
+        for (const st of storeRows) {
+          const accId = String(st.account_id);
+          if (!storeStatsByAccount[accId]) {
+            storeStatsByAccount[accId] = { total: 0, active: 0 };
+          }
+          storeStatsByAccount[accId].total += 1;
+          if (st.is_active) {
+            storeStatsByAccount[accId].active += 1;
+          }
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+      storeStatsByAccount = {};
+    }
+  }
+
+  // 5. Plantilla as Source of Truth: Active employees & non-closed slots for accounts
+  const plantillaActiveByAccount: Record<string, number> = {};
+  const slotsRequiredByAccount: Record<string, number> = {};
+  const slotsOpenByAccount: Record<string, number> = {};
+
+  if (accountIds.length > 0) {
+    try {
+      const [plantillaRes, slotsRes] = await Promise.all([
+        supabase
+          .from("plantilla")
+          .select("account_id")
+          .in("account_id", accountIds)
+          .eq("status", "Active")
+          .is("deactivated_at", null)
+          .is("date_of_separation", null)
+          .or("is_deleted.is.null,is_deleted.eq.false")
+          .or("is_archived.is.null,is_archived.eq.false"),
+        supabase
+          .from("plantilla_slots")
+          .select("account_id, slot_status")
+          .in("account_id", accountIds)
+          .neq("slot_status", "closed")
+          .is("closed_at", null),
+      ]);
+
+      if (plantillaRes.data) {
+        for (const p of plantillaRes.data) {
+          if (p.account_id) {
+            const accId = String(p.account_id);
+            plantillaActiveByAccount[accId] = (plantillaActiveByAccount[accId] ?? 0) + 1;
+          }
+        }
+      }
+
+      if (slotsRes.data) {
+        for (const s of slotsRes.data) {
+          if (s.account_id) {
+            const accId = String(s.account_id);
+            slotsRequiredByAccount[accId] = (slotsRequiredByAccount[accId] ?? 0) + 1;
+            if (s.slot_status === "open") {
+              slotsOpenByAccount[accId] = (slotsOpenByAccount[accId] ?? 0) + 1;
+            }
+          }
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+  }
+
+  // 6. Map each account item
+  let groupActiveStores = 0;
+  let groupTotalStores = 0;
+  let groupRequired = 0;
+  let groupActual = 0;
+  let groupVacant = 0;
+  let groupPipeline = 0;
+
+  const accountItems: CencomGroupAccountItem[] = accounts.map((acc) => {
+    const accId = String(acc.id);
+    const accName = String(acc.account_name ?? "Account");
+    const accCode = acc.account_code ? String(acc.account_code) : null;
+    const kpiRow = kpiByAccount[accId] ?? {};
+
+    const rawActual = Number(kpiRow.actual_hc ?? 0);
+    const rawVacant = Number(kpiRow.slot_vacant_hc ?? kpiRow.open_hc ?? 0);
+    const rawRequired = Number(kpiRow.required_hc ?? 0);
+    const pipeline = Number(kpiRow.pipeline_count ?? 0);
+
+    const plantillaActual = plantillaActiveByAccount[accId] ?? 0;
+    const slotRequired = slotsRequiredByAccount[accId] ?? 0;
+    const slotOpen = slotsOpenByAccount[accId] ?? 0;
+
+    const effectiveActual = plantillaActual > 0 ? plantillaActual : rawActual;
+    const effectiveRequired =
+      slotRequired > 0
+        ? slotRequired
+        : rawRequired > 0
+        ? rawRequired
+        : effectiveActual + rawVacant;
+    const effectiveVacant =
+      slotOpen > 0
+        ? slotOpen
+        : slotRequired > 0
+        ? Math.max(effectiveRequired - effectiveActual - pipeline, 0)
+        : rawVacant;
+
+    const normalized = normalizeSlotAuthorityMetrics(effectiveRequired, effectiveActual, effectiveVacant, {
+      accountNames: [accName],
+      groupCode,
+      groupName,
+    });
+
+    const rawProjected = Number(kpiRow.projected_mfr ?? 0);
+    const projectedMfr =
+      normalized.vacant === 0 && normalized.actual >= normalized.required && normalized.required > 0
+        ? 1.0
+        : rawProjected;
+
+    const accStores = storeStatsByAccount[accId] ?? { total: 0, active: 0 };
+    groupActiveStores += accStores.active;
+    groupTotalStores += accStores.total;
+    groupRequired += normalized.required;
+    groupActual += normalized.actual;
+    groupVacant += normalized.vacant;
+    groupPipeline += pipeline;
+
+    return {
+      accountId: accId,
+      accountName: accName,
+      accountCode: accCode,
+      activeStores: accStores.active,
+      totalStores: accStores.total,
+      required: normalized.required,
+      actual: normalized.actual,
+      vacant: normalized.vacant,
+      pipeline,
+      mfr: normalized.mfr,
+      mfrPercent: normalized.mfrPercent,
+      projectedMfr,
+      projectedMfrPercent: Math.round(projectedMfr * 1000) / 10,
+      healthStatus: normalized.healthStatus,
+      isNormalized: normalized.isNormalized,
+    };
+  });
+
+  const groupNormalized = normalizeSlotAuthorityMetrics(groupRequired, groupActual, groupVacant, {
+    groupCode,
+    groupName,
+    accountNames: accounts.map((a) => a.account_name ?? ""),
+  });
+
+  return {
+    groupId,
+    groupName,
+    groupCode,
+    cencomScope,
+    totalAccounts: accounts.length,
+    activeStores: groupActiveStores,
+    totalStores: groupTotalStores,
+    required: groupNormalized.required,
+    actual: groupNormalized.actual,
+    vacant: groupNormalized.vacant,
+    pipeline: groupPipeline,
+    mfr: groupNormalized.mfr,
+    mfrPercent: groupNormalized.mfrPercent,
+    healthStatus: groupNormalized.healthStatus,
+    isNormalized: groupNormalized.isNormalized,
+    accounts: accountItems,
+  };
+}
+
+export function useCencomGroupDetail(groupId: string) {
+  return useQuery({
+    queryKey: ["cencom", "group-detail", groupId],
+    queryFn: () => fetchCencomGroupDetail(groupId),
+    enabled: Boolean(groupId),
     staleTime: 30000,
   });
 }

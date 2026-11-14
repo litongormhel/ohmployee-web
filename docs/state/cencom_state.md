@@ -95,3 +95,15 @@ When `"All groups"` is selected, metrics match global baseline views 1:1. When a
   - `fetchCencomGroupAllocationKpi` in `src/lib/queries/cencom.ts` concurrently queries `public.plantilla` (active employees) and `public.plantilla_slots` (non-closed slots) mapped across accounts to their CENCOM group.
   - Sourced directly from physical slots and active employees, eliminating silent dropping of unlinked vacancy slots or missing ESA records.
   - `fetchCencomAllocationKpi` aggregates across these reconciled groups, ensuring that the Overview Hero MFR gauge, KPIs, and Group Table rows remain 100% coherent and anchored in Plantilla as the single source of truth.
+
+---
+
+## 7. Group Detail & Account Breakdown Navigation (`/cencom/groups/[id]`)
+- **Interactive Group Link**: In `CencomGroupTable.tsx`, expandable chevrons and preview subtitles have been replaced with a clean clickable link and account count badge (`{group.groupName} ({count} accounts)`), navigating directly to the dedicated group page `/cencom/groups/[id]`.
+- **Dedicated Drilldown Page**: Full-page view at `src/app/(dashboard)/cencom/groups/[id]/page.tsx` featuring:
+  - Top breadcrumbs and back navigation (`← Back to CENCOM` linking to `/cencom?tab=groups`).
+  - Group header with group code, total account count, and slot authority status.
+  - 5x summary KPI metric cards (Required HC, Actual HC, Open Vacancies, Active Stores, and Group MFR percentage).
+  - Instant client-side search and health status dropdown filter (`All`, `Healthy`, `At Risk`, `Critical`).
+  - Accounts breakdown table displaying Account Name & Code, Active Stores, Required HC, Actual HC, Vacancies, MFR progress bar, Health Status badge, and quick action shortcuts to inspect records in Plantilla (`/plantilla?account=...`) and Vacancy (`/vacancy?account=...`).
+- **Query Layer**: Powered by `fetchCencomGroupDetail(groupId)` and `useCencomGroupDetail(groupId)` in `src/lib/queries/cencom.ts`, reconciling `v_cencom_account_allocation_kpi`, `accounts`, `stores`, `plantilla`, and `plantilla_slots` with slot authority normalization.
