@@ -3437,6 +3437,13 @@ function invalidatePlantillaCaches(
   queryClient.invalidateQueries({ queryKey: ["vacancies"] });
   queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
   queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+  // Zero-Refresh Cross-Module Sync: propagate changes to CENCOM and Dashboard
+  queryClient.invalidateQueries({ queryKey: ["cencom"] });
+  queryClient.invalidateQueries({ queryKey: ["cencom-allocation-kpi"] });
+  queryClient.invalidateQueries({ queryKey: ["cencom-group-kpi"] });
+  queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+  queryClient.invalidateQueries({ queryKey: ["dashboard-operational-analytics"] });
 }
 
 // ---------------------------------------------------------------------------

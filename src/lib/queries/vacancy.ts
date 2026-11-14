@@ -3953,17 +3953,40 @@ export async function endorseApplicant(
   };
 }
 
+function invalidateVacancyEcosystem(
+  queryClient: ReturnType<typeof useQueryClient>,
+  vcode?: string,
+) {
+  queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+  queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
+  queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
+  queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
+  queryClient.invalidateQueries({ queryKey: ["vacancy-detail"] });
+  if (vcode) {
+    queryClient.invalidateQueries({ queryKey: ["vacancy-detail", vcode] });
+  }
+  queryClient.invalidateQueries({ queryKey: ["hired-applicants"] });
+  queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+  queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
+  queryClient.invalidateQueries({ queryKey: ["cencom"] });
+  queryClient.invalidateQueries({ queryKey: ["cencom-allocation-kpi"] });
+  queryClient.invalidateQueries({ queryKey: ["cencom-group-kpi"] });
+  queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+  queryClient.invalidateQueries({ queryKey: ["dashboard-operational-analytics"] });
+  queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+  queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
+  queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
+  queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
+}
+
 export function useEndorseApplicant() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (params: EndorseApplicantParams) => endorseApplicant(params),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-detail", variables.vcode] });
-      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      invalidateVacancyEcosystem(queryClient, variables.vcode);
     },
   });
 }
@@ -4044,15 +4067,7 @@ export function useUpdateApplicantPipeline() {
     mutationFn: (params: UpdateApplicantPipelineParams) =>
       updateApplicantPipeline(params),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
-      if (variables.vcode) {
-        queryClient.invalidateQueries({
-          queryKey: ["vacancy-detail", variables.vcode],
-        });
-      }
+      invalidateVacancyEcosystem(queryClient, variables.vcode);
     },
   });
 }
@@ -4125,16 +4140,7 @@ export function useConfirmApplicantOnboard() {
     mutationFn: (params: ConfirmApplicantOnboardParams) =>
       confirmApplicantOnboard(params),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["hired-applicants"] });
-      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
-      if (variables.vcode) {
-        queryClient.invalidateQueries({
-          queryKey: ["vacancy-detail", variables.vcode],
-        });
-      }
+      invalidateVacancyEcosystem(queryClient, variables.vcode);
     },
   });
 }
@@ -4316,13 +4322,7 @@ export function useFailBackoutApplicant() {
   return useMutation({
     mutationFn: (params: FailBackoutParams) => failBackoutApplicant(params),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
-      queryClient.invalidateQueries({
-        queryKey: ["vacancy-detail", variables.vcode],
-      });
+      invalidateVacancyEcosystem(queryClient, variables.vcode);
     },
   });
 }
@@ -4715,21 +4715,7 @@ export function useReviewClosureRequest() {
     mutationFn: (params: ReviewClosureRequestParams) =>
       reviewClosureRequest(params),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
-      queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
-      if (variables.vcode) {
-        queryClient.invalidateQueries({
-          queryKey: ["vacancy-detail", variables.vcode],
-        });
-      }
+      invalidateVacancyEcosystem(queryClient, variables.vcode);
     },
   });
 }
@@ -4788,18 +4774,7 @@ export function useWithdrawVacancyClosureRequest() {
   return useMutation({
     mutationFn: (params: WithdrawVacancyClosureParams) => withdrawVacancyClosureRequest(params),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
-      if (variables.vcode) {
-        queryClient.invalidateQueries({
-          queryKey: ["vacancy-detail", variables.vcode],
-        });
-      }
+      invalidateVacancyEcosystem(queryClient, variables.vcode);
     },
   });
 }
@@ -4830,16 +4805,7 @@ export function useApproveAllClosureRequests() {
     mutationFn: (requestIds?: string[]) =>
       approveAllClosureRequests(requestIds),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancy-closure-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
-      queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
+      invalidateVacancyEcosystem(queryClient);
     },
   });
 }
