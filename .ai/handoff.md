@@ -1,5 +1,24 @@
 # AI Handoff
 
+## Execution Report — Full Hard Admin Immunity Bypass across Web and Mobile Codebases (ohm#rbac-admin-immunity-bypass-web-mobile)
+
+**Status: COMPLETE ON MAIN; STRENGTHENED ADMINISTRATIVE UNIVERSAL IMMUNITY FOR SUPER ADMIN (100) AND HEAD ADMIN (90) ACROSS BOTH WEB AND MOBILE CODEBASES TO GUARANTEE ADMINS NEVER ENCOUNTER FALSE-POSITIVE "ACCESS RESTRICTED" LOCKOUTS: (1) WEB RBAC GATEWAY (`src/lib/rbac.ts`): UPDATED `canPerformDrawerAction` TO GRANT IMMEDIATE BYPASS FOR SUPER ADMIN (`level >= 100`) AND HEAD ADMIN (`level >= 90` FOR ALL OPERATIONAL, PLANTILLA, VACANCY, DATA CONTROL, AND APPROVAL ACTIONS), AND UPDATED `canViewHrEmploc` TO EVALUATE `hasFullAccess`; (2) WEB DASHBOARD SHELL (`src/components/DashboardAuthShell.tsx`): UPDATED `canViewActiveModule` WITH IMMEDIATE IMMUNITY BYPASS FOR `hasFullAccess(currentUser) || roleLevel >= 90`, PREVENTING UNWANTED REDIRECTS AWAY FROM VALID MATCHED MODULES; (3) MOBILE AUTH & NAVIGATION (`D:\Projects\OHMployee`): IN `lib/core/auth/auth_service.dart`, ADDED `hasFullAccess` TO `canSeeHREmploc`, `canEndorseToOps`, AND `canConfirmOnboard`; IN `lib/core/auth/module_visibility.dart`, UPDATED `roleDefault` AND `canViewModule` SO `hasFullAccess || roleLevel >= 90` UNCONDITIONALLY BYPASSES ANY RESTRICTIVE DENY OVERRIDES; IN `lib/features/more/more_screen.dart`, ADDED HARD ADMIN BYPASS IN `_canSeeItem` SO ADMINS ARE NEVER LOCKED OUT OF REQUEST CENTER OR APPROVAL QUEUES; VERIFIED WITH 0 ERRORS VIA `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `flutter analyze` (0 ISSUES); COMMITTED LOCALLY ON MAIN ACROSS BOTH REPOSITORIES.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/web_auth_rbac_state.md`, `src/lib/rbac.ts`, `src/components/DashboardAuthShell.tsx`, `D:\Projects\OHMployee\lib\core\auth\auth_service.dart`, `D:\Projects\OHMployee\lib\core\auth\module_visibility.dart`, `D:\Projects\OHMployee\lib\features\more\more_screen.dart`.
+
+### 1. Changes Delivered
+1. **Web RBAC Gateway (`src/lib/rbac.ts`)**:
+   - `canPerformDrawerAction`: Enforced Super Admin (100) and Head Admin (90) immunity bypass. Level 100 bypasses all action checks. Level 90 bypasses all actions except root system owner locks (`Archive / Soft-Delete User Account`, `Terminate Active User Sessions`, `Toggle System Edit Lock`, `Manage Permission Matrix Overrides`).
+   - `canViewHrEmploc`: Added `if (hasFullAccess(userOrRole)) return true;` at the top of the function.
+2. **Web Dashboard Auth Shell (`src/components/DashboardAuthShell.tsx`)**:
+   - In `canViewActiveModule`, added an immediate bypass for users where `hasFullAccess(currentUser) || isOwner(currentUser) || getRoleLevel(currentUser) >= 90`, ensuring that even if transient state or list filtering fluctuates, administrative users are never redirected away to fallback pages.
+3. **Mobile Core Auth & Access Control (`D:\Projects\OHMployee`)**:
+   - `lib/core/auth/auth_service.dart`: Updated `canSeeHREmploc`, `canEndorseToOps`, `canConfirmOnboard`, and `canAddApplicant` with `hasFullAccess` checks.
+   - `lib/core/auth/module_visibility.dart`: Updated `roleDefault` and `canViewModule` so `user.hasFullAccess || user.isSuperAdmin || user.isHeadAdmin || user.roleLevel >= 90` returns `true` immediately, overriding any accidental or corrupt `deny` override states in the database.
+   - `lib/features/more/more_screen.dart`: Added an unconditional bypass in `_canSeeItem` for `hasFullAccess || roleLevel >= 90`, ensuring all review hubs and approval queues remain accessible.
+
+---
+
 ## Execution Report — CENCOM Table Cell Plain Text & Vacancies Number Uniformity (ohm#cencom-table-cell-uniformity)
 
 **Status: COMPLETE ON MAIN; UNIFIED TABLE CELL PRESENTATIONS ACROSS CENCOM DRILLDOWN VIEWS (`src/app/(dashboard)/cencom/groups/[id]/page.tsx` AND `src/components/cencom/CencomGroupTable.tsx`): (1) REMOVED `<Store />` AND `<Users />` ICONS FROM `Active Stores` AND `Actual HC` CELLS; (2) CONVERTED `Vacancies` FROM BADGE/PILL ("0 vacant" / BADGE) TO RAW NUMBERS; (3) RENDERED `Active Stores`, `Required HC`, `Actual HC`, AND `Vacancies` IN UNIFORM PLAIN TEXT (`font-mono font-semibold text-text-primary`) ACROSS BOTH TABLES; (4) UPDATED `docs/state/cencom_state.md`; VERIFIED WITH 0 ERRORS VIA `npm run check:adr` (FRESH), `npm run check:sql` (639 MIGRATIONS OK), `npm test` (226/226 PASSED), AND `npm run lint` (0 ERRORS); LOCAL COMMIT ON MAIN.**

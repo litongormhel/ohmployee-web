@@ -15,7 +15,7 @@ import {
   type WebCurrentUserContext,
 } from "@/lib/auth";
 import { getMatchedModule } from "@/lib/modules";
-import { isModuleAllowedForUser } from "@/lib/rbac";
+import { isModuleAllowedForUser, hasFullAccess, isOwner, getRoleLevel } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/client";
 import { useActiveActingSession, useStopActingSession } from "@/lib/queries/more";
 
@@ -77,6 +77,10 @@ function AuthenticatedShell({
 
   const canViewActiveModule = useMemo(() => {
     if (!matchedModule) {
+      return true;
+    }
+    // Administrative Universal Immunity: Super Admin & Head Admin can ALWAYS view any matched module
+    if (currentUser && (hasFullAccess(currentUser) || isOwner(currentUser) || getRoleLevel(currentUser) >= 90)) {
       return true;
     }
     const isVisibleInList = visibleModules.some(

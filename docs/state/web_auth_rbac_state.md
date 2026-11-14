@@ -364,21 +364,19 @@ The authoritative 55-item matrix governs operational drawer actions, mutations, 
 
 ---
 
-## Administrative Immunity Architecture (ohm#rbac-admin-immunity-lock)
+## Hard Admin Immunity Bypass across Web & Mobile (ohm#rbac-admin-immunity-bypass-web-mobile)
 
-To eliminate false-positive "Access Restricted" lockouts for Super Admin (100) and Head Admin (90):
-1. **Database RPC Lock (`public.get_web_current_user_context` in `20262606000115_rbac_admin_immunity_lock.sql`):**
-   - For `v_role_level >= 90` or `v_email = 'ohmpayatt@proton.me'`, all modules (`dashboard`, `cencom`, `vacancy`, `hr_emploc`, `plantilla`, `approvals`, `users`, `reports`) are unconditionally granted.
-   - Any conflicting `deny` rows in `public.module_visibility_overrides` are strictly bypassed for administrative roles.
-   - Emergency identity fallback guarantees `ohmpayatt@proton.me` retains active Super Admin status even if unlinked from role profiles.
-2. **Frontend RBAC Immunity (`src/lib/rbac.ts`):**
-   - `isModuleAllowedForUser` grants unconditional access if `hasFullAccess(user)` or `getRoleLevel(user) >= 90`.
-   - `getAllowedApprovalCategories` returns all queue categories for `hasFullAccess` users.
-   - `extractRoleString` and `getRoleLevel` support all property aliases (`roleKey`, `role_key`, `roleName`, `role_name`, `role`, `roleLevel`, `role_level`).
-3. **Shell Navigation Immunity (`src/lib/auth.ts`):**
-   - `getVisibleModules` returns all `webModules` when `hasFullAccess(currentUser)` is true.
-4. **Approvals Page Guard Hardening (`src/app/(dashboard)/approvals/page.tsx`):**
-   - Guard checks `!isAdmin` (`!hasFullAccess(currentUser)`) rather than strict `isOwner`, guaranteeing Head Admin and Super Admin never trigger `<DataState kind="access_denied">`.
+Expanded universal administrative immunity to eliminate false-negative restriction gates across Web and Mobile:
+1. **Web RBAC Action Matrix (`src/lib/rbac.ts`)**:
+   - `canPerformDrawerAction`: Super Admin (`roleLevel >= 100` / `isOwner`) unconditionally bypasses all drawer mutation checks. Head Admin (`roleLevel >= 90`) unconditionally bypasses all operational, plantilla, vacancy, data control, and approval actions (excluding root owner controls).
+   - `canViewHrEmploc`: Evaluates `if (hasFullAccess(userOrRole)) return true;` as first line.
+2. **Web Dashboard Shell (`src/components/DashboardAuthShell.tsx`)**:
+   - `canViewActiveModule`: Immediate bypass for `hasFullAccess(currentUser) || isOwner(currentUser) || getRoleLevel(currentUser) >= 90`, ensuring admins are never redirected away from valid module routes.
+3. **Mobile Core Auth & Navigation (`OHMployee`)**:
+   - `lib/core/auth/auth_service.dart`: `canSeeHREmploc`, `canEndorseToOps`, `canConfirmOnboard`, and `canAddApplicant` fortified with `hasFullAccess` bypass.
+   - `lib/core/auth/module_visibility.dart`: `roleDefault` and `canViewModule` grant unconditional view access for `hasFullAccess || roleLevel >= 90`, overriding any database deny mutations.
+   - `lib/features/more/more_screen.dart`: `_canSeeItem` grants unconditional visibility for `hasFullAccess || roleLevel >= 90`, guaranteeing admins access to all request centers and review queues.
+
 
 
 

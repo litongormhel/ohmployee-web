@@ -317,6 +317,7 @@ export function canViewVacancy(userOrRole?: RoleIdentifiable | string | null): b
  * Allowed: Super Admin, Head Admin, OM, HRCO, ATL, TL, Encoder, HR Personnel, Backoffice Personnel.
  */
 export function canViewHrEmploc(userOrRole?: RoleIdentifiable | string | null): boolean {
+  if (hasFullAccess(userOrRole)) return true;
   const role = normalizeRole(extractRoleString(userOrRole));
   if (!role) return false;
   return role !== AppRole.RECRUITMENT && role !== AppRole.VIEWER;
@@ -573,7 +574,19 @@ export function canPerformDrawerAction(
   userOrRole?: RoleIdentifiable | string | null,
 ): boolean {
   if (!userOrRole) return false;
+  // Administrative Universal Immunity: Super Admin (100) unconditionally owns all actions
+  if (isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100) return true;
+  // Head Admin (90) unconditionally owns all operational, plantilla, vacancy, data control, and approval actions
   const level = getRoleLevel(userOrRole);
+  if (
+    level >= 90 &&
+    actionItem !== "Archive / Soft-Delete User Account" &&
+    actionItem !== "Terminate Active User Sessions" &&
+    actionItem !== "Toggle System Edit Lock (Freeze Mode)" &&
+    actionItem !== "Manage Permission Matrix Overrides"
+  ) {
+    return true;
+  }
   const allowedLevels = DRAWER_ACTION_RULES[actionItem];
   if (!allowedLevels) return false;
   return allowedLevels.includes(level);
