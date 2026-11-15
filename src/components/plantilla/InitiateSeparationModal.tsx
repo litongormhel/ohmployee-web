@@ -7,16 +7,14 @@ import {
   type SeparationStatusType,
 } from "@/lib/queries/plantilla";
 import { Modal } from "@/components/shared/Modal";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface InitiateSeparationModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface InitiateSeparationModalProps extends ActionModalProps {
   plantillaId: string;
   employeeName: string;
   employeeNo: string;
   positionTitle?: string | null;
   storeName?: string | null;
-  onSuccess?: () => void;
 }
 
 const SEPARATION_TYPES: { value: SeparationStatusType; label: string; description: string }[] = [

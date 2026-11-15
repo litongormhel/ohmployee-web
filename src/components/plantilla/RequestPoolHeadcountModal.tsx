@@ -11,12 +11,9 @@ import {
   useWorkforcePoolTypes,
 } from "@/lib/queries/workforcePool";
 import { Modal } from "@/components/shared/Modal";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface RequestPoolHeadcountModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess?: () => void;
-}
+export type RequestPoolHeadcountModalProps = ActionModalProps;
 
 export function RequestPoolHeadcountModal({
   isOpen,

@@ -7,12 +7,9 @@ import { useGroupsQuery } from "@/lib/queries/users";
 import { useCurrentUser } from "@/lib/auth";
 import { createAccount } from "@/lib/queries/plantilla";
 import { useQueryClient } from "@tanstack/react-query";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface AddAccountModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess?: (accountName: string) => void;
-}
+export type AddAccountModalProps = ActionModalProps<string>;
 
 export function AddAccountModal({ isOpen, onClose, onSuccess }: AddAccountModalProps) {
   const [accountName, setAccountName] = useState("");

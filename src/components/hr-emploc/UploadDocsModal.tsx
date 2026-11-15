@@ -16,6 +16,7 @@ import { Modal } from "@/components/shared/Modal";
 import { createClient } from "@/lib/supabase/client";
 import { compressDocumentFile } from "@/lib/utils/image_compression";
 import { parseHrEmplocError, type ParsedHrEmplocError } from "@/lib/utils/hr_emploc_errors";
+import type { ActionModalProps } from "@/types/modal";
 import {
   authorizeHrEmplocDocUpload,
   registerHrEmplocDocument,
@@ -38,9 +39,7 @@ interface UploadFileItem {
   registeredAttachment?: HrEmplocAttachment;
 }
 
-export interface UploadDocsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface UploadDocsModalProps extends ActionModalProps<string> {
   row: HrEmplocListItem | null;
   mode?: "pending" | "correction";
   onSuccess: (message: string) => void;

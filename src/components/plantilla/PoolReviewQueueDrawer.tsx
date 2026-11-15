@@ -12,11 +12,9 @@ import {
 } from "@/lib/queries/workforcePool";
 import { useCurrentUser } from "@/lib/auth";
 import { hasFullAccess, isEncoder } from "@/lib/rbac";
+import type { BaseModalProps } from "@/types/modal";
 
-export interface PoolReviewQueueDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+export type PoolReviewQueueDrawerProps = BaseModalProps;
 
 export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawerProps) {
   const [activeTab, setActiveTab] = useState<"pending" | "resolved">("pending");

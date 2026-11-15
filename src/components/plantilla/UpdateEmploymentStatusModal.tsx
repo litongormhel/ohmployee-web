@@ -18,15 +18,13 @@ import {
   type EmploymentStatusTarget,
 } from "@/lib/queries/plantilla";
 import { Modal } from "@/components/shared/Modal";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface UpdateEmploymentStatusModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface UpdateEmploymentStatusModalProps extends ActionModalProps {
   plantillaId: string;
   employeeName: string;
   employeeNo: string;
   currentStatus?: string | null;
-  onSuccess?: () => void;
   onNavigateStatusTab?: (tab: "active" | "on_leave" | "vacancy" | "floating" | "deactivation" | "inactive") => void;
 }
 

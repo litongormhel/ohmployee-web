@@ -23,10 +23,9 @@ import {
   type TransferReasonType,
 } from "@/lib/queries/plantilla";
 import { Modal } from "@/components/shared/Modal";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface TransferPersonnelModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface TransferPersonnelModalProps extends ActionModalProps {
   plantillaId: string;
   employeeName: string;
   employeeNo: string;
@@ -37,7 +36,6 @@ export interface TransferPersonnelModalProps {
   currentStoreName?: string | null;
   currentProvince?: string | null;
   currentIslandGroup?: string | null;
-  onSuccess?: () => void;
 }
 
 const TRANSFER_REASONS: { value: TransferReasonType; label: string; description: string }[] = [

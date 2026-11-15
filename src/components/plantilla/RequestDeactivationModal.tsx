@@ -4,16 +4,14 @@ import { useState } from "react";
 import { AlertCircle, FileText, Loader2, ShieldAlert } from "lucide-react";
 import { useCreateDeactivationRequest } from "@/lib/queries/plantilla";
 import { Modal } from "@/components/shared/Modal";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface RequestDeactivationModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface RequestDeactivationModalProps extends ActionModalProps {
   plantillaId: string;
   employeeName: string;
   employeeNo: string;
   currentStatus?: string | null;
   onNavigateStatusTab?: (tab: "active" | "on_leave" | "vacancy" | "floating" | "deactivation" | "inactive") => void;
-  onSuccess?: () => void;
 }
 
 const DEACTIVATION_REASONS = [

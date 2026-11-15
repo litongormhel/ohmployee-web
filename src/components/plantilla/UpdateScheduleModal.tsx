@@ -26,9 +26,9 @@ export interface StoreAllocationItem {
   allocationPercent: number; // 100 = 1.00 HC, 50 = 0.50 HC
 }
 
-export interface UpdateScheduleModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+import type { BaseModalProps } from "@/types/modal";
+
+export interface UpdateScheduleModalProps extends BaseModalProps {
   plantillaId: string;
   employeeNo?: string | null;
   employeeName?: string | null;

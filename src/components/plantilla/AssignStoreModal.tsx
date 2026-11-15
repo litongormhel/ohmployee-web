@@ -5,10 +5,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Store, AlertCircle, Loader2 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import { assignFloatingEmployeeToStore } from "@/lib/queries/plantilla";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface AssignStoreModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface AssignStoreModalProps extends ActionModalProps {
   employee: {
     id: string;
     displayName: string;
@@ -27,7 +26,6 @@ export interface AssignStoreModalProps {
     openSlots?: number;
   }[];
   vacantStoreIds?: Set<string>;
-  onSuccess?: () => void;
 }
 
 export function AssignStoreModal({

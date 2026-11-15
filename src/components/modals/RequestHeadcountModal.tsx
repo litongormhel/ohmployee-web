@@ -31,10 +31,9 @@ import { useRefCities } from "@/lib/queries/locations";
 import { NewStoreRequestModal } from "@/components/modals/NewStoreRequestModal";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface RequestHeadcountModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface RequestHeadcountModalProps extends ActionModalProps<SubmitHeadcountRequestResult | undefined> {
   accountId?: string | null;
   accountName?: string | null;
   initialStoreId?: string | null;
@@ -42,7 +41,6 @@ export interface RequestHeadcountModalProps {
   initialProvince?: string | null;
   initialCity?: string | null;
   sourceNewStoreRequestId?: string | null;
-  onSuccess?: (result?: SubmitHeadcountRequestResult) => void;
 }
 
 export type WorkforceType = "stationary" | "roving" | "floating";

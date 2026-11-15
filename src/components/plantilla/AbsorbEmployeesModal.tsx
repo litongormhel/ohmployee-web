@@ -19,15 +19,14 @@ import {
   fetchPlantillaScopedAccounts,
   absorbEmployees,
 } from "@/lib/queries/plantilla";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface AbsorbEmployeesModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface AbsorbEmployeesModalProps
+  extends ActionModalProps<{ direct: boolean; count: number; targetAccountName: string }> {
   sourceAccount: {
     id: string;
     name: string;
   } | null;
-  onSuccess?: (result: { direct: boolean; count: number; targetAccountName: string }) => void;
 }
 
 export function AbsorbEmployeesModal({

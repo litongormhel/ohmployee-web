@@ -1,5 +1,6 @@
 import React from "react";
 import type { BadgeVariant } from "@/components/ui/StatusBadge";
+import type { EmployeeIdentitySummary } from "@/types/display";
 import type { PlantillaEmployeeListItem, ActiveCoverageItem } from "@/lib/queries/plantilla";
 import { deriveDeactivationOverlay } from "@/lib/queries/plantilla";
 import type { VacancyListItem } from "@/lib/queries/vacancy";
@@ -55,7 +56,7 @@ export interface AccountSummaryMetric {
   leave: number;
 }
 
-export interface RelieverTargetEmployee {
+export interface RelieverTargetEmployee extends EmployeeIdentitySummary {
   id: string;
   displayName: string;
   employeeNo: string;
@@ -77,20 +78,20 @@ export interface ReturnToActiveTarget {
   } | null;
 }
 
-export interface AssignStoreTargetEmployee {
+export interface AssignStoreTargetEmployee extends EmployeeIdentitySummary {
   id: string;
   displayName: string;
   employeeNo: string;
 }
 
-export interface UpdateStatusTargetEmployee {
+export interface UpdateStatusTargetEmployee extends EmployeeIdentitySummary {
   id: string;
   displayName: string;
   employeeNo: string;
   currentStatus: string;
 }
 
-export interface DeactivationTargetEmployee {
+export interface DeactivationTargetEmployee extends EmployeeIdentitySummary {
   id: string;
   displayName: string;
   employeeNo: string;

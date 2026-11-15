@@ -12,10 +12,9 @@ import {
   deriveStaffingRisk,
   type PlantillaStoreStaffingRow,
 } from "@/lib/queries/plantilla";
+import type { BaseModalProps } from "@/types/modal";
 
-export interface StoreStaffingOverviewDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface StoreStaffingOverviewDrawerProps extends BaseModalProps {
   accountId: string;
   accountName?: string | null;
   onSelectStore: (store: PlantillaStoreStaffingRow) => void;

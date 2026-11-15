@@ -9,11 +9,9 @@ import {
   useOpenPoolSlots,
   useWorkforcePoolTypes,
 } from "@/lib/queries/workforcePool";
+import type { BaseModalProps } from "@/types/modal";
 
-export interface PoolOpenSlotsDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+export type PoolOpenSlotsDrawerProps = BaseModalProps;
 
 export function PoolOpenSlotsDrawer({ isOpen, onClose }: PoolOpenSlotsDrawerProps) {
   const [selectedType, setSelectedType] = useState<string>("all");

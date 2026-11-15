@@ -4,10 +4,9 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import { useMotionLevel } from "@/hooks/useMotionLevel";
+import type { BaseDrawerProps } from "@/types/modal";
 
-export interface DetailDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface DetailDrawerProps extends BaseDrawerProps {
   title: string | ReactNode;
   subtitle?: string | ReactNode;
   badge?: ReactNode;

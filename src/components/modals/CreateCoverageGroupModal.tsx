@@ -32,13 +32,13 @@ import {
 
 export type CoverageTabType = "create" | "add_store" | "remove_store" | "merge" | "dissolve";
 
-export interface CreateCoverageGroupModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+import type { ActionModalProps } from "@/types/modal";
+
+export interface CreateCoverageGroupModalProps
+  extends ActionModalProps<{ coverageGroupId?: string; coverageCode?: string }> {
   defaultAccountId?: string;
   defaultAccountName?: string;
   initialTab?: CoverageTabType;
-  onSuccess?: (result: { coverageGroupId?: string; coverageCode?: string }) => void;
 }
 
 export function CreateCoverageGroupModal({

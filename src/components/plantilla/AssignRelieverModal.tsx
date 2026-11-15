@@ -6,10 +6,9 @@ import { Search, Loader2, UserCheck, AlertCircle } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import { fetchPoolEmployees, type WorkforcePoolEmployee } from "@/lib/queries/workforcePool";
 import { assignRelieverCoverage } from "@/lib/queries/plantilla";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface AssignRelieverModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface AssignRelieverModalProps extends ActionModalProps {
   employee: {
     id: string;
     displayName: string;
@@ -18,7 +17,6 @@ export interface AssignRelieverModalProps {
     storeName?: string | null;
   };
   accountId: string;
-  onSuccess?: () => void;
 }
 
 export function AssignRelieverModal({

@@ -3,10 +3,9 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { useMotionLevel } from "@/hooks/useMotionLevel";
+import type { BaseModalProps } from "@/types/modal";
 
-export interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface ModalProps extends BaseModalProps {
   title: string | ReactNode;
   subtitle?: string | ReactNode;
   icon?: React.ComponentType<{ className?: string }>;

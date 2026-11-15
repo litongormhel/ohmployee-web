@@ -12,12 +12,10 @@ import {
   type WorkforcePoolEmployee,
 } from "@/lib/queries/workforcePool";
 import { Modal } from "@/components/shared/Modal";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface RequestPoolConversionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface RequestPoolConversionModalProps extends ActionModalProps {
   employee: WorkforcePoolEmployee;
-  onSuccess?: () => void;
 }
 
 export function RequestPoolConversionModal({

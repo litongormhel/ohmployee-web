@@ -6,10 +6,9 @@ import { Modal } from "@/components/shared/Modal";
 import { requestAccountArchive } from "@/lib/queries/plantilla";
 import { useCurrentUser } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface ArchiveAccountModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface ArchiveAccountModalProps extends ActionModalProps<string> {
   account: {
     id: string;
     name: string;
@@ -19,7 +18,6 @@ export interface ArchiveAccountModalProps {
     groupName?: string | null;
   } | null;
   onRouteToAbsorption: (account: { id: string; name: string }) => void;
-  onSuccess?: (accountName: string) => void;
 }
 
 export function ArchiveAccountModal({

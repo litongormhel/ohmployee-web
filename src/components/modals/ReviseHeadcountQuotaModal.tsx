@@ -5,15 +5,13 @@ import { AlertCircle, Minus, Plus, ShieldAlert } from "lucide-react";
 import { useReviseHeadcountQuota, useVcodeQuotaDetails } from "@/lib/queries/quota";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface ReviseHeadcountQuotaModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface ReviseHeadcountQuotaModalProps extends ActionModalProps {
   vcode: string;
   storeName?: string | null;
   positionTitle?: string | null;
   initialQuota?: number | null;
-  onSuccess?: () => void;
 }
 
 export function ReviseHeadcountQuotaModal({

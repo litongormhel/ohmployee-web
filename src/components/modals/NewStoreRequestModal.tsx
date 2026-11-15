@@ -19,10 +19,17 @@ import {
   useAccountGroupId,
   type SubmitNewStoreRequestResult,
 } from "@/lib/queries/requests";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface NewStoreRequestModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface NewStoreRequestModalProps
+  extends ActionModalProps<{
+    requestId: string;
+    storeName: string;
+    province: string;
+    city: string;
+    accountName: string;
+    accountId: string;
+  }> {
   initialAccountId?: string | null;
   initialAccountName?: string | null;
   initialGroupId?: string | null;
@@ -39,14 +46,6 @@ export interface NewStoreRequestModalProps {
     province?: string | null;
     area_province?: string | null;
   }[];
-  onSuccess?: (result: {
-    requestId: string;
-    storeName: string;
-    province: string;
-    city: string;
-    accountName: string;
-    accountId: string;
-  }) => void;
 }
 
 export function NewStoreRequestModal(props: NewStoreRequestModalProps) {

@@ -5,11 +5,9 @@ import { DetailDrawer } from "@/components/shared/DetailDrawer";
 import { DataState } from "@/components/shared/DataState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { usePoolRequestHistory } from "@/lib/queries/workforcePool";
+import type { BaseModalProps } from "@/types/modal";
 
-export interface PoolRequestHistoryDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+export type PoolRequestHistoryDrawerProps = BaseModalProps;
 
 export function PoolRequestHistoryDrawer({ isOpen, onClose }: PoolRequestHistoryDrawerProps) {
   const historyQuery = usePoolRequestHistory();

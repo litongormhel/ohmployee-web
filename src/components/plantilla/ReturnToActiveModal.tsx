@@ -5,10 +5,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RotateCcw, AlertCircle, Info, Loader2 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import { updatePlantillaEmploymentStatus } from "@/lib/queries/plantilla";
+import type { ActionModalProps } from "@/types/modal";
 
-export interface ReturnToActiveModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface ReturnToActiveModalProps extends ActionModalProps {
   employee: {
     id: string;
     displayName: string;
@@ -20,7 +19,6 @@ export interface ReturnToActiveModalProps {
     name: string;
     employeeNumber: string;
   } | null;
-  onSuccess?: () => void;
 }
 
 export function ReturnToActiveModal({
