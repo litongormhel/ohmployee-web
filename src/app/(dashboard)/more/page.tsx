@@ -717,17 +717,17 @@ function MorePageContent() {
       {/* Standard Admin Header */}
       <AdminPageHeader
         categoryTag="Admin panel"
-        moduleName="More"
-        title="System Hub & Governance Tools"
-        subtitle="Access administrator utilities, security matrices, audit trails, data control, and command controls."
-        icon={Layers}
+        moduleName="Admin Tools"
+        title="Admin Tools & Governance Hub"
+        subtitle="Access administrator utilities, batch data imports, security matrices, audit trails, and command controls."
+        icon={Wrench}
       />
 
       {/* Categorized Tab Navigation Strip */}
       <div className="border-b border-border-subtle pb-3">
         <nav
           className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none"
-          aria-label="More Navigation Tabs"
+          aria-label="Admin Tools Navigation Tabs"
           role="tablist"
         >
           {visibleTabs.map((tab) => {

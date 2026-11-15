@@ -6,11 +6,11 @@ import {
   ClipboardList,
   FileBarChart,
   LayoutDashboard,
-  MoreHorizontal,
   Settings,
   ShieldCheck,
   Users,
   UsersRound,
+  Wrench,
 } from "lucide-react";
 
 export type WebModule = {
@@ -108,10 +108,10 @@ export const webModules: WebModule[] = [
   },
   {
     key: "more",
-    title: "More",
+    title: "Admin Tools",
     href: "/more",
-    purpose: "Overflow area for modules that do not yet need primary navigation.",
-    icon: MoreHorizontal,
+    purpose: "Administrative tools, batch data imports, governance, permissions, and audit center.",
+    icon: Wrench,
   },
 ];
 

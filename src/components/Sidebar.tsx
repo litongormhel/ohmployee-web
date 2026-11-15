@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Sparkles, Sun, Moon, Laptop, Search } from "lucide-react";
+import { LogOut, Sparkles, Sun, Moon, Laptop, Search, Settings } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveModule, type WebModule } from "@/lib/modules";
 import { useCurrentUser } from "@/lib/auth";
@@ -56,8 +56,11 @@ export function Sidebar({
     ? calculateMyRequestsCounts(myRequestsData).pending
     : 0;
 
+  const hasSettings = visibleModules.some((m) => m.key === "settings");
   const mainModules = visibleModules.filter((m) => MAIN_MODULE_KEYS.has(m.key));
-  const secondaryModules = visibleModules.filter((m) => !MAIN_MODULE_KEYS.has(m.key));
+  const secondaryModules = visibleModules.filter(
+    (m) => !MAIN_MODULE_KEYS.has(m.key) && m.key !== "settings"
+  );
 
   const hasCencom = secondaryModules.some((m) => m.key === "cencom");
   const fallbackSecondaryKey = secondaryModules.some((m) => m.key === "dashboard")
@@ -150,6 +153,8 @@ export function Sidebar({
               ? "User management"
               : key === "team_directory"
               ? "Team directory"
+              : key === "more"
+              ? "Admin Tools"
               : title;
 
           const shouldRenderOhmniHere =
@@ -208,15 +213,42 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* Footer: User Name + Role + Theme Toggle + Logout */}
+      {/* Footer: User Profile + Settings Link + Theme Toggle + Logout */}
       <div className="mt-auto pt-6 px-2.5 text-xs text-[var(--muted)] flex items-center justify-between gap-1">
-        <div className="truncate pr-1 min-w-0">
-          <b className="block font-medium text-[var(--text)] truncate text-[13.5px] leading-snug">
-            {userName}
-          </b>
-          <span className="truncate block text-[12px] leading-snug">{userRole}</span>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
+        {hasSettings ? (
+          <Link
+            href="/settings"
+            title="Account & Security Settings"
+            className="truncate pr-1 min-w-0 group hover:opacity-85 transition cursor-pointer outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
+          >
+            <b className="block font-medium text-[var(--text)] truncate text-[13.5px] leading-snug group-hover:text-brand-500 transition-colors">
+              {userName}
+            </b>
+            <span className="truncate block text-[12px] leading-snug">{userRole}</span>
+          </Link>
+        ) : (
+          <div className="truncate pr-1 min-w-0">
+            <b className="block font-medium text-[var(--text)] truncate text-[13.5px] leading-snug">
+              {userName}
+            </b>
+            <span className="truncate block text-[12px] leading-snug">{userRole}</span>
+          </div>
+        )}
+        <div className="flex items-center gap-0.5 shrink-0">
+          {hasSettings && (
+            <Link
+              href="/settings"
+              title="Settings (Profile, Preferences, Security)"
+              aria-label="Settings"
+              className={`rounded-md p-1.5 transition cursor-pointer outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+                path === "/settings"
+                  ? "bg-[var(--soft)] text-[var(--text)] font-semibold"
+                  : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--soft)]"
+              }`}
+            >
+              <Settings size={15} aria-hidden="true" />
+            </Link>
+          )}
           <button
             type="button"
             onClick={cycleTheme}

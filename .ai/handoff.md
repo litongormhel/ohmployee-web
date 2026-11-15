@@ -1,5 +1,30 @@
 # AI Handoff
 
+## Execution Report — Separation & Rebranding of Admin Tools (formerly More) and Sidebar Settings Integration (ohm#w52s843a)
+
+**Status: COMPLETE. (1) REBRANDED OVERFLOW MODULE: CHANGED "MORE" TO "ADMIN TOOLS" ACROSS `src/lib/modules.ts`, `src/components/Sidebar.tsx`, AND `src/app/(dashboard)/more/page.tsx` TO ACCURATELY REFLECT ITS OPERATIONAL IDENTITY (BATCH IMPORTS, QA CENTER, GOVERNANCE, PERMISSION MATRIX, AUDIT TRAILS); (2) SIDEBAR SETTINGS INTEGRATION: INTEGRATED 1-CLICK ACCESS TO `/settings` IN THE `Sidebar.tsx` FOOTER (CLICKABLE USER IDENTITY BADGE + DEDICATED ⚙️ SETTINGS ICON BUTTON ADJACENT TO THEME TOGGLE AND LOGOUT), PREVENTING DUPLICATION IN THE SECONDARY MODULE ROSTER; (3) CLEAN PARITY & CONTRACTS: PRESERVED FULL BACKWARD COMPATIBILITY FOR ALL DEEP LINKS (`/more`), RBAC CAPABILITIES, AND QUERY PARAMETERS; (4) VERIFIED CLEAN: ALL 226 TESTS PASSING (`npm test`), 0 LINT ERRORS AND 0 LINT WARNINGS (`npm run lint`), AND ZERO SQL CONTRACT REGRESSIONS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Key Changes
+1. **`src/lib/modules.ts`**:
+   - Replaced `MoreHorizontal` with `Wrench` icon for `key: "more"`.
+   - Updated title to `"Admin Tools"`.
+   - Updated purpose description to reflect administrative tools, batch imports, governance, permissions, and audit center.
+2. **`src/components/Sidebar.tsx`**:
+   - Filtered out `settings` from `secondaryModules` list to eliminate visual clutter in the navigation stack.
+   - Replaced module title with `"Admin Tools"`.
+   - Updated the sidebar footer: wrapped user profile information (`userName` & `userRole`) in a `<Link href="/settings">` with interactive hover states.
+   - Added a dedicated ⚙️ Settings icon button in the footer actions strip (between user profile and Theme/Logout buttons) with active-state styling when on `/settings`.
+3. **`src/app/(dashboard)/more/page.tsx`**:
+   - Updated `AdminPageHeader` with `moduleName="Admin Tools"`, `title="Admin Tools & Governance Hub"`, and `Wrench` icon.
+   - Updated tab navigation `aria-label="Admin Tools Navigation Tabs"`.
+4. **Documentation**:
+   - Updated `docs/state/more_state.md` and `.ai/current_state.md` reflecting the new module naming and footer integration.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
