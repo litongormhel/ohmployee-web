@@ -1,5 +1,53 @@
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Mobile Implementation & Parity (ohm#mobile-ohmni-copilot)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) WEB NON-STREAMING API ENHANCEMENT (`src/app/api/ohmni/route.ts`): ADDED `stream: false` MODE CALLING `generateText` OVER CANDIDATE GEMINI MODELS (`gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`, `gemini-flash-lite-latest`, `gemini-3.8-flash`) WITH TOOL CALLING (`getPlantillaSummary`, `getOpenVacancies`, `getEmplocQueueStatus`, `getHeadcountRequests`) AND LOCAL DETERMINISTIC FALLBACK, RETURNING CLEAN JSON PAYLOADS FOR MOBILE CLIENTS; (2) MOBILE SERVICE LAYER (`D:\Projects\OHMployee\lib\data\services\ohmni_service.dart`): IMPLEMENTED `OhmniService` WITH RLS-SCOPED SUPABASE BEARER AUTH, TIMEOUT GUARDS, AND AN OFFLINE DETERMINISTIC FALLBACK ENGINE QUERYING `vw_vacancy_list`, `headcount_requests`, AND `hr_emploc`; (3) MOBILE CHAT INTERFACE (`D:\Projects\OHMployee\lib\features\ohmni\ohmni_chat_screen.dart`): CRAFTED A HIGH-POLISH DEDICATED CHAT EXPERIENCE WITH ONLINE CO-PILOT INDICATOR, STARTER PROMPT CARDS, ADAPTIVE BUBBLE RENDERING, CODE BADGE CHIPS (`SLOT-001`), RESET CONVERSATION MODAL, AND LIVE THINKING INDICATOR; (4) MOBILE INTEGRATION POINTS: ADDED `IconButton` TO `main.dart` APPBAR, A FIRST-CLASS TILE IN `MoreScreen` UNDER TEAM DIRECTORY, AND AN "ASK OHMNI AI" LAUNCH CHIP IN `GlobalSearchScreen` SEARCH & EMPTY STATES; (5) VERIFIED CLEAN: `dart analyze lib/` (0 ERRORS), `flutter test` (172/172 PASSED), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND LOCAL COMMITS ACROSS REPOSITORIES.**
@@ -2603,6 +2651,54 @@
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -2747,6 +2843,54 @@
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -2873,6 +3017,54 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -3002,6 +3194,54 @@
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -3128,6 +3368,54 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -3273,6 +3561,54 @@
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -3399,6 +3735,54 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -3541,6 +3925,54 @@
 
 ﻿# AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -3667,6 +4099,54 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -3812,6 +4292,54 @@
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -3938,6 +4466,54 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -4067,6 +4643,54 @@
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -4193,6 +4817,54 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -4338,6 +5010,54 @@
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -4464,6 +5184,54 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -9821,6 +10589,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -9947,6 +10763,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -10092,6 +10956,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -10218,6 +11130,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -10347,6 +11307,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -10473,6 +11481,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -10618,6 +11674,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -10744,6 +11848,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -11570,6 +12722,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -11696,6 +12896,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -11841,6 +13089,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -11967,6 +13263,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -12096,6 +13440,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -12222,6 +13614,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -12367,6 +13807,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -12493,6 +13981,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -13343,6 +14879,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -13469,6 +15053,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -13614,6 +15246,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -13740,6 +15420,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -13869,6 +15597,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -13995,6 +15771,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
@@ -14140,6 +15964,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
+
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
 **Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -14266,6 +16138,54 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Phase 2 Implementation (`ohmployee-web`)
+1. **API Endpoints & Tool Matrix (`src/app/api/ohmni/route.ts`)**:
+   - `getOperationalBriefing`: Compiles real-time daily briefing across headcount requests, open vacancies, pending HR movements, and vacancy closure requests, ranking top understaffed accounts.
+   - `getStoreAnalytics`: Ranks stores/accounts by lowest fill rate (`mfr`) or highest vacant slots (`v_account_allocation_kpi`).
+   - `getVacancyAgingAndSla`: Pinpoints open vacancies exceeding 14 days and flags SLA breaches (>30 days).
+   - `draftHeadcountRequest`: Generates structured `{ action: "SUBMIT_HEADCOUNT_REQUEST", draft: { storeName, position, headcountNeeded, reason } }` action payload without performing unconfirmed writes.
+   - `draftVacancyClosure`: Generates structured `{ action: "SUBMIT_VACANCY_CLOSURE", draft: { vcode, position, storeName, reason } }` action payload for confirmation.
+   - Contextual Awareness: Reads `activeContext` (route, storeName, vcode) from request body and prepends active workspace context to Gemini system instructions.
+   - Local commits: `195e144`, `1452ab4`.
+2. **Web Drawer UI (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `📋 Today's Operational Briefing` starter prompt chip.
+   - Interactive Action Cards: Renders green/emerald Headcount Request Action Card and amber Vacancy Closure Action Card with deep links into `/plantilla?request=headcount...` and `/vacancy?q=...`.
+   - Connected `DefaultChatTransport` with `body: { activeContext: { route: pathname } }`.
+
+### 2. Mobile Phase 2 Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Updated `sendMessage`: accepts `activeContext` parameter and forwards it in the cloud request payload.
+   - Extracts `toolResults` and `actionDraft` from cloud JSON responses.
+   - Upgraded Local Fallback Engine to handle Phase 2 queries locally:
+     - Today's Operational Briefing (counts pending headcount, vacancies, emploc, closures, and understaffed accounts).
+     - Store/Account Rankings (by lowest fill rate).
+     - Vacancy Aging & SLA breaches (>14d and >30d).
+     - Local action drafting for headcount requests and vacancy closures.
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Added starter prompts for Daily Briefing, Lowest Fill Accounts, and Aging Vacancies.
+   - Interactive Action Cards:
+     - `SUBMIT_HEADCOUNT_REQUEST`: displays branch, position, count, reason, with "Confirm & Submit" button (shows confirmation dialog and submits) and "Review in Requests" button.
+     - `SUBMIT_VACANCY_CLOSURE`: displays slot code, position, branch, reason, with "Confirm & Close" button (calls `VacancyService().requestVacancyClosure`) and "Review in Requests" button.
+   - State management tracks submitted draft IDs and displays confirmed state badges (`Submitted to Approvals Queue`, `Closure Requested`).
+3. **Contextual Awareness Wired Across Mobile**:
+   - `lib/main.dart`: passes active navigation tab label (`activeContext: {'route': navItems[safeIndex].label.toLowerCase()}`).
+   - `lib/features/more/more_screen.dart`: passes `activeContext: {'route': 'more'}`.
+   - `lib/features/global_search/global_search_screen.dart`: passes active search query and route context.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` passes (3/3 tests).
+   - Full test suite: 172/172 tests passed.
+   - Static analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `245732d`.
+
+---
 
 ## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
 
