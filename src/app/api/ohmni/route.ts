@@ -690,7 +690,16 @@ async function executeOperationalBriefing(
         .select("id", { count: "exact", head: true })
         .ilike("status", "%pending%");
 
-      // 5. Priority accounts with active vacancies
+      // 5. Aging Vacancies (>30 days open SLA threshold)
+      const threshold30d = new Date();
+      threshold30d.setDate(threshold30d.getDate() - 30);
+      const { count: agingVacancies } = await supabase
+        .from("vw_vacancy_list")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "Open")
+        .lte("created_at", threshold30d.toISOString());
+
+      // 6. Priority accounts with active vacancies
       const { data: lowMfrAccounts } = await supabase
         .from("v_account_allocation_kpi")
         .select("account_name, actual_hc, slot_vacant_hc, required_hc, mfr")
@@ -701,6 +710,7 @@ async function executeOperationalBriefing(
       return {
         pendingHeadcount: pendingHeadcount ?? 0,
         openVacancies: openVacancies ?? 0,
+        agingVacancies: agingVacancies ?? 0,
         pendingEmploc: pendingEmploc ?? 0,
         pendingClosures: pendingClosures ?? 0,
         totalActionItems:
@@ -1011,6 +1021,9 @@ async function handleDeterministicFallback(
         msg += `• **Action Items:** You have **${briefing.totalActionItems}** pending operational action items across modules.\n`;
         msg += `• **Headcount Requests:** **${briefing.pendingHeadcount}** awaiting review in Approvals.\n`;
         msg += `• **Open Vacancies:** **${briefing.openVacancies}** active open slots across retail branches.\n`;
+        if (Number(briefing.agingVacancies) > 0) {
+          msg += `• **Aging Vacancies (>30d SLA Alert):** **${briefing.agingVacancies}** slots needing recruitment priority.\n`;
+        }
         msg += `• **HR Emploc Queue:** **${briefing.pendingEmploc}** pending deployment/movement records.\n`;
         msg += `• **Closure Requests:** **${briefing.pendingClosures}** pending vacancy closures.\n`;
         if (briefing.priorityAccounts && briefing.priorityAccounts.length > 0) {
@@ -1430,7 +1443,15 @@ export async function POST(req: Request) {
 
     let effectiveSystemPrompt = SYSTEM_PROMPT;
     if (activeContext && typeof activeContext === "object") {
-      effectiveSystemPrompt += `\n\n[Active Screen Context]:\n- Active Route: ${activeContext.route ?? "None"}\n- Current Store/Branch: ${activeContext.storeName ?? "None"}\n- Current Vacancy/Slot: ${activeContext.vcode ?? "None"}\nUse this context when user refers to "here", "this store", or "this slot".`;
+      effectiveSystemPrompt += `\n\n[Active Screen Context]:
+- Active Route: ${activeContext.route ?? "None"}
+- Current Store/Branch: ${activeContext.storeName ?? "None"}
+- Current Account: ${activeContext.accountName ?? "None"}
+- Current Vacancy/Slot: ${activeContext.vcode ?? "None"}
+INSTRUCTIONS FOR ACTIVE SCREEN CONTEXT:
+1. When the user asks relative questions such as "dito", "here", "this store", "staffing rito", or "this slot", automatically bind their question to the active Store/Branch (${activeContext.storeName ?? "None"}) or Vacancy/Slot (${activeContext.vcode ?? "None"}).
+2. When answering about a store, call getPlantillaSummary and getOpenVacancies with branchFilter set to Current Store/Branch.
+3. If Current Account is specified, resolve queries in the scope of that account.`;
     }
 
     const modelMessages = await convertToModelMessages(cappedMessages);

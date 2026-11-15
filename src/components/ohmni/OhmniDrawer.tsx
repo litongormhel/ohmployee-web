@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { createClient } from "@/lib/supabase/client";
@@ -481,6 +481,11 @@ function ToolOutputFallbackView({
         <ul className="space-y-1 pl-1 text-xs text-text-secondary">
           <li>• <strong>Pending Headcount Requests:</strong> {briefing.pendingHeadcount ?? 0}</li>
           <li>• <strong>Open Vacancies:</strong> {briefing.openVacancies ?? 0} active</li>
+          {Number(briefing.agingVacancies ?? 0) > 0 && (
+            <li className="text-amber-600 dark:text-amber-400 font-medium">
+              • <strong>Aging Vacancies (&gt;30d SLA Alert):</strong> {briefing.agingVacancies}
+            </li>
+          )}
           <li>• <strong>HR Emploc Queue:</strong> {briefing.pendingEmploc ?? 0} pending</li>
           <li>• <strong>Closure Requests:</strong> {briefing.pendingClosures ?? 0}</li>
         </ul>
@@ -495,13 +500,32 @@ function ToolOutputFallbackView({
   );
 }
 
-// ── Route Starter Prompts ───────────────────────────────────────────────────
+// ── Route & Context Starter Prompts ──────────────────────────────────────────
 
-function getStarterPrompts(pathname: string): string[] {
+interface ContextParams {
+  storeName?: string;
+  accountName?: string;
+  vcode?: string;
+}
+
+function getStarterPrompts(pathname: string, context?: ContextParams): string[] {
   const common = ["📋 Today's Operational Briefing"];
+  const dynamicStarters: string[] = [];
+
+  if (context?.storeName) {
+    dynamicStarters.push(`Kumusta ang staffing sa ${context.storeName}?`);
+  }
+  if (context?.vcode) {
+    dynamicStarters.push(`I-check ang details at applicant ng ${context.vcode}`);
+  }
+  if (context?.accountName && !context?.storeName) {
+    dynamicStarters.push(`Summarize headcount and vacancies for ${context.accountName}`);
+  }
+
   if (pathname.includes("/plantilla")) {
     return [
       ...common,
+      ...dynamicStarters,
       "Summarize Plantilla fill-rate and vacant slots by branch",
       "Draft a headcount request for Cashier",
       "How do I bulk-import or Sync MIKA in Plantilla?",
@@ -510,6 +534,7 @@ function getStarterPrompts(pathname: string): string[] {
   if (pathname.includes("/vacancy")) {
     return [
       ...common,
+      ...dynamicStarters,
       "Show vacancies open for more than 30 days (SLA breach)",
       "Count open vacancies grouped by branch",
       "Draft closure request for a vacancy",
@@ -518,12 +543,14 @@ function getStarterPrompts(pathname: string): string[] {
   if (pathname.includes("/hr-emploc")) {
     return [
       ...common,
+      ...dynamicStarters,
       "Show pending movements stuck in hr_emploc_queue",
       "Check queue status for a specific employee",
     ];
   }
   return [
     ...common,
+    ...dynamicStarters,
     "Show accounts ranked by lowest fill rate (MFR)",
     "Show vacancies open for more than 30 days (SLA breach)",
     "Draft a headcount request",
@@ -534,9 +561,43 @@ function getStarterPrompts(pathname: string): string[] {
 
 export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const storeName = useMemo(
+    () =>
+      searchParams?.get("store") ||
+      searchParams?.get("store_name") ||
+      searchParams?.get("branch") ||
+      "",
+    [searchParams]
+  );
+  const accountName = useMemo(
+    () =>
+      searchParams?.get("account") ||
+      searchParams?.get("account_name") ||
+      "",
+    [searchParams]
+  );
+  const vcode = useMemo(
+    () =>
+      searchParams?.get("vcode") ||
+      searchParams?.get("q") ||
+      "",
+    [searchParams]
+  );
+
+  const activeContext = useMemo(
+    () => ({
+      route: pathname,
+      storeName: storeName || undefined,
+      accountName: accountName || undefined,
+      vcode: vcode || undefined,
+    }),
+    [pathname, storeName, accountName, vcode]
+  );
 
   // Authorization token forwarding & route context
   const transport = useMemo(
@@ -544,7 +605,7 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
       new DefaultChatTransport({
         api: "/api/ohmni",
         body: {
-          activeContext: { route: pathname },
+          activeContext,
         },
         headers: async (): Promise<Record<string, string>> => {
           const supabase = createClient();
@@ -557,7 +618,7 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
           return reqHeaders;
         },
       }),
-    [pathname]
+    [activeContext]
   );
 
   const {
@@ -627,7 +688,10 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
     setMessages([]);
   };
 
-  const starters = useMemo(() => getStarterPrompts(pathname), [pathname]);
+  const starters = useMemo(
+    () => getStarterPrompts(pathname, activeContext),
+    [pathname, activeContext]
+  );
 
   if (!isOpen) return null;
 
@@ -708,6 +772,14 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
                   Ask me about your Plantilla slots, open vacancies, headcount requests, or HR
                   Emploc queues.
                 </p>
+                {(activeContext.storeName || activeContext.accountName || activeContext.vcode) && (
+                  <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+                    <span className="text-[11px]">📍</span>
+                    <span className="truncate">
+                      Context: {activeContext.storeName ? `Store: ${activeContext.storeName}` : ""}{activeContext.storeName && activeContext.accountName ? " • " : ""}{activeContext.accountName ? `Account: ${activeContext.accountName}` : ""}{activeContext.vcode ? `Slot: ${activeContext.vcode}` : ""}
+                    </span>
+                  </div>
+                )}
                 <p className="text-text-muted text-xs">
                   You can also ask step-by-step how-to questions anytime.
                 </p>
