@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AdminTopbar } from "@/components/AdminTopbar";
 import { Sidebar } from "@/components/Sidebar";
 import { IdleWarningModal } from "@/components/IdleWarningModal";
@@ -226,6 +227,7 @@ const WORKSPACE_BOOTSTRAP_TIMEOUT_MS = 8000;
 
 export function DashboardAuthShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [currentUser, setCurrentUser] = useState<WebCurrentUserContext | null>(
     null,
   );
@@ -237,6 +239,28 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+
+  // Keep DashboardAuthShell in sync with React Query currentUserContext cache invalidations
+  useEffect(() => {
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+      if (
+        event?.query?.queryKey?.[0] === "currentUserContext" &&
+        event.type === "updated"
+      ) {
+        const queryState = event.query.state.data as
+          | { currentUser: WebCurrentUserContext | null; blockedAccess: WebBlockedAccess | null }
+          | undefined;
+        if (queryState?.currentUser) {
+          console.info(
+            "[DashboardAuthShell] Reactive currentUser update from query cache:",
+            queryState.currentUser.roleName || queryState.currentUser.roleKey
+          );
+          setCurrentUser(queryState.currentUser);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [queryClient]);
 
   useEffect(() => {
     let isMounted = true;

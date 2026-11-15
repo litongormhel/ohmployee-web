@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { webModules, type WebModule } from "@/lib/modules";
-import { isModuleAllowedForUser, isOwner, hasFullAccess, getRoleLevel } from "@/lib/rbac";
+import { isModuleAllowedForUser, isOwner, hasFullAccess, getRoleLevel, normalizeRole, AppRole } from "@/lib/rbac";
 
 export type WebModuleAccess = {
   visible: boolean;
@@ -339,16 +339,25 @@ export async function loadCurrentUserContext(): Promise<{
           .filter((id): id is string => typeof id === "string" && id.length > 0))
       : [];
 
+    const rawRole = rpcRow.role_name || rpcRow.role_key;
+    const normalizedRole = normalizeRole(rawRole);
+    const isExplicitLowerRole = Boolean(
+      normalizedRole &&
+      normalizedRole !== AppRole.SUPER_ADMIN &&
+      normalizedRole !== AppRole.HEAD_ADMIN
+    );
+
     const isSuperAdminUser =
-      rpcRow.email?.toLowerCase().trim() === "ohmpayatt@proton.me" ||
-      user.email?.toLowerCase().trim() === "ohmpayatt@proton.me" ||
-      isOwner(rpcRow.role_name || rpcRow.role_key);
+      !isExplicitLowerRole &&
+      (rpcRow.email?.toLowerCase().trim() === "ohmpayatt@proton.me" ||
+       user.email?.toLowerCase().trim() === "ohmpayatt@proton.me" ||
+       isOwner(rawRole));
 
     const derivedRoleLevel = isSuperAdminUser
       ? 100
       : typeof rpcRow.role_level === "number" && rpcRow.role_level > 0
       ? rpcRow.role_level
-      : getRoleLevel(rpcRow.role_name || rpcRow.role_key);
+      : getRoleLevel(rawRole);
 
     console.info(
       `[auth] Workspace context loaded successfully. Role: ${rpcRow.role_name || rpcRow.role_key || "unknown"} (Level ${derivedRoleLevel}), Modules: [${allowedModuleKeys.join(", ")}]`

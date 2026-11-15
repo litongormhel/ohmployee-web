@@ -1526,6 +1526,14 @@ export function useStartActingSession() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["active-acting-session"] });
       queryClient.invalidateQueries({ queryKey: ["currentUserContext"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["team-directory"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom"] });
+      queryClient.invalidateQueries({ queryKey: ["web-plantilla-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["store-staffing"] });
     },
   });
 }
@@ -1537,6 +1545,14 @@ export function useStopActingSession() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["active-acting-session"] });
       queryClient.invalidateQueries({ queryKey: ["currentUserContext"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["team-directory"] });
+      queryClient.invalidateQueries({ queryKey: ["cencom"] });
+      queryClient.invalidateQueries({ queryKey: ["web-plantilla-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["store-staffing"] });
     },
   });
 }

@@ -87,3 +87,15 @@ This document captures the current stable architecture and navigation contract f
   - `QaRunHistoryTable.tsx`: Historical test run table displaying run ID, agent name, status, duration, steps badge, and isolation status.
   - `QaFindingsViewer.tsx`: Defect inspection list displaying finding code, severity badge, category, details, and actionable remediation callouts.
 
+## Switch Role & Acting Sessions (More > Admin Tools > Switch Role)
+- **Modal Entry**: `SwitchRoleModal` triggered from `/more?tab=admin_tools` tile (`switch_role`) or `targetModal === "switch_role"`.
+- **Database Engine**:
+  - `public.start_acting_session(p_acting_role, p_group_ids, p_account_ids, p_reason)`: Verified against caller's physical `users_profile` record (`role_level >= 100` or `ohmpayatt@proton.me`), eliminating self-lockout when switching across roles without stopping. Terminates existing active session before inserting new active record in `public.acting_sessions`.
+  - `public.stop_acting_session()`: Reverts session by setting `is_active = false, ended_at = now()`.
+  - `public.get_web_current_user_context()`: Honors active acting session overlay with 100% Mobile `EffectiveUserContext` parity. Returns acting `role_name`, `role_key`, acting scopes (`group_scope`, `account_scope`), and dynamically evaluates `allowed_module_keys` and `module_capabilities` for the simulated role.
+- **Frontend Reactivity & Cache Layer**:
+  - `DashboardAuthShell`: Subscribes to TanStack Query cache updates on `["currentUserContext"]`, reactively updating `currentUser`, `Sidebar` user role & visible modules, `AdminTopbar`, and route access guards without requiring manual page reload.
+  - `src/lib/rbac.ts`: Evaluates normalized role (`normalizeRole`) first in `getRoleLevel`, `isOwner`, and `hasFullAccess` to prevent email privileges from leaking during lower-role simulation.
+  - `src/lib/queries/more.ts`: `useStartActingSession` and `useStopActingSession` comprehensively invalidate `["currentUserContext"]`, `["active-acting-session"]`, and operational data queries (`plantilla`, `vacancies`, `approvals`, `team-directory`, `cencom`).
+
+
