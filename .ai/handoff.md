@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Execution Report — Mobile Orphaned Import Cleanup & Web Parity (My Requests & Global Search) (ohm#mobile-import-cleanup-and-web-parity)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) DEDICATED MY REQUESTS PAGE ON WEB (`/my-requests`): IMPLEMENTED END-TO-END TRACKING PAGE DIRECTLY BELOW APPROVALS IN NAVIGATION WITH 4X METRIC CARDS, TABBED STATUS FILTERS (`all`, `pending`, `approved`, `rejected`), SEARCH, REVIEWER FEEDBACK BANNERS, AND POSTGREST COLUMN GUARDS ACROSS 6 REQUEST TABLES; (2) UNIVERSAL GLOBAL SEARCH ON WEB (`search_global_index` / `⌘K`): COMMAND PALETTE INTEGRATING POSTGRES RPC `search_global_index`, KEYBOARD NAVIGATION (ARROWS, ENTER, ESCAPE), RECENT SEARCH PERSISTENCE (`localStorage`), QUICK JUMP NAVIGATION, AND AI BRIDGE TO OHMNI (`⌘J`); (3) MOBILE BATCH IMPORT CODEBASE CLEANUP (`D:\Projects\OHMployee`): SAFELY REMOVED 9,529 LINES OF ORPHANED IMPORT SCREENS (`hr_emploc_import_screen.dart`, `store_import_screen.dart`, `vacancy_import_screen.dart`), REPLACED LEGACY NOTIFICATION ROUTING WITH FRIENDLY WEB REDIRECT NOTICES; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (169/169 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), AND LOCAL COMMITS ACROSS REPOSITORIES.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Feature Parity Additions (`ohmployee-web`)
+1. **Dedicated My Requests Page (`src/app/(dashboard)/my-requests/page.tsx`)**:
+   - Navigation: Placed immediately below Approvals in `src/components/Sidebar.tsx` and `src/lib/modules.ts` with unread pending badge.
+   - Queries (`src/lib/queries/my_requests.ts`): Aggregates user-submitted requests from `headcount_requests`, `new_store_requests`, `vacancy_closure_requests`, `v_deactivation_requests`, `applicant_movement_requests`, and `coverage_requests` matching `authUserId` or `profileId`.
+   - UX Features: 4x MetricCards (Total, Pending, Approved, Rejected), tab filtering, category pills, responsive search, reviewer feedback alert banner for rejected/approved requests.
+   - Local commit: `c7c25e6`.
+2. **Universal Global Search Command Palette (`src/components/global-search/GlobalSearchModal.tsx`)**:
+   - Invocation: Global shortcut `⌘K` / `Ctrl+K`, topbar search button (`AdminTopbar.tsx`), sidebar search bar (`Sidebar.tsx`).
+   - Querying (`src/lib/queries/globalSearch.ts`): Calls `public.search_global_index(p_query, p_limit)` with 250ms debouncing, PostgREST error guarding, and status badges.
+   - UX Features: Arrow up/down keyboard selection with auto-scroll into view, Enter to navigate, recent search chips with individual & bulk clear (`localStorage`), category filter tabs, and direct shortcut (`⌘J`) to OHMni AI assistant.
+   - Local commit: `242ba9e`.
+
+### 2. Mobile Orphaned Import Cleanup (`D:\Projects\OHMployee`)
+1. **Dead Import Code Removal**:
+   - `lib/features/hr_emploc/hr_emploc_import_screen.dart` (1,490 lines): 0 callers in mobile `lib/`, deleted.
+   - `lib/features/plantilla/store_import_screen.dart` (5,190 lines): Only referenced in notification router, deleted.
+   - `lib/features/vacancy/vacancy_import_screen.dart` (2,720 lines): Only referenced in notification router, deleted.
+   - Total lines eliminated: 9,529 lines.
+2. **Notification Navigation Hardening (`lib/shared/navigation/notification_navigation_service.dart`)**:
+   - Removed obsolete imports of `store_import_screen.dart` and `vacancy_import_screen.dart`.
+   - Updated `_navigateToStoreImport`, `_navigateToVacancyImport`, and `_navigateToPlantillaImport` handlers to surface `_showWebManagedNotice(context, moduleName)`:
+     `"<Module> management has moved to OHMployee Web command center."`
+   - Zero unhandled navigation or route exceptions when tapping historical batch import push notifications.
+3. **Verification**:
+   - `dart analyze lib/`: 0 errors.
+   - `flutter test`: 169/169 passed.
+   - Local commit: `8559c83` (`refactor(import): remove orphaned batch import screens and redirect notification routes to web`).
+
+---
+
 ## Execution Report — Fix Switch Role & Acting Session Parity for Web & Mobile (ohm#fix-switch-role-acting-session-parity)
 
 **Status: COMPLETE ON MAIN; DELIVERED 100% RBAC PARITY FOR SWITCH ROLE / ACTING SESSIONS ON WEB (`/more?open=switch_role`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000119_fix_switch_role_acting_session_parity.sql` UPDATING `start_acting_session` (CHECKING PHYSICAL `users_profile` ROLE LEVEL >= 100 INSTEAD OF EFFECTIVE ROLE, PREVENTING SELF-LOCKOUT ON SEQUENTIAL SWITCHES) AND `get_web_current_user_context` (CHECKING `get_active_acting_session()` FIRST, DERIVING EFFECTIVE ROLE, LEVEL, SCOPES, ALLOWED MODULES, AND CAPABILITIES WITH 0 EMAIL OVERRIDE LEAKAGE WHEN ACTING); (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: UPDATED `src/lib/queries/more.ts` TO COMPREHENSIVELY INVALIDATE ALL OPERATIONAL DATA QUERIES (`plantilla`, `vacancies`, `approvals`, `team-directory`, `cencom`) ON START AND STOP; (4) FRONTEND RBAC HARDENING: UPDATED `src/lib/rbac.ts` AND `src/lib/auth.ts` TO PRIORITIZE `normalizeRole` OVER EMAIL BYPASS, PREVENTING SUPER ADMIN PRIVILEGE LEAKS DURING LOWER-ROLE ACTING SESSIONS; (5) FRONTEND SHELL REACTIVITY: UPDATED `src/components/DashboardAuthShell.tsx` TO SUBSCRIBICALLY LISTEN TO QUERY CACHE UPDATES ON `currentUserContext`, INSTANTLY UPDATING SIDEBAR ROLE/MODULES, TOPBAR, AND ROUTE GUARDS WITHOUT REQUIRING PAGE REFRESH; (6) COMPREHENSIVE SANITY CHECK: EXECUTED LIVE AUTOMATED VERIFICATION ACROSS ALL 11 ROLES (SUPER ADMIN, HEAD ADMIN, OM, HRCO, ATL, TL, ENCODER, HR PERSONNEL, RECRUITMENT TEAM, BACK OFFICE, VIEWER) CONFIRMING 100% COMPLIANCE AGAINST RBAC MATRIX; (7) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (644 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
