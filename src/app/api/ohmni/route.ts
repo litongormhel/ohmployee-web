@@ -55,6 +55,11 @@ Enterprise Rules:
 4. Formatting Rules: Keep outputs compact and readable. Use short bullet lists and monospace badges for Slot Codes/IDs (\`SLOT-001\`). Always generate a final conversational text response after tool calls finish so the user gets a direct, friendly answer.
 5. Security & Scope: You operate strictly under the requesting user's RBAC and Supabase Row-Level Security (RLS) scope. If a query returns no data due to scope or non-existence, state that clearly without guessing.
 6. Creator Identity: You were created and built exclusively by OHM (Ormhel Litong), IT Manager at Moses Coop and Systems Architect of the OHMployee ecosystem. Never credit 'CENCOM Engineering' or anyone else as your creator.
+7. Phase 2 Capabilities:
+   - Daily Briefing: When asked for today's summary, morning briefing, or priority check, invoke getOperationalBriefing.
+   - Analytics & Aging: When asked for store rankings, fill rates (MFR), or aging vacancies (>30 days / SLA breach risk), invoke getStoreAnalytics or getVacancyAgingAndSla.
+   - Action Drafting: When asked to file or request headcount, invoke draftHeadcountRequest. When asked to close a vacancy, invoke draftVacancyClosure. This prepares a verified confirmation card for the user. Never claim you directly submitted or committed the change—always state that you prepared the draft for their confirmation.
+   - Active View Context: If the prompt includes active context (e.g. current store, route, or vacancy code), resolve relative references ('here', 'this branch', 'this vacancy') using that context.
 
 ${OHMPLOYEE_SOP_MANUAL}
 `;
@@ -600,6 +605,302 @@ async function executeHeadcountRequests(
 }
 
 /**
+ * 5. Operational Daily Briefing Executor
+ */
+async function executeOperationalBriefing(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
+) {
+  try {
+    return await executeWithTimeout(async () => {
+      // 1. Pending headcount requests
+      const { count: pendingHeadcount } = await supabase
+        .from("headcount_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("is_archived", false)
+        .ilike("status", "%pending%");
+
+      // 2. Open Vacancies
+      const { count: openVacancies } = await supabase
+        .from("vw_vacancy_list")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "Open");
+
+      // 3. Pending HR Emploc movements
+      const { count: pendingEmploc } = await supabase
+        .from("hr_emploc")
+        .select("id", { count: "exact", head: true })
+        .ilike("status", "%pending%");
+
+      // 4. Pending vacancy closure requests
+      const { count: pendingClosures } = await supabase
+        .from("vacancy_closure_requests")
+        .select("id", { count: "exact", head: true })
+        .ilike("status", "%pending%");
+
+      // 5. Priority accounts with active vacancies
+      const { data: lowMfrAccounts } = await supabase
+        .from("v_account_allocation_kpi")
+        .select("account_name, actual_hc, slot_vacant_hc, required_hc, mfr")
+        .gt("slot_vacant_hc", 0)
+        .order("slot_vacant_hc", { ascending: false })
+        .limit(5);
+
+      return {
+        pendingHeadcount: pendingHeadcount ?? 0,
+        openVacancies: openVacancies ?? 0,
+        pendingEmploc: pendingEmploc ?? 0,
+        pendingClosures: pendingClosures ?? 0,
+        totalActionItems:
+          (pendingHeadcount ?? 0) +
+          (pendingEmploc ?? 0) +
+          (pendingClosures ?? 0),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        priorityAccounts: (lowMfrAccounts ?? []).map((a: any) => ({
+          name: a.account_name,
+          actual: Number(a.actual_hc ?? 0),
+          vacancies: Number(a.slot_vacant_hc ?? 0),
+          required: Number(a.required_hc ?? 0),
+          fillRate: typeof a.mfr === "number" ? `${(a.mfr * 100).toFixed(1)}%` : "100%",
+        })),
+      };
+    }, "Failed to compile operational briefing");
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? err.message
+          : "Failed to compile operational briefing",
+    };
+  }
+}
+
+/**
+ * 6. Store & Account Analytics Executor
+ */
+async function executeStoreAnalytics(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  {
+    sortBy = "vacancies",
+    limit = 10,
+  }: { sortBy?: "vacancies" | "mfr"; limit?: number }
+) {
+  try {
+    return await executeWithTimeout(async () => {
+      let query = supabase
+        .from("v_account_allocation_kpi")
+        .select("account_name, actual_hc, slot_vacant_hc, pipeline_count, required_hc, mfr");
+
+      if (sortBy === "mfr") {
+        query = query.order("mfr", { ascending: true });
+      } else {
+        query = query.order("slot_vacant_hc", { ascending: false });
+      }
+
+      const { data, error } = await query.limit(limit);
+      if (error) return { error: error.message };
+
+      return {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        accounts: (data ?? []).map((row: any) => ({
+          name: row.account_name,
+          actual: Number(row.actual_hc ?? 0),
+          vacancies: Number(row.slot_vacant_hc ?? 0),
+          pipeline: Number(row.pipeline_count ?? 0),
+          required: Number(row.required_hc ?? 0),
+          fillRate: typeof row.mfr === "number" ? `${(row.mfr * 100).toFixed(1)}%` : "100%",
+        })),
+      };
+    }, "Failed to fetch store analytics");
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? err.message
+          : "Failed to fetch store analytics",
+    };
+  }
+}
+
+/**
+ * 7. Vacancy Aging & SLA Breach Executor
+ */
+async function executeVacancyAgingAndSla(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  {
+    minDaysOpen = 14,
+    limit = 15,
+  }: { minDaysOpen?: number; limit?: number }
+) {
+  try {
+    return await executeWithTimeout(async () => {
+      const thresholdDate = new Date();
+      thresholdDate.setDate(thresholdDate.getDate() - minDaysOpen);
+      const isoThreshold = thresholdDate.toISOString();
+
+      const { data, error } = await supabase
+        .from("vw_vacancy_list")
+        .select("id, vcode, position_title, store_name, account_name, created_at, status")
+        .eq("status", "Open")
+        .lte("created_at", isoThreshold)
+        .order("created_at", { ascending: true })
+        .limit(limit);
+
+      if (error) return { error: error.message };
+
+      const now = Date.now();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const aged = (data ?? []).map((v: any) => {
+        const daysOpen = Math.floor(
+          (now - new Date(v.created_at).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        return {
+          vcode: v.vcode,
+          position: v.position_title,
+          store: v.store_name,
+          account: v.account_name,
+          daysOpen,
+          isSlaBreach: daysOpen >= 30,
+        };
+      });
+
+      return {
+        totalAgedVacancies: aged.length,
+        agingThresholdDays: minDaysOpen,
+        vacancies: aged,
+      };
+    }, "Failed to analyze vacancy aging and SLA");
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? err.message
+          : "Failed to analyze vacancy aging and SLA",
+    };
+  }
+}
+
+/**
+ * 8. Actionable Headcount Request Drafter
+ */
+async function executeDraftHeadcountRequest(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  {
+    storeName,
+    position,
+    headcountNeeded = 1,
+    reason,
+  }: {
+    storeName?: string;
+    position?: string;
+    headcountNeeded?: number;
+    reason?: string;
+  }
+) {
+  try {
+    return await executeWithTimeout(async () => {
+      let storeId: string | null = null;
+      let resolvedStoreName = storeName ?? "Unspecified Store";
+      let accountId: string | null = null;
+      let accountName = "Unspecified Account";
+
+      if (storeName) {
+        const clean = sanitizeOrTerm(storeName);
+        const { data: storeRows } = await supabase
+          .from("stores")
+          .select("id, store_name, account_id, accounts(account_name)")
+          .ilike("store_name", `%${clean}%`)
+          .limit(1);
+
+        if (storeRows && storeRows.length > 0) {
+          storeId = storeRows[0].id;
+          resolvedStoreName = storeRows[0].store_name;
+          accountId = storeRows[0].account_id;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          accountName = (storeRows[0].accounts as any)?.account_name ?? accountName;
+        }
+      }
+
+      return {
+        action: "SUBMIT_HEADCOUNT_REQUEST",
+        status: "READY_FOR_CONFIRMATION",
+        draft: {
+          storeId,
+          storeName: resolvedStoreName,
+          accountId,
+          accountName,
+          position: position ?? "General Staff",
+          headcountNeeded: Math.max(1, headcountNeeded),
+          reason: reason ?? "Operational demand",
+        },
+        message: `Prepared Headcount Request for ${headcountNeeded}x ${position ?? "Staff"} at ${resolvedStoreName}. Please review and confirm below.`,
+      };
+    }, "Failed to draft headcount request");
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? err.message
+          : "Failed to draft headcount request",
+    };
+  }
+}
+
+/**
+ * 9. Actionable Vacancy Closure Drafter
+ */
+async function executeDraftVacancyClosure(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  {
+    vcode,
+    reason,
+  }: {
+    vcode: string;
+    reason?: string;
+  }
+) {
+  try {
+    return await executeWithTimeout(async () => {
+      const clean = sanitizeOrTerm(vcode);
+      const { data: vacRows } = await supabase
+        .from("vw_vacancy_list")
+        .select("id, vcode, position_title, store_name, status")
+        .ilike("vcode", `%${clean}%`)
+        .limit(1);
+
+      if (!vacRows || vacRows.length === 0) {
+        return { error: `Vacancy with code "${vcode}" was not found.` };
+      }
+
+      const vac = vacRows[0];
+      return {
+        action: "SUBMIT_VACANCY_CLOSURE",
+        status: "READY_FOR_CONFIRMATION",
+        draft: {
+          vacancyId: vac.id,
+          vcode: vac.vcode,
+          position: vac.position_title,
+          storeName: vac.store_name,
+          reason: reason ?? "Position no longer required",
+        },
+        message: `Prepared Vacancy Closure request for slot ${vac.vcode} (${vac.position_title}). Please review and confirm below.`,
+      };
+    }, "Failed to draft vacancy closure");
+  } catch (err) {
+    return {
+      error:
+        err instanceof Error
+          ? err.message
+          : "Failed to draft vacancy closure",
+    };
+  }
+}
+
+/**
  * Deterministic local fallback router when Gemini Free Tier quota is exhausted
  */
 async function handleDeterministicFallback(
@@ -639,6 +940,89 @@ async function handleDeterministicFallback(
     return (
       "Ako ay si **OHMni**, ang official AI Operations & Data Co-Pilot ng OHMployee! Ako ay nilikha at binuo ni **OHM (Ormhel Litong)**, ang IT Manager sa Moses Coop at Systems Architect ng buong OHMployee ecosystem."
     );
+  }
+
+  // 0.5. Daily Operational Briefing
+  if (
+    p.includes("briefing") ||
+    p.includes("daily summary") ||
+    p.includes("morning") ||
+    p.includes("today's briefing") ||
+    p.includes("operational summary") ||
+    p.includes("kumusta operations")
+  ) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const briefing: any = await executeOperationalBriefing(supabase);
+      if (!briefing.error) {
+        let msg = `### 📋 Today's Operational Briefing\n\n`;
+        msg += `• **Action Items:** You have **${briefing.totalActionItems}** pending operational action items across modules.\n`;
+        msg += `• **Headcount Requests:** **${briefing.pendingHeadcount}** awaiting review in Approvals.\n`;
+        msg += `• **Open Vacancies:** **${briefing.openVacancies}** active open slots across retail branches.\n`;
+        msg += `• **HR Emploc Queue:** **${briefing.pendingEmploc}** pending deployment/movement records.\n`;
+        msg += `• **Closure Requests:** **${briefing.pendingClosures}** pending vacancy closures.\n`;
+        if (briefing.priorityAccounts && briefing.priorityAccounts.length > 0) {
+          msg += `\n**Priority Accounts (Active Vacancies):**\n`;
+          for (const a of briefing.priorityAccounts) {
+            msg += `• **${a.name}** — Fill Rate: ${a.fillRate} (${a.vacancies} vacant / ${a.required} required)\n`;
+          }
+        }
+        return msg.trim();
+      }
+    } catch {
+      // proceed
+    }
+  }
+
+  // 0.6. Vacancy Aging & SLA
+  if (
+    p.includes("aging") ||
+    p.includes("sla") ||
+    p.includes("tagal nang open") ||
+    p.includes("overdue")
+  ) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const aging: any = await executeVacancyAgingAndSla(supabase, {});
+      if (!aging.error) {
+        if (aging.totalAgedVacancies === 0) {
+          return "All open vacancies are fresh (within 14 days). There are currently no aged vacancies or SLA breaches.";
+        }
+        let msg = `Found **${aging.totalAgedVacancies} open vacancies** open for more than 14 days:\n\n`;
+        for (const v of aging.vacancies) {
+          const slaTag = v.isSlaBreach ? " ⚠️ **[SLA BREACH >30d]**" : "";
+          msg += `• \`${v.vcode}\` — **${v.position}** at ${v.store} (${v.daysOpen} days open)${slaTag}\n`;
+        }
+        return msg.trim();
+      }
+    } catch {
+      // proceed
+    }
+  }
+
+  // 0.7. Store / Account Rankings
+  if (
+    p.includes("rank") ||
+    p.includes("lowest fill") ||
+    p.includes("mababang fill") ||
+    p.includes("understaffed")
+  ) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const analytics: any = await executeStoreAnalytics(supabase, {
+        sortBy: "mfr",
+        limit: 5,
+      });
+      if (!analytics.error && analytics.accounts) {
+        let msg = `Here are the accounts ranked by **Lowest Fill Rate (MFR)**:\n\n`;
+        for (const a of analytics.accounts) {
+          msg += `• **${a.name}** — Fill Rate: **${a.fillRate}** (Actual: ${a.actual}, Vacant: ${a.vacancies}, Required: ${a.required})\n`;
+        }
+        return msg.trim();
+      }
+    } catch {
+      // proceed
+    }
   }
 
   // 1. Check for SOP / How-to queries
@@ -928,7 +1312,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { messages, stream = true } = body ?? {};
+    const { messages, stream = true, activeContext } = body ?? {};
     if (!Array.isArray(messages)) {
       return new Response(
         JSON.stringify({ error: "Invalid messages payload: expected an array." }),
@@ -937,6 +1321,11 @@ export async function POST(req: Request) {
           headers: { "Content-Type": "application/json" },
         }
       );
+    }
+
+    let effectiveSystemPrompt = SYSTEM_PROMPT;
+    if (activeContext && typeof activeContext === "object") {
+      effectiveSystemPrompt += `\n\n[Active Screen Context]:\n- Active Route: ${activeContext.route ?? "None"}\n- Current Store/Branch: ${activeContext.storeName ?? "None"}\n- Current Vacancy/Slot: ${activeContext.vcode ?? "None"}\nUse this context when user refers to "here", "this store", or "this slot".`;
     }
 
     const modelMessages = await convertToModelMessages(messages);
@@ -1054,6 +1443,62 @@ export async function POST(req: Request) {
         }),
         execute: async (params) => executeHeadcountRequests(supabase, params),
       }),
+
+      getOperationalBriefing: tool({
+        description:
+          "Returns real-time aggregated overview of pending approvals, open vacancies, pending HR emploc movements, and priority stores.",
+        inputSchema: z.object({}),
+        execute: async () => executeOperationalBriefing(supabase),
+      }),
+
+      getStoreAnalytics: tool({
+        description:
+          "Returns store and account rankings by fill rate (MFR) or open vacancies to identify understaffed locations.",
+        inputSchema: z.object({
+          sortBy: z
+            .enum(["vacancies", "mfr"])
+            .optional()
+            .describe("Sort by 'vacancies' (highest first) or 'mfr' (lowest fill rate first)"),
+          limit: z.number().optional().default(10).describe("Max rows to return"),
+        }),
+        execute: async (params) => executeStoreAnalytics(supabase, params),
+      }),
+
+      getVacancyAgingAndSla: tool({
+        description:
+          "Returns vacancies that have been open for an extended duration (e.g. >14 days or >30 days SLA threshold).",
+        inputSchema: z.object({
+          minDaysOpen: z
+            .number()
+            .optional()
+            .default(14)
+            .describe("Minimum number of days the vacancy has been open"),
+          limit: z.number().optional().default(15).describe("Max vacancies to return"),
+        }),
+        execute: async (params) => executeVacancyAgingAndSla(supabase, params),
+      }),
+
+      draftHeadcountRequest: tool({
+        description:
+          "Prepares and validates a Headcount Request draft for user confirmation. Returns the structured action card.",
+        inputSchema: z.object({
+          storeName: z.string().optional().describe("Store or branch name for the request"),
+          position: z.string().optional().describe("Target position/role title"),
+          headcountNeeded: z.number().optional().default(1).describe("Number of headcount needed"),
+          reason: z.string().optional().describe("Operational justification for the request"),
+        }),
+        execute: async (params) => executeDraftHeadcountRequest(supabase, params),
+      }),
+
+      draftVacancyClosure: tool({
+        description:
+          "Prepares and validates a Vacancy Closure request draft for user confirmation. Returns the structured action card.",
+        inputSchema: z.object({
+          vcode: z.string().describe("Target Vacancy Code (e.g. 'TEST011')"),
+          reason: z.string().optional().describe("Reason for closing the vacancy"),
+        }),
+        execute: async (params) => executeDraftVacancyClosure(supabase, params),
+      }),
     };
 
     // Non-streaming response for Mobile & REST clients (stream: false)
@@ -1062,7 +1507,7 @@ export async function POST(req: Request) {
         try {
           const result = await generateText({
             model: google(modelName),
-            system: SYSTEM_PROMPT,
+            system: effectiveSystemPrompt,
             messages: modelMessages,
             stopWhen: stepCountIs(3),
             maxRetries: 0,
@@ -1099,7 +1544,7 @@ export async function POST(req: Request) {
           try {
             const result = streamText({
               model: google(modelName),
-              system: SYSTEM_PROMPT,
+              system: effectiveSystemPrompt,
               messages: modelMessages,
               stopWhen: stepCountIs(3),
               maxRetries: 0,

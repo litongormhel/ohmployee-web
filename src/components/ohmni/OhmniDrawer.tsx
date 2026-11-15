@@ -392,6 +392,102 @@ function ToolOutputFallbackView({
     );
   }
 
+  // Handle draftHeadcountRequest
+  if (output.action === "SUBMIT_HEADCOUNT_REQUEST" && output.draft) {
+    const draft = output.draft as {
+      storeName?: string;
+      position?: string;
+      headcountNeeded?: number;
+      reason?: string;
+    };
+
+    return (
+      <div className="my-2 p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-2.5">
+        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+          <Bot className="h-4 w-4" />
+          <span>Action Ready: Headcount Request Draft</span>
+        </div>
+        <div className="text-xs space-y-1 text-text-secondary">
+          <p>• <strong>Branch:</strong> {draft.storeName || "Unassigned"}</p>
+          <p>• <strong>Position:</strong> {draft.position || "Staff"}</p>
+          <p>• <strong>Count Needed:</strong> {draft.headcountNeeded ?? 1}</p>
+          <p>• <strong>Justification:</strong> {draft.reason || "Operational demand"}</p>
+        </div>
+        <div className="pt-1">
+          <a
+            href={`/plantilla?request=headcount&store=${encodeURIComponent(draft.storeName || "")}&pos=${encodeURIComponent(draft.position || "")}`}
+            className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors"
+          >
+            Review & Submit in Plantilla →
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle draftVacancyClosure
+  if (output.action === "SUBMIT_VACANCY_CLOSURE" && output.draft) {
+    const draft = output.draft as {
+      vcode?: string;
+      position?: string;
+      storeName?: string;
+      reason?: string;
+    };
+
+    return (
+      <div className="my-2 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2.5">
+        <div className="flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+          <Bot className="h-4 w-4" />
+          <span>Action Ready: Vacancy Closure Draft</span>
+        </div>
+        <div className="text-xs space-y-1 text-text-secondary">
+          <p>• <strong>Slot Code:</strong> <code className="tech-token">{draft.vcode}</code></p>
+          <p>• <strong>Position:</strong> {draft.position || "—"}</p>
+          <p>• <strong>Branch:</strong> {draft.storeName || "—"}</p>
+          <p>• <strong>Reason:</strong> {draft.reason || "Closure requested"}</p>
+        </div>
+        <div className="pt-1">
+          <a
+            href={`/vacancy?q=${encodeURIComponent(draft.vcode || "")}`}
+            className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-xs transition-colors"
+          >
+            Review & Close in Vacancy Hub →
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle getOperationalBriefing
+  if (output.totalActionItems !== undefined) {
+    const briefing = output as {
+      pendingHeadcount?: number;
+      openVacancies?: number;
+      pendingEmploc?: number;
+      pendingClosures?: number;
+      totalActionItems?: number;
+      priorityAccounts?: Array<{
+        name?: string;
+        vacancies?: number;
+        fillRate?: string;
+      }>;
+    };
+
+    return (
+      <div className="space-y-2 p-3 rounded-xl border border-[var(--border-subtle)] bg-surface-muted/50">
+        <p className="text-xs font-semibold text-text-primary">
+          📋 Today&apos;s Operational Snapshot ({briefing.totalActionItems ?? 0} Action Items):
+        </p>
+        <ul className="space-y-1 pl-1 text-xs text-text-secondary">
+          <li>• <strong>Pending Headcount Requests:</strong> {briefing.pendingHeadcount ?? 0}</li>
+          <li>• <strong>Open Vacancies:</strong> {briefing.openVacancies ?? 0} active</li>
+          <li>• <strong>HR Emploc Queue:</strong> {briefing.pendingEmploc ?? 0} pending</li>
+          <li>• <strong>Closure Requests:</strong> {briefing.pendingClosures ?? 0}</li>
+        </ul>
+      </div>
+    );
+  }
+
   return (
     <p className="text-sm text-text-muted">
       Query completed successfully.
@@ -402,31 +498,35 @@ function ToolOutputFallbackView({
 // ── Route Starter Prompts ───────────────────────────────────────────────────
 
 function getStarterPrompts(pathname: string): string[] {
+  const common = ["📋 Today's Operational Briefing"];
   if (pathname.includes("/plantilla")) {
     return [
+      ...common,
       "Summarize Plantilla fill-rate and vacant slots by branch",
-      "How do I file a new Headcount Request?",
+      "Draft a headcount request for Cashier",
       "How do I bulk-import or Sync MIKA in Plantilla?",
     ];
   }
   if (pathname.includes("/vacancy")) {
     return [
-      "Count all open vacancies grouped by position or branch",
-      "List pending Headcount Requests older than 7 days",
-      "Show open vacancies across retail branches",
+      ...common,
+      "Show vacancies open for more than 30 days (SLA breach)",
+      "Count open vacancies grouped by branch",
+      "Draft closure request for a vacancy",
     ];
   }
   if (pathname.includes("/hr-emploc")) {
     return [
+      ...common,
       "Show pending movements stuck in hr_emploc_queue",
-      "Check queue status for a specific employee or branch",
-      "How do I resolve web vs. mobile HR Emploc discrepancies?",
+      "Check queue status for a specific employee",
     ];
   }
   return [
-    "Give me an executive snapshot of Plantilla fill rate and open slots",
-    "How many pending items are in the HR Emploc queue?",
-    "Show pending Headcount Requests across branches",
+    ...common,
+    "Show accounts ranked by lowest fill rate (MFR)",
+    "Show vacancies open for more than 30 days (SLA breach)",
+    "Draft a headcount request",
   ];
 }
 
@@ -438,11 +538,14 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Authorization token forwarding
+  // Authorization token forwarding & route context
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/ohmni",
+        body: {
+          activeContext: { route: pathname },
+        },
         headers: async (): Promise<Record<string, string>> => {
           const supabase = createClient();
           const { data } = await supabase.auth.getSession();
@@ -454,7 +557,7 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
           return reqHeaders;
         },
       }),
-    []
+    [pathname]
   );
 
   const {
