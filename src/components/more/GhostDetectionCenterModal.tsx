@@ -219,8 +219,8 @@ export function GhostDetectionCenterModal({
         await updateGhostCaseStatus({
           caseId: activeCase.id,
           status: targetStatus,
-          actorName,
-          actorRole,
+          actorName: authorName,
+          actorRole: authorRole,
           remarks: actionRemarks.trim(),
           assignedEncoder: targetStatus === "For Encoding" ? assignedEncoderName.trim() : undefined,
         });
@@ -549,7 +549,7 @@ export function GhostDetectionCenterModal({
                           <div className="space-y-1">
                             <span
                               className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                c.status === "Cleared" || c.status === "Auto Resolved" || c.status === "Resolved"
+                                c.status === "Cleared" || c.status === "Resolved" || c.autoResolved
                                   ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
                                   : c.status === "For Encoding"
                                   ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"

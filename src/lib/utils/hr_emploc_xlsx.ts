@@ -274,15 +274,16 @@ export function normalizeMiddleName(raw: string): {
     };
   }
 
-  if (trimmed.length < 2) {
+  // Remove any trailing dot (e.g. "Del." -> "Del", "S." -> "S")
+  const cleaned = trimmed.replace(/\.+$/, "");
+
+  if (cleaned.length < 2) {
     return {
-      normalized: trimmed,
+      normalized: cleaned,
       error: "Middle Name must contain at least two characters, or use 'NA' if none exists.",
     };
   }
 
-  // Remove any trailing dot (e.g. "Del." -> "Del")
-  const cleaned = trimmed.replace(/\.+$/, "");
   return { normalized: cleaned };
 }
 
