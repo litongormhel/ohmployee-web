@@ -64,6 +64,7 @@ import { PermissionDriftModal } from "@/components/more/PermissionDriftModal";
 import { SecurityEventsModal } from "@/components/more/SecurityEventsModal";
 import { AuditLogsModal } from "@/components/more/AuditLogsModal";
 import { SystemDiagnosticsModal } from "@/components/more/SystemDiagnosticsModal";
+import { GhostDetectionCenterModal } from "@/components/more/GhostDetectionCenterModal";
 
 
 // ============================================================================
@@ -186,6 +187,9 @@ function MorePageContent() {
   const [systemDiagnosticsOpen, setSystemDiagnosticsOpen] = useState(
     () => targetModal === "system_diagnostics" || targetModal === "diagnostics"
   );
+  const [ghostDetectionOpen, setGhostDetectionOpen] = useState(
+    () => targetModal === "ghost_detection"
+  );
 
 
   // Derive Normalized Role & Levels using unified rbac gatekeeper
@@ -209,12 +213,12 @@ function MorePageContent() {
         case "audit":
           return isSuperAdmin;
         case "data_control":
-          return isHeadAdmin || isEncoder;
+          return isHeadAdmin || isEncoder || isOperationsManager || roleLevel >= 40;
         default:
           return false;
       }
     });
-  }, [isSuperAdmin, isHeadAdmin, isEncoder]);
+  }, [isSuperAdmin, isHeadAdmin, isEncoder, isOperationsManager, roleLevel]);
 
   // Tab State derived from URL query synchronization & permissions
   const rawTab = searchParams.get("tab") as MoreTabKey | null;
@@ -370,6 +374,18 @@ function MorePageContent() {
       });
     }
 
+    if (isOperationsManager || isHeadAdmin || isEncoder || roleLevel >= 40) {
+      tiles.push({
+        id: "ghost_detection_overview",
+        title: "Ghost Employees Detection Center",
+        description: "Weekly MIKA biometric anomaly detection, Type A/B classification, and 1-week resolution SLA",
+        icon: ShieldAlert,
+        onClick: () => setGhostDetectionOpen(true),
+        badgeLabel: "BIOMETRIC",
+        badgeVariant: "rose",
+      });
+    }
+
     tiles.push({
       id: "account_settings",
       title: "Account Settings",
@@ -391,7 +407,7 @@ function MorePageContent() {
     });
 
     return tiles;
-  }, [isHeadAdmin, isOperationsManager, handleLogout]);
+  }, [isHeadAdmin, isOperationsManager, isEncoder, roleLevel, handleLogout]);
 
   // ── Tab 2: Admin Tools (Level 100) ────────────────────────────────────────
   const adminTiles: MoreFeatureTile[] = useMemo(
@@ -585,6 +601,15 @@ function MorePageContent() {
         badgeLabel: "REVIEWS",
         badgeVariant: "purple",
       },
+      {
+        id: "ghost_detection",
+        title: "Ghost Employees Detection Center",
+        description: "Weekly MIKA biometric discrepancy monitoring, Type A/B anomaly classification, and 1-week resolution SLA",
+        icon: ShieldAlert,
+        onClick: () => setGhostDetectionOpen(true),
+        badgeLabel: "BIOMETRIC",
+        badgeVariant: "rose",
+      },
     ],
     []
   );
@@ -657,6 +682,9 @@ function MorePageContent() {
       if (tile.minRoleLevel && roleLevel < tile.minRoleLevel) return false;
       if (tile.id === "payroll_review_center") {
         return isHeadAdmin || isEncoder || isOperationsManager;
+      }
+      if (tile.id === "ghost_detection") {
+        return isHeadAdmin || isEncoder || isOperationsManager || roleLevel >= 40;
       }
       if (tile.id === "roving_coverage_groups") {
         return isHeadAdmin || isEncoder;
@@ -1157,6 +1185,12 @@ function MorePageContent() {
         isOpen={systemDiagnosticsOpen}
         onClose={() => setSystemDiagnosticsOpen(false)}
         isSuperAdmin={isSuperAdmin}
+      />
+
+      <GhostDetectionCenterModal
+        isOpen={ghostDetectionOpen}
+        onClose={() => setGhostDetectionOpen(false)}
+        initialAccount={searchParams.get("account")}
       />
     </div>
 

@@ -1346,6 +1346,146 @@ export async function approveMikaImport(params: {
   } catch (syncErr) {
     console.warn("[DataControl] Error syncing approved MIKA rows to plantilla:", syncErr);
   }
+
+  // Register or revalidate ghost employee detection cases & dispatch targeted notifications
+  try {
+    const { data: ghostRows } = await supabase
+      .from("mika_import_rows")
+      .select("employee_no, first_name, last_name, middle_name, account, store_name, position, flag_reason")
+      .eq("import_log_id", params.importLogId)
+      .eq("flag_type", "ghost");
+
+    if (ghostRows && ghostRows.length > 0) {
+      const accountCounts: Record<string, number> = {};
+
+      for (const gr of ghostRows) {
+        if (!gr.employee_no) continue;
+        const acct = gr.account?.trim() || "Unassigned";
+        accountCounts[acct] = (accountCounts[acct] || 0) + 1;
+
+        const fullName = [gr.last_name, gr.first_name, gr.middle_name].filter(Boolean).join(", ") || gr.employee_no;
+        const isTypeB = gr.flag_reason?.toLowerCase().includes("inactive");
+        const ghostType: "Type A" | "Type B" = isTypeB ? "Type B" : "Type A";
+
+        const { data: existing } = await supabase
+          .from("possible_ghost_employees")
+          .select("id")
+          .eq("employee_no", gr.employee_no)
+          .not("status", "in", '("Cleared","Resolved","Auto Resolved","Confirmed Ghost","For Termination")')
+          .maybeSingle();
+
+        if (!existing) {
+          await supabase.from("possible_ghost_employees").insert({
+            import_log_id: params.importLogId,
+            employee_no: gr.employee_no,
+            full_name: fullName,
+            ghost_type: ghostType,
+            status: "Under Investigation",
+            account: gr.account,
+            store_name: gr.store_name,
+            position: gr.position,
+          });
+        } else {
+          await supabase
+            .from("possible_ghost_employees")
+            .update({
+              last_revalidated_at: new Date().toISOString(),
+              import_log_id: params.importLogId,
+            })
+            .eq("id", existing.id);
+        }
+      }
+
+      // 1. Dispatch global notifications to OM, HA, SA
+      const totalGhosts = ghostRows.length;
+      const globalRoles = ["Super Admin", "Head Admin", "Operations Manager"];
+      const globalNotifs = globalRoles.map((role) => ({
+        recipient_role: role,
+        title: "⚠️ Possible Ghost Employees Flagged",
+        message: `${totalGhosts} possible ghost employees flagged across all accounts. View here`,
+        reference_type: "ghost_detection",
+        reference_id: params.importLogId,
+        deep_link_route: "/more?tab=data_control&subtab=operations&tool=ghost_detection",
+      }));
+
+      // 2. Dispatch account-scoped notifications for Field Ops & Encoders
+      const accountNotifs: Array<{
+        recipient_role: string;
+        title: string;
+        message: string;
+        reference_type: string;
+        reference_id: string;
+        deep_link_route: string;
+      }> = [];
+
+      const fieldRoles = ["HR Coordinator", "Team Leader", "Area Team Leader", "Encoder"];
+      for (const [account, count] of Object.entries(accountCounts)) {
+        for (const role of fieldRoles) {
+          accountNotifs.push({
+            recipient_role: role,
+            title: `⚠️ Ghost Alert: ${account}`,
+            message: `${count} possible ghost employees flagged in ${account}. Verify here`,
+            reference_type: "ghost_detection",
+            reference_id: params.importLogId,
+            deep_link_route: `/more?tab=data_control&subtab=operations&tool=ghost_detection&account=${encodeURIComponent(account)}`,
+          });
+        }
+      }
+
+      const allNotifs = [...globalNotifs, ...accountNotifs];
+      if (allNotifs.length > 0) {
+        await supabase.from("notifications").insert(allNotifs);
+      }
+    }
+  } catch (ghostErr) {
+    console.warn("[DataControl] Error registering ghost employee cases or notifications:", ghostErr);
+  }
+}
+
+export async function rollbackMikaImport(params: {
+  importLogId: string;
+  rolledBackBy: string;
+  reason: string;
+}): Promise<void> {
+  const supabase = createClient();
+  const { error: logErr } = await supabase
+    .from("mika_import_logs")
+    .update({
+      status: "Rolled Back",
+      remarks: `Rolled back by ${params.rolledBackBy}: ${params.reason}`,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", params.importLogId);
+
+  if (logErr) throw logErr;
+
+  // Clear open ghost records generated from this import batch
+  await supabase
+    .from("possible_ghost_employees")
+    .update({
+      status: "Cleared",
+      auto_resolved: true,
+      resolved_at: new Date().toISOString(),
+      resolved_by: params.rolledBackBy,
+      resolution_remarks: `Import Batch Rolled Back: ${params.reason}`,
+    })
+    .eq("import_log_id", params.importLogId)
+    .not("status", "in", '("Cleared","Confirmed Ghost","For Termination")');
+
+  try {
+    await supabase.from("audit_logs").insert({
+      action: "MIKA_IMPORT_ROLLBACK",
+      table_name: "mika_import_logs",
+      record_id: params.importLogId,
+      performed_by: params.rolledBackBy,
+      details: {
+        reason: params.reason,
+        import_log_id: params.importLogId,
+      },
+    });
+  } catch (auditErr) {
+    console.warn("[DataControl] Error logging MIKA rollback audit:", auditErr);
+  }
 }
 
 export async function rejectMikaImport(params: {
@@ -1380,6 +1520,194 @@ export function useMikaImportRowsQuery(logId: string | null) {
     queryFn: () => (logId ? fetchMikaImportRows(logId) : Promise.resolve([])),
     enabled: !!logId,
   });
+}
+
+// ============================================================================
+// 3.5 Ghost Employees Detection Center Queries & Mutations
+// ============================================================================
+
+export interface GhostEmployeeCase {
+  id: string;
+  importLogId: string | null;
+  employeeNo: string;
+  fullName: string;
+  ghostType: "Type A" | "Type B";
+  status: "Under Investigation" | "For Encoding" | "Cleared" | "Confirmed Ghost" | "For Termination" | "Resolved";
+  account: string | null;
+  storeName: string | null;
+  position: string | null;
+  assignedEncoder: string | null;
+  encodingDeadline: string | null;
+  notified48hr: boolean;
+  notified72hr: boolean;
+  resolvedBy: string | null;
+  resolvedByRole: string | null;
+  resolvedAt: string | null;
+  resolutionType: string | null;
+  resolutionNotes: string | null;
+  resolutionRemarks: string | null;
+  autoResolved: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastRevalidatedAt: string | null;
+}
+
+export async function fetchGhostEmployees(filters?: {
+  account?: string;
+  statusCategory?: "open" | "resolved" | "all";
+  ghostType?: "Type A" | "Type B";
+}): Promise<GhostEmployeeCase[]> {
+  const supabase = createClient();
+  let query = supabase
+    .from("possible_ghost_employees")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (filters?.account && filters.account !== "ALL") {
+    query = query.eq("account", filters.account);
+  }
+
+  if (filters?.ghostType) {
+    query = query.eq("ghost_type", filters.ghostType);
+  }
+
+  if (filters?.statusCategory === "open") {
+    query = query.not(
+      "status",
+      "in",
+      '("Cleared","Resolved","Auto Resolved","Confirmed Ghost","For Termination")'
+    );
+  } else if (filters?.statusCategory === "resolved") {
+    query = query.in(
+      "status",
+      ["Cleared", "Resolved", "Auto Resolved", "Confirmed Ghost", "For Termination"]
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("[PostgREST Schema Error] fetchGhostEmployees failed:", error);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    importLogId: row.import_log_id ? String(row.import_log_id) : null,
+    employeeNo: String(row.employee_no || ""),
+    fullName: String(row.full_name || ""),
+    ghostType: (row.ghost_type as "Type A" | "Type B") || "Type A",
+    status: (row.status as GhostEmployeeCase["status"]) || "Under Investigation",
+    account: row.account ? String(row.account) : null,
+    storeName: row.store_name ? String(row.store_name) : null,
+    position: row.position ? String(row.position) : null,
+    assignedEncoder: row.assigned_encoder ? String(row.assigned_encoder) : null,
+    encodingDeadline: row.encoding_deadline ? String(row.encoding_deadline) : null,
+    notified48hr: Boolean(row.notified_48hr),
+    notified72hr: Boolean(row.notified_72hr),
+    resolvedBy: row.resolved_by ? String(row.resolved_by) : null,
+    resolvedByRole: row.resolved_by_role ? String(row.resolved_by_role) : null,
+    resolvedAt: row.resolved_at ? String(row.resolved_at) : null,
+    resolutionType: row.resolution_type ? String(row.resolution_type) : null,
+    resolutionNotes: row.resolution_notes ? String(row.resolution_notes) : null,
+    resolutionRemarks: row.resolution_remarks ? String(row.resolution_remarks) : null,
+    autoResolved: Boolean(row.auto_resolved),
+    createdAt: String(row.created_at || new Date().toISOString()),
+    updatedAt: String(row.updated_at || new Date().toISOString()),
+    lastRevalidatedAt: row.last_revalidated_at ? String(row.last_revalidated_at) : null,
+  }));
+}
+
+export function useGhostEmployeesQuery(filters?: {
+  account?: string;
+  statusCategory?: "open" | "resolved" | "all";
+  ghostType?: "Type A" | "Type B";
+}) {
+  return useQuery({
+    queryKey: ["ghost-employees", filters],
+    queryFn: () => fetchGhostEmployees(filters),
+  });
+}
+
+export async function submitGhostVerificationNote(params: {
+  caseId: string;
+  note: string;
+  authorName: string;
+  authorRole: string;
+}): Promise<void> {
+  const supabase = createClient();
+  const timestamp = new Date().toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const formattedEntry = `[${timestamp}] ${params.authorName} (${params.authorRole}): ${params.note}`;
+
+  const { data: current } = await supabase
+    .from("possible_ghost_employees")
+    .select("resolution_notes")
+    .eq("id", params.caseId)
+    .single();
+
+  const combinedNotes = current?.resolution_notes
+    ? `${current.resolution_notes}\n\n${formattedEntry}`
+    : formattedEntry;
+
+  const { error } = await supabase
+    .from("possible_ghost_employees")
+    .update({
+      resolution_notes: combinedNotes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.caseId);
+
+  if (error) {
+    console.error("[PostgREST Schema Error] submitGhostVerificationNote failed:", error);
+    throw error;
+  }
+}
+
+export async function updateGhostCaseStatus(params: {
+  caseId: string;
+  status: "Cleared" | "For Encoding" | "Confirmed Ghost" | "For Termination" | "Under Investigation";
+  actorName: string;
+  actorRole: string;
+  remarks: string;
+  assignedEncoder?: string;
+}): Promise<void> {
+  const supabase = createClient();
+  const updates: Record<string, unknown> = {
+    status: params.status,
+    resolved_by: params.actorName,
+    resolved_by_role: params.actorRole,
+    resolution_remarks: params.remarks,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (params.status === "Cleared" || params.status === "Confirmed Ghost" || params.status === "For Termination") {
+    updates.resolved_at = new Date().toISOString();
+    updates.auto_resolved = false;
+  }
+
+  if (params.status === "For Encoding") {
+    if (params.assignedEncoder) {
+      updates.assigned_encoder = params.assignedEncoder;
+    }
+    const deadline = new Date();
+    deadline.setHours(deadline.getHours() + 72);
+    updates.encoding_deadline = deadline.toISOString();
+  }
+
+  const { error } = await supabase
+    .from("possible_ghost_employees")
+    .update(updates)
+    .eq("id", params.caseId);
+
+  if (error) {
+    console.error("[PostgREST Schema Error] updateGhostCaseStatus failed:", error);
+    throw error;
+  }
 }
 
 // ============================================================================

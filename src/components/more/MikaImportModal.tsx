@@ -23,6 +23,7 @@ import {
   MikaEmployeeRow,
   MikaImportLogItem,
   rejectMikaImport,
+  rollbackMikaImport,
   submitMikaImport,
   useMikaImportLogs,
   useMikaImportRowsQuery,
@@ -61,7 +62,7 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: pendingLogs = [], refetch: refetchPending, isLoading: isLoadingPending } = useMikaImportLogs("pending");
-  const { data: historyLogs = [], isLoading: isLoadingHistory } = useMikaImportLogs("history");
+  const { data: historyLogs = [], refetch: refetchHistory, isLoading: isLoadingHistory } = useMikaImportLogs("history");
   const { data: inspectRows = [], isLoading: isLoadingInspectRows } = useMikaImportRowsQuery(selectedLogId);
 
   const [historyPage, setHistoryPage] = useState(1);
@@ -79,6 +80,37 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
   const { data: historyRows = [], isLoading: isLoadingHistoryRows } = useMikaImportRowsQuery(
     viewingHistoryLog?.id ?? null
   );
+
+  // Rollback Modal state
+  const [currentTimestamp] = useState(() => Date.now());
+  const [rollingBackLog, setRollingBackLog] = useState<MikaImportLogItem | null>(null);
+  const [rollbackReason, setRollbackReason] = useState("");
+  const [isRollingBack, setIsRollingBack] = useState(false);
+  const [rollbackError, setRollbackError] = useState<string | null>(null);
+
+  const handleExecuteRollback = async () => {
+    if (!rollingBackLog) return;
+    if (!rollbackReason.trim()) {
+      setRollbackError("Rollback reason is required.");
+      return;
+    }
+    setIsRollingBack(true);
+    setRollbackError(null);
+    try {
+      await rollbackMikaImport({
+        importLogId: rollingBackLog.id,
+        rolledBackBy: currentUser?.displayName || currentUser?.email || "Admin",
+        reason: rollbackReason.trim(),
+      });
+      setRollingBackLog(null);
+      setRollbackReason("");
+      refetchHistory();
+    } catch (err) {
+      setRollbackError(err instanceof Error ? err.message : "Failed to execute rollback.");
+    } finally {
+      setIsRollingBack(false);
+    }
+  };
 
   const canApprove = useMemo(() => {
     const role = (currentUser?.roleKey || currentUser?.roleName || "").toLowerCase();
@@ -715,39 +747,69 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
                         <th className="py-2.5 px-4">Uploaded By</th>
                         <th className="py-2.5 px-4">Approved By</th>
                         <th className="py-2.5 px-4">Date</th>
+                        {canApprove && <th className="py-2.5 px-4 text-right">Actions</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-subtle bg-surface-primary">
-                      {paginatedHistoryLogs.map((l) => (
-                        <tr
-                          key={l.id}
-                          onClick={() => setViewingHistoryLog(l)}
-                          className="hover:bg-surface-hover/70 transition-colors cursor-pointer group"
-                        >
-                          <td className="py-2.5 px-4 font-semibold text-text-primary group-hover:text-brand-primary transition-colors">
-                            {l.fileName}
-                          </td>
-                          <td className="py-2.5 px-4 font-mono text-xs font-semibold text-text-primary">
-                            {l.totalRows} {l.totalRows === 1 ? "row" : "rows"}
-                          </td>
-                          <td className="py-2.5 px-4">
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-semibold  ${
-                                l.status.toLowerCase() === "rejected"
-                                  ? "bg-danger-surface text-danger-text border border-danger-border"
-                                  : "bg-surface-subtle text-text-primary border border-border-default"
-                              }`}
-                            >
-                              {l.status}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-4 text-sm text-text-secondary">{l.uploadedBy}</td>
-                          <td className="py-2.5 px-4 text-sm text-text-secondary">{l.approvedBy || "—"}</td>
-                          <td className="py-2.5 px-4 text-sm text-text-muted">
-                            {new Date(l.submittedAt).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
+                      {paginatedHistoryLogs.map((l) => {
+                        const isApproved = l.status.toLowerCase() === "approved";
+                        const isRolledBack = l.status.toLowerCase() === "rolled back";
+                        const isWithin72Hours = currentTimestamp - new Date(l.submittedAt).getTime() < 72 * 3600 * 1000;
+
+                        return (
+                          <tr
+                            key={l.id}
+                            onClick={() => setViewingHistoryLog(l)}
+                            className="hover:bg-surface-hover/70 transition-colors cursor-pointer group"
+                          >
+                            <td className="py-2.5 px-4 font-semibold text-text-primary group-hover:text-brand-primary transition-colors">
+                              {l.fileName}
+                            </td>
+                            <td className="py-2.5 px-4 font-mono text-xs font-semibold text-text-primary">
+                              {l.totalRows} {l.totalRows === 1 ? "row" : "rows"}
+                            </td>
+                            <td className="py-2.5 px-4">
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                  l.status.toLowerCase() === "rejected"
+                                    ? "bg-danger-surface text-danger-text border border-danger-border"
+                                    : isRolledBack
+                                    ? "bg-surface-muted text-text-muted border border-border-default"
+                                    : "bg-surface-subtle text-text-primary border border-border-default"
+                                }`}
+                              >
+                                {l.status}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-4 text-sm text-text-secondary">{l.uploadedBy}</td>
+                            <td className="py-2.5 px-4 text-sm text-text-secondary">{l.approvedBy || "—"}</td>
+                            <td className="py-2.5 px-4 text-sm text-text-muted">
+                              {new Date(l.submittedAt).toLocaleDateString()}
+                            </td>
+                            {canApprove && (
+                              <td className="py-2.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                {isApproved && isWithin72Hours ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setRollingBackLog(l);
+                                      setRollbackReason("");
+                                      setRollbackError(null);
+                                    }}
+                                    className="rounded-lg border border-danger-border bg-danger-surface px-2.5 py-1 text-xs font-semibold text-danger-text hover:bg-danger-surface/80 transition cursor-pointer"
+                                  >
+                                    Rollback
+                                  </button>
+                                ) : isRolledBack ? (
+                                  <span className="text-[11px] text-text-muted italic">Rolled back</span>
+                                ) : (
+                                  <span className="text-[11px] text-text-muted">—</span>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                   <TablePagination
@@ -870,6 +932,71 @@ export function MikaImportModal({ isOpen = true, onClose }: MikaImportModalProps
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {/* Rollback Confirmation Modal */}
+      {rollingBackLog && (
+        <Modal
+          isOpen={!!rollingBackLog}
+          onClose={() => setRollingBackLog(null)}
+          title={
+            <div className="flex items-center gap-2 text-danger-text">
+              <AlertCircle className="h-5 w-5" />
+              <span>Rollback MIKA Import Batch</span>
+            </div>
+          }
+          subtitle={`Batch #${rollingBackLog.id.slice(0, 8)} • ${rollingBackLog.fileName}`}
+          maxWidthClass="max-w-md"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <button
+                type="button"
+                onClick={() => setRollingBackLog(null)}
+                disabled={isRollingBack}
+                className="rounded-xl border border-border-default bg-surface-primary px-4 py-2 text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-surface-hover transition cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteRollback}
+                disabled={isRollingBack || !rollbackReason.trim()}
+                className="rounded-xl bg-danger-primary text-white px-4 py-2 text-xs font-semibold hover:bg-danger-hover transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {isRollingBack && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Confirm Rollback
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4 text-xs">
+            <div className="rounded-xl bg-danger-surface/50 border border-danger-border p-3.5 text-danger-text space-y-1.5">
+              <span className="font-bold block">⚠️ Irreversible Batch Rollback</span>
+              <p>
+                Rolling back this approved batch will set its status to <strong>Rolled Back</strong> and immediately neutralize/clear all active ghost employee detection cases created from this batch.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-semibold text-text-primary block">
+                Mandatory Operational Reason
+              </label>
+              <textarea
+                rows={3}
+                value={rollbackReason}
+                onChange={(e) => setRollbackReason(e.target.value)}
+                placeholder="e.g. Wrong monthly file uploaded by encoder, contains outdated attendance data..."
+                className="w-full rounded-xl border border-border-default bg-surface-primary p-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-danger-primary"
+              />
+            </div>
+
+            {rollbackError && (
+              <div className="rounded-xl bg-danger-surface p-3 text-danger-text border border-danger-border">
+                {rollbackError}
               </div>
             )}
           </div>

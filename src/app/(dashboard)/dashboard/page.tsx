@@ -896,7 +896,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <Link
-                  href="/plantilla"
+                  href="/more?tab=data_control&subtab=operations&tool=ghost_detection"
                   className="shrink-0 rounded-lg border border-border-default bg-surface-card px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors"
                 >
                   Resolve Anomalies →
