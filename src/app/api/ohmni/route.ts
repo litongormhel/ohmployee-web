@@ -28,6 +28,58 @@ const OHMPLOYEE_SOP_MANUAL = `
 
 const QUERY_TIMEOUT_MS = 8000;
 
+// ── Anti-Abuse Rate Limiting & Guardrail Parameters ─────────────────────────
+const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5-minute rolling window
+const MAX_REQUESTS_PER_WINDOW = 15; // 15 requests per 5 minutes per user
+const MAX_PROMPT_CHARS = 1000; // Maximum characters allowed per prompt
+const MAX_HISTORY_MESSAGES = 10; // Retain at most last 10 messages (5 turns)
+
+interface RateLimitRecord {
+  timestamps: number[];
+}
+
+const rateLimitMap = new Map<string, RateLimitRecord>();
+
+function checkRateLimit(userId: string): {
+  allowed: boolean;
+  retryAfterSeconds: number;
+  remaining: number;
+} {
+  const now = Date.now();
+  const record = rateLimitMap.get(userId) ?? { timestamps: [] };
+
+  const validTimestamps = record.timestamps.filter(
+    (t) => now - t < RATE_LIMIT_WINDOW_MS
+  );
+
+  if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    const oldest = validTimestamps[0];
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil((oldest + RATE_LIMIT_WINDOW_MS - now) / 1000)
+    );
+    return { allowed: false, retryAfterSeconds, remaining: 0 };
+  }
+
+  validTimestamps.push(now);
+  rateLimitMap.set(userId, { timestamps: validTimestamps });
+
+  // Periodically clean up stale entries if map exceeds 2,000 active users
+  if (rateLimitMap.size > 2000) {
+    for (const [key, val] of rateLimitMap.entries()) {
+      if (val.timestamps.every((t) => now - t >= RATE_LIMIT_WINDOW_MS)) {
+        rateLimitMap.delete(key);
+      }
+    }
+  }
+
+  return {
+    allowed: true,
+    retryAfterSeconds: 0,
+    remaining: MAX_REQUESTS_PER_WINDOW - validTimestamps.length,
+  };
+}
+
 async function executeWithTimeout<T>(
   fn: () => Promise<T>,
   fallbackErrorMessage: string
@@ -1310,6 +1362,24 @@ export async function POST(req: Request) {
     );
   }
 
+  // 1. Sliding-Window Rate Limiter Guard (Anti-Spam / Anti-Abuse)
+  const rateLimitResult = checkRateLimit(user.id);
+  if (!rateLimitResult.allowed) {
+    return new Response(
+      JSON.stringify({
+        error: `Masyadong mabilis ang iyong mga pagtatanong kay OHMni. Pakihintay ang ${rateLimitResult.retryAfterSeconds} segundo bago sumubok muli. (Limit: ${MAX_REQUESTS_PER_WINDOW} requests bawat 5 minuto)`,
+        retryAfter: rateLimitResult.retryAfterSeconds,
+      }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(rateLimitResult.retryAfterSeconds),
+        },
+      }
+    );
+  }
+
   try {
     const body = await req.json();
     const { messages, stream = true, activeContext } = body ?? {};
@@ -1323,16 +1393,16 @@ export async function POST(req: Request) {
       );
     }
 
-    let effectiveSystemPrompt = SYSTEM_PROMPT;
-    if (activeContext && typeof activeContext === "object") {
-      effectiveSystemPrompt += `\n\n[Active Screen Context]:\n- Active Route: ${activeContext.route ?? "None"}\n- Current Store/Branch: ${activeContext.storeName ?? "None"}\n- Current Vacancy/Slot: ${activeContext.vcode ?? "None"}\nUse this context when user refers to "here", "this store", or "this slot".`;
-    }
+    // 2. Chat History Truncation (Context Window Token Guard)
+    // Retain at most the last 10 messages (5 turns) to prevent prompt token bloat
+    const cappedMessages =
+      messages.length > MAX_HISTORY_MESSAGES
+        ? messages.slice(-MAX_HISTORY_MESSAGES)
+        : messages;
 
-    const modelMessages = await convertToModelMessages(messages);
-
-    // Extract the raw prompt text from the last user message for deterministic fallback
+    // Extract the raw prompt text from the last user message
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const lastUserMessage = [...messages].reverse().find((m: any) => m.role === "user");
+    const lastUserMessage = [...cappedMessages].reverse().find((m: any) => m.role === "user");
     const promptText =
       typeof lastUserMessage?.content === "string"
         ? lastUserMessage.content
@@ -1344,6 +1414,26 @@ export async function POST(req: Request) {
             .map((p: any) => p.text)
             .join(" ")
         : "";
+
+    // 3. Max Prompt Length Guard (Prompt Flood Defense)
+    if (promptText.length > MAX_PROMPT_CHARS) {
+      return new Response(
+        JSON.stringify({
+          error: `Masyadong mahaba ang iyong tanong (${promptText.length} characters). Ang pinahihintulutang haba ay hanggang ${MAX_PROMPT_CHARS} characters lamang bawat tanong.`,
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    let effectiveSystemPrompt = SYSTEM_PROMPT;
+    if (activeContext && typeof activeContext === "object") {
+      effectiveSystemPrompt += `\n\n[Active Screen Context]:\n- Active Route: ${activeContext.route ?? "None"}\n- Current Store/Branch: ${activeContext.storeName ?? "None"}\n- Current Vacancy/Slot: ${activeContext.vcode ?? "None"}\nUse this context when user refers to "here", "this store", or "this slot".`;
+    }
+
+    const modelMessages = await convertToModelMessages(cappedMessages);
 
     const tools = {
       getPlantillaSummary: tool({

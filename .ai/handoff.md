@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -2651,6 +2682,37 @@
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -2843,6 +2905,37 @@
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -3017,6 +3110,37 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -3194,6 +3318,37 @@
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -3368,6 +3523,37 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -3561,6 +3747,37 @@
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -3735,6 +3952,37 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -3925,6 +4173,37 @@
 
 ﻿# AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -4099,6 +4378,37 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -4292,6 +4602,37 @@
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -4466,6 +4807,37 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -4643,6 +5015,37 @@
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -4817,6 +5220,37 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -5010,6 +5444,37 @@
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -5184,6 +5649,37 @@
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -10589,6 +11085,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -10763,6 +11290,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -10956,6 +11514,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -11130,6 +11719,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -11307,6 +11927,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -11481,6 +12132,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -11674,6 +12356,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -11848,6 +12561,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -12722,6 +13466,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -12896,6 +13671,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -13089,6 +13895,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -13263,6 +14100,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -13440,6 +14308,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -13614,6 +14513,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -13807,6 +14737,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -13981,6 +14942,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -14879,6 +15871,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -15053,6 +16076,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -15246,6 +16300,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -15420,6 +16505,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -15597,6 +16713,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -15771,6 +16918,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
@@ -15964,6 +17142,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
+
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) LAYER 1 INTELLIGENCE & DEEP ANALYTICS: IMPLEMENTED `getOperationalBriefing` (AGGREGATING PENDING APPROVALS, OPEN VACANCIES, HR EMPLOC MOVEMENTS, CLOSURE REQUESTS & PRIORITY UNDERSTAFFED ACCOUNTS), `getStoreAnalytics` (RANKING ACCOUNTS BY LOWEST FILL RATE / MFR & VACANCIES), AND `getVacancyAgingAndSla` (TRACKING VACANCIES AGING >14 DAYS AND BREACHING >30-DAY SLA LIMITS); (2) CONTEXTUAL SCREEN AWARENESS: INJECTS ACTIVE APP ROUTE, STORE, AND VCODE CONTEXT FROM BROWSER AND MOBILE NAVIGATION DIRECTLY INTO GEMINI REASONING AND LOCAL FALLBACK ENGINE; (3) LAYER 2 SAFE ACTION DRAFTING: 2-STEP CONFIRMED ACTION DRAFTING FOR HEADCOUNT REQUESTS (`draftHeadcountRequest`) AND VACANCY CLOSURES (`draftVacancyClosure`) WITH HUMAN-IN-THE-LOOP INTERACTIVE ACTION CARDS, SUBMISSION DIALOGS, CONFIRMATION GUARDS, AND DIRECT NAVIGATION TO PLANTILLA / VACANCY / REQUESTS HUBS; (4) MOBILE FULL IMPLEMENTATION (`D:\Projects\OHMployee`): `OhmniService` WITH PHASE 2 DETERMINISTIC FALLBACK, CONTEXT FORWARDING, AND JSON TOOL RESULT DECODING; `OhmniChatScreen` WITH INTERACTIVE ACTION CARDS, SUBMIT CONFIRMATION DIALOGS, CONTEXT WIRED IN `main.dart`, `more_screen.dart`, AND `global_search_screen.dart`; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (172/172 PASSED, COMMIT `245732d`), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -16138,6 +17347,37 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Server-Side Guardrails (`src/app/api/ohmni/route.ts`)
+1. **Sliding-Window Rate Limiter**:
+   - `RATE_LIMIT_WINDOW_MS = 300_000` (5 minutes).
+   - `MAX_REQUESTS_PER_WINDOW = 15` requests per user.
+   - Evaluated immediately after session authentication and authorization checks.
+   - Returns HTTP 429 with `Retry-After` header.
+2. **Max Prompt Length Guard**:
+   - `MAX_PROMPT_CHARS = 1000` characters.
+   - Rejects prompts exceeding 1,000 chars with HTTP 400.
+3. **Chat History Truncation**:
+   - `MAX_HISTORY_MESSAGES = 10` messages (5 turns).
+   - Limits payload sent to Gemini to keep tokens and latency low.
+
+### 2. Client-Side Parity & Protection
+1. **Web (`src/components/ohmni/OhmniDrawer.tsx`)**:
+   - Added `maxLength={1000}` to composer `textarea`.
+   - Added subtle counter indicator if characters exceed 800.
+2. **Mobile (`D:\Projects\OHMployee`)**:
+   - `lib/data/services/ohmni_service.dart`: Immediate client-side validation guard for prompt length > 1,000 characters; parses HTTP 429 and 400 responses from API to display server warning messages to user.
+   - `lib/features/ohmni/ohmni_chat_screen.dart`: Configured `maxLength: 1000` on input `TextField` with dynamic length warning.
+   - `test/ohmni_service_test.dart`: Added test asserting prompt length guard behavior.
+
+---
 
 ## Execution Report — OHMni AI Co-Pilot Phase 2 (Operational Briefing, Analytics, Context Awareness & Action Drafting) Across Web & Mobile (ohm#ohmni-phase2-full-rollout)
 

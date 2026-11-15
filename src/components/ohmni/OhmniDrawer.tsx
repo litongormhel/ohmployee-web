@@ -838,10 +838,18 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
               onKeyDown={handleKeyDown}
               placeholder='Ask a question or type "Show open vacancies in SM North"...'
               rows={2}
+              maxLength={1000}
               disabled={isLoading}
               className="text-sm placeholder:text-text-muted border-0 focus:ring-0 focus:outline-none w-full resize-none text-text-primary disabled:bg-transparent disabled:opacity-60 bg-transparent"
             />
-            <div className="flex items-center justify-end pt-2 border-t border-[var(--border-subtle)]">
+            <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
+              <div className="text-[10px] text-text-muted">
+                {input.length > 800 && (
+                  <span className={input.length >= 1000 ? "text-danger font-semibold" : ""}>
+                    {input.length}/1000
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => handleSend()}
