@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: 390162b 2026-11-14T17:52:07+08:00
-source_sha256: 30ff17e68425cd93a1b16b71bc103dda440f1cfecc18e7ca736c3395c4b5b988
-synced_at: 2026-11-14T09:52:18.705Z
+source_commit: 55aadb5 2026-11-15T18:06:04+08:00
+source_sha256: 8a85ea608f5c05247bf1112cf52da9104484c839f04ad6771e8ae76f3b85e486
+synced_at: 2026-11-15T10:06:13.451Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -445,6 +445,40 @@ Full schema/RLS/RPC/Flutter design: `docs/architecture/hrco_scope_isolation_desi
 ## More Module
 
 Rule 1 and Rule 6 compliance: More Module's bulk archival and payroll-adjacent RPCs (`fn_archive_*`, `fn_qa_*`, `fn_rollback_archive_batch`) are the explicit, justified direct-writer carve-out named in Rule 1 above — bulk archival is not a lifecycle transition, so these functions may write `plantilla_slots.slot_status` directly rather than through `fn_set_slot_status`. They must still never write to a denormalized counter column (`hc_filled` etc.) per Rule 6 — only to the primary domain tables the archive operation targets.
+
+### MIKA Biometric Import & Ghost Employees Detection Center (`ohm#g8h4m2v9` — 2026-11-15)
+
+**Status: ACCEPTED.** Codifies the architecture for MIKA biometric ingestion, anomaly classification, and the Operations Hub Ghost Employees Detection Center.
+
+**Problem.** Weekly MIKA biometric attendance uploads audit employee presence in stores. Flagged discrepancies risk payroll fraud or untracked personnel, but without a unified cross-platform detection center, recurring weekly uploads either duplicate cases, lose tracking history, or leave separated personnel undetected.
+
+**Architecture Decisions & Invariants (binding):**
+
+1. **Dual Anomaly Classification (Strict Separation):**
+   - **Type A (Unregistered / Missing from Plantilla):** Biometric record exists in MIKA with an Employee Number not found in active `public.plantilla`. Requires encoding or investigation.
+   - **Type B (Inactive / Separated Anomaly):** Biometric record exists in MIKA, but matches an employee tagged as `Inactive`, `Separated`, `Deactivated`, or `Resigned` in `public.plantilla`. High-severity payroll leakage / immediate biometric revocation alert.
+
+2. **Weekly Upload Case Continuity & SLA Age Preservation:**
+   - A single continuous investigation case exists per employee in `public.possible_ghost_employees` while unresolved (`status NOT IN ('Cleared', 'Resolved', 'Auto Resolved', 'Confirmed Ghost', 'For Termination')`).
+   - Subsequent weekly uploads of the same unresolved employee must NOT spawn duplicate rows; they update `last_revalidated_at = now()`, increment the revalidation count, and associate the latest `import_log_id`.
+   - The initial detection timestamp (`created_at`) is permanently preserved to enforce the **1-week (7-day) SLA**:
+     - *< 48 hours:* Normal Investigation (`Under Investigation`).
+     - *48–72 hours:* Head Admin escalation notification.
+     - *72 hours – 7 days:* Super Admin escalation notification.
+     - *> 7 days (1 week):* Automatic **"Breached SLA (>7 Days)"** critical operational lock.
+
+3. **Strict Plantilla Invariant & Automated Resolution:**
+   - Pre-deployment onboarding status (e.g. HR Emploc pipeline) remains classified under strict investigation until the employee physically attains `status = 'Active'` in `public.plantilla`.
+   - The database trigger `trg_ghost_resolve_on_plantilla_active` automatically transitions Type A cases to `'Cleared'` (`auto_resolved = true`, `resolved_at = now()`, `resolution_remarks = 'Auto-resolved: Found in Active Plantilla'`).
+   - Manual actions are role-gated (SA, HA, Encoder, OM): Assign to Encoder (72h deadline), Mark Cleared (audited reason), or Confirm Ghost / Payroll Freeze.
+
+4. **Coalesced Statutory Benefits Hydration:**
+   - Weekly MIKA import strictly prioritizes biometric attendance cross-checking and ghost detection.
+   - Government statutory numbers (SSS, PhilHealth, Pag-IBIG, TIN, ATM) only coalesce into blank/null fields in `public.plantilla` upon batch approval without overwriting existing verified data.
+
+5. **Operations Hub Surface Contract:**
+   - Dedicated detection center surface in Web Operations Hub (`/more?tab=data_control&subtab=operations&tool=ghost_detection`) and mobile (`MikaImportScreen(ghostReportOnly: true)`).
+   - Real-time deep-linking from CENCOM & Executive Dashboard anomaly alerts (`"Resolve Anomalies →"`).
 
 ---
 
