@@ -5,32 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Users,
   ArrowLeft,
-  Building,
-  Building2,
-  Share2,
-  ChevronRight,
-  Plus,
-  Search,
-  RotateCcw,
-  X,
-  MapPin,
-  Briefcase,
-  LayoutGrid,
-  List,
-  AlertCircle,
-  UserMinus,
-  UserX,
-  BarChart3,
-  UserCheck,
-  RotateCw,
-  MoreVertical,
-  Archive,
   ArrowRightLeft,
-  Clock,
-  CheckCircle2,
-  User,
-  Calendar,
+  Building2,
+  Plus,
   Users2,
+  BarChart3,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCurrentUser, isOpsAmendmentRole, isHeadOrSuperAdmin } from "@/lib/auth";
@@ -39,17 +18,14 @@ import { createClient } from "@/lib/supabase/client";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { DataState } from "@/components/shared/DataState";
 import { TablePagination } from "@/components/shared/TablePagination";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import type { BadgeVariant } from "@/components/ui/StatusBadge";
+import type { ToastVariant } from "@/components/shared/Toast";
 import {
   getPlantillaSummary,
   listWebPlantillaEmployees,
   listWebPlantillaStoreStaffing,
   fetchActiveCoverageForAccount,
   fetchPlantillaScopedAccounts,
-  deriveDeactivationOverlay,
   usePlantillaInactiveRemarks,
-  getFloatingDurationDays,
   type PlantillaEmployeeListItem,
   type ActiveCoverageItem,
 } from "@/lib/queries/plantilla";
@@ -59,219 +35,75 @@ import {
 } from "@/lib/queries/vacancy";
 import {
   formatPersonName,
-  formatPosition,
-  formatStoreName,
   formatAccountName,
-  formatDisplayText,
 } from "@/lib/utils/displayText";
-import { VacancyDetailDrawer } from "@/components/vacancy/VacancyDetailDrawer";
-import { RequestHeadcountModal } from "@/components/modals/RequestHeadcountModal";
 import { MosesHqPoolView } from "@/components/plantilla/MosesHqPoolView";
 import { WorkforceAnalyticsView } from "@/components/plantilla/WorkforceAnalyticsView";
-import { AssignRelieverModal } from "@/components/plantilla/AssignRelieverModal";
-import { ReturnToActiveModal } from "@/components/plantilla/ReturnToActiveModal";
-import { AssignStoreModal } from "@/components/plantilla/AssignStoreModal";
-import { UpdateEmploymentStatusModal } from "@/components/plantilla/UpdateEmploymentStatusModal";
-import { AddAccountModal } from "@/components/plantilla/AddAccountModal";
-import { CreateCoverageGroupModal } from "@/components/modals/CreateCoverageGroupModal";
-import { ArchiveAccountModal } from "@/components/plantilla/ArchiveAccountModal";
-import { AbsorbEmployeesModal } from "@/components/plantilla/AbsorbEmployeesModal";
-import { RequestDeactivationModal } from "@/components/plantilla/RequestDeactivationModal";
-import { Toast, type ToastVariant } from "@/components/shared/Toast";
+
+// Modular Directory Presentation Containers (SRP Decomposition)
+import {
+  type PlantillaViewMode,
+  type MainViewToggle,
+  type StatusSubTab,
+  type DisplayView,
+  type VacancyWorkflowStage,
+  type StoreCapacityRow,
+  type RelieverTargetEmployee,
+  type ReturnToActiveTarget,
+  type AssignStoreTargetEmployee,
+  type UpdateStatusTargetEmployee,
+  type DeactivationTargetEmployee,
+  type ArchiveModalAccount,
+  type AbsorbModalAccount,
+  type StoreWithAvailableSlots,
+  resolveVacancyWorkflowStage,
+  isHrPipelineWorkflowStage,
+  getVacancyRemainingCapacity,
+  renderVacancyStatusBadge,
+  isDeactivationRecord,
+  isFloatingRecord,
+  isInactiveRecord,
+  isOnLeaveRecord,
+} from "@/components/plantilla/directory/types";
+import { EmptyTabState } from "@/components/plantilla/directory/EmptyTabState";
+import { PlantillaFilterToolbar } from "@/components/plantilla/directory/PlantillaFilterToolbar";
+import { PlantillaAccountSelection } from "@/components/plantilla/directory/PlantillaAccountSelection";
+import {
+  EmployeeActiveTable,
+  EmployeeOnLeaveTable,
+  StoreVacancyTable,
+  EmployeeFloatingTable,
+  EmployeeDeactivationTable,
+  EmployeeInactiveTable,
+  StoreCapacityTable,
+} from "@/components/plantilla/directory/PlantillaTableViews";
+import {
+  EmployeeCard,
+  EmployeeOnLeaveCard,
+  VacancyCard,
+  EmployeeFloatingCard,
+  EmployeeDeactivationCard,
+  EmployeeInactiveCard,
+} from "@/components/plantilla/directory/PlantillaCardViews";
+import { PlantillaModalsHub } from "@/components/plantilla/directory/PlantillaModalsHub";
+
+// Re-export types and helpers for backward compatibility
+export type {
+  PlantillaViewMode,
+  MainViewToggle,
+  StatusSubTab,
+  DisplayView,
+  VacancyWorkflowStage,
+};
+export {
+  resolveVacancyWorkflowStage,
+  isHrPipelineWorkflowStage,
+  getVacancyRemainingCapacity,
+  renderVacancyStatusBadge,
+};
 
 // ---------------------------------------------------------------------------
-// Types & Constants
-// ---------------------------------------------------------------------------
-
-export type PlantillaViewMode = "store" | "moses_pool" | "analytics";
-export type MainViewToggle = "employee" | "store";
-export type StatusSubTab = "active" | "on_leave" | "vacancy" | "floating" | "deactivation" | "inactive";
-type DisplayView = "table" | "cards";
-
-function plantillaStatusVariant(status: string | null | undefined): BadgeVariant {
-  switch ((status ?? "").toLowerCase().trim()) {
-    case "active":
-      return "success";
-    case "on leave":
-    case "on_leave":
-      return "warning";
-    case "floating":
-      return "neutral";
-    case "pending transfer":
-    case "pending_transfer":
-      return "info";
-    case "pending separation":
-    case "pending_separation":
-      return "danger";
-    case "suspended":
-      return "warning";
-    case "inactive":
-    case "terminated":
-      return "neutral";
-    default:
-      return "neutral";
-  }
-}
-
-function getInitials(firstName: string | null, lastName: string | null, fullName?: string | null): string {
-  if (firstName || lastName) {
-    const f = (firstName?.trim() || "")[0] ?? "";
-    const l = (lastName?.trim() || "")[0] ?? "";
-    return (f + l).toUpperCase() || "EM";
-  }
-  if (fullName && fullName.trim()) {
-    const parts = fullName.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return (parts[0][0] ?? "E").toUpperCase();
-  }
-  return "EM";
-}
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) return "—";
-  try {
-    const d = new Date(value);
-    if (isNaN(d.getTime())) {
-      const parts = value.split("-");
-      if (parts.length === 3) {
-        return `${parts[1]}/${parts[2]}/${parts[0]}`;
-      }
-      return value;
-    }
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return value;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Vacancy Workflow Stage Mapping & Badges
-// ---------------------------------------------------------------------------
-
-export type VacancyWorkflowStage =
-  | "Vacancy - Open"
-  | "Vacancy - Pipeline"
-  | "HR Emploc - Pending"
-  | "HR Emploc - Correction"
-  | "HR Emploc - Ready"
-  | "HR Emploc - Review";
-
-export function resolveVacancyWorkflowStage(v: VacancyListItem): VacancyWorkflowStage {
-  const badgeRaw = (v.stageBadge || "").trim();
-  const pipeRaw = (v.pipelineStatus || "").trim();
-  const target = (badgeRaw || pipeRaw).toLowerCase();
-
-  if (target.includes("correction")) {
-    return "HR Emploc - Correction";
-  }
-  if (target.includes("review")) {
-    return "HR Emploc - Review";
-  }
-  if (target.includes("ready") || target.includes("complete")) {
-    return "HR Emploc - Ready";
-  }
-  if (target.includes("emploc") || target.includes("onboard")) {
-    return "HR Emploc - Pending";
-  }
-  if (target.includes("pipeline")) {
-    return "Vacancy - Pipeline";
-  }
-
-  const hasApplicant = Boolean(
-    v.applicantName &&
-    v.applicantName.trim() !== "" &&
-    v.applicantName.trim() !== "—" &&
-    v.applicantName.trim() !== "-"
-  );
-
-  if (hasApplicant) {
-    return "Vacancy - Pipeline";
-  }
-
-  return "Vacancy - Open";
-}
-
-export function isHrPipelineWorkflowStage(stage: VacancyWorkflowStage): boolean {
-  return (
-    stage === "HR Emploc - Pending" ||
-    stage === "HR Emploc - Correction" ||
-    stage === "HR Emploc - Ready" ||
-    stage === "HR Emploc - Review"
-  );
-}
-
-export function getVacancyRemainingCapacity(v: VacancyListItem): number {
-  const total = v.hcTotal ?? v.headcount ?? 1;
-  const filled = v.hcFilled ?? 0;
-  const remaining = Math.max(0, total - filled);
-  // An open vacancy requisition represents at least 1 unfilled slot
-  if (
-    remaining === 0 &&
-    (v.stageBadge === "Vacancy - Open" ||
-      v.pipelineStatus === "Vacancy - Open" ||
-      v.vacancyStatus === "Open" ||
-      v.derivedStatus === "Open")
-  ) {
-    return 1;
-  }
-  return remaining;
-}
-
-export function renderVacancyStatusBadge(stage: VacancyWorkflowStage) {
-  switch (stage) {
-    case "Vacancy - Open":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-surface-muted text-text-secondary border border-border-default">
-          Vacancy - Open
-        </span>
-      );
-    case "Vacancy - Pipeline":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
-          Vacancy - Pipeline
-        </span>
-      );
-    case "HR Emploc - Pending":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
-          HR Emploc - Pending
-        </span>
-      );
-    case "HR Emploc - Correction":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800">
-          HR Emploc - Correction
-        </span>
-      );
-    case "HR Emploc - Ready":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
-          HR Emploc - Ready
-        </span>
-      );
-    case "HR Emploc - Review":
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800">
-          HR Emploc - Review
-        </span>
-      );
-    default:
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-surface-muted text-text-secondary border border-border-default">
-          {stage}
-        </span>
-      );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Page Component
+// Page Component Wrapper (Suspense Boundary)
 // ---------------------------------------------------------------------------
 
 export default function PlantillaPage() {
@@ -289,140 +121,9 @@ export default function PlantillaPage() {
   );
 }
 
-// Helper check for deactivation statuses (pending offboarding approval or deactivated archive)
-function isDeactivationRecord(emp: PlantillaEmployeeListItem) {
-  const s = (emp.plantillaStatus || "").toLowerCase().trim();
-  const sep = (emp.separationType || "").toLowerCase().trim();
-  const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
-  return (
-    overlay.isPendingSeparation ||
-    s === "pending for deactivation" ||
-    s === "pending_for_deactivation" ||
-    s === "pending deactivation" ||
-    s === "pending_deactivation" ||
-    s === "for deactivation" ||
-    s === "pending separation" ||
-    s === "pending_separation" ||
-    s === "deactivated" ||
-    sep === "pending deactivation" ||
-    sep === "pending_deactivation" ||
-    sep === "for deactivation" ||
-    sep === "deactivated"
-  );
-}
-
-// Helper check for floating status
-function isFloatingRecord(emp: PlantillaEmployeeListItem) {
-  if (isDeactivationRecord(emp)) return false;
-  const s = (emp.plantillaStatus || "").toLowerCase().trim();
-  const sep = (emp.separationType || "").toLowerCase().trim();
-  return s === "floating" || sep === "floating";
-}
-
-// DOLE Art. 301 compliance countdown badge (180-day maximum floating status / temporary layoff period)
-function FloatingDoleBadge({ days }: { days: number }) {
-  const remaining = Math.max(0, 180 - days);
-
-  if (days >= 180) {
-    return (
-      <span
-        title="DOLE Art. 301 limit breached (maximum 180-day floating period exceeded). Immediate recall or statutory separation required."
-        className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800 border border-red-300 dark:bg-red-950/70 dark:text-red-300 dark:border-red-800 shrink-0"
-      >
-        <span className="h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
-        <span>{days}d • DOLE Breach</span>
-      </span>
-    );
-  }
-
-  if (days >= 120) {
-    return (
-      <span
-        title={`Critical aging: ${days} days floating (${remaining} days remaining until DOLE 180-day temporary layoff maximum).`}
-        className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 shrink-0"
-      >
-        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-        <span>{days}d • {remaining}d left</span>
-      </span>
-    );
-  }
-
-  if (days >= 60) {
-    return (
-      <span
-        title={`Aged floating: ${days} days in pool (${remaining} days until DOLE 180-day limit).`}
-        className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 shrink-0"
-      >
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-        <span>{days}d • {remaining}d left</span>
-      </span>
-    );
-  }
-
-  if (days >= 30) {
-    return (
-      <span
-        title={`Active floating: ${days} days (${remaining} days until DOLE 180-day limit).`}
-        className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 shrink-0"
-      >
-        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-        <span>{days}d • {remaining}d left</span>
-      </span>
-    );
-  }
-
-  return (
-    <span
-      title={`Fresh floating: ${days} days elapsed (${remaining} days until DOLE 180-day limit).`}
-      className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 shrink-0"
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-      <span>{days}d • {remaining}d left</span>
-    </span>
-  );
-}
-
-// Helper check for inactive / separated employees (Resigned, AWOL, Terminated, Deactivation)
-function isInactiveRecord(emp: PlantillaEmployeeListItem) {
-  if (isFloatingRecord(emp)) return false;
-  const s = (emp.plantillaStatus || "").toLowerCase().trim();
-  const sep = (emp.separationType || "").toLowerCase().trim();
-  const overlay = deriveDeactivationOverlay(emp.plantillaStatus);
-  return (
-    s === "resigned" ||
-    s === "awol" ||
-    s === "terminated" ||
-    s === "inactive" ||
-    s === "separated" ||
-    s === "pending for deactivation" ||
-    s === "pending_for_deactivation" ||
-    s === "pending deactivation" ||
-    s === "pending_deactivation" ||
-    s === "for deactivation" ||
-    s === "pending separation" ||
-    s === "pending_separation" ||
-    s === "deactivated" ||
-    sep === "resigned" ||
-    sep === "awol" ||
-    sep === "terminated" ||
-    sep === "separated" ||
-    sep === "pending deactivation" ||
-    sep === "pending_deactivation" ||
-    sep === "for deactivation" ||
-    sep === "deactivated" ||
-    overlay.isPendingSeparation ||
-    emp.isActive === false
-  );
-}
-
-// Helper check for on-leave status
-function isOnLeaveRecord(emp: PlantillaEmployeeListItem) {
-  if (isDeactivationRecord(emp)) return false;
-  if (isFloatingRecord(emp)) return false;
-  if (isInactiveRecord(emp)) return false;
-  const s = (emp.plantillaStatus || "").toLowerCase().trim();
-  return s === "on leave" || s === "on_leave";
-}
+// ---------------------------------------------------------------------------
+// Master Page Orchestrator Content
+// ---------------------------------------------------------------------------
 
 function PlantillaPageContent() {
   // Search parameters and router
@@ -448,7 +149,7 @@ function PlantillaPageContent() {
       ? (urlStatusParam as StatusSubTab)
       : internalStatusTab;
 
-  const [vacancySubFilter, setVacancySubFilter] = useState<"all" | "open" | "pipeline">("all");
+  const [vacancySubFilter] = useState<"all" | "open" | "pipeline">("all");
 
   const urlDisplayParam = (
     searchParams.get("display") ||
@@ -501,72 +202,26 @@ function PlantillaPageContent() {
   const [isRequestHeadcountOpen, setIsRequestHeadcountOpen] = useState(false);
 
   // Workflow modals
-  const [relieverTargetEmployee, setRelieverTargetEmployee] = useState<{
-    id: string;
-    displayName: string;
-    employeeNo: string;
-    storeId?: string | null;
-    storeName?: string | null;
-  } | null>(null);
+  const [relieverTargetEmployee, setRelieverTargetEmployee] = useState<RelieverTargetEmployee | null>(null);
+  const [returnToActiveTarget, setReturnToActiveTarget] = useState<ReturnToActiveTarget | null>(null);
+  const [assignStoreTargetEmployee, setAssignStoreTargetEmployee] = useState<AssignStoreTargetEmployee | null>(null);
+  const [updateStatusTargetEmployee, setUpdateStatusTargetEmployee] = useState<UpdateStatusTargetEmployee | null>(null);
+  const [deactivationTargetEmployee, setDeactivationTargetEmployee] = useState<DeactivationTargetEmployee | null>(null);
 
-  const [returnToActiveTarget, setReturnToActiveTarget] = useState<{
-    employee: {
-      id: string;
-      displayName: string;
-      employeeNo: string;
-      storeName?: string | null;
-    };
-    reliever: {
-      id: string;
-      name: string;
-      employeeNumber: string;
-    } | null;
-  } | null>(null);
-
-  const [assignStoreTargetEmployee, setAssignStoreTargetEmployee] = useState<{
-    id: string;
-    displayName: string;
-    employeeNo: string;
-    positionTitle?: string | null;
-    floatingDays?: number;
-  } | null>(null);
-
-  const [updateStatusTargetEmployee, setUpdateStatusTargetEmployee] = useState<{
-    id: string;
-    displayName: string;
-    employeeNo: string;
-    currentStatus?: string | null;
-  } | null>(null);
-
-  const [deactivationTargetEmployee, setDeactivationTargetEmployee] = useState<{
-    id: string;
-    displayName: string;
-    employeeNo: string;
-    currentStatus?: string | null;
-  } | null>(null);
-
-  // Search query specifically for the account selector list
+  // Account selector state
   const [accountSearch, setAccountSearch] = useState("");
   const [selectorGroupId, setSelectorGroupId] = useState("");
 
-  // Account Governance Modals State (Add Account, Archive, Absorb, Create Coverage Group)
+  // Directory actions & modals
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
   const [isCreateCoverageGroupOpen, setIsCreateCoverageGroupOpen] = useState(false);
-  const [archiveModalAccount, setArchiveModalAccount] = useState<{
-    id: string;
-    name: string;
-    actual: number;
-    vacant: number;
-    required: number;
-    groupName?: string | null;
-  } | null>(null);
-  const [absorbModalAccount, setAbsorbModalAccount] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [archiveModalAccount, setArchiveModalAccount] = useState<ArchiveModalAccount | null>(null);
+  const [absorbModalAccount, setAbsorbModalAccount] = useState<AbsorbModalAccount | null>(null);
+
+  // Card context menu state
   const [activeMenuAccountId, setActiveMenuAccountId] = useState<string | null>(null);
 
-  // Toast feedback state
+  // Feedback Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastVariant, setToastVariant] = useState<ToastVariant>("success");
 
@@ -756,7 +411,6 @@ function PlantillaPageContent() {
         const accId = String(row.account_id);
         processedAccountIds.add(accId);
 
-        // Database-as-Truth: Direct pass-through from authoritative v_account_allocation_kpi
         const actual = Number(row.actual_hc ?? 0);
         const hrProcess = Number(row.pipeline_count ?? 0);
         const vacant = Math.round(Number(row.slot_vacant_hc ?? 0));
@@ -783,8 +437,6 @@ function PlantillaPageContent() {
       });
 
       // Workforce Pool Account KPI integration (e.g. Moses HQ, is_pool_account: true)
-      // Pool accounts are intentionally excluded from v_account_allocation_kpi to isolate retail store MFRs.
-      // We resolve live headcount from plantilla and budgeted/vacant slots from workforce_pool_slots.
       const poolAccountIds = new Set<string>();
       (allowedAccountsQuery.data ?? []).forEach((a) => {
         if (a.isPoolAccount || a.name.trim().toLowerCase() === "moses hq") {
@@ -1133,7 +785,7 @@ function PlantillaPageContent() {
     return map;
   }, [activeEmployees]);
 
-  // Tab 3: Vacancy Rows (exclude any slot already active/occupied in Plantilla + include vacated slots from inactive personnel)
+  // Tab 3: Vacancy Rows
   const allVacancies = useMemo(() => {
     const raw = vacancyListQuery.data?.data ?? [];
     const seenVcodes = new Set<string>();
@@ -1153,13 +805,11 @@ function PlantillaPageContent() {
         if (v.storeName) seenStoreNames.add(v.storeName.replace(/\s*\[Roving\]/i, "").toLowerCase().trim());
       };
 
-      // Multi-headcount retention: If database quota indicates unfilled capacity, keep visible
       if (v.hcTotal != null && v.hcFilled != null && v.hcFilled < v.hcTotal) {
         registerSeenKeys();
         return true;
       }
 
-      // Filter out slots that are already fully occupied by active employees in Plantilla
       if ((vk && activeOccupiedVcodes.has(vk)) || (cg && activeOccupiedVcodes.has(cg))) {
         const activeCount = (cg ? activeOccupiedVcodes.get(cg) : 0) || (vk ? activeOccupiedVcodes.get(vk) : 0) || 0;
         const required = v.hcTotal ?? v.headcount ?? 1;
@@ -1169,8 +819,6 @@ function PlantillaPageContent() {
       return true;
     });
 
-    // Synthesize open vacancy slots for inactive employees whose VCodes are not occupied by active personnel
-    // Guardrail: Never resurrect closed/archived vcodes or vacancies for inactive/archived stores
     const closedVcodes = closedVcodesQuery.data ?? new Set<string>();
     const synthesized: VacancyListItem[] = [];
     inactiveEmployees.forEach((emp) => {
@@ -1179,8 +827,8 @@ function PlantillaPageContent() {
 
       const storeNameKey = (emp.primaryStoreName || "").toLowerCase().trim();
       const storeInfo = storeNameKey ? storeLookupMap.get(storeNameKey) : null;
-      if (!storeInfo) return; // Do not synthesize for stores that are closed, archived, or not active under account
-      if (storeNameKey && seenStoreNames.has(storeNameKey)) return; // Already covered by active coverage group or vacancy
+      if (!storeInfo) return;
+      if (storeNameKey && seenStoreNames.has(storeNameKey)) return;
 
       const isOccupiedByActive = activeOccupiedVcodes.has(vk);
       const alreadyInVacancies = seenVcodes.has(vk);
@@ -1264,32 +912,6 @@ function PlantillaPageContent() {
   const filteredDeactivationEmployees = useMemo(() => deactivationEmployees.filter(filterEmployee), [deactivationEmployees, filterEmployee]);
   const filteredInactiveEmployees = useMemo(() => inactiveEmployees.filter(filterEmployee), [inactiveEmployees, filterEmployee]);
 
-  const openVacanciesCount = useMemo(() => {
-    return allVacancies.filter((v) => {
-      const stage = resolveVacancyWorkflowStage(v);
-      return stage === "Vacancy - Open" || stage === "Vacancy - Pipeline";
-    }).length;
-  }, [allVacancies]);
-
-  const pipelineVacanciesCount = useMemo(() => {
-    return allVacancies.filter((v) => isHrPipelineWorkflowStage(resolveVacancyWorkflowStage(v))).length;
-  }, [allVacancies]);
-
-  const openVacanciesSlots = useMemo(() => {
-    return allVacancies
-      .filter((v) => {
-        const stage = resolveVacancyWorkflowStage(v);
-        return stage === "Vacancy - Open" || stage === "Vacancy - Pipeline";
-      })
-      .reduce((sum, v) => sum + getVacancyRemainingCapacity(v), 0);
-  }, [allVacancies]);
-
-  const pipelineVacanciesSlots = useMemo(() => {
-    return allVacancies
-      .filter((v) => isHrPipelineWorkflowStage(resolveVacancyWorkflowStage(v)))
-      .reduce((sum, v) => sum + getVacancyRemainingCapacity(v), 0);
-  }, [allVacancies]);
-
   const totalVacanciesSlots = useMemo(() => {
     return allVacancies.reduce((sum, v) => sum + getVacancyRemainingCapacity(v), 0);
   }, [allVacancies]);
@@ -1335,8 +957,7 @@ function PlantillaPageContent() {
     });
   }, [allVacancies, vacancySubFilter, search, areaCityFilter, storeLookupMap]);
 
-  // Discover stores deployed to employees or vacancies that are not directly
-  // under account_id in the stores table (e.g., 'Super 8 Dau')
+  // Discover stores deployed to employees or vacancies not directly under account_id in stores table
   const unmappedStoreNames = useMemo(() => {
     const knownKeys = new Set((storesUnderAccountQuery.data ?? []).map((s) => s.name.toLowerCase().trim()));
     const missing = new Set<string>();
@@ -1398,8 +1019,6 @@ function PlantillaPageContent() {
   }, [storesUnderAccountQuery.data, unmappedStoresQuery.data]);
 
   // Store Capacity Table Data (for mainView === "store")
-  // Logic Update: The Store View should ONLY populate stores that have at least one
-  // associated record in the following states: Active OR On-Leave OR Open Vacancy.
   const storeCapacityRows = useMemo(() => {
     const staffingList = storeStaffingQuery.data?.data ?? [];
     const staffingMap = new Map<string, typeof staffingList[0]>();
@@ -1407,7 +1026,6 @@ function PlantillaPageContent() {
       staffingMap.set(s.storeId, s);
     });
 
-    // Counts per store from employees
     const storeActiveCountMap = new Map<string, number>();
     const storeOnLeaveCountMap = new Map<string, number>();
 
@@ -1423,7 +1041,6 @@ function PlantillaPageContent() {
       }
     });
 
-    // Count open vacancy slots per store (accounting for multi-headcount allocations)
     const storeVacancyCountMap = new Map<string, number>();
     allVacancies.forEach((v) => {
       const key = (v.storeName || "").toLowerCase().trim();
@@ -1433,11 +1050,6 @@ function PlantillaPageContent() {
       }
     });
 
-    // Consolidated candidate stores across:
-    // 1. Stores registered under account
-    // 2. Extra stores discovered from unmappedStoresQuery
-    // 3. Active/On-leave employee stores (e.g. 'Super 8 Dau')
-    // 4. Open vacancy stores
     const candidateStoreMap = new Map<
       string,
       {
@@ -1449,14 +1061,19 @@ function PlantillaPageContent() {
       }
     >();
 
-    const knownStoreList = [
-      ...(storesUnderAccountQuery.data ?? []),
-      ...(unmappedStoresQuery.data ?? []),
-    ];
+    (storesUnderAccountQuery.data ?? []).forEach((st) => {
+      candidateStoreMap.set(st.name.toLowerCase().trim(), {
+        id: st.id,
+        name: st.name,
+        code: st.code,
+        city: st.city,
+        province: st.province,
+      });
+    });
 
-    knownStoreList.forEach((st) => {
+    (unmappedStoresQuery.data ?? []).forEach((st) => {
       const key = st.name.toLowerCase().trim();
-      if (key && !candidateStoreMap.has(key)) {
+      if (!candidateStoreMap.has(key)) {
         candidateStoreMap.set(key, {
           id: st.id,
           name: st.name,
@@ -1468,76 +1085,61 @@ function PlantillaPageContent() {
     });
 
     allEmployees.forEach((emp) => {
-      const name = emp.primaryStoreName?.trim();
-      if (!name) return;
-      const key = name.toLowerCase();
-      if (!candidateStoreMap.has(key)) {
-        const lookup = effectiveStoreLookupMap.get(key);
-        candidateStoreMap.set(key, {
-          id: lookup?.id || `store-emp-${key.replace(/[^a-z0-9]+/g, "-")}`,
-          name,
-          code: emp.vcode || lookup?.code || null,
-          city: lookup?.city || null,
-          province: lookup?.province || null,
-        });
+      const rawName = emp.primaryStoreName?.trim();
+      if (rawName) {
+        const key = rawName.toLowerCase();
+        if (!candidateStoreMap.has(key)) {
+          const info = effectiveStoreLookupMap.get(key);
+          candidateStoreMap.set(key, {
+            id: info?.id || `temp-emp-${key}`,
+            name: rawName,
+            code: info?.code || null,
+            city: info?.city || null,
+            province: info?.province || null,
+          });
+        }
       }
     });
 
     allVacancies.forEach((v) => {
-      const name = v.storeName?.trim();
-      if (!name) return;
-      const key = name.toLowerCase();
-      if (!candidateStoreMap.has(key)) {
-        const lookup = effectiveStoreLookupMap.get(key);
-        candidateStoreMap.set(key, {
-          id: v.storeId || lookup?.id || `store-vac-${key.replace(/[^a-z0-9]+/g, "-")}`,
-          name,
-          code: v.vcode || lookup?.code || null,
-          city: lookup?.city || null,
-          province: lookup?.province || null,
-        });
+      const rawName = v.storeName?.trim();
+      if (rawName) {
+        const key = rawName.toLowerCase();
+        if (!candidateStoreMap.has(key)) {
+          const info = effectiveStoreLookupMap.get(key);
+          candidateStoreMap.set(key, {
+            id: v.storeId || info?.id || `temp-vac-${key}`,
+            name: rawName,
+            code: info?.code || null,
+            city: info?.city || null,
+            province: info?.province || null,
+          });
+        }
       }
     });
 
-    const rows: {
-      id: string;
-      storeBranch: string;
-      code: string | null;
-      city: string | null;
-      province: string | null;
-      plantillaRequired: number;
-      activeDeployed: number;
-      onLeave: number;
-      openVacancy: number;
-      isFulfilled: boolean;
-    }[] = [];
+    const rows: StoreCapacityRow[] = [];
 
-    candidateStoreMap.forEach((st, key) => {
-      const staffRow = staffingMap.get(st.id);
+    candidateStoreMap.forEach((storeObj, storeKey) => {
+      const activeDeployed = storeActiveCountMap.get(storeKey) ?? 0;
+      const onLeave = storeOnLeaveCountMap.get(storeKey) ?? 0;
+      const openVacancy = storeVacancyCountMap.get(storeKey) ?? 0;
 
-      const activeDeployed = storeActiveCountMap.get(key) ?? staffRow?.onboardCount ?? 0;
-      const onLeave = storeOnLeaveCountMap.get(key) ?? 0;
-      const openVacancy = storeVacancyCountMap.get(key) ?? staffRow?.openHeadcount ?? 0;
-
-      // Logic Update: The Store View should ONLY populate stores that have at least one
-      // associated record in the following states: Active OR On-Leave OR Open Vacancy.
-      // Orphaned stores having 0 Active, 0 On-Leave, and 0 Vacancies (e.g. Festival Mall, SM Caloocan)
-      // are removed / hidden from this view.
-      const hasAssociatedRecord = activeDeployed > 0 || onLeave > 0 || openVacancy > 0;
-      if (!hasAssociatedRecord) {
+      if (activeDeployed === 0 && onLeave === 0 && openVacancy === 0) {
         return;
       }
 
-      const required = staffRow?.requiredHeadcount ?? Math.max(activeDeployed + openVacancy, 1);
-      const isFulfilled = activeDeployed >= required && required > 0;
+      const staffing = staffingMap.get(storeObj.id);
+      const plantillaRequired = staffing?.requiredHeadcount ?? (activeDeployed + openVacancy);
+      const isFulfilled = activeDeployed >= plantillaRequired && openVacancy === 0;
 
       rows.push({
-        id: st.id,
-        storeBranch: st.name,
-        code: st.code,
-        city: st.city,
-        province: st.province,
-        plantillaRequired: required,
+        id: storeObj.id,
+        storeBranch: storeObj.name,
+        code: storeObj.code,
+        city: storeObj.city,
+        province: storeObj.province,
+        plantillaRequired,
         activeDeployed,
         onLeave,
         openVacancy,
@@ -1547,10 +1149,10 @@ function PlantillaPageContent() {
 
     return rows.sort((a, b) => a.storeBranch.localeCompare(b.storeBranch));
   }, [
+    storeStaffingQuery.data?.data,
     storesUnderAccountQuery.data,
     unmappedStoresQuery.data,
     effectiveStoreLookupMap,
-    storeStaffingQuery.data?.data,
     allEmployees,
     allVacancies,
   ]);
@@ -1559,11 +1161,11 @@ function PlantillaPageContent() {
     return storeCapacityRows.filter((st) => {
       if (search.trim()) {
         const q = search.toLowerCase().trim();
-        const name = st.storeBranch.toLowerCase();
+        const branch = st.storeBranch.toLowerCase();
         const code = (st.code || "").toLowerCase();
         const city = (st.city || "").toLowerCase();
-        const prov = (st.province || "").toLowerCase();
-        if (!name.includes(q) && !code.includes(q) && !city.includes(q) && !prov.includes(q)) {
+        const province = (st.province || "").toLowerCase();
+        if (!branch.includes(q) && !code.includes(q) && !city.includes(q) && !province.includes(q)) {
           return false;
         }
       }
@@ -1571,10 +1173,12 @@ function PlantillaPageContent() {
       if (areaCityFilter) {
         if (areaCityFilter.startsWith("area:")) {
           const area = areaCityFilter.replace("area:", "").toLowerCase().trim();
-          if ((st.province || "").toLowerCase().trim() !== area) return false;
+          const storeArea = (st.province || "").toLowerCase().trim();
+          if (storeArea !== area) return false;
         } else if (areaCityFilter.startsWith("city:")) {
           const city = areaCityFilter.replace("city:", "").toLowerCase().trim();
-          if ((st.city || "").toLowerCase().trim() !== city) return false;
+          const storeCity = (st.city || "").toLowerCase().trim();
+          if (storeCity !== city) return false;
         }
       }
 
@@ -1582,41 +1186,43 @@ function PlantillaPageContent() {
     });
   }, [storeCapacityRows, search, areaCityFilter]);
 
-  // Stores with open/available slots for AssignStoreModal (strictly hc_filled < hc_total).
-  // Fully occupied stores (1/1, 2/2) are filtered out and hidden to prevent over-allocation.
-  const storesWithAvailableSlots = useMemo(() => {
+  const storesWithAvailableSlots = useMemo<StoreWithAvailableSlots[]>(() => {
     const rawStores = storesUnderAccountQuery.data ?? [];
-    const capacityMap = new Map<string, (typeof storeCapacityRows)[0]>();
-    storeCapacityRows.forEach((row) => {
-      capacityMap.set(row.id, row);
-      capacityMap.set(row.storeBranch.toLowerCase().trim(), row);
+    const capacityMap = new Map<string, StoreCapacityRow>();
+    storeCapacityRows.forEach((sc) => {
+      capacityMap.set(sc.id, sc);
+      capacityMap.set(sc.storeBranch.toLowerCase().trim(), sc);
     });
 
-    const storeVacancyMap = new Map<string, { filled: number; total: number; remaining: number }>();
+    const vacancySlotMap = new Map<string, { remaining: number; total: number }>();
     allVacancies.forEach((v) => {
-      const keys = [v.storeId, v.storeName?.toLowerCase().trim()].filter(Boolean) as string[];
-      const total = v.hcTotal ?? v.headcount ?? 1;
-      const filled = v.hcFilled ?? 0;
       const remaining = getVacancyRemainingCapacity(v);
-      keys.forEach((k) => {
-        const prev = storeVacancyMap.get(k) ?? { filled: 0, total: 0, remaining: 0 };
-        storeVacancyMap.set(k, {
-          filled: prev.filled + filled,
-          total: prev.total + total,
-          remaining: prev.remaining + remaining,
+      const total = v.hcTotal ?? v.headcount ?? 1;
+      if (v.storeId) {
+        const curr = vacancySlotMap.get(v.storeId) ?? { remaining: 0, total: 0 };
+        vacancySlotMap.set(v.storeId, {
+          remaining: curr.remaining + remaining,
+          total: curr.total + total,
         });
-      });
+      }
+      if (v.storeName) {
+        const k = v.storeName.toLowerCase().trim();
+        const curr = vacancySlotMap.get(k) ?? { remaining: 0, total: 0 };
+        vacancySlotMap.set(k, {
+          remaining: curr.remaining + remaining,
+          total: curr.total + total,
+        });
+      }
     });
 
     return rawStores
       .map((st) => {
-        const key = st.name.toLowerCase().trim();
-        const cap = capacityMap.get(st.id) ?? capacityMap.get(key);
-        const vac = storeVacancyMap.get(st.id) ?? storeVacancyMap.get(key);
+        const cap = capacityMap.get(st.id) || capacityMap.get(st.name.toLowerCase().trim());
+        const vac = vacancySlotMap.get(st.id) || vacancySlotMap.get(st.name.toLowerCase().trim());
 
-        let hcFilled = cap?.activeDeployed ?? vac?.filled ?? 0;
-        let hcTotal = cap?.plantillaRequired ?? vac?.total ?? 1;
-        let openSlots = cap?.openVacancy ?? vac?.remaining ?? Math.max(0, hcTotal - hcFilled);
+        let openSlots = cap ? cap.openVacancy : 0;
+        let hcTotal = cap ? cap.plantillaRequired : 1;
+        let hcFilled = cap ? cap.activeDeployed : 0;
 
         if (vac && vac.remaining > 0) {
           openSlots = Math.max(openSlots, vac.remaining);
@@ -1635,10 +1241,7 @@ function PlantillaPageContent() {
           openSlots,
         };
       })
-      .filter((st) => {
-        // Strictly filter to stores that have open or available slots (hc_filled < hc_total or openSlots > 0)
-        return st.openSlots > 0 || st.hcFilled < st.hcTotal;
-      });
+      .filter((st) => st.openSlots > 0 || st.hcFilled < st.hcTotal);
   }, [storesUnderAccountQuery.data, storeCapacityRows, allVacancies]);
 
   // Derived counts for KPI cards and badges
@@ -1747,7 +1350,7 @@ function PlantillaPageContent() {
   }
 
   // -------------------------------------------------------------------------
-  // Render Selection Screen / Main Roster
+  // Workspace Guard & Module View Modes
   // -------------------------------------------------------------------------
 
   if (!currentUser) {
@@ -1761,367 +1364,6 @@ function PlantillaPageContent() {
       </div>
     );
   }
-
-  function renderAccountSelectionContent() {
-    if (allowedAccountsQuery.isLoading) {
-      return (
-        <DataState
-          kind="loading"
-          title="Loading Accounts"
-          description="Fetching your authorized accounts..."
-        />
-      );
-    }
-
-    if (allowedAccountsQuery.isError) {
-      return (
-        <DataState
-          kind="error"
-          title="Failed to Load Accounts"
-          description="An error occurred while fetching your authorized billing accounts."
-          onRetry={() => {
-            allowedAccountsQuery.refetch();
-            accountMetricsQuery.refetch();
-          }}
-        />
-      );
-    }
-
-    const accounts = allowedAccountsQuery.data ?? [];
-    if (accounts.length === 0) {
-      return (
-        <DataState
-          kind="access_denied"
-          title="No Authorized Accounts"
-          description="Your user profile does not have any active billing account scopes assigned. Access remains restricted."
-        />
-      );
-    }
-
-    const filteredAccounts = accounts.filter((a) => {
-      const matchesSearch = a.name.toLowerCase().includes(accountSearch.toLowerCase());
-      const matchesGroup = !effectiveSelectorGroupId || a.groupId === effectiveSelectorGroupId;
-      return matchesSearch && matchesGroup;
-    });
-
-    return (
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-full max-w-xs">
-            <input
-              type="text"
-              placeholder="Search accounts..."
-              value={accountSearch}
-              onChange={(e) => setAccountSearch(e.target.value)}
-              className="h-10 w-full rounded-lg border border-border-default bg-surface-base px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors"
-            />
-          </div>
-          {uniqueGroups.length > 0 && (
-            <select
-              value={effectiveSelectorGroupId}
-              onChange={(e) => setSelectorGroupId(e.target.value)}
-              className="h-10 rounded-lg border border-border-default bg-surface-base px-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors"
-              aria-label="Filter accounts by group"
-            >
-              <option value="">{hasAllScope ? "All Groups" : "All Assigned Groups"}</option>
-              {uniqueGroups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-          )}
-          {(accountSearch || effectiveSelectorGroupId) && (
-            <button
-              type="button"
-              onClick={() => {
-                setAccountSearch("");
-                setSelectorGroupId("");
-              }}
-              className="text-sm font-semibold text-brand-600 hover:text-brand-700 px-2 cursor-pointer"
-            >
-              Clear Filters
-            </button>
-          )}
-        </div>
-
-        {filteredAccounts.length === 0 ? (
-          <DataState
-            kind="empty"
-            title="No accounts match search"
-            description="Try searching with a different term."
-          />
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {(() => {
-              const sortedAccounts = filteredAccounts
-                .map((account) => {
-                  const summary = getAccountSummary(account.id);
-                  const actual = summary.actual;
-                  const vacant = summary.vacant;
-                  const hrProcess = summary.hrProcess;
-                  const leave = summary.leave;
-                  const required = summary.required;
-                  const fillRate = required > 0 ? (actual / required) * 100 : 0;
-
-                  return {
-                    ...account,
-                    actual,
-                    vacant,
-                    hrProcess,
-                    leave,
-                    required,
-                    fillRate,
-                  };
-                })
-                .sort((a, b) => {
-                  const aIsPool = !!a.isPoolAccount || a.name.trim().toLowerCase() === "moses hq";
-                  const bIsPool = !!b.isPoolAccount || b.name.trim().toLowerCase() === "moses hq";
-
-                  // 0. MOSES HQ / Pool Account is ALWAYS pinned to the very front (pinaka unahan)
-                  if (aIsPool && !bIsPool) return -1;
-                  if (!aIsPool && bIsPool) return 1;
-
-                  const aHasRequirements = a.required > 0;
-                  const bHasRequirements = b.required > 0;
-
-                  // 1. Accounts with active headcount requirements (MFR calculated)
-                  //    always precede accounts with blank MFR (required === 0)
-                  if (aHasRequirements && !bHasRequirements) return -1;
-                  if (!aHasRequirements && bHasRequirements) return 1;
-
-                  // 2. Both have active headcount requirements:
-                  //    Sort by most problematic (lowest fillRate first, e.g. Zebra 0% first)
-                  if (aHasRequirements && bHasRequirements) {
-                    if (a.fillRate !== b.fillRate) {
-                      return a.fillRate - b.fillRate;
-                    }
-                    // Tie-breaker: higher vacant slots first
-                    if (b.vacant !== a.vacant) {
-                      return b.vacant - a.vacant;
-                    }
-                  }
-
-                  // 3. Fallback / blank MFR tie-breaker: alphabetical by account name
-                  return a.name.localeCompare(b.name);
-                });
-
-              return sortedAccounts.map((account) => {
-                const getProgressColors = (rate: number) => {
-                  if (rate >= 100) {
-                    return {
-                      bar: "bg-pct-good-bar",
-                      text: "text-pct-good-text",
-                      track: "bg-surface-muted border border-border-subtle/50",
-                    };
-                  }
-                  if (rate >= 95) {
-                    return {
-                      bar: "bg-pct-warn-bar",
-                      text: "text-pct-warn-text",
-                      track: "bg-surface-muted border border-border-subtle/50",
-                    };
-                  }
-                  return {
-                    bar: "bg-pct-bad-bar",
-                    text: "text-pct-bad-text",
-                    track: "bg-surface-muted border border-border-subtle/50",
-                  };
-                };
-
-                const colors = getProgressColors(account.fillRate);
-
-                return (
-                  <div
-                    key={account.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleSelectAccount(account.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        handleSelectAccount(account.id);
-                      }
-                    }}
-                    className="group relative flex w-full items-start gap-4 rounded-xl border border-border-default bg-surface-base p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 cursor-pointer"
-                  >
-                    <div
-                      className={`shrink-0 rounded-lg p-2.5 ${
-                        account.isPoolAccount
-                          ? "bg-surface-muted text-brand-primary border border-border-default"
-                          : "bg-brand-50/60 text-brand-primary"
-                      }`}
-                    >
-                      {account.isPoolAccount ? (
-                        <Share2 className="h-5 w-5" />
-                      ) : (
-                        <Building className="h-5 w-5" />
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <h3 className="text-base font-bold text-text-primary truncate">
-                            {!account.isPoolAccount && account.groupName && (
-                              <span className="text-text-secondary font-normal text-sm mr-1">
-                                {account.groupName.trim().toLowerCase().startsWith("group")
-                                  ? formatDisplayText(account.groupName)
-                                  : `Group ${formatDisplayText(account.groupName)}`}{" "}
-                                •
-                              </span>
-                            )}
-                            {formatAccountName(account.name)}
-                          </h3>
-                          {account.isPoolAccount && (
-                            <p className="text-[10px] font-bold text-text-secondary tracking-wider mt-0.5">
-                              Workforce Pool Inside Plantilla
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="shrink-0 flex items-center gap-1.5">
-                          {account.isPoolAccount ? (
-                            <span className="inline-flex items-center rounded-full bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-primary">
-                              Pool
-                            </span>
-                          ) : (
-                            account.required > 0 && account.fillRate < 80 && (
-                              <span className="inline-flex items-center rounded-full bg-surface-muted border border-border-default px-2 py-0.5 text-xs font-semibold text-text-secondary">
-                                Warning
-                              </span>
-                            )
-                          )}
-
-                          {/* Three-dot context menu */}
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveMenuAccountId((prev) =>
-                                  prev === account.id ? null : account.id,
-                                );
-                              }}
-                              className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-hover transition cursor-pointer"
-                              title="Account Actions"
-                              aria-label="Account actions menu"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </button>
-
-                            {activeMenuAccountId === account.id && (
-                              <div
-                                onClick={(e) => e.stopPropagation()}
-                                className="absolute right-0 top-full mt-1 w-44 rounded-xl border border-border-default bg-surface-base p-1.5 shadow-lg z-30 animate-fade-in"
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveMenuAccountId(null);
-                                    setAbsorbModalAccount({ id: account.id, name: account.name });
-                                  }}
-                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-hover transition cursor-pointer"
-                                >
-                                  <ArrowRightLeft className="h-3.5 w-3.5 text-brand-600 shrink-0" />
-                                  <span>Absorb Employees</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveMenuAccountId(null);
-                                    setArchiveModalAccount({
-                                      id: account.id,
-                                      name: account.name,
-                                      actual: account.actual,
-                                      vacant: account.vacant,
-                                      required: account.required,
-                                      groupName: account.groupName,
-                                    });
-                                  }}
-                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-danger-text hover:bg-danger-bg/40 transition cursor-pointer"
-                                >
-                                  <Archive className="h-3.5 w-3.5 text-danger-text shrink-0" />
-                                  <span>Archive Account</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-2.5 text-xs text-text-secondary flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span>
-                          HC <strong className="text-text-primary font-bold">{account.actual}</strong>/
-                          <strong className="text-text-primary font-bold">{account.required}</strong>
-                        </span>
-                        <span className="text-text-secondary/40">•</span>
-                        <span>
-                          Vacant <strong className="text-text-primary font-bold">{account.vacant}</strong>
-                        </span>
-                        {!account.isPoolAccount && (
-                          <>
-                            <span className="text-text-secondary/40">•</span>
-                            <span>
-                              Pipeline <strong className="text-text-primary font-bold">{account.hrProcess}</strong>
-                            </span>
-                          </>
-                        )}
-                        {account.leave > 0 && (
-                          <>
-                            <span className="text-text-secondary/40">•</span>
-                            <span>
-                              Leave <strong className="text-text-primary font-bold">{account.leave}</strong>
-                            </span>
-                          </>
-                        )}
-                      </div>
-
-                      {!account.isPoolAccount && (
-                        <div className="mt-3.5 flex items-center gap-3">
-                          <span className="text-[10px] font-bold text-text-secondary shrink-0 w-8">
-                            MFR
-                          </span>
-                          <div
-                            className={`relative flex-1 h-2 rounded-full overflow-hidden ${
-                              account.required > 0 ? colors.track : "bg-surface-muted border border-border-subtle/50"
-                            }`}
-                          >
-                            {account.required > 0 && (
-                              <div
-                                className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${colors.bar}`}
-                                style={{ width: `${Math.min(100, account.fillRate)}%` }}
-                              />
-                            )}
-                          </div>
-                          <span
-                            className={`text-xs font-semibold shrink-0 text-right font-mono ${
-                              account.required > 0 ? colors.text : "text-text-muted"
-                            }`}
-                          >
-                            {account.required > 0
-                              ? account.fillRate >= 100
-                                ? "100%"
-                                : account.actual < account.required && account.fillRate >= 99.95
-                                ? "99.9%"
-                                : `${(account.fillRate % 1 === 0 ? account.fillRate : account.fillRate.toFixed(2))}%`
-                              : "—"}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              });
-            })()}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  const selectedAccountName = allowedAccountsQuery.data?.find((a) => a.id === accountId)?.name ?? "Account";
-  const showBackToSelection =
-    hasAllScope || (allowedAccountsQuery.data && allowedAccountsQuery.data.length > 1);
 
   if (viewMode === "moses_pool") {
     return (
@@ -2183,6 +1425,10 @@ function PlantillaPageContent() {
     );
   }
 
+  const selectedAccountName = allowedAccountsQuery.data?.find((a) => a.id === accountId)?.name ?? "Account";
+  const showBackToSelection =
+    hasAllScope || (allowedAccountsQuery.data && allowedAccountsQuery.data.length > 1);
+
   return (
     <div className="flex min-h-0 flex-col gap-2 text-text-primary lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden">
       {!accountId ? (
@@ -2218,7 +1464,27 @@ function PlantillaPageContent() {
               ) : undefined
             }
           />
-          {renderAccountSelectionContent()}
+          <PlantillaAccountSelection
+            allowedAccounts={allowedAccountsQuery.data ?? []}
+            isLoading={allowedAccountsQuery.isLoading}
+            isError={allowedAccountsQuery.isError}
+            onRetry={() => {
+              allowedAccountsQuery.refetch();
+              accountMetricsQuery.refetch();
+            }}
+            accountSearch={accountSearch}
+            onAccountSearchChange={setAccountSearch}
+            uniqueGroups={uniqueGroups}
+            effectiveSelectorGroupId={effectiveSelectorGroupId}
+            onSelectorGroupIdChange={setSelectorGroupId}
+            hasAllScope={hasAllScope}
+            getAccountSummary={getAccountSummary}
+            onSelectAccount={handleSelectAccount}
+            activeMenuAccountId={activeMenuAccountId}
+            setActiveMenuAccountId={setActiveMenuAccountId}
+            onAbsorbClick={(acc) => setAbsorbModalAccount(acc)}
+            onArchiveClick={(acc) => setArchiveModalAccount(acc)}
+          />
         </div>
       ) : !isAccountAuthorized ? (
         <div className="flex flex-col items-center justify-center gap-4 p-8">
@@ -2347,518 +1613,200 @@ function PlantillaPageContent() {
             />
           </div>
 
-
-          {/* 2. Search & Hierarchical Area -> City Filter Bar */}
-
+          {/* 2. Filter Bar & Data Views Container */}
           <div className="flex flex-1 min-h-0 flex-col gap-2">
-            {/* Employee View Sub-Tabs (Hidden when mainView === "store") */}
-            {mainView === "employee" && (
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2 shrink-0">
-                <div
-                  role="tablist"
-                  aria-label="Plantilla Directory Tabs"
-                  className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none"
-                >
-                  {/* Tab 1: Active */}
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={statusTab === "active"}
-                    onClick={() => handleSelectStatusTab("active")}
-                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                      statusTab === "active"
-                        ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
-                        : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
-                    }`}
-                  >
-                    <Users className="w-3.5 h-3.5 shrink-0" />
-                    <span>Active</span>
-                    <span
-                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
-                        statusTab === "active"
-                          ? "bg-brand-button text-white"
-                          : "bg-surface-muted text-text-secondary border border-border-default"
-                      }`}
-                    >
-                      {activeCount}
-                    </span>
-                  </button>
+            <PlantillaFilterToolbar
+              mainView={mainView}
+              statusTab={statusTab}
+              onSelectStatusTab={handleSelectStatusTab}
+              activeCount={activeCount}
+              onLeaveCount={onLeaveCount}
+              vacancyCount={vacancyCount}
+              totalVacanciesSlots={totalVacanciesSlots}
+              floatingCount={floatingCount}
+              deactivationCount={deactivationCount}
+              inactiveCount={inactiveCount}
+              displayView={displayView}
+              onSetDisplayView={handleSetDisplayView}
+              search={search}
+              onSearchChange={(val) => {
+                setSearch(val);
+                setPage(1);
+              }}
+              areaCityFilter={areaCityFilter}
+              onAreaCityFilterChange={(val) => {
+                setAreaCityFilter(val);
+                setPage(1);
+              }}
+              hierarchicalAreaOptions={hierarchicalAreaOptions}
+              assignmentType={assignmentType}
+              onAssignmentTypeChange={(val) => {
+                setAssignmentType(val);
+                setPage(1);
+              }}
+              hasActiveFilters={hasActiveFilters}
+              onResetFilters={handleResetFilters}
+            />
 
-                  {/* Tab 2: On-Leave */}
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={statusTab === "on_leave"}
-                    onClick={() => handleSelectStatusTab("on_leave")}
-                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                      statusTab === "on_leave"
-                        ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
-                        : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
-                    }`}
-                  >
-                    <UserMinus className="w-3.5 h-3.5 shrink-0" />
-                    <span>On-Leave</span>
-                    <span
-                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
-                        statusTab === "on_leave"
-                          ? "bg-brand-button text-white"
-                          : "bg-surface-muted text-text-secondary border border-border-default"
-                      }`}
-                    >
-                      {onLeaveCount}
-                    </span>
-                  </button>
-
-                  {/* Tab 3: Vacancy */}
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={statusTab === "vacancy"}
-                    onClick={() => handleSelectStatusTab("vacancy")}
-                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                      statusTab === "vacancy"
-                        ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
-                        : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
-                    }`}
-                  >
-                    <Briefcase className="w-3.5 h-3.5 shrink-0" />
-                    <span>Vacancy</span>
-                    <span
-                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
-                        statusTab === "vacancy"
-                          ? "bg-brand-button text-white"
-                          : "bg-surface-muted text-text-secondary border border-border-default"
-                      }`}
-                      title={
-                        totalVacanciesSlots > 0 && totalVacanciesSlots !== vacancyCount
-                          ? `${totalVacanciesSlots} slots across ${vacancyCount} requisitions`
-                          : undefined
-                      }
-                    >
-                      {totalVacanciesSlots > 0 && totalVacanciesSlots !== vacancyCount
-                        ? `${vacancyCount} (${totalVacanciesSlots} slots)`
-                        : vacancyCount}
-                    </span>
-                  </button>
-
-                  {/* Tab 4: Floating */}
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={statusTab === "floating"}
-                    onClick={() => handleSelectStatusTab("floating")}
-                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                      statusTab === "floating"
-                        ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
-                        : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
-                    }`}
-                  >
-                    <Share2 className="w-3.5 h-3.5 shrink-0" />
-                    <span>Floating</span>
-                    <span
-                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
-                        statusTab === "floating"
-                          ? "bg-brand-button text-white"
-                          : "bg-surface-muted text-text-secondary border border-border-default"
-                      }`}
-                    >
-                      {floatingCount}
-                    </span>
-                  </button>
-
-                  {/* Tab 5: Deactivation */}
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={statusTab === "deactivation"}
-                    onClick={() => handleSelectStatusTab("deactivation")}
-                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                      statusTab === "deactivation"
-                        ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
-                        : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
-                    }`}
-                  >
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>Deactivation</span>
-                    <span
-                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
-                        statusTab === "deactivation"
-                          ? "bg-brand-button text-white"
-                          : "bg-surface-muted text-text-secondary border border-border-default"
-                      }`}
-                    >
-                      {deactivationCount}
-                    </span>
-                  </button>
-
-                  {/* Tab 6: Inactive */}
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={statusTab === "inactive"}
-                    onClick={() => handleSelectStatusTab("inactive")}
-                    className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                      statusTab === "inactive"
-                        ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
-                        : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
-                    }`}
-                  >
-                    <UserX className="w-3.5 h-3.5 shrink-0" />
-                    <span>Inactive</span>
-                    <span
-                      className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
-                        statusTab === "inactive"
-                          ? "bg-brand-button text-white"
-                          : "bg-surface-muted text-text-secondary border border-border-default"
-                      }`}
-                    >
-                      {inactiveCount}
-                    </span>
-                  </button>
-                </div>
-
-                {/* View switch: Table vs Cards (Employee view) */}
-                <div className="flex h-8 items-center rounded-lg border border-border-default bg-surface-muted p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => handleSetDisplayView("table")}
-                    aria-label="Table View"
-                    title="Table View"
-                    className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
-                      displayView === "table"
-                        ? "bg-surface-base text-text-primary shadow-xs"
-                        : "text-text-muted hover:text-text-primary"
-                    }`}
-                  >
-                    <List className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Table</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSetDisplayView("cards")}
-                    aria-label="Cards View"
-                    title="Cards View"
-                    className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
-                      displayView === "cards"
-                        ? "bg-surface-base text-text-primary shadow-xs"
-                        : "text-text-muted hover:text-text-primary"
-                    }`}
-                  >
-                    <LayoutGrid className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Cards</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Unified Web Search & Filter Toolbar */}
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 rounded-xl border border-border-default bg-surface-base px-3 py-2 shadow-xs shrink-0">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
-                <input
-                  type="text"
-                  placeholder="Search employee, emploc no, name, store..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  className="h-8.5 w-full rounded-lg border border-border-default bg-surface-muted pl-8 pr-8 text-xs text-text-primary outline-none transition-colors focus:border-brand-500 focus:bg-surface-base"
-                  aria-label="Search plantilla roster"
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearch("");
-                      setPage(1);
-                    }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-
-              {/* Hierarchical Area -> City Dropdown */}
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="min-w-[190px] flex-1 sm:flex-initial">
-                  <select
-                    value={areaCityFilter}
-                    onChange={(e) => {
-                      setAreaCityFilter(e.target.value);
-                      setPage(1);
-                    }}
-                    className="h-8.5 w-full rounded-lg border border-border-default bg-surface-base px-2.5 text-xs text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
-                    aria-label="Filter by store area or city"
-                  >
-                    <option value="">All Stores (All Areas & Cities)</option>
-                    {hierarchicalAreaOptions.map(({ area, cities }) => (
-                      <optgroup key={area} label={area}>
-                        <option value={`area:${area}`}>All {area} Stores</option>
-                        {cities.map((city) => (
-                          <option key={`${area}:${city}`} value={`city:${city}`}>
-                            {city}, {area}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Assignment Type Dropdown (Stationary / Roving) */}
-                <div className="min-w-[115px] flex-1 sm:flex-initial">
-                  <select
-                    value={assignmentType}
-                    onChange={(e) => {
-                      setAssignmentType(e.target.value);
-                      setPage(1);
-                    }}
-                    className="h-8.5 w-full rounded-lg border border-border-default bg-surface-base px-2.5 text-xs text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
-                    aria-label="Filter by assignment type"
-                  >
-                    <option value="">All Types</option>
-                    <option value="stationary">Stationary</option>
-                    <option value="roving">Roving</option>
-                  </select>
-                </div>
-
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={handleResetFilters}
-                    className="inline-flex h-8.5 items-center gap-1 rounded-lg border border-border-default bg-surface-muted px-2.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                    <span>Reset</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* 4. Main Data Area: Employee 5 Tabs View OR Store Capacity Table */}
+            {/* 3. Main Data Area: Employee 5 Tabs View OR Store Capacity Table */}
             <div className="flex-1 min-h-0 flex flex-col">
-            {employeeQuery.isLoading ? (
-              <div className="rounded-xl border border-border-default bg-surface-base p-8">
-                <DataState
-                  kind="loading"
-                  title="Loading plantilla records"
-                  description="Fetching roster personnel through Supabase RPCs..."
-                />
-              </div>
-            ) : employeeQuery.isError ? (
-              <div className="rounded-xl border border-border-default bg-surface-base p-8">
-                <DataState
-                  kind="error"
-                  title="Fetch Failed"
-                  description={employeeQuery.error instanceof Error ? employeeQuery.error.message : "The plantilla query failed."}
-                  onRetry={() => employeeQuery.refetch()}
-                />
-              </div>
-            ) : mainView === "store" ? (
-              /* Store View: Store Capacity Table */
-              filteredStoreCapacityRows.length === 0 ? (
-                <EmptyTabState
-                  hasActiveFilters={hasActiveFilters}
-                  onResetFilters={handleResetFilters}
-                  tabLabel="stores"
-                />
-              ) : (
-                <StoreCapacityTable
-                  rows={paginatedStoreRows}
-                />
-              )
-            ) : statusTab === "active" ? (
-              /* Tab 1: Active */
-              filteredActiveEmployees.length === 0 ? (
-                <EmptyTabState
-                  hasActiveFilters={hasActiveFilters}
-                  onResetFilters={handleResetFilters}
-                  tabLabel="active employees"
-                />
-              ) : displayView === "table" ? (
-                <EmployeeActiveTable
-                  rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={handleNavigateToEmployee}
-                  storeLookupMap={storeLookupMap}
-                  onUpdateStatus={(emp) => {
-                    setUpdateStatusTargetEmployee({
-                      id: emp.id,
-                      displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
-                      employeeNo: emp.employeeNo,
-                      currentStatus: emp.plantillaStatus || "Active",
-                    });
-                  }}
-                />
-              ) : (
-                <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
-                      <EmployeeCard
-                        key={row.id}
-                        row={row}
-                        onSelect={() => handleNavigateToEmployee(row.id)}
-                        storeLookupMap={storeLookupMap}
-                      />
-                    ))}
-                  </div>
+              {employeeQuery.isLoading ? (
+                <div className="rounded-xl border border-border-default bg-surface-base p-8">
+                  <DataState
+                    kind="loading"
+                    title="Loading plantilla records"
+                    description="Fetching roster personnel through Supabase RPCs..."
+                  />
                 </div>
-              )
-            ) : statusTab === "on_leave" ? (
-              /* Tab 2: On-Leave */
-              filteredOnLeaveEmployees.length === 0 ? (
-                <EmptyTabState
-                  hasActiveFilters={hasActiveFilters}
-                  onResetFilters={handleResetFilters}
-                  tabLabel="on-leave employees"
-                />
-              ) : displayView === "table" ? (
-                <EmployeeOnLeaveTable
-                  rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  activeCoverageMap={activeCoverageMap}
-                  onRowClick={handleNavigateToEmployee}
-                  storeLookupMap={storeLookupMap}
-                  onAssignReliever={(emp) => {
-                    const storeInfo = emp.primaryStoreName ? storeLookupMap.get(emp.primaryStoreName.toLowerCase().trim()) : null;
-                    setRelieverTargetEmployee({
-                      id: emp.id,
-                      displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
-                      employeeNo: emp.employeeNo,
-                      storeId: storeInfo?.id ?? null,
-                      storeName: emp.primaryStoreName,
-                    });
-                  }}
-                  onReturnToActive={(emp, reliever) => {
-                    setReturnToActiveTarget({
-                      employee: {
+              ) : employeeQuery.isError ? (
+                <div className="rounded-xl border border-border-default bg-surface-base p-8">
+                  <DataState
+                    kind="error"
+                    title="Fetch Failed"
+                    description={employeeQuery.error instanceof Error ? employeeQuery.error.message : "The plantilla query failed."}
+                    onRetry={() => employeeQuery.refetch()}
+                  />
+                </div>
+              ) : mainView === "store" ? (
+                /* Store View: Store Capacity Table */
+                filteredStoreCapacityRows.length === 0 ? (
+                  <EmptyTabState
+                    hasActiveFilters={hasActiveFilters}
+                    onResetFilters={handleResetFilters}
+                    tabLabel="stores"
+                  />
+                ) : (
+                  <StoreCapacityTable
+                    rows={paginatedStoreRows}
+                  />
+                )
+              ) : statusTab === "active" ? (
+                /* Tab 1: Active */
+                filteredActiveEmployees.length === 0 ? (
+                  <EmptyTabState
+                    hasActiveFilters={hasActiveFilters}
+                    onResetFilters={handleResetFilters}
+                    tabLabel="active employees"
+                  />
+                ) : displayView === "table" ? (
+                  <EmployeeActiveTable
+                    rows={paginatedRows as PlantillaEmployeeListItem[]}
+                    onRowClick={handleNavigateToEmployee}
+                    storeLookupMap={storeLookupMap}
+                    onUpdateStatus={(emp) => {
+                      setUpdateStatusTargetEmployee({
                         id: emp.id,
                         displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
                         employeeNo: emp.employeeNo,
+                        currentStatus: emp.plantillaStatus || "Active",
+                      });
+                    }}
+                  />
+                ) : (
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
+                        <EmployeeCard
+                          key={row.id}
+                          row={row}
+                          onSelect={() => handleNavigateToEmployee(row.id)}
+                          storeLookupMap={storeLookupMap}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              ) : statusTab === "on_leave" ? (
+                /* Tab 2: On-Leave */
+                filteredOnLeaveEmployees.length === 0 ? (
+                  <EmptyTabState
+                    hasActiveFilters={hasActiveFilters}
+                    onResetFilters={handleResetFilters}
+                    tabLabel="on-leave employees"
+                  />
+                ) : displayView === "table" ? (
+                  <EmployeeOnLeaveTable
+                    rows={paginatedRows as PlantillaEmployeeListItem[]}
+                    activeCoverageMap={activeCoverageMap}
+                    onRowClick={handleNavigateToEmployee}
+                    storeLookupMap={storeLookupMap}
+                    onAssignReliever={(emp) => {
+                      const storeInfo = emp.primaryStoreName ? storeLookupMap.get(emp.primaryStoreName.toLowerCase().trim()) : null;
+                      setRelieverTargetEmployee({
+                        id: emp.id,
+                        displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                        employeeNo: emp.employeeNo,
+                        storeId: storeInfo?.id ?? null,
                         storeName: emp.primaryStoreName,
-                      },
-                      reliever: reliever
-                        ? {
-                            id: reliever.employeeId,
-                            name: reliever.employeeName,
-                            employeeNumber: reliever.employeeNumber,
-                          }
-                        : null,
-                    });
-                  }}
-                />
-              ) : (
-                <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
-                      <EmployeeOnLeaveCard
-                        key={row.id}
-                        row={row}
-                        coverageItem={activeCoverageMap.get(row.id)}
-                        onSelect={() => handleNavigateToEmployee(row.id)}
-                        storeLookupMap={storeLookupMap}
-                        onAssignReliever={(emp) => {
-                          const storeInfo = emp.primaryStoreName ? storeLookupMap.get(emp.primaryStoreName.toLowerCase().trim()) : null;
-                          setRelieverTargetEmployee({
-                            id: emp.id,
-                            displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
-                            employeeNo: emp.employeeNo,
-                            storeId: storeInfo?.id ?? null,
-                            storeName: emp.primaryStoreName,
-                          });
-                        }}
-                        onReturnToActive={(emp, reliever) => {
-                          setReturnToActiveTarget({
-                            employee: {
+                      });
+                    }}
+                    onReturnToActive={(emp, reliever) => {
+                      setReturnToActiveTarget({
+                        employee: {
+                          id: emp.id,
+                          displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                          employeeNo: emp.employeeNo,
+                          storeName: emp.primaryStoreName,
+                        },
+                        reliever: reliever
+                          ? {
+                              id: reliever.employeeId,
+                              name: reliever.employeeName,
+                              employeeNumber: reliever.employeeNumber,
+                            }
+                          : null,
+                      });
+                    }}
+                  />
+                ) : (
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
+                        <EmployeeOnLeaveCard
+                          key={row.id}
+                          row={row}
+                          coverageItem={activeCoverageMap.get(row.id)}
+                          onSelect={() => handleNavigateToEmployee(row.id)}
+                          storeLookupMap={storeLookupMap}
+                          onAssignReliever={(emp) => {
+                            const storeInfo = emp.primaryStoreName ? storeLookupMap.get(emp.primaryStoreName.toLowerCase().trim()) : null;
+                            setRelieverTargetEmployee({
                               id: emp.id,
                               displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
                               employeeNo: emp.employeeNo,
+                              storeId: storeInfo?.id ?? null,
                               storeName: emp.primaryStoreName,
-                            },
-                            reliever: reliever
-                              ? {
-                                  id: reliever.employeeId,
-                                  name: reliever.employeeName,
-                                  employeeNumber: reliever.employeeNumber,
-                                }
-                              : null,
-                          });
-                        }}
-                      />
-                    ))}
+                            });
+                          }}
+                          onReturnToActive={(emp, reliever) => {
+                            setReturnToActiveTarget({
+                              employee: {
+                                id: emp.id,
+                                displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                                employeeNo: emp.employeeNo,
+                                storeName: emp.primaryStoreName,
+                              },
+                              reliever: reliever
+                                ? {
+                                    id: reliever.employeeId,
+                                    name: reliever.employeeName,
+                                    employeeNumber: reliever.employeeNumber,
+                                  }
+                                : null,
+                            });
+                          }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )
-            ) : statusTab === "vacancy" ? (
-              /* Tab 3: Vacancy */
-              <div className="flex flex-col flex-1 min-h-0">
-                {/* Vacancy Sub-Filters */}
-                <div className="flex items-center gap-1.5 pb-2 shrink-0">
-                  <span className="text-xs font-semibold text-text-secondary mr-1">Vacancy Status:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVacancySubFilter("all");
-                      setPage(1);
-                    }}
-                    className={`h-7 px-2.5 rounded-lg text-xs font-medium transition cursor-pointer border ${
-                      vacancySubFilter === "all"
-                        ? "border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:border-brand-700 dark:text-brand-300 font-semibold shadow-2xs"
-                        : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
-                    }`}
-                  >
-                    All Vacancies ({allVacancies.length}
-                    {totalVacanciesSlots > 0 && totalVacanciesSlots !== allVacancies.length
-                      ? ` · ${totalVacanciesSlots} slots`
-                      : ""}
-                    )
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVacancySubFilter("open");
-                      setPage(1);
-                    }}
-                    className={`h-7 px-2.5 rounded-lg text-xs font-medium transition cursor-pointer border ${
-                      vacancySubFilter === "open"
-                        ? "border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:border-brand-700 dark:text-brand-300 font-semibold shadow-2xs"
-                        : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
-                    }`}
-                  >
-                    Open / Unassigned ({openVacanciesCount}
-                    {openVacanciesSlots > 0 && openVacanciesSlots !== openVacanciesCount
-                      ? ` · ${openVacanciesSlots} slots`
-                      : ""}
-                    )
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVacancySubFilter("pipeline");
-                      setPage(1);
-                    }}
-                    className={`h-7 px-2.5 rounded-lg text-xs font-medium transition cursor-pointer border ${
-                      vacancySubFilter === "pipeline"
-                        ? "border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:border-brand-700 dark:text-brand-300 font-semibold shadow-2xs"
-                        : "border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary"
-                    }`}
-                  >
-                    HR Pipeline (For Emploc) ({pipelineVacanciesCount}
-                    {pipelineVacanciesSlots > 0 && pipelineVacanciesSlots !== pipelineVacanciesCount
-                      ? ` · ${pipelineVacanciesSlots} slots`
-                      : ""}
-                    )
-                  </button>
-                </div>
-
-                {filteredVacancies.length === 0 ? (
+                )
+              ) : statusTab === "vacancy" ? (
+                /* Tab 3: Vacancy */
+                filteredVacancies.length === 0 ? (
                   <EmptyTabState
-                    hasActiveFilters={hasActiveFilters || vacancySubFilter !== "all"}
-                    onResetFilters={() => {
-                      handleResetFilters();
-                      setVacancySubFilter("all");
-                    }}
-                    tabLabel="vacant slots"
+                    hasActiveFilters={hasActiveFilters}
+                    onResetFilters={handleResetFilters}
+                    tabLabel="vacancies"
                   />
                 ) : displayView === "table" ? (
                   <StoreVacancyTable
@@ -2878,127 +1826,122 @@ function PlantillaPageContent() {
                       ))}
                     </div>
                   </div>
-                )}
-              </div>
-            ) : statusTab === "floating" ? (
-              /* Tab 4: Floating */
-              filteredFloatingEmployees.length === 0 ? (
-                <EmptyTabState
-                  hasActiveFilters={hasActiveFilters}
-                  onResetFilters={handleResetFilters}
-                  tabLabel="floating employees"
-                />
-              ) : displayView === "table" ? (
-                <EmployeeFloatingTable
-                  rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={handleNavigateToEmployee}
-                  storeLookupMap={storeLookupMap}
-                  onAssignStore={(emp) => {
-                    setAssignStoreTargetEmployee({
-                      id: emp.id,
-                      displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
-                      employeeNo: emp.employeeNo,
-                      positionTitle: emp.positionTitle,
-                      floatingDays: getFloatingDurationDays(emp),
-                    });
-                  }}
-                />
-              ) : (
-                <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
-                      <EmployeeFloatingCard
-                        key={row.id}
-                        row={row}
-                        onSelect={() => handleNavigateToEmployee(row.id)}
-                        storeLookupMap={storeLookupMap}
-                        onAssignStore={(emp) => {
-                          setAssignStoreTargetEmployee({
-                            id: emp.id,
-                            displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
-                            employeeNo: emp.employeeNo,
-                            positionTitle: emp.positionTitle,
-                            floatingDays: getFloatingDurationDays(emp),
-                          });
-                        }}
-                      />
-                    ))}
+                )
+              ) : statusTab === "floating" ? (
+                /* Tab 4: Floating */
+                filteredFloatingEmployees.length === 0 ? (
+                  <EmptyTabState
+                    hasActiveFilters={hasActiveFilters}
+                    onResetFilters={handleResetFilters}
+                    tabLabel="floating personnel"
+                  />
+                ) : displayView === "table" ? (
+                  <EmployeeFloatingTable
+                    rows={paginatedRows as PlantillaEmployeeListItem[]}
+                    onRowClick={handleNavigateToEmployee}
+                    storeLookupMap={storeLookupMap}
+                    onAssignStore={(emp) => {
+                      setAssignStoreTargetEmployee({
+                        id: emp.id,
+                        displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                        employeeNo: emp.employeeNo,
+                      });
+                    }}
+                  />
+                ) : (
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
+                        <EmployeeFloatingCard
+                          key={row.id}
+                          row={row}
+                          onSelect={() => handleNavigateToEmployee(row.id)}
+                          storeLookupMap={storeLookupMap}
+                          onAssignStore={(emp) => {
+                            setAssignStoreTargetEmployee({
+                              id: emp.id,
+                              displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                              employeeNo: emp.employeeNo,
+                            });
+                          }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )
-            ) : statusTab === "deactivation" ? (
-              /* Tab 5: Deactivation */
-              filteredDeactivationEmployees.length === 0 ? (
-                <EmptyTabState
-                  hasActiveFilters={hasActiveFilters}
-                  onResetFilters={handleResetFilters}
-                  tabLabel="pending deactivation personnel"
-                />
-              ) : displayView === "table" ? (
-                <EmployeeDeactivationTable
-                  rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={handleNavigateToEmployee}
-                  storeLookupMap={storeLookupMap}
-                />
-              ) : (
-                <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
-                      <EmployeeDeactivationCard
-                        key={row.id}
-                        row={row}
-                        onSelect={() => handleNavigateToEmployee(row.id)}
-                        storeLookupMap={storeLookupMap}
-                      />
-                    ))}
+                )
+              ) : statusTab === "deactivation" ? (
+                /* Tab 5: Deactivation */
+                filteredDeactivationEmployees.length === 0 ? (
+                  <EmptyTabState
+                    hasActiveFilters={hasActiveFilters}
+                    onResetFilters={handleResetFilters}
+                    tabLabel="deactivation records"
+                  />
+                ) : displayView === "table" ? (
+                  <EmployeeDeactivationTable
+                    rows={paginatedRows as PlantillaEmployeeListItem[]}
+                    onRowClick={handleNavigateToEmployee}
+                    storeLookupMap={storeLookupMap}
+                  />
+                ) : (
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
+                        <EmployeeDeactivationCard
+                          key={row.id}
+                          row={row}
+                          onSelect={() => handleNavigateToEmployee(row.id)}
+                          storeLookupMap={storeLookupMap}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )
-            ) : (
-              /* Tab 6: Inactive (Resigned / AWOL / Terminated) */
-              filteredInactiveEmployees.length === 0 ? (
-                <EmptyTabState
-                  hasActiveFilters={hasActiveFilters}
-                  onResetFilters={handleResetFilters}
-                  tabLabel="inactive or separated personnel"
-                />
-              ) : displayView === "table" ? (
-                <EmployeeInactiveTable
-                  rows={paginatedRows as PlantillaEmployeeListItem[]}
-                  onRowClick={handleNavigateToEmployee}
-                  storeLookupMap={storeLookupMap}
-                  onRequestDeactivation={(emp) => {
-                    setDeactivationTargetEmployee({
-                      id: emp.id,
-                      displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
-                      employeeNo: emp.employeeNo,
-                      currentStatus: emp.plantillaStatus || emp.separationType || "Inactive",
-                    });
-                  }}
-                />
+                )
               ) : (
-                <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
-                      <EmployeeInactiveCard
-                        key={row.id}
-                        row={row}
-                        onSelect={() => handleNavigateToEmployee(row.id)}
-                        storeLookupMap={storeLookupMap}
-                        onRequestDeactivation={(emp) => {
-                          setDeactivationTargetEmployee({
-                            id: emp.id,
-                            displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
-                            employeeNo: emp.employeeNo,
-                            currentStatus: emp.plantillaStatus || emp.separationType || "Inactive",
-                          });
-                        }}
-                      />
-                    ))}
+                /* Tab 6: Inactive (Resigned / AWOL / Terminated) */
+                filteredInactiveEmployees.length === 0 ? (
+                  <EmptyTabState
+                    hasActiveFilters={hasActiveFilters}
+                    onResetFilters={handleResetFilters}
+                    tabLabel="inactive or separated personnel"
+                  />
+                ) : displayView === "table" ? (
+                  <EmployeeInactiveTable
+                    rows={paginatedRows as PlantillaEmployeeListItem[]}
+                    onRowClick={handleNavigateToEmployee}
+                    storeLookupMap={storeLookupMap}
+                    onRequestDeactivation={(emp) => {
+                      setDeactivationTargetEmployee({
+                        id: emp.id,
+                        displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                        employeeNo: emp.employeeNo,
+                        currentStatus: emp.plantillaStatus || emp.separationType || "Inactive",
+                      });
+                    }}
+                  />
+                ) : (
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {(paginatedRows as PlantillaEmployeeListItem[]).map((row) => (
+                        <EmployeeInactiveCard
+                          key={row.id}
+                          row={row}
+                          onSelect={() => handleNavigateToEmployee(row.id)}
+                          storeLookupMap={storeLookupMap}
+                          onRequestDeactivation={(emp) => {
+                            setDeactivationTargetEmployee({
+                              id: emp.id,
+                              displayName: formatPersonName(emp.firstName, emp.lastName, null, emp.fullName) || emp.employeeNo,
+                              employeeNo: emp.employeeNo,
+                              currentStatus: emp.plantillaStatus || emp.separationType || "Inactive",
+                            });
+                          }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )
-            )}
+                )
+              )}
             </div>
 
             {/* Pagination Controls */}
@@ -3030,2198 +1973,108 @@ function PlantillaPageContent() {
             )}
           </div>
 
-          {/* Drawers & Modals */}
-          <VacancyDetailDrawer
-            vacancyId={selectedVacancyId}
-            onClose={() => {
+          {/* Drawers & Modals Hub */}
+          <PlantillaModalsHub
+            selectedVacancyId={selectedVacancyId}
+            onCloseVacancyDrawer={() => {
               setSelectedVacancyId(null);
               vacancyListQuery.refetch();
               summaryQuery.refetch();
             }}
-          />
-
-          {isRequestHeadcountOpen && (
-            <RequestHeadcountModal
-              isOpen={isRequestHeadcountOpen}
-              onClose={() => setIsRequestHeadcountOpen(false)}
-              accountId={accountId}
-              accountName={selectedAccountName}
-              onSuccess={() => {
-                employeeQuery.refetch();
-                summaryQuery.refetch();
-                vacancyListQuery.refetch();
-              }}
-            />
-          )}
-
-          {/* Assign Reliever Modal (from On-Leave Tab) */}
-          {relieverTargetEmployee && (
-            <AssignRelieverModal
-              isOpen={Boolean(relieverTargetEmployee)}
-              onClose={() => setRelieverTargetEmployee(null)}
-              employee={relieverTargetEmployee}
-              accountId={accountId}
-              onSuccess={() => {
-                employeeQuery.refetch();
-                coverageQuery.refetch();
-                summaryQuery.refetch();
-              }}
-            />
-          )}
-
-          {/* Return to Active Modal (from On-Leave Tab) */}
-          {returnToActiveTarget && (
-            <ReturnToActiveModal
-              isOpen={Boolean(returnToActiveTarget)}
-              onClose={() => setReturnToActiveTarget(null)}
-              employee={returnToActiveTarget.employee}
-              assignedReliever={returnToActiveTarget.reliever}
-              onSuccess={() => {
-                employeeQuery.refetch();
-                coverageQuery.refetch();
-                summaryQuery.refetch();
-              }}
-            />
-          )}
-
-          {/* Assign Store Modal (from Floating Tab) */}
-          {assignStoreTargetEmployee && (
-            <AssignStoreModal
-              isOpen={Boolean(assignStoreTargetEmployee)}
-              onClose={() => setAssignStoreTargetEmployee(null)}
-              employee={assignStoreTargetEmployee}
-              stores={storesWithAvailableSlots}
-              vacantStoreIds={vacantStoreIds}
-              onSuccess={() => {
-                employeeQuery.refetch();
-                summaryQuery.refetch();
-                vacancyListQuery.refetch();
-              }}
-            />
-          )}
-
-          {/* Update Employment Status Modal (from Active Tab) */}
-          {updateStatusTargetEmployee && (
-            <UpdateEmploymentStatusModal
-              isOpen={Boolean(updateStatusTargetEmployee)}
-              onClose={() => setUpdateStatusTargetEmployee(null)}
-              plantillaId={updateStatusTargetEmployee.id}
-              employeeName={updateStatusTargetEmployee.displayName}
-              employeeNo={updateStatusTargetEmployee.employeeNo}
-              currentStatus={updateStatusTargetEmployee.currentStatus}
-              onSuccess={() => {
-                employeeQuery.refetch();
-                summaryQuery.refetch();
-                vacancyListQuery.refetch();
-              }}
-              onNavigateStatusTab={(tab) => {
-                handleSelectStatusTab(tab as StatusSubTab);
-              }}
-            />
-          )}
-
-          {/* Request Deactivation Modal (from Inactive Tab) */}
-          {deactivationTargetEmployee && (
-            <RequestDeactivationModal
-              isOpen={Boolean(deactivationTargetEmployee)}
-              onClose={() => setDeactivationTargetEmployee(null)}
-              plantillaId={deactivationTargetEmployee.id}
-              employeeName={deactivationTargetEmployee.displayName}
-              employeeNo={deactivationTargetEmployee.employeeNo}
-              currentStatus={deactivationTargetEmployee.currentStatus}
-              onSuccess={() => {
-                employeeQuery.refetch();
-                summaryQuery.refetch();
-              }}
-              onNavigateStatusTab={(tab) => {
-                handleSelectStatusTab(tab as StatusSubTab);
-              }}
-            />
-          )}
-
-        </>
-      )}
-
-      {/* ------------------------------------------------------------------- */}
-      {/* Account Lifecycle & Governance Modals (Directory & Detailed Views) */}
-      {/* ------------------------------------------------------------------- */}
-
-      {/* Add Account Modal */}
-      {isAddAccountOpen && (
-        <AddAccountModal
-          isOpen={isAddAccountOpen}
-          onClose={() => setIsAddAccountOpen(false)}
-          onSuccess={(createdName) =>
-            showToast(`Account "${createdName}" created successfully.`, "success")
-          }
-        />
-      )}
-
-      {/* Create Coverage Group Modal */}
-      {isCreateCoverageGroupOpen && (
-        <CreateCoverageGroupModal
-          isOpen={isCreateCoverageGroupOpen}
-          onClose={() => setIsCreateCoverageGroupOpen(false)}
-          defaultAccountId={accountId || undefined}
-          defaultAccountName={selectedAccountName || undefined}
-          onSuccess={(created) =>
-            showToast(`Coverage Group "${created.coverageCode}" created successfully.`, "success")
-          }
-        />
-      )}
-
-      {/* Archive Account Modal */}
-      {archiveModalAccount && (
-        <ArchiveAccountModal
-          isOpen={Boolean(archiveModalAccount)}
-          onClose={() => setArchiveModalAccount(null)}
-          account={archiveModalAccount}
-          onRouteToAbsorption={(acc) => {
-            setArchiveModalAccount(null);
-            setAbsorbModalAccount(acc);
-          }}
-          onSuccess={(name) =>
-            showToast(
-              `Archive request submitted for "${name}". Pending Super Admin approval.`,
-              "success",
-            )
-          }
-        />
-      )}
-
-      {/* Absorb Employees Modal */}
-      {absorbModalAccount && (
-        <AbsorbEmployeesModal
-          isOpen={Boolean(absorbModalAccount)}
-          onClose={() => setAbsorbModalAccount(null)}
-          sourceAccount={absorbModalAccount}
-          onSuccess={(result) => {
-            if (result.direct) {
-              showToast(
-                `Successfully absorbed ${result.count} employee${
-                  result.count === 1 ? "" : "s"
-                } into ${result.targetAccountName}.`,
-                "success",
-              );
-            } else {
-              showToast(
-                `Absorption request for ${result.count} employee${
-                  result.count === 1 ? "" : "s"
-                } submitted for SA/HA approval.`,
-                "info",
-              );
+            isRequestHeadcountOpen={isRequestHeadcountOpen}
+            onCloseRequestHeadcount={() => setIsRequestHeadcountOpen(false)}
+            accountId={accountId}
+            selectedAccountName={selectedAccountName}
+            onRequestHeadcountSuccess={() => {
+              employeeQuery.refetch();
+              summaryQuery.refetch();
+              vacancyListQuery.refetch();
+            }}
+            relieverTargetEmployee={relieverTargetEmployee}
+            onCloseAssignReliever={() => setRelieverTargetEmployee(null)}
+            onAssignRelieverSuccess={() => {
+              employeeQuery.refetch();
+              coverageQuery.refetch();
+              summaryQuery.refetch();
+            }}
+            returnToActiveTarget={returnToActiveTarget}
+            onCloseReturnToActive={() => setReturnToActiveTarget(null)}
+            onReturnToActiveSuccess={() => {
+              employeeQuery.refetch();
+              coverageQuery.refetch();
+              summaryQuery.refetch();
+            }}
+            assignStoreTargetEmployee={assignStoreTargetEmployee}
+            onCloseAssignStore={() => setAssignStoreTargetEmployee(null)}
+            storesWithAvailableSlots={storesWithAvailableSlots}
+            vacantStoreIds={vacantStoreIds}
+            onAssignStoreSuccess={() => {
+              employeeQuery.refetch();
+              summaryQuery.refetch();
+              vacancyListQuery.refetch();
+            }}
+            updateStatusTargetEmployee={updateStatusTargetEmployee}
+            onCloseUpdateStatus={() => setUpdateStatusTargetEmployee(null)}
+            onUpdateStatusSuccess={() => {
+              employeeQuery.refetch();
+              summaryQuery.refetch();
+              vacancyListQuery.refetch();
+            }}
+            onNavigateStatusTab={(tab) => {
+              handleSelectStatusTab(tab);
+            }}
+            deactivationTargetEmployee={deactivationTargetEmployee}
+            onCloseDeactivation={() => setDeactivationTargetEmployee(null)}
+            onDeactivationSuccess={() => {
+              employeeQuery.refetch();
+              summaryQuery.refetch();
+            }}
+            isAddAccountOpen={isAddAccountOpen}
+            onCloseAddAccount={() => setIsAddAccountOpen(false)}
+            onAddAccountSuccess={(createdName) =>
+              showToast(`Account "${createdName}" created successfully.`, "success")
             }
-          }}
-        />
-      )}
-
-      {/* Feedback Toast Banner */}
-      {toastMessage && (
-        <Toast
-          isOpen={Boolean(toastMessage)}
-          message={toastMessage}
-          variant={toastVariant}
-          onClose={() => setToastMessage(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab 1: Active Employees Table
-// ---------------------------------------------------------------------------
-
-function EmployeeActiveTable({
-  rows,
-  onRowClick,
-  storeLookupMap,
-  onUpdateStatus,
-}: {
-  rows: PlantillaEmployeeListItem[];
-  onRowClick: (id: string) => void;
-  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
-  onUpdateStatus: (emp: PlantillaEmployeeListItem) => void;
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
-      <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full min-w-[980px] text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
-            <tr className="border-b border-table-rule">
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Member
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Store
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Position
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Assignment
-              </th>
-              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-table-rule">
-            {rows.map((row) => {
-              const displayName =
-                formatPersonName(
-                  row.firstName,
-                  row.lastName,
-                  null,
-                  row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
-                ) || "—";
-
-              const initials = getInitials(row.firstName, row.lastName);
-              const storeInfo = row.primaryStoreName
-                ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
-                : null;
-              const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
-
-              return (
-                <tr
-                  key={row.id}
-                  className="transition-colors hover:bg-table-row-hover cursor-pointer"
-                  onClick={() => onRowClick(row.id)}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`View details for ${displayName}`}
-                >
-                  <td className="px-3.5 py-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-7.5 w-7.5 rounded-full bg-surface-muted border border-border-default text-brand-primary font-bold text-[11px] flex items-center justify-center shrink-0 shadow-xs">
-                        {initials}
-                      </div>
-                      <div className="min-w-0">
-                        <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
-                          {displayName}
-                        </span>
-                        <div className="font-mono text-[11px] text-table-text-muted mt-0.5">
-                          {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="px-3.5 py-2 text-table-text">
-                    <div className="min-w-0">
-                      <div className="font-medium text-table-text text-xs">
-                        {formatStoreName(row.primaryStoreName || row.vcode || "—")}
-                      </div>
-                      {locationLabel && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle mt-0.5">
-                          <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
-                          <span className="truncate max-w-[150px]">{locationLabel}</span>
-                        </span>
-                      )}
-                    </div>
-                  </td>
-
-                  <td className="px-3.5 py-2">
-                    <span className="font-medium text-table-text text-xs">
-                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                    </span>
-                  </td>
-
-                  <td className="px-3.5 py-2">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-1.5 py-0.5 text-xs font-semibold text-text-secondary">
-                      {row.assignmentType?.toLowerCase() === "roving" ? "Roving" : "Stationary"}
-                    </span>
-                  </td>
-
-                  <td className="px-3.5 py-2 text-right">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onUpdateStatus(row);
-                      }}
-                      className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-xs font-semibold text-text-secondary hover:text-brand-primary hover:border-border-strong hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
-                      aria-label={`Update employment status for ${displayName}`}
-                    >
-                      <UserCheck className="h-3 w-3" />
-                      <span>Update</span>
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab 2: On-Leave Employees Table (Leave Details & Reliever Flows)
-// ---------------------------------------------------------------------------
-
-const VALID_LEAVE_REASONS = [
-  "Sick / Medical Leave",
-  "Maternity / Paternity Leave",
-  "Vacation Leave",
-  "Emergency Family Leave",
-  "Other Authorized Leave",
-] as const;
-
-function resolveLeaveDetails(
-  emp: PlantillaEmployeeListItem,
-  coverage?: ActiveCoverageItem | null,
-): { reason: string; edr: string | null } {
-  const remarks = (emp.separationRemarks || "").trim();
-
-  let reason = "";
-  if (remarks) {
-    const match = remarks.match(/Reason:\s*([^|]+)/i);
-    const candidate = (match ? match[1] : remarks).trim();
-    const found = VALID_LEAVE_REASONS.find(
-      (r) => r.toLowerCase() === candidate.toLowerCase() || candidate.toLowerCase().includes(r.toLowerCase()),
-    );
-    if (found) {
-      reason = found;
-    } else if (/maternity|paternity/i.test(candidate)) {
-      reason = "Maternity / Paternity Leave";
-    } else if (/sick|medical/i.test(candidate)) {
-      reason = "Sick / Medical Leave";
-    } else if (/vacation/i.test(candidate)) {
-      reason = "Vacation Leave";
-    } else if (/emergency/i.test(candidate)) {
-      reason = "Emergency Family Leave";
-    } else if (/authorized|other/i.test(candidate)) {
-      reason = "Other Authorized Leave";
-    } else if (candidate) {
-      reason = candidate;
-    }
-  }
-
-  if (!reason) {
-    reason = "Sick / Medical Leave";
-  }
-
-  let edr: string | null = null;
-  if (coverage?.endDate) {
-    edr = coverage.endDate;
-  } else if (remarks) {
-    const edrMatch = remarks.match(/EDR:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}|[^\s|]+)/i);
-    if (edrMatch) {
-      edr = edrMatch[1].trim();
-    }
-  }
-
-  return { reason, edr };
-}
-
-function getEdrLapseStatus(edr: string | null | undefined): {
-  daysLapsed: number;
-  isLapsed: boolean;
-  isBreached: boolean;
-} {
-  if (!edr) return { daysLapsed: 0, isLapsed: false, isBreached: false };
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const returnDate = new Date(edr);
-    returnDate.setHours(0, 0, 0, 0);
-    if (isNaN(returnDate.getTime())) {
-      return { daysLapsed: 0, isLapsed: false, isBreached: false };
-    }
-    const diffTime = today.getTime() - returnDate.getTime();
-    const daysLapsed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return {
-      daysLapsed,
-      isLapsed: daysLapsed > 0 && daysLapsed < 3,
-      isBreached: daysLapsed >= 3,
-    };
-  } catch {
-    return { daysLapsed: 0, isLapsed: false, isBreached: false };
-  }
-}
-
-function EmployeeOnLeaveTable({
-  rows,
-  activeCoverageMap,
-  onRowClick,
-  storeLookupMap,
-  onAssignReliever,
-  onReturnToActive,
-}: {
-  rows: PlantillaEmployeeListItem[];
-  activeCoverageMap: Map<string, ActiveCoverageItem>;
-  onRowClick: (id: string) => void;
-  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
-  onAssignReliever: (emp: PlantillaEmployeeListItem) => void;
-  onReturnToActive: (emp: PlantillaEmployeeListItem, reliever: ActiveCoverageItem | null) => void;
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
-      <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full min-w-[1050px] text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
-            <tr className="border-b border-table-rule">
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Member
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Store
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Position
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Leave Reason
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                EDR
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Reliever (Moses HQ)
-              </th>
-              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-table-rule">
-            {rows.map((row) => {
-              const displayName =
-                formatPersonName(
-                  row.firstName,
-                  row.lastName,
-                  null,
-                  row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
-                ) || "—";
-
-              const initials = getInitials(row.firstName, row.lastName);
-              const storeInfo = row.primaryStoreName
-                ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
-                : null;
-              const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
-              const assignedReliever = activeCoverageMap.get(row.id) ?? null;
-              const leaveInfo = resolveLeaveDetails(row, assignedReliever);
-              const lapseStatus = getEdrLapseStatus(leaveInfo.edr);
-
-              return (
-                <tr
-                  key={row.id}
-                  className="transition-colors hover:bg-table-row-hover cursor-pointer"
-                  onClick={() => onRowClick(row.id)}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`View on-leave record for ${displayName}`}
-                >
-                  {/* 1. Member */}
-                  <td className="px-3.5 py-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-7.5 w-7.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-bold text-[11px] flex items-center justify-center shrink-0 shadow-xs dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">
-                        {initials}
-                      </div>
-                      <div className="min-w-0">
-                        <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
-                          {displayName}
-                        </span>
-                        <div className="font-mono text-[11px] text-table-text-muted mt-0.5">
-                          {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* 2. Store */}
-                  <td className="px-3.5 py-2 text-table-text">
-                    <div className="min-w-0">
-                      <div className="font-medium text-table-text text-xs">
-                        {formatStoreName(row.primaryStoreName || row.vcode || "—")}
-                      </div>
-                      {locationLabel && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle mt-0.5">
-                          <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
-                          <span className="truncate max-w-[150px]">{locationLabel}</span>
-                        </span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* 3. Position */}
-                  <td className="px-3.5 py-2">
-                    <span className="font-medium text-table-text text-xs">
-                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                    </span>
-                  </td>
-
-                  {/* 4. Leave Reason */}
-                  <td className="px-3.5 py-2">
-                    <div className="flex flex-col">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800 w-fit">
-                        {leaveInfo.reason}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* 5. EDR */}
-                  <td className="px-3.5 py-2">
-                    {leaveInfo.edr ? (
-                      <div className="flex flex-col">
-                        <span
-                          className={`font-mono text-xs ${
-                            lapseStatus.isBreached
-                              ? "font-bold text-red-600 dark:text-red-400"
-                              : lapseStatus.isLapsed
-                              ? "font-semibold text-amber-700 dark:text-amber-300"
-                              : "text-table-text"
-                          }`}
-                        >
-                          {formatDate(leaveInfo.edr)}
-                        </span>
-                        {lapseStatus.isBreached ? (
-                          <span
-                            className="inline-flex items-center gap-1 mt-0.5 rounded px-1.5 py-0.2 text-[10px] font-bold bg-red-100 text-red-800 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800 w-fit"
-                            title="SLA Breached: 3+ days past EDR without action. Escalated to Operations Manager (OM)."
-                          >
-                            <AlertCircle className="h-2.5 w-2.5 shrink-0 text-red-600" />
-                            <span>Breached ({lapseStatus.daysLapsed}d) • OM Escalated</span>
-                          </span>
-                        ) : lapseStatus.isLapsed ? (
-                          <span
-                            className="inline-flex items-center gap-1 mt-0.5 rounded px-1.5 py-0.2 text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800 w-fit"
-                            title="EDR lapsed: HRCO notified to update status or return to Active."
-                          >
-                            <Clock className="h-2.5 w-2.5 shrink-0 text-amber-700" />
-                            <span>Lapsed ({lapseStatus.daysLapsed}d) • HRCO Notified</span>
-                          </span>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <span className="font-mono text-xs text-text-muted">—</span>
-                    )}
-                  </td>
-
-                  {/* 6. Reliever (Moses HQ) */}
-                  <td className="px-3.5 py-2">
-                    {assignedReliever ? (
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-1">
-                          <UserCheck className="h-3 w-3" />
-                          {assignedReliever.employeeName}
-                        </span>
-                        <span className="font-mono text-[10px] text-text-muted">
-                          {assignedReliever.employeeNumber}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onAssignReliever(row);
-                          }}
-                          className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 transition shadow-2xs cursor-pointer dark:bg-brand-950 dark:border-brand-800 dark:text-brand-300"
-                        >
-                          <Plus className="h-2.5 w-2.5" />
-                          <span>Assign Reliever</span>
-                        </button>
-                      </div>
-                    )}
-                  </td>
-
-                  {/* 7. Actions */}
-                  <td className="px-3.5 py-2 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onReturnToActive(row, assignedReliever);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 transition cursor-pointer"
-                      >
-                        <RotateCw className="h-3 w-3" />
-                        <span>Return to Active</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab 3: Vacancy Table (All Vacant Stores Only)
-// ---------------------------------------------------------------------------
-
-function StoreVacancyTable({
-  rows,
-  onSelectVacancy,
-}: {
-  rows: VacancyListItem[];
-  onSelectVacancy: (v: VacancyListItem) => void;
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
-      <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full min-w-[1050px] text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
-            <tr className="border-b border-table-rule">
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                VCode / CGCode
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Store Branch / Anchor Branch
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Area & City
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Applicant
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Stage
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Aging
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Position
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Slot
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Remarks
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-table-rule">
-            {rows.map((row) => {
-              const codeDisplay = row.vcode || row.cgCode || "—";
-              const rawName = row.storeName || "Unnamed Store";
-              const cleanStoreName = formatStoreName(rawName).replace(/\s*\([^)]*\)/g, "").trim();
-              const isRoving = Boolean(
-                row.employmentType?.toLowerCase() === "roving" ||
-                row.cgCode ||
-                row.vcode?.startsWith("CG-")
-              );
-              const hasApplicant = Boolean(row.applicantName && row.applicantName.trim() !== "" && row.applicantName.trim() !== "—");
-              const applicantDisplay = hasApplicant ? formatPersonName(row.applicantName) : "—";
-              const stage = resolveVacancyWorkflowStage(row);
-              const agingDaysDisplay = row.agingDays != null ? `${row.agingDays}d` : "—";
-              const remarksText = (
-                row.remarks ||
-                row.opsRemarks ||
-                row.recruitmentRemarks ||
-                row.hrRemarks ||
-                row.closureReason ||
-                ""
-              ).trim() || "—";
-              const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
-              const rowHcFilled = row.hcFilled ?? 0;
-              const remainingCapacity = getVacancyRemainingCapacity(row);
-              const assignedCount = row.assignedStoreDetails?.length || row.assignedStores?.length || 0;
-              const rovingSlotShare = row.slotShare ?? (isRoving && assignedCount > 1 ? Math.round((1.0 / assignedCount) * 100) / 100 : null);
-              const slotDisplay = isRoving && rovingSlotShare != null
-                ? rovingSlotShare
-                : remainingCapacity;
-
-              return (
-                <tr
-                  key={row.id}
-                  className="transition-colors hover:bg-table-row-hover cursor-pointer"
-                  onClick={() => onSelectVacancy(row)}
-                  tabIndex={0}
-                  role="button"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onSelectVacancy(row);
-                    }
-                  }}
-                  aria-label={`Open vacancy details for slot ${codeDisplay}`}
-                >
-                  <td className="px-3.5 py-2 font-mono text-xs font-bold text-text-primary whitespace-nowrap">
-                    <div>{codeDisplay}</div>
-                    {row.cgCode && row.vcode && row.cgCode !== row.vcode && (
-                      <div className="font-mono text-[10px] font-normal text-text-muted mt-0.5">
-                        {row.vcode}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-3.5 py-2 font-medium text-table-text">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-xs">{cleanStoreName}</span>
-                      {isRoving && (
-                        <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-50 text-brand-700 border border-brand-200 dark:bg-brand-950 dark:text-brand-300 dark:border-brand-800">
-                          Roving
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3.5 py-2 text-table-text whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium text-text-secondary border border-border-subtle">
-                      <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
-                      <span>{row.storeLocation || "Unassigned Area"}</span>
-                    </span>
-                  </td>
-                  <td className="px-3.5 py-2 whitespace-nowrap">
-                    {hasApplicant ? (
-                      <span className="font-medium text-text-primary text-xs">
-                        {applicantDisplay}
-                      </span>
-                    ) : (
-                      <span className="font-mono text-xs text-gray-400 dark:text-gray-500">
-                        —
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3.5 py-2 whitespace-nowrap">
-                    {renderVacancyStatusBadge(stage)}
-                  </td>
-                  <td className="px-3.5 py-2 font-mono text-xs font-semibold text-text-secondary tabular-nums whitespace-nowrap">
-                    {agingDaysDisplay}
-                  </td>
-                  <td className="px-3.5 py-2 font-medium text-table-text text-xs whitespace-nowrap">
-                    {row.position_title || "General Staff"}
-                  </td>
-                  <td className="px-3.5 py-2 whitespace-nowrap">
-                    <span
-                      title={
-                        isRoving && rovingSlotShare != null
-                          ? `${slotDisplay} roving slot share across ${assignedCount} stores`
-                          : rowHcTotal > 1
-                          ? `${slotDisplay} open slot${slotDisplay === 1 ? "" : "s"} (${rowHcFilled}/${rowHcTotal} filled)`
-                          : `${slotDisplay} open slot`
-                      }
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800 shrink-0"
-                    >
-                      {slotDisplay}
-                    </span>
-                  </td>
-                  <td className="px-3.5 py-2 text-[11px] text-text-muted max-w-[200px] truncate" title={remarksText !== "—" ? remarksText : undefined}>
-                    {remarksText}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab 4: Floating Employees Table
-// ---------------------------------------------------------------------------
-
-function EmployeeFloatingTable({
-  rows,
-  onRowClick,
-  storeLookupMap,
-  onAssignStore,
-}: {
-  rows: PlantillaEmployeeListItem[];
-  onRowClick: (id: string) => void;
-  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
-  onAssignStore: (emp: PlantillaEmployeeListItem) => void;
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
-      <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full min-w-[980px] text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
-            <tr className="border-b border-table-rule">
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Member
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Store
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Position
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Assignment
-              </th>
-              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-table-rule">
-            {rows.map((row) => {
-              const displayName =
-                formatPersonName(
-                  row.firstName,
-                  row.lastName,
-                  null,
-                  row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
-                ) || "—";
-
-              const initials = getInitials(row.firstName, row.lastName);
-              const storeInfo = row.primaryStoreName
-                ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
-                : null;
-              const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
-              const floatingDays = getFloatingDurationDays(row);
-
-              return (
-                <tr
-                  key={row.id}
-                  className="transition-colors hover:bg-table-row-hover cursor-pointer"
-                  onClick={() => onRowClick(row.id)}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`View floating personnel ${displayName}`}
-                >
-                  <td className="px-3.5 py-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-7.5 w-7.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-bold text-[11px] flex items-center justify-center shrink-0 shadow-xs dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">
-                        {initials}
-                      </div>
-                      <div className="min-w-0">
-                        <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
-                          {displayName}
-                        </span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="font-mono text-[11px] text-table-text-muted">
-                            {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo}
-                          </span>
-                          <FloatingDoleBadge days={floatingDays} />
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="px-3.5 py-2 text-table-text">
-                    <div className="min-w-0">
-                      <div className="font-medium text-text-muted italic text-xs">Unassigned</div>
-                      {locationLabel ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle mt-0.5">
-                          <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
-                          <span className="truncate max-w-[150px]">{locationLabel}</span>
-                        </span>
-                      ) : null}
-                    </div>
-                  </td>
-
-                  <td className="px-3.5 py-2">
-                    <span className="font-medium text-table-text text-xs">
-                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                    </span>
-                  </td>
-
-                  <td className="px-3.5 py-2">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-1.5 py-0.5 text-xs font-semibold text-text-secondary">
-                      {row.assignmentType?.toLowerCase() === "roving" ? "Roving" : "Stationary"}
-                    </span>
-                  </td>
-
-                  <td className="px-3.5 py-2 text-right">
-                    <div className="flex items-center justify-end">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAssignStore(row);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-md bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-brand-700 transition cursor-pointer"
-                      >
-                        <Building2 className="h-3 w-3" />
-                        <span>Assign Store</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab 5: Deactivation Table (Pending & Deactivated)
-// ---------------------------------------------------------------------------
-
-function EmployeeDeactivationTable({
-  rows,
-  onRowClick,
-  storeLookupMap,
-}: {
-  rows: PlantillaEmployeeListItem[];
-  onRowClick: (id: string) => void;
-  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
-      <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full min-w-[980px] text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
-            <tr className="border-b border-table-rule">
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Emploc#
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Member
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                VCode
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Store
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Position
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Assignment
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-table-rule">
-            {rows.map((row) => {
-              const displayName =
-                formatPersonName(
-                  row.firstName,
-                  row.lastName,
-                  null,
-                  row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
-                ) || "—";
-
-              const initials = getInitials(row.firstName, row.lastName);
-              const storeInfo = row.primaryStoreName
-                ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
-                : null;
-              const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
-
-              const s = (row.plantillaStatus || "").toLowerCase();
-              const isDeactivated = s === "deactivated" || row.plantillaStatus?.toLowerCase().includes("deactivated");
-
-              return (
-                <tr
-                  key={row.id}
-                  className="transition-colors hover:bg-table-row-hover cursor-pointer opacity-85"
-                  onClick={() => onRowClick(row.id)}
-                  tabIndex={0}
-                  role="button"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onRowClick(row.id);
-                    }
-                  }}
-                  aria-label={`View deactivation details for ${displayName}`}
-                >
-                  {/* 1. Emploc# */}
-                  <td className="px-3.5 py-2 font-mono text-xs font-medium text-table-text whitespace-nowrap">
-                    {row.employeeNo || "—"}
-                  </td>
-
-                  {/* 2. Member */}
-                  <td className="px-3.5 py-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-7.5 w-7.5 rounded-full bg-surface-muted border border-border-default text-text-muted font-bold text-[11px] flex items-center justify-center shrink-0 shadow-xs">
-                        {initials}
-                      </div>
-                      <span className="font-semibold text-table-text text-xs hover:text-brand-primary transition-colors">
-                        {displayName}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* 3. VCode */}
-                  <td className="px-3.5 py-2 font-mono text-xs text-table-text whitespace-nowrap">
-                    {row.vcode || row.cgCode || "—"}
-                  </td>
-
-                  {/* 4. Store */}
-                  <td className="px-3.5 py-2 text-table-text">
-                    <div className="min-w-0">
-                      <div className="font-medium text-table-text text-xs">
-                        {formatStoreName(row.primaryStoreName || row.vcode || "—")}
-                      </div>
-                      {locationLabel && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle mt-0.5">
-                          <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
-                          <span className="truncate max-w-[150px]">{locationLabel}</span>
-                        </span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* 5. Position */}
-                  <td className="px-3.5 py-2">
-                    <span className="font-medium text-table-text text-xs">
-                      {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
-                    </span>
-                  </td>
-
-                  {/* 6. Assignment */}
-                  <td className="px-3.5 py-2">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted border border-border-default px-1.5 py-0.5 text-xs font-semibold text-text-secondary">
-                      {row.assignmentType?.toLowerCase() === "roving" ? "Roving" : "Stationary"}
-                    </span>
-                  </td>
-
-                  {/* 7. Status */}
-                  <td className="px-3.5 py-2">
-                    {isDeactivated ? (
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
-                        Deactivated
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800">
-                        Pending for Deactivation
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tab 6: Inactive Employees Table (Historical & Attrition Archive)
-// ---------------------------------------------------------------------------
-
-function EmployeeInactiveTable({
-  rows,
-  onRowClick,
-  storeLookupMap,
-  onRequestDeactivation,
-}: {
-  rows: PlantillaEmployeeListItem[];
-  onRowClick: (id: string) => void;
-  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
-  onRequestDeactivation?: (emp: PlantillaEmployeeListItem) => void;
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
-      <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full min-w-[1100px] text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
-            <tr className="border-b border-table-rule">
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Member / Employee
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Last Store Branch
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Separation Type
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Separation Date
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Status
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Remarks
-              </th>
-              <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Action
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-table-rule">
-            {rows.map((row) => {
-              const displayName =
-                formatPersonName(row.firstName, row.lastName, null, row.fullName) ||
-                row.employeeNo ||
-                "Unknown Employee";
-              const initials = getInitials(row.firstName, row.lastName, row.fullName);
-
-              const storeInfo = row.primaryStoreName
-                ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
-                : null;
-              const locationDisplay =
-                storeInfo?.city && storeInfo?.province
-                  ? `${storeInfo.city} • ${storeInfo.province}`
-                  : storeInfo?.province || storeInfo?.city || null;
-
-              const isRoving = row.assignmentType?.toLowerCase() === "roving";
-              const cleanStoreName = row.primaryStoreName
-                ? formatStoreName(row.primaryStoreName).replace(/\s*\([^)]*\)/g, "").trim()
-                : "Unassigned Store";
-
-              // 3. Separation Type Badge
-              const rawType = (row.separationType || row.plantillaStatus || "Resigned").toLowerCase();
-              let sepBadgeVariant: "warning" | "danger" | "neutral" = "neutral";
-              let sepLabel = "Separated";
-              if (rawType.includes("resigned") || rawType.includes("resignation")) {
-                sepBadgeVariant = "warning";
-                sepLabel = "Resigned";
-              } else if (rawType.includes("awol")) {
-                sepBadgeVariant = "danger";
-                sepLabel = "AWOL";
-              } else if (rawType.includes("terminat")) {
-                sepBadgeVariant = "danger";
-                sepLabel = "Terminated";
-              }
-
-              // 4. Separation Date
-              const sepDateRaw = row.separationDate || row.dateDeployed;
-              const formattedDate = sepDateRaw ? formatDate(sepDateRaw) : "—";
-
-              // 5. Deactivation Status Resolution
-              const s = (row.plantillaStatus || "").toLowerCase().trim();
-              const sep = (row.separationType || "").toLowerCase().trim();
-              const isDeactivated = s === "deactivated" || sep === "deactivated";
-              const isPendingDeactivation =
-                s === "pending for deactivation" ||
-                s === "pending_for_deactivation" ||
-                s === "pending deactivation" ||
-                s === "pending_deactivation" ||
-                s === "for deactivation" ||
-                s === "pending separation" ||
-                s === "pending_separation" ||
-                sep === "pending deactivation" ||
-                sep === "pending_deactivation" ||
-                sep === "for deactivation";
-
-              const hasExistingRequest = isDeactivated || isPendingDeactivation;
-
-              // 6. Remarks
-              const remarks = row.separationRemarks?.trim() || "—";
-
-              return (
-                <tr
-                  key={row.id}
-                  className="transition-colors hover:bg-table-row-hover cursor-pointer opacity-90"
-                  onClick={() => onRowClick(row.id)}
-                  tabIndex={0}
-                  role="button"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onRowClick(row.id);
-                    }
-                  }}
-                  aria-label={`View separation record for ${displayName}`}
-                >
-                  {/* 1. Member / Employee (Position beside emploc ID) */}
-                  <td className="px-3.5 py-2 font-medium text-table-text">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[11px] font-bold text-text-secondary border border-border-default">
-                        {initials}
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-text-primary text-xs truncate max-w-[190px]" title={displayName}>
-                          {displayName}
-                        </span>
-                        <div className="flex items-center gap-1.5 text-[10px] text-text-muted truncate">
-                          <span className="font-mono text-text-secondary font-medium">
-                            {row.employeeNo}
-                          </span>
-                          {row.positionTitle && (
-                            <span className="font-medium text-text-secondary truncate">
-                              {formatPosition(row.positionTitle)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* 2. Last Store Branch (Area & City beside VCode) */}
-                  <td className="px-3.5 py-2 font-medium text-table-text">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-medium text-xs">{cleanStoreName}</span>
-                        {isRoving && (
-                          <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-50 text-brand-700 border border-brand-200 dark:bg-brand-950 dark:text-brand-300 dark:border-brand-800">
-                            Roving
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-text-muted mt-0.5 flex-wrap">
-                        {(row.vcode || row.cgCode) && (
-                          <span className="font-mono text-[10px] text-text-muted">
-                            {row.vcode || row.cgCode}
-                          </span>
-                        )}
-                        {locationDisplay && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle">
-                            <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
-                            <span>{locationDisplay}</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* 3. Separation Type */}
-                  <td className="px-3.5 py-2 whitespace-nowrap">
-                    <StatusBadge variant={sepBadgeVariant} text={sepLabel} />
-                  </td>
-
-                  {/* 4. Separation Date */}
-                  <td className="px-3.5 py-2 font-mono text-xs text-text-secondary tabular-nums whitespace-nowrap">
-                    {formattedDate}
-                  </td>
-
-                  {/* 5. Status (Pending for Deactivation / Deactivated / Inactive) */}
-                  <td className="px-3.5 py-2 whitespace-nowrap">
-                    {isDeactivated ? (
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
-                        Deactivated
-                      </span>
-                    ) : isPendingDeactivation ? (
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800">
-                        Pending for Deactivation
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-medium bg-surface-muted text-text-secondary border border-border-default">
-                        Inactive
-                      </span>
-                    )}
-                  </td>
-
-                  {/* 6. Remarks */}
-                  <td className="px-3.5 py-2 text-[11px] text-text-secondary max-w-[200px] truncate" title={remarks !== "—" ? remarks : undefined}>
-                    {remarks}
-                  </td>
-
-                  {/* 7. Action */}
-                  <td className="px-3.5 py-2 text-right whitespace-nowrap">
-                    {hasExistingRequest ? (
-                      <span className="text-text-muted text-xs">—</span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRequestDeactivation?.(row);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer hover:border-brand-primary hover:text-brand-primary shadow-2xs"
-                        title={`Request deactivation for ${displayName}`}
-                      >
-                        <UserMinus className="w-3.5 h-3.5 text-text-secondary" />
-                        <span>Request Deactivation</span>
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-// ---------------------------------------------------------------------------
-
-function StoreCapacityTable({
-  rows,
-}: {
-  rows: {
-    id: string;
-    storeBranch: string;
-    code: string | null;
-    city: string | null;
-    province: string | null;
-    plantillaRequired: number;
-    activeDeployed: number;
-    onLeave: number;
-    openVacancy: number;
-    isFulfilled: boolean;
-  }[];
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
-      <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full min-w-[980px] text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
-            <tr className="border-b border-table-rule">
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Store Branch
-              </th>
-              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Area & City
-              </th>
-              <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Plantilla Required
-              </th>
-              <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Active Deployed
-              </th>
-              <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
-                On-Leave
-              </th>
-              <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Open Vacancy
-              </th>
-              <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Fulfillment Status
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-table-rule">
-            {rows.map((store) => {
-              const locationLabel = [store.city, store.province].filter(Boolean).join(", ");
-              return (
-                <tr key={store.id} className="transition-colors hover:bg-table-row-hover">
-                  {/* 1. Store Branch */}
-                  <td className="px-3.5 py-2 font-medium text-table-text">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs">{formatStoreName(store.storeBranch)}</span>
-                      {store.code && (
-                        <span className="font-mono text-[11px] text-text-muted">
-                          ({store.code})
-                        </span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* 2. Area & City */}
-                  <td className="px-3.5 py-2 text-table-text">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.2 text-[10px] font-medium text-text-secondary border border-border-subtle">
-                      <MapPin className="h-2.5 w-2.5 text-text-muted shrink-0" />
-                      <span>{locationLabel || "Unassigned Area"}</span>
-                    </span>
-                  </td>
-
-                  {/* 3. Plantilla Required (centered) */}
-                  <td className="px-3.5 py-2 text-center font-mono font-bold text-text-primary text-xs">
-                    {store.plantillaRequired}
-                  </td>
-
-                  {/* 4. Active Deployed (centered, emerald) */}
-                  <td className="px-3.5 py-2 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">
-                    {store.activeDeployed}
-                  </td>
-
-                  {/* 5. On-Leave (centered, amber) */}
-                  <td className="px-3.5 py-2 text-center font-mono font-bold text-amber-600 dark:text-amber-400 text-xs">
-                    {store.onLeave}
-                  </td>
-
-                  {/* 6. Open Vacancy (centered, red if > 0) */}
-                  <td className="px-3.5 py-2 text-center font-mono font-bold text-xs">
-                    {store.openVacancy > 0 ? (
-                      <span className="text-red-600 dark:text-red-400">{store.openVacancy}</span>
-                    ) : (
-                      <span className="text-text-muted">0</span>
-                    )}
-                  </td>
-
-                  {/* 7. Fulfillment Status */}
-                  <td className="px-3.5 py-2 text-center">
-                    {store.isFulfilled ? (
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800">
-                        100% Fulfilled
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
-                        Understaffed
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Employee Card Component (Active)
-// ---------------------------------------------------------------------------
-
-function EmployeeCard({
-  row,
-  onSelect,
-  storeLookupMap,
-}: {
-  row: PlantillaEmployeeListItem;
-  onSelect: () => void;
-  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
-}) {
-  const displayName =
-    formatPersonName(
-      row.firstName,
-      row.lastName,
-      null,
-      row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
-    ) || "—";
-
-  const initials = getInitials(row.firstName, row.lastName);
-  const storeInfo = row.primaryStoreName
-    ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
-    : null;
-  const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary border-l-4 border-l-emerald-600"
-    >
-      <div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 shrink-0 rounded-full bg-surface-muted border border-border-default text-brand-primary font-bold text-xs flex items-center justify-center shadow-xs">
-            {initials}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-primary transition-colors">
-              {displayName}
-            </h4>
-
-            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
-              <span className="font-mono text-text-secondary">
-                {row.cgCode || row.vcode ? `${row.cgCode || row.vcode} • ${row.employeeNo}` : row.employeeNo || "—"}
-              </span>
-              <span className="text-text-muted/40">•</span>
-              <span className="font-semibold text-brand-primary truncate">
-                {row.positionTitle || "General Staff"}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {row.plantillaStatus && (
-              <StatusBadge
-                variant={plantillaStatusVariant(row.plantillaStatus)}
-                text={row.plantillaStatus}
-              />
-            )}
-            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
-        <div className="flex items-center gap-1.5 truncate max-w-[70%]">
-          <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
-          <span className="truncate font-medium text-text-secondary">
-            {formatStoreName(row.primaryStoreName || "—")}
-            {locationLabel ? ` (${locationLabel})` : ""}
-          </span>
-        </div>
-
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border bg-surface-muted text-text-secondary border-border-default">
-          {row.assignmentType || "Stationary"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Employee On-Leave Card Component
-// ---------------------------------------------------------------------------
-
-function EmployeeOnLeaveCard({
-  row,
-  coverageItem,
-  onSelect,
-  storeLookupMap,
-  onAssignReliever,
-  onReturnToActive,
-}: {
-  row: PlantillaEmployeeListItem;
-  coverageItem: ActiveCoverageItem | null | undefined;
-  onSelect: () => void;
-  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
-  onAssignReliever: (emp: PlantillaEmployeeListItem) => void;
-  onReturnToActive: (emp: PlantillaEmployeeListItem, reliever: ActiveCoverageItem | null) => void;
-}) {
-  const displayName =
-    formatPersonName(
-      row.firstName,
-      row.lastName,
-      null,
-      row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
-    ) || "—";
-
-  const initials = getInitials(row.firstName, row.lastName);
-  const storeInfo = row.primaryStoreName
-    ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
-    : null;
-  const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
-  const assignedReliever = coverageItem ?? null;
-  const leaveInfo = resolveLeaveDetails(row, assignedReliever);
-  const lapseStatus = getEdrLapseStatus(leaveInfo.edr);
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary border-l-4 border-l-amber-500"
-    >
-      <div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 shrink-0 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-bold text-xs flex items-center justify-center shadow-xs dark:bg-amber-950 dark:border-amber-800 dark:text-amber-300">
-            {initials}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-primary transition-colors">
-              {displayName}
-            </h4>
-
-            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
-              <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
-              <span className="text-text-muted/40">•</span>
-              <span className="font-semibold text-text-secondary truncate">
-                {row.positionTitle || "General Staff"}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800 max-w-[140px] truncate"
-              title={leaveInfo.reason}
-            >
-              {leaveInfo.reason}
-            </span>
-            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
-          </div>
-        </div>
-
-        {/* Reliever Coverage Status & EDR */}
-        <div className="mt-3 rounded-lg border border-border-subtle bg-surface-muted/60 px-3 py-2 text-xs flex items-center justify-between gap-2">
-          {coverageItem ? (
-            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-medium min-w-0">
-              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Covered by {coverageItem.employeeName}</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-medium">
-              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-              <span>No Reliever Assigned</span>
-            </div>
-          )}
-          {leaveInfo.edr && (
-            <div className="flex items-center gap-1.5 text-[11px] font-mono shrink-0">
-              <span className="text-text-muted">EDR:</span>
-              <span
-                className={`font-semibold ${
-                  lapseStatus.isBreached
-                    ? "text-red-600 dark:text-red-400 font-bold"
-                    : lapseStatus.isLapsed
-                    ? "text-amber-700 dark:text-amber-300"
-                    : "text-text-primary"
-                }`}
-              >
-                {formatDate(leaveInfo.edr)}
-              </span>
-              {lapseStatus.isBreached ? (
-                <span className="rounded px-1 py-0.2 text-[9px] font-bold bg-red-100 text-red-800 border border-red-300 dark:bg-red-950 dark:text-red-200">
-                  Breached ({lapseStatus.daysLapsed}d)
-                </span>
-              ) : lapseStatus.isLapsed ? (
-                <span className="rounded px-1 py-0.2 text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200">
-                  Lapsed ({lapseStatus.daysLapsed}d)
-                </span>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
-        <div className="flex items-center gap-1.5 truncate max-w-[55%]">
-          <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
-          <span className="truncate font-medium text-text-secondary">
-            {formatStoreName(row.primaryStoreName || "—")}
-            {locationLabel ? ` (${locationLabel})` : ""}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAssignReliever(row);
+            isCreateCoverageGroupOpen={isCreateCoverageGroupOpen}
+            onCloseCreateCoverageGroup={() => setIsCreateCoverageGroupOpen(false)}
+            onCreateCoverageGroupSuccess={(code) =>
+              showToast(`Coverage Group "${code || "Cluster"}" created successfully.`, "success")
+            }
+            archiveModalAccount={archiveModalAccount}
+            onCloseArchiveModal={() => setArchiveModalAccount(null)}
+            onRouteArchiveToAbsorption={(acc) => {
+              setArchiveModalAccount(null);
+              setAbsorbModalAccount(acc);
             }}
-            className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2 py-1 text-[11px] font-semibold text-text-secondary hover:text-brand-primary hover:bg-surface-hover transition-colors shadow-2xs cursor-pointer"
-          >
-            <UserCheck className="h-3 w-3" />
-            <span>Reliever</span>
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onReturnToActive(row, coverageItem ?? null);
-            }}
-            className="inline-flex items-center gap-1 rounded-md border border-brand-primary/40 bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 dark:bg-brand-950 dark:text-brand-300 transition-colors shadow-2xs cursor-pointer"
-          >
-            <RotateCw className="h-3 w-3" />
-            <span>Return</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Vacancy Card Component
-// ---------------------------------------------------------------------------
-
-function VacancyCard({
-  row,
-  onSelect,
-}: {
-  row: VacancyListItem;
-  onSelect: () => void;
-  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
-}) {
-  const codeDisplay = row.vcode || row.cgCode || "—";
-  const rawName = row.storeName || "Unnamed Store";
-  const cleanStoreName = formatStoreName(rawName).replace(/\s*\([^)]*\)/g, "").trim();
-  const isRoving = Boolean(
-    row.employmentType?.toLowerCase() === "roving" ||
-    row.cgCode ||
-    row.vcode?.startsWith("CG-")
-  );
-  const hasApplicant = Boolean(row.applicantName && row.applicantName.trim() !== "" && row.applicantName.trim() !== "—");
-  const applicantDisplay = hasApplicant ? formatPersonName(row.applicantName) : null;
-  const stage = resolveVacancyWorkflowStage(row);
-  const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
-  const rowHcFilled = row.hcFilled ?? 0;
-  const remainingCapacity = getVacancyRemainingCapacity(row);
-  const assignedCount = row.assignedStoreDetails?.length || row.assignedStores?.length || 0;
-  const rovingSlotShare = row.slotShare ?? (isRoving && assignedCount > 1 ? Math.round((1.0 / assignedCount) * 100) / 100 : null);
-  const slotDisplay = isRoving && rovingSlotShare != null
-    ? rovingSlotShare
-    : remainingCapacity;
-  const remarksDisplay = (
-    row.remarks ||
-    row.opsRemarks ||
-    row.recruitmentRemarks ||
-    row.hrRemarks ||
-    row.closureReason ||
-    ""
-  ).trim();
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary border-l-4 border-l-sky-500"
-    >
-      <div>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-text-primary">
-                {codeDisplay}
-              </span>
-              {row.cgCode && row.vcode && row.cgCode !== row.vcode && (
-                <span className="font-mono text-[10px] text-text-muted">
-                  ({row.vcode})
-                </span>
-              )}
-              {isRoving && (
-                <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-50 text-brand-700 border border-brand-200 dark:bg-brand-950 dark:text-brand-300 dark:border-brand-800">
-                  Roving
-                </span>
-              )}
-            </div>
-            <h4 className="text-sm font-bold text-text-primary truncate mt-0.5 group-hover:text-brand-primary transition-colors">
-              {cleanStoreName}
-            </h4>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span
-              title={
-                isRoving && rovingSlotShare != null
-                  ? `${slotDisplay} roving slot share (${row.slotFraction || `1/${assignedCount}`}) across ${assignedCount} stores`
-                  : rowHcTotal > 1
-                  ? `${slotDisplay} open slot${slotDisplay === 1 ? "" : "s"} (${rowHcFilled}/${rowHcTotal} filled)`
-                  : `${slotDisplay} open slot`
+            onArchiveSuccess={(name) =>
+              showToast(
+                `Archive request submitted for "${name}". Pending Super Admin approval.`,
+                "success",
+              )
+            }
+            absorbModalAccount={absorbModalAccount}
+            onCloseAbsorbModal={() => setAbsorbModalAccount(null)}
+            onAbsorbSuccess={(result) => {
+              if (result.direct) {
+                showToast(
+                  `Successfully absorbed ${result.count} employee${
+                    result.count === 1 ? "" : "s"
+                  } into ${result.targetAccountName}.`,
+                  "success",
+                );
+              } else {
+                showToast(
+                  `Absorption request for ${result.count} employee${
+                    result.count === 1 ? "" : "s"
+                  } submitted for SA/HA approval.`,
+                  "info",
+                );
               }
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800 shrink-0"
-            >
-              {slotDisplay}
-            </span>
-            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
-          </div>
-        </div>
-
-        <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
-          <span className="font-medium text-text-secondary truncate">
-            {row.position_title ? formatPosition(row.position_title) : "Store Personnel"}
-          </span>
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-text-muted">
-            <Clock className="h-3 w-3" />
-            {row.agingDays != null ? `${row.agingDays}d aging` : "—"}
-          </span>
-        </div>
-
-        {applicantDisplay ? (
-          <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-border-subtle bg-surface-muted/50 px-2.5 py-1.5 text-xs text-text-secondary">
-            <User className="h-3.5 w-3.5 text-text-muted shrink-0" />
-            <span className="truncate font-medium">{applicantDisplay}</span>
-          </div>
-        ) : (
-          <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-dashed border-border-subtle bg-surface-muted/20 px-2.5 py-1.5 text-xs text-text-muted">
-            <span>No active applicant assigned</span>
-          </div>
-        )}
-
-        {remarksDisplay && (
-          <div className="mt-2 flex items-start gap-1.5 rounded-lg border border-border-subtle bg-surface-muted/30 px-2.5 py-1.5 text-xs text-text-secondary" title={remarksDisplay}>
-            <span className="truncate italic font-medium">
-              &ldquo;{remarksDisplay}&rdquo;
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex items-center justify-between gap-2 text-xs text-text-secondary">
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-surface-muted text-text-secondary border border-border-default">
-          {stage}
-        </span>
-        <span className="text-[11px] text-text-muted font-mono">
-          Slot Capacity: {rowHcTotal}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Employee Floating Card Component
-// ---------------------------------------------------------------------------
-
-function EmployeeFloatingCard({
-  row,
-  onSelect,
-  onAssignStore,
-}: {
-  row: PlantillaEmployeeListItem;
-  onSelect: () => void;
-  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
-  onAssignStore: (emp: PlantillaEmployeeListItem) => void;
-}) {
-  const displayName =
-    formatPersonName(
-      row.firstName,
-      row.lastName,
-      null,
-      row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
-    ) || "—";
-
-  const initials = getInitials(row.firstName, row.lastName);
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary border-l-4 border-l-indigo-500"
-    >
-      <div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 shrink-0 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs flex items-center justify-center shadow-xs dark:bg-indigo-950 dark:border-indigo-800 dark:text-indigo-300">
-            {initials}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-primary transition-colors">
-              {displayName}
-            </h4>
-
-            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
-              <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
-              <span className="text-text-muted/40">•</span>
-              <span className="font-semibold text-text-secondary truncate">
-                {row.positionTitle || "General Staff"}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <StatusBadge variant="neutral" text="Floating" />
-            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
-          </div>
-        </div>
-
-        <div className="mt-3 rounded-lg border border-border-subtle bg-surface-muted/40 px-3 py-2 text-xs flex items-center justify-between gap-2">
-          <span className="text-text-muted text-[11px]">DOLE Tracking:</span>
-          <FloatingDoleBadge days={getFloatingDurationDays(row)} />
-        </div>
-      </div>
-
-      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex items-center justify-between gap-2 text-xs text-text-secondary">
-        <span className="font-mono text-[11px] text-text-muted">
-          {row.vcode || row.cgCode || "No VCode"}
-        </span>
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAssignStore(row);
-          }}
-          className="inline-flex items-center gap-1 rounded-md border border-brand-primary/40 bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-100 dark:bg-brand-950 dark:text-brand-300 transition-colors shadow-2xs cursor-pointer"
-        >
-          <Building className="h-3 w-3" />
-          <span>Assign Store</span>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Employee Deactivation Card Component
-// ---------------------------------------------------------------------------
-
-function EmployeeDeactivationCard({
-  row,
-  onSelect,
-  storeLookupMap,
-}: {
-  row: PlantillaEmployeeListItem;
-  onSelect: () => void;
-  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
-}) {
-  const displayName =
-    formatPersonName(
-      row.firstName,
-      row.lastName,
-      null,
-      row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
-    ) || "—";
-
-  const initials = getInitials(row.firstName, row.lastName);
-  const storeInfo = row.primaryStoreName
-    ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
-    : null;
-  const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
-  const s = (row.plantillaStatus || "").toLowerCase();
-  const isDeactivated = s === "deactivated" || row.plantillaStatus?.toLowerCase().includes("deactivated");
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary border-l-4 border-l-rose-500"
-    >
-      <div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 shrink-0 rounded-full bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs flex items-center justify-center shadow-xs dark:bg-rose-950 dark:border-rose-800 dark:text-rose-300">
-            {initials}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-primary transition-colors">
-              {displayName}
-            </h4>
-
-            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
-              <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
-              <span className="text-text-muted/40">•</span>
-              <span className="font-mono text-text-muted">{row.vcode || row.cgCode || "—"}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {isDeactivated ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
-                Deactivated
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800">
-                Pending for Deactivation
-              </span>
-            )}
-            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
-          </div>
-        </div>
-
-        <div className="mt-2.5 text-xs text-text-secondary">
-          <span className="font-medium text-text-secondary">{row.positionTitle || "General Staff"}</span>
-        </div>
-      </div>
-
-      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
-        <div className="flex items-center gap-1.5 truncate max-w-[70%]">
-          <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
-          <span className="truncate font-medium text-text-secondary">
-            {formatStoreName(row.primaryStoreName || "—")}
-            {locationLabel ? ` (${locationLabel})` : ""}
-          </span>
-        </div>
-
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border bg-surface-muted text-text-secondary border-border-default">
-          {row.assignmentType || "Stationary"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Employee Inactive Card Component
-// ---------------------------------------------------------------------------
-
-function EmployeeInactiveCard({
-  row,
-  onSelect,
-  storeLookupMap,
-  onRequestDeactivation,
-}: {
-  row: PlantillaEmployeeListItem;
-  onSelect: () => void;
-  storeLookupMap: Map<string, { city: string | null; province: string | null; code: string | null }>;
-  onRequestDeactivation?: (emp: PlantillaEmployeeListItem) => void;
-}) {
-  const displayName =
-    formatPersonName(
-      row.firstName,
-      row.lastName,
-      null,
-      row.fullName || `${row.lastName || ""}, ${row.firstName || ""}`,
-    ) || "—";
-
-  const initials = getInitials(row.firstName, row.lastName);
-  const storeInfo = row.primaryStoreName
-    ? storeLookupMap.get(row.primaryStoreName.toLowerCase().trim())
-    : null;
-  const locationLabel = [storeInfo?.city, storeInfo?.province].filter(Boolean).join(", ");
-
-  const rawType = (row.separationType || row.plantillaStatus || "Resigned").toLowerCase();
-  let sepBadgeVariant: "warning" | "danger" | "neutral" = "neutral";
-  let sepLabel = "Separated";
-  if (rawType.includes("resigned") || rawType.includes("resignation")) {
-    sepBadgeVariant = "warning";
-    sepLabel = "Resigned";
-  } else if (rawType.includes("awol")) {
-    sepBadgeVariant = "danger";
-    sepLabel = "AWOL";
-  } else if (rawType.includes("terminat")) {
-    sepBadgeVariant = "danger";
-    sepLabel = "Terminated";
-  }
-
-  // Deactivation Status Resolution
-  const s = (row.plantillaStatus || "").toLowerCase().trim();
-  const sep = (row.separationType || "").toLowerCase().trim();
-  const isDeactivated = s === "deactivated" || sep === "deactivated";
-  const isPendingDeactivation =
-    s === "pending for deactivation" ||
-    s === "pending_for_deactivation" ||
-    s === "pending deactivation" ||
-    s === "pending_deactivation" ||
-    s === "for deactivation" ||
-    s === "pending separation" ||
-    s === "pending_separation" ||
-    sep === "pending deactivation" ||
-    sep === "pending_deactivation" ||
-    sep === "for deactivation";
-
-  const hasExistingRequest = isDeactivated || isPendingDeactivation;
-
-  const sepDateRaw = row.separationDate || row.dateDeployed;
-  const formattedDate = sepDateRaw ? formatDate(sepDateRaw) : "—";
-  const remarks = row.separationRemarks?.trim() || "";
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border-default bg-surface-base p-4 text-left shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary border-l-4 border-l-slate-400"
-    >
-      <div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 shrink-0 rounded-full bg-surface-muted border border-border-default text-text-secondary font-bold text-xs flex items-center justify-center shadow-xs">
-            {initials}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-text-primary truncate group-hover:text-brand-primary transition-colors">
-              {displayName}
-            </h4>
-
-            <div className="flex items-center gap-1.5 text-xs text-text-muted mt-0.5 truncate">
-              <span className="font-mono text-text-secondary font-medium">{row.employeeNo || "—"}</span>
-              {row.positionTitle && (
-                <>
-                  <span className="text-text-muted/40">•</span>
-                  <span className="font-semibold text-text-secondary truncate">
-                    {formatPosition(row.positionTitle)}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <StatusBadge variant={sepBadgeVariant} text={sepLabel} />
-            {isDeactivated ? (
-              <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 border border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800">
-                Deactivated
-              </span>
-            ) : isPendingDeactivation ? (
-              <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800">
-                Pending Deact
-              </span>
-            ) : null}
-            <ChevronRight className="h-5 w-5 text-text-muted/60 transition-transform group-hover:translate-x-0.5" />
-          </div>
-        </div>
-
-        {/* Remarks box */}
-        <div className="mt-3 rounded-lg border border-border-subtle bg-surface-muted/50 px-3 py-2 text-xs">
-          <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-0.5">
-            Remarks
-          </div>
-          <div className="text-text-secondary truncate" title={remarks || undefined}>
-            {remarks || "No operational remarks recorded"}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
-        <div className="flex items-center gap-1.5 truncate max-w-[55%]">
-          <MapPin className="h-3.5 w-3.5 text-text-muted shrink-0" />
-          <span className="truncate font-medium text-text-secondary">
-            {formatStoreName(row.primaryStoreName || "—")}
-            {locationLabel ? ` (${locationLabel})` : ""}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 text-[11px] font-mono text-text-muted">
-            <Calendar className="h-3 w-3 text-text-muted shrink-0" />
-            <span>{formattedDate}</span>
-          </div>
-
-          {!hasExistingRequest && onRequestDeactivation && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRequestDeactivation(row);
-              }}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-[11px] font-semibold transition cursor-pointer hover:border-brand-primary hover:text-brand-primary shadow-2xs"
-              title={`Request deactivation for ${displayName}`}
-            >
-              <UserMinus className="w-3 h-3 text-text-secondary" />
-              <span>Request Deactivation</span>
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Empty State Helper
-// ---------------------------------------------------------------------------
-
-function EmptyTabState({
-  hasActiveFilters,
-  onResetFilters,
-  tabLabel,
-}: {
-  hasActiveFilters: boolean;
-  onResetFilters: () => void;
-  tabLabel: string;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-border-default bg-surface-muted/20">
-      <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 border border-brand-100 shadow-xs dark:bg-brand-950/40 dark:border-brand-900">
-        <Users className="h-8 w-8 text-brand-600 dark:text-brand-400" />
-        {hasActiveFilters && (
-          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-button text-xs font-bold text-white shadow-xs">
-            !
-          </span>
-        )}
-      </div>
-      <h3 className="text-base font-bold text-text-primary">
-        {hasActiveFilters ? "No matching records found" : `No ${tabLabel}`}
-      </h3>
-      <p className="mt-1.5 max-w-sm text-xs text-text-muted leading-relaxed">
-        {hasActiveFilters
-          ? "We couldn't find any records matching your current filter criteria. Try adjusting your parameters."
-          : `There are currently no ${tabLabel} listed under this account.`}
-      </p>
-      {hasActiveFilters && (
-        <button
-          type="button"
-          onClick={onResetFilters}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors shadow-xs cursor-pointer"
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          <span>Reset all filters</span>
-        </button>
+            }}
+            toastMessage={toastMessage}
+            toastVariant={toastVariant}
+            onCloseToast={() => setToastMessage(null)}
+          />
+        </>
       )}
     </div>
   );
