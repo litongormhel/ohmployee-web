@@ -5,17 +5,26 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import type { WebCurrentUserContext } from "@/lib/auth";
+import { submitHeadcountRequest } from "@/lib/queries/requests";
+import { requestVacancyClosure } from "@/lib/queries/vacancy/vacancyClosures";
 import {
   RotateCcw,
   ChevronLeft,
   ArrowUp,
   Loader2,
   Bot,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  Check,
 } from "lucide-react";
 
 type OhmniDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
+  currentUser?: WebCurrentUserContext | null;
 };
 
 // ── Lightweight Markdown & Inline Formatter ─────────────────────────────────
@@ -190,6 +199,15 @@ function hasToolResults(out?: GenericToolOutput): boolean {
   if (Array.isArray(out.items)) return out.items.length > 0;
   if (Array.isArray(out.requests)) return out.requests.length > 0;
   return false;
+}
+
+function isActionDraftTool(tp: unknown): boolean {
+  const out = getToolOutputPayload(tp);
+  return Boolean(
+    out &&
+    (out.action === "SUBMIT_HEADCOUNT_REQUEST" ||
+     out.action === "SUBMIT_VACANCY_CLOSURE")
+  );
 }
 
 function ToolOutputFallbackView({
@@ -463,6 +481,7 @@ function ToolOutputFallbackView({
     const briefing = output as {
       pendingHeadcount?: number;
       openVacancies?: number;
+      agingVacancies?: number;
       pendingEmploc?: number;
       pendingClosures?: number;
       totalActionItems?: number;
@@ -498,6 +517,300 @@ function ToolOutputFallbackView({
       Query completed successfully.
     </p>
   );
+}
+
+// ── Interactive Action Draft Card Component (Phase 2 Layer 2) ───────────────
+
+interface ActionDraftCardProps {
+  messageId: string;
+  toolPart: unknown;
+  submittingDrafts: Record<string, boolean>;
+  submittedDrafts: Record<
+    string,
+    {
+      status: "success" | "error";
+      requestId?: string;
+      vcode?: string;
+      error?: string;
+    }
+  >;
+  onConfirmHeadcount: (
+    key: string,
+    draft: {
+      storeId?: string | null;
+      storeName?: string;
+      accountId?: string | null;
+      accountName?: string;
+      positionId?: string | null;
+      position?: string;
+      headcountNeeded?: number;
+      reason?: string;
+    }
+  ) => Promise<void>;
+  onConfirmVacancyClosure: (
+    key: string,
+    draft: {
+      vacancyId?: string;
+      vcode: string;
+      position?: string;
+      storeName?: string;
+      reason?: string;
+    }
+  ) => Promise<void>;
+}
+
+function ActionDraftCard({
+  messageId,
+  toolPart,
+  submittingDrafts,
+  submittedDrafts,
+  onConfirmHeadcount,
+  onConfirmVacancyClosure,
+}: ActionDraftCardProps) {
+  const output = getToolOutputPayload(toolPart);
+  if (!output || typeof output !== "object") return null;
+
+  // 1. Headcount Request Draft
+  if (output.action === "SUBMIT_HEADCOUNT_REQUEST" && output.draft) {
+    const draft = output.draft as {
+      storeId?: string | null;
+      storeName?: string;
+      accountId?: string | null;
+      accountName?: string;
+      positionId?: string | null;
+      position?: string;
+      headcountNeeded?: number;
+      reason?: string;
+    };
+    const draftKey = `hc_${messageId}_${draft.storeName || ""}_${draft.position || ""}`;
+    const isSubmitting = Boolean(submittingDrafts[draftKey]);
+    const submission = submittedDrafts[draftKey];
+
+    if (submission?.status === "success") {
+      return (
+        <div className="my-2.5 p-3.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 space-y-2.5 transition-all">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <span>Headcount Request Submitted!</span>
+            </div>
+            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 font-bold">
+              Pending Review
+            </span>
+          </div>
+          <div className="text-xs space-y-1 text-text-secondary">
+            <p>
+              • <strong>Request ID:</strong>{" "}
+              <code className="tech-token">{submission.requestId || "Submitted"}</code>
+            </p>
+            <p>
+              • <strong>Branch:</strong> {draft.storeName || "—"}
+            </p>
+            <p>
+              • <strong>Position:</strong> {draft.position || "Staff"} (
+              {draft.headcountNeeded ?? 1} slot
+              {(draft.headcountNeeded ?? 1) > 1 ? "s" : ""})
+            </p>
+          </div>
+          <div className="pt-1 flex flex-wrap items-center gap-2">
+            <a
+              href="/my-requests"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors"
+            >
+              <span>Track in My Requests</span>
+              <ArrowRight size={13} />
+            </a>
+            <a
+              href="/approvals?tab=headcount"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary bg-surface-muted hover:bg-surface-elevated border border-[var(--border-subtle)] rounded-lg transition-colors"
+            >
+              <span>View in Approvals</span>
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="my-2.5 p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            <Bot className="h-4 w-4" />
+            <span>Action Ready: Headcount Request Draft</span>
+          </div>
+          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
+            Draft Ready
+          </span>
+        </div>
+        <div className="text-xs space-y-1 text-text-secondary">
+          <p>
+            • <strong>Branch:</strong> {draft.storeName || "Unassigned"}
+          </p>
+          <p>
+            • <strong>Position:</strong> {draft.position || "Staff"}
+          </p>
+          <p>
+            • <strong>Count Needed:</strong> {draft.headcountNeeded ?? 1}
+          </p>
+          <p>
+            • <strong>Justification:</strong> {draft.reason || "Operational demand"}
+          </p>
+        </div>
+        {submission?.status === "error" && (
+          <div className="p-2 rounded-lg bg-danger/10 border border-danger/20 text-xs text-danger flex items-start gap-1.5">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>{submission.error}</span>
+          </div>
+        )}
+        <div className="pt-1 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onConfirmHeadcount(draftKey, draft)}
+            disabled={isSubmitting}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg shadow-xs transition-colors cursor-pointer"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Submitting...</span>
+              </>
+            ) : (
+              <>
+                <Check className="h-3.5 w-3.5" />
+                <span>Confirm &amp; Submit</span>
+              </>
+            )}
+          </button>
+          <a
+            href={`/plantilla?request=headcount&store=${encodeURIComponent(draft.storeName || "")}&pos=${encodeURIComponent(draft.position || "")}`}
+            className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary bg-surface-muted hover:bg-surface-elevated border border-[var(--border-subtle)] rounded-lg transition-colors"
+          >
+            Review in Plantilla →
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Vacancy Closure Draft
+  if (output.action === "SUBMIT_VACANCY_CLOSURE" && output.draft) {
+    const draft = output.draft as {
+      vacancyId?: string;
+      vcode: string;
+      position?: string;
+      storeName?: string;
+      reason?: string;
+    };
+    const draftKey = `closure_${messageId}_${draft.vcode}`;
+    const isSubmitting = Boolean(submittingDrafts[draftKey]);
+    const submission = submittedDrafts[draftKey];
+
+    if (submission?.status === "success") {
+      return (
+        <div className="my-2.5 p-3.5 rounded-xl border border-amber-500/40 bg-amber-500/10 space-y-2.5 transition-all">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              <CheckCircle2 className="h-4 w-4 text-amber-500" />
+              <span>Vacancy Closure Request Submitted!</span>
+            </div>
+            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold">
+              Pending Review
+            </span>
+          </div>
+          <div className="text-xs space-y-1 text-text-secondary">
+            <p>
+              • <strong>Slot Code:</strong>{" "}
+              <code className="tech-token">{draft.vcode}</code>
+            </p>
+            <p>
+              • <strong>Position:</strong> {draft.position || "—"}
+            </p>
+            <p>
+              • <strong>Branch:</strong> {draft.storeName || "—"}
+            </p>
+          </div>
+          <div className="pt-1 flex flex-wrap items-center gap-2">
+            <a
+              href="/my-requests"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-xs transition-colors"
+            >
+              <span>Track in My Requests</span>
+              <ArrowRight size={13} />
+            </a>
+            <a
+              href={`/vacancy?q=${encodeURIComponent(draft.vcode || "")}`}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary bg-surface-muted hover:bg-surface-elevated border border-[var(--border-subtle)] rounded-lg transition-colors"
+            >
+              <span>Review in Vacancy Hub</span>
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="my-2.5 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            <Bot className="h-4 w-4" />
+            <span>Action Ready: Vacancy Closure Draft</span>
+          </div>
+          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">
+            Draft Ready
+          </span>
+        </div>
+        <div className="text-xs space-y-1 text-text-secondary">
+          <p>
+            • <strong>Slot Code:</strong>{" "}
+            <code className="tech-token">{draft.vcode}</code>
+          </p>
+          <p>
+            • <strong>Position:</strong> {draft.position || "—"}
+          </p>
+          <p>
+            • <strong>Branch:</strong> {draft.storeName || "—"}
+          </p>
+          <p>
+            • <strong>Reason:</strong> {draft.reason || "Closure requested"}
+          </p>
+        </div>
+        {submission?.status === "error" && (
+          <div className="p-2 rounded-lg bg-danger/10 border border-danger/20 text-xs text-danger flex items-start gap-1.5">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>{submission.error}</span>
+          </div>
+        )}
+        <div className="pt-1 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onConfirmVacancyClosure(draftKey, draft)}
+            disabled={isSubmitting}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg shadow-xs transition-colors cursor-pointer"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Submitting...</span>
+              </>
+            ) : (
+              <>
+                <Check className="h-3.5 w-3.5" />
+                <span>Confirm &amp; Submit</span>
+              </>
+            )}
+          </button>
+          <a
+            href={`/vacancy?q=${encodeURIComponent(draft.vcode || "")}`}
+            className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary bg-surface-muted hover:bg-surface-elevated border border-[var(--border-subtle)] rounded-lg transition-colors"
+          >
+            Review in Vacancy Hub →
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 // ── Route & Context Starter Prompts ──────────────────────────────────────────
@@ -559,12 +872,224 @@ function getStarterPrompts(pathname: string, context?: ContextParams): string[] 
 
 // ── Main OHMni Centered Floating Card ───────────────────────────────────────
 
-export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
+export function OhmniDrawer({ isOpen, onClose, currentUser }: OhmniDrawerProps) {
+  const queryClient = useQueryClient();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // In-flight and completed interactive action draft states (Phase 2 Layer 2)
+  const [submittingDrafts, setSubmittingDrafts] = useState<Record<string, boolean>>({});
+  const [submittedDrafts, setSubmittedDrafts] = useState<
+    Record<
+      string,
+      {
+        status: "success" | "error";
+        requestId?: string;
+        vcode?: string;
+        error?: string;
+      }
+    >
+  >({});
+
+  const handleConfirmHeadcount = useCallback(
+    async (
+      draftKey: string,
+      draft: {
+        storeId?: string | null;
+        storeName?: string;
+        accountId?: string | null;
+        accountName?: string;
+        positionId?: string | null;
+        position?: string;
+        headcountNeeded?: number;
+        reason?: string;
+      }
+    ) => {
+      setSubmittingDrafts((prev) => ({ ...prev, [draftKey]: true }));
+      try {
+        const supabase = createClient();
+        let storeId = draft.storeId || null;
+        let accountId = draft.accountId || null;
+        let positionId = draft.positionId || null;
+        const storeName = draft.storeName || "Unassigned Store";
+        const positionName = draft.position || "Staff";
+
+        // Resolve store and account if missing
+        if (!storeId || !accountId) {
+          const { data: storeRows } = await supabase
+            .from("stores")
+            .select("id, store_name, account_id, accounts(id, account_name)")
+            .ilike("store_name", `%${storeName.replace(/[%_]/g, "")}%`)
+            .limit(1);
+
+          if (storeRows && storeRows.length > 0) {
+            storeId = storeRows[0].id;
+            accountId = storeRows[0].account_id;
+          }
+        }
+
+        if (!accountId) {
+          const { data: accRows } = await supabase
+            .from("accounts")
+            .select("id")
+            .limit(1);
+          if (accRows && accRows.length > 0) {
+            accountId = accRows[0].id;
+          }
+        }
+
+        // Resolve position if missing
+        if (!positionId) {
+          const { data: posRows } = await supabase
+            .from("positions")
+            .select("id, position_name")
+            .ilike("position_name", `%${positionName.replace(/[%_]/g, "")}%`)
+            .limit(1);
+
+          if (posRows && posRows.length > 0) {
+            positionId = posRows[0].id;
+          } else {
+            const { data: defPos } = await supabase
+              .from("positions")
+              .select("id, position_name")
+              .eq("is_active", true)
+              .limit(1);
+            if (defPos && defPos.length > 0) {
+              positionId = defPos[0].id;
+            }
+          }
+        }
+
+        if (!accountId || !positionId) {
+          throw new Error(
+            "Could not resolve account or position. Please review and submit via Plantilla."
+          );
+        }
+
+        const res = await submitHeadcountRequest({
+          account_id: accountId,
+          account_name: draft.accountName,
+          store_id: storeId,
+          store_name: storeName,
+          position_id: positionId,
+          position_name: positionName,
+          workforce_type: "stationary",
+          employment_type: "Stationary",
+          request_type: "Additional Headcount",
+          headcount_needed: draft.headcountNeeded ?? 1,
+          reason: draft.reason ?? "Operational demand",
+          urgency: "Medium",
+        });
+
+        queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+        queryClient.invalidateQueries({ queryKey: ["my-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["headcount-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["pending-headcount-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+        queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+
+        setSubmittedDrafts((prev) => ({
+          ...prev,
+          [draftKey]: {
+            status: "success",
+            requestId: res.request_id,
+          },
+        }));
+      } catch (err) {
+        setSubmittedDrafts((prev) => ({
+          ...prev,
+          [draftKey]: {
+            status: "error",
+            error:
+              err instanceof Error
+                ? err.message
+                : "Failed to submit headcount request",
+          },
+        }));
+      } finally {
+        setSubmittingDrafts((prev) => ({ ...prev, [draftKey]: false }));
+      }
+    },
+    [queryClient]
+  );
+
+  const handleConfirmVacancyClosure = useCallback(
+    async (
+      draftKey: string,
+      draft: {
+        vacancyId?: string;
+        vcode: string;
+        position?: string;
+        storeName?: string;
+        reason?: string;
+      }
+    ) => {
+      setSubmittingDrafts((prev) => ({ ...prev, [draftKey]: true }));
+      try {
+        const supabase = createClient();
+        let userName = currentUser?.displayName;
+        let userRole = currentUser?.roleName || "Ops";
+        let userId = currentUser?.profileId;
+
+        if (!userId || !userName) {
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user) {
+            const { data: prof } = await supabase
+              .from("users_profile")
+              .select("id, full_name, role_name")
+              .eq("auth_user_id", authData.user.id)
+              .maybeSingle();
+            if (prof) {
+              userId = prof.id;
+              userName = prof.full_name || userName;
+              userRole = prof.role_name || userRole;
+            }
+          }
+        }
+
+        await requestVacancyClosure({
+          vcode: draft.vcode,
+          reason: draft.reason ?? "Position no longer required",
+          details: "Submitted via OHMni AI Co-Pilot action card",
+          requestedBy: userName || "Authorized User",
+          requestedByRole: userRole || "Ops",
+          requestedByUserId: userId || null,
+        });
+
+        queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+        queryClient.invalidateQueries({ queryKey: ["my-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["vacancy-closure-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["pending-vacancy-closure-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+        queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+
+        setSubmittedDrafts((prev) => ({
+          ...prev,
+          [draftKey]: {
+            status: "success",
+            vcode: draft.vcode,
+          },
+        }));
+      } catch (err) {
+        setSubmittedDrafts((prev) => ({
+          ...prev,
+          [draftKey]: {
+            status: "error",
+            error:
+              err instanceof Error
+                ? err.message
+                : "Failed to submit vacancy closure request",
+          },
+        }));
+      } finally {
+        setSubmittingDrafts((prev) => ({ ...prev, [draftKey]: false }));
+      }
+    },
+    [currentUser, queryClient]
+  );
 
   const storeName = useMemo(
     () =>
@@ -686,6 +1211,8 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
       stop();
     }
     setMessages([]);
+    setSubmittingDrafts({});
+    setSubmittedDrafts({});
   };
 
   const starters = useMemo(
@@ -823,6 +1350,10 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
             const toolParts = m.parts.filter((p) =>
               p.type.startsWith("tool-") || p.type === "dynamic-tool"
             );
+            const actionParts = toolParts.filter(isActionDraftTool);
+            const nonActionToolParts = toolParts.filter(
+              (tp) => !isActionDraftTool(tp)
+            );
 
             const hasNonEmptyText = textParts.some((t) => t.text.trim().length > 0);
 
@@ -846,23 +1377,46 @@ export function OhmniDrawer({ isOpen, onClose }: OhmniDrawerProps) {
                       <div className="font-semibold text-text-primary text-sm">OHMni</div>
 
                       {/* Assistant Reply Content */}
-                      <div className="text-sm text-text-secondary leading-relaxed bg-[var(--surface-base)] p-3.5 rounded-2xl border border-[var(--border-subtle)] shadow-2xs w-full">
-                        {hasNonEmptyText ? (
+                      <div className="text-sm text-text-secondary leading-relaxed bg-[var(--surface-base)] p-3.5 rounded-2xl border border-[var(--border-subtle)] shadow-2xs w-full space-y-2">
+                        {hasNonEmptyText &&
                           textParts.map((t, idx) => (
                             <FormattedContent key={idx} content={t.text} />
-                          ))
-                        ) : isLoading ? (
-                          /* Loading State while stream is in flight */
+                          ))}
+
+                        {/* Interactive Action Draft Cards (Phase 2 Layer 2) */}
+                        {actionParts.map((tp, idx) => (
+                          <ActionDraftCard
+                            key={idx}
+                            messageId={m.id}
+                            toolPart={tp}
+                            submittingDrafts={submittingDrafts}
+                            submittedDrafts={submittedDrafts}
+                            onConfirmHeadcount={handleConfirmHeadcount}
+                            onConfirmVacancyClosure={handleConfirmVacancyClosure}
+                          />
+                        ))}
+
+                        {/* Fallback: stream finished with completed query tools but 0 text parts */}
+                        {!hasNonEmptyText &&
+                          !isLoading &&
+                          nonActionToolParts.length > 0 && (
+                            <ToolOutputFallbackView
+                              toolParts={nonActionToolParts}
+                            />
+                          )}
+
+                        {/* Loading State while stream is in flight */}
+                        {!hasNonEmptyText && isLoading && (
                           <div className="flex items-center gap-2 text-text-muted py-1">
-                            <Loader2 size={14} className="animate-spin text-emerald-500" />
+                            <Loader2
+                              size={14}
+                              className="animate-spin text-emerald-500"
+                            />
                             <span className="text-xs italic text-text-muted">
                               Thinking.....
                             </span>
                           </div>
-                        ) : toolParts.length > 0 ? (
-                          /* Fallback: stream finished with completed tools but 0 text parts */
-                          <ToolOutputFallbackView toolParts={toolParts} />
-                        ) : null}
+                        )}
                       </div>
                     </div>
                   </div>

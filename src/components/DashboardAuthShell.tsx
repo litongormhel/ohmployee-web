@@ -228,6 +228,7 @@ function AuthenticatedShell({
         <OhmniDrawer
           isOpen={isOhmniOpen}
           onClose={() => setIsOhmniOpen(false)}
+          currentUser={currentUser}
         />
         <GlobalSearchModal
           isOpen={isGlobalSearchOpen}

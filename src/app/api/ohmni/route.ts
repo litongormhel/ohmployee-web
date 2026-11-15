@@ -868,12 +868,14 @@ async function executeDraftHeadcountRequest(
       let resolvedStoreName = storeName ?? "Unspecified Store";
       let accountId: string | null = null;
       let accountName = "Unspecified Account";
+      let positionId: string | null = null;
+      let resolvedPositionName = position ?? "General Staff";
 
       if (storeName) {
         const clean = sanitizeOrTerm(storeName);
         const { data: storeRows } = await supabase
           .from("stores")
-          .select("id, store_name, account_id, accounts(account_name)")
+          .select("id, store_name, account_id, accounts(id, account_name)")
           .ilike("store_name", `%${clean}%`)
           .limit(1);
 
@@ -886,6 +888,45 @@ async function executeDraftHeadcountRequest(
         }
       }
 
+      if (position) {
+        const cleanPos = sanitizeOrTerm(position);
+        const { data: posRows } = await supabase
+          .from("positions")
+          .select("id, position_name")
+          .ilike("position_name", `%${cleanPos}%`)
+          .limit(1);
+
+        if (posRows && posRows.length > 0) {
+          positionId = posRows[0].id;
+          resolvedPositionName = posRows[0].position_name;
+        }
+      }
+
+      // If positionId is still null, look up first active position as fallback
+      if (!positionId) {
+        const { data: defaultPos } = await supabase
+          .from("positions")
+          .select("id, position_name")
+          .eq("is_active", true)
+          .limit(1);
+        if (defaultPos && defaultPos.length > 0) {
+          positionId = defaultPos[0].id;
+          if (!position) resolvedPositionName = defaultPos[0].position_name;
+        }
+      }
+
+      // If accountId is still null, look up default account
+      if (!accountId) {
+        const { data: defaultAcc } = await supabase
+          .from("accounts")
+          .select("id, account_name")
+          .limit(1);
+        if (defaultAcc && defaultAcc.length > 0) {
+          accountId = defaultAcc[0].id;
+          accountName = defaultAcc[0].account_name;
+        }
+      }
+
       return {
         action: "SUBMIT_HEADCOUNT_REQUEST",
         status: "READY_FOR_CONFIRMATION",
@@ -894,11 +935,12 @@ async function executeDraftHeadcountRequest(
           storeName: resolvedStoreName,
           accountId,
           accountName,
-          position: position ?? "General Staff",
+          positionId,
+          position: resolvedPositionName,
           headcountNeeded: Math.max(1, headcountNeeded),
           reason: reason ?? "Operational demand",
         },
-        message: `Prepared Headcount Request for ${headcountNeeded}x ${position ?? "Staff"} at ${resolvedStoreName}. Please review and confirm below.`,
+        message: `Prepared Headcount Request for ${headcountNeeded}x ${resolvedPositionName} at ${resolvedStoreName}. Please review and confirm below.`,
       };
     }, "Failed to draft headcount request");
   } catch (err) {
@@ -1395,7 +1437,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { messages, stream = true, activeContext } = body ?? {};
+    const { messages, stream: isStreamRequested = true, activeContext } = body ?? {};
     if (!Array.isArray(messages)) {
       return new Response(
         JSON.stringify({ error: "Invalid messages payload: expected an array." }),
@@ -1613,7 +1655,7 @@ INSTRUCTIONS FOR ACTIVE SCREEN CONTEXT:
     };
 
     // Non-streaming response for Mobile & REST clients (stream: false)
-    if (stream === false) {
+    if (isStreamRequested === false) {
       for (const modelName of CANDIDATE_MODELS) {
         try {
           const result = await generateText({

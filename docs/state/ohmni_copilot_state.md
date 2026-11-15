@@ -4,7 +4,7 @@
 **Endpoint:** `/api/ohmni` (Streaming Next.js Route Handler)  
 **UI Interface:** Tarsi-Style Centered Floating Card Overlay (`max-w-[680px]`, `h-[calc(100vh-48px)]`, rounded-3xl, centered in workspace)  
 **Navigation Placement:** Directly below CENCOM in `Sidebar.tsx` (for CENCOM roles) or below Dashboard/primary navigation (for non-CENCOM roles), Header trigger in `AdminTopbar.tsx`, and `⌘K` / `Ctrl+K` keyboard shortcut (100% visible across all authenticated roles)  
-**Last Updated:** 2026-11-15 (`ohm#ohmni-phase2-layer1`)
+**Last Updated:** 2026-11-15 (`ohm#ohmni-phase2-layer2`)
 
 ---
 
@@ -12,16 +12,18 @@
 
 OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations managers, and administrators to self-serve operational data queries and standard operating procedure (SOP) lookups without manual SQL or reporting escalation.
 
-### Phase 2 Architecture: Real-Time Intelligence & Screen Context Awareness
-- **Active Screen Context Awareness (`activeContext`):**
-  - **Web (`OhmniDrawer.tsx`):** Automatically parses URL route and query parameters via `usePathname()` and `useSearchParams()` (`store`, `account`, `vcode`, `q`). Forwards active context payload `{ route, storeName, accountName, vcode }` to the `/api/ohmni` route handler and displays a live context badge in the chat welcome view (`📍 Context: Store • Account • Slot`).
-  - **Mobile (`ohmni_chat_screen.dart`):** Accepts `activeContext` parameter in `OhmniChatScreen.open()` with active screen route, store, or slot identifiers, rendering a high-contrast context badge above starter prompts.
+### Phase 2 Architecture: Real-Time Intelligence & Safe Action Execution
+- **Layer 1: Context Awareness & Operational Briefing:**
+  - **Active Screen Context Awareness (`activeContext`):** Automatically parses URL route and query parameters via `usePathname()` and `useSearchParams()` (`store`, `account`, `vcode`, `q`) on Web, and `activeContext` route map on Mobile. Forwards active context payload `{ route, storeName, accountName, vcode }` to the `/api/ohmni` route handler and displays a live context badge in the chat welcome view (`📍 Context: Store • Account • Slot`).
   - **Dynamic Contextual Starter Prompts:** Dynamically injects tailored question prompts based on active screen context (e.g. `"Kumusta ang staffing sa [Store]?"`, `"Check details ng slot [VCODE]"`).
   - **Context-Bound System Prompt:** Instructs Gemini to bind relative and deictic queries (*"dito"*, *"here"*, *"this store"*, *"staffing rito"*, *"this slot"*) to the current active screen context.
-- **Daily Operational Briefing (`getOperationalBriefing`):**
-  - Aggregates operational priorities across 5 dimensions: pending headcount requests, open vacancies, aging vacancies (>30 days SLA alert), pending HR emploc movements, and pending vacancy closures, supplemented by priority understaffed accounts from `v_account_allocation_kpi`.
-  - Accessible via a 1-tap starter chip (`📋 Today's Operational Briefing`) on both Web and Mobile.
-  - Features deterministic fallback support in `_executeLocalFallback` and server fallback routines.
+  - **Daily Operational Briefing (`getOperationalBriefing`):** Aggregates operational priorities across 5 dimensions: pending headcount requests, open vacancies, aging vacancies (>30 days SLA alert), pending HR emploc movements, and pending vacancy closures, supplemented by priority understaffed accounts from `v_account_allocation_kpi`.
+- **Layer 2: Safe Interactive Action Drafting & In-Place Confirmation/Execution:**
+  - **Action Ready Cards:** When asked to draft or submit a headcount request or close a vacancy, OHMni prepares verified structured drafts (`draftHeadcountRequest` and `draftVacancyClosure`) with resolved UUIDs (`storeId`, `accountId`, `positionId`) rendered directly within interactive cards.
+  - **In-Place "Confirm & Submit":** Users execute submissions directly from within the chat conversation without leaving their context.
+    - **Headcount Request:** Submits via `submitHeadcountRequest` RPC (`public.submit_headcount_request`), immediately invalidates query caches (`request-category-counts`, `my-requests`, `headcount-requests`, `plantilla`, `vacancies`), and transitions the card into a confirmed state with direct links to `/my-requests` and `/approvals`.
+    - **Vacancy Closure:** Submits via `requestVacancyClosure` (`rpc_submit_vacancy_closure_request`), invalidates relevant caches, and renders confirmed state linking to `/my-requests` and `/vacancy`.
+  - **Mobile Parity:** Updated `_confirmAndSubmitHeadcount` in `ohmni_chat_screen.dart` utilizing `PlantillaScopeService().submitHeadcountRequest` with store/position/account resolution conforming strictly to database contracts.
 
 ### Core Architecture
 - **Creator Identity & Ecosystem Architecture:** OHMni recognizes **OHM (Ormhel Litong)**, IT Manager at Moses Coop and Systems Architect of OHMployee, as its sole designer and creator. Any questions regarding who built OHMni or who Ohm is highlight Ohm's role architecting both the Mobile and Web ecosystems (Plantilla, Vacancy, HR Emploc, CENCOM, OHMni).
