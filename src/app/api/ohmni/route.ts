@@ -1,4 +1,5 @@
 import {
+  generateText,
   streamText,
   tool,
   stepCountIs,
@@ -926,7 +927,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { messages } = await req.json();
+    const body = await req.json();
+    const { messages, stream = true } = body ?? {};
     if (!Array.isArray(messages)) {
       return new Response(
         JSON.stringify({ error: "Invalid messages payload: expected an array." }),
@@ -1053,6 +1055,41 @@ export async function POST(req: Request) {
         execute: async (params) => executeHeadcountRequests(supabase, params),
       }),
     };
+
+    // Non-streaming response for Mobile & REST clients (stream: false)
+    if (stream === false) {
+      for (const modelName of CANDIDATE_MODELS) {
+        try {
+          const result = await generateText({
+            model: google(modelName),
+            system: SYSTEM_PROMPT,
+            messages: modelMessages,
+            stopWhen: stepCountIs(3),
+            maxRetries: 0,
+            tools,
+          });
+
+          return Response.json({
+            text: result.text,
+            toolCalls: result.toolCalls,
+            toolResults: result.toolResults,
+            model: modelName,
+          });
+        } catch (err) {
+          console.warn(`[OHMni JSON] Error launching model ${modelName}:`, err);
+        }
+      }
+
+      // Deterministic Zero-Quota Fallback
+      console.warn(
+        "[OHMni JSON] All Gemini models exhausted. Activating deterministic local fallback."
+      );
+      const fallbackText = await handleDeterministicFallback(supabase, promptText);
+      return Response.json({
+        text: fallbackText,
+        isFallback: true,
+      });
+    }
 
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
