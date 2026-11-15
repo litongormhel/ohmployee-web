@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: 55aadb5 2026-11-15T18:06:04+08:00
-source_sha256: 8a85ea608f5c05247bf1112cf52da9104484c839f04ad6771e8ae76f3b85e486
-synced_at: 2026-11-15T10:06:13.451Z
+source_commit: 738f6ea 2026-11-15T18:27:23+08:00
+source_sha256: 88f3ea7426efa027cab0bdfec34dd6140f4047b8422428e3d3e9e49cd45dc998
+synced_at: 2026-11-15T10:27:29.166Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -467,18 +467,22 @@ Rule 1 and Rule 6 compliance: More Module's bulk archival and payroll-adjacent R
      - *72 hours – 7 days:* Super Admin escalation notification.
      - *> 7 days (1 week):* Automatic **"Breached SLA (>7 Days)"** critical operational lock.
 
-3. **Strict Plantilla Invariant & Automated Resolution:**
+3. **Strict Plantilla Invariant & Two-Tier Triage Permissions:**
    - Pre-deployment onboarding status (e.g. HR Emploc pipeline) remains classified under strict investigation until the employee physically attains `status = 'Active'` in `public.plantilla`.
    - The database trigger `trg_ghost_resolve_on_plantilla_active` automatically transitions Type A cases to `'Cleared'` (`auto_resolved = true`, `resolved_at = now()`, `resolution_remarks = 'Auto-resolved: Found in Active Plantilla'`).
-   - Manual actions are role-gated (SA, HA, Encoder, OM): Assign to Encoder (72h deadline), Mark Cleared (audited reason), or Confirm Ghost / Payroll Freeze.
+   - **Two-Tier Triage Permissions:**
+     - *Field Ops (HRCO, TL, ATL):* Scoped to their allowed accounts (`account = ANY(get_my_allowed_accounts())`). May inspect cases and submit audited **Operational Verification Notes** (e.g., confirming store presence or unrecorded separation).
+     - *Data Team & Admin (Encoder 30, HA 70, SA 90):* Authorized to execute formal status mutations: Assign to Encoder (72h deadline), Mark Cleared (audited reason), or Confirm Ghost / Payroll Freeze.
 
 4. **Coalesced Statutory Benefits Hydration:**
    - Weekly MIKA import strictly prioritizes biometric attendance cross-checking and ghost detection.
    - Government statutory numbers (SSS, PhilHealth, Pag-IBIG, TIN, ATM) only coalesce into blank/null fields in `public.plantilla` upon batch approval without overwriting existing verified data.
 
-5. **Operations Hub Surface Contract:**
-   - Dedicated detection center surface in Web Operations Hub (`/more?tab=data_control&subtab=operations&tool=ghost_detection`) and mobile (`MikaImportScreen(ghostReportOnly: true)`).
-   - Real-time deep-linking from CENCOM & Executive Dashboard anomaly alerts (`"Resolve Anomalies →"`).
+5. **Approval-Triggered Targeted Notifications & Deep-Link Invariants:**
+   - When a MIKA import batch is approved (`mika_import_logs.status = 'Approved'`) with detected ghost cases, notifications fire automatically:
+     - *Operations Manager (60), Head Admin (70), Super Admin (90):* Global notification: `"{count} possible ghost employees flagged across all accounts. Review here"` → links to `/more?tab=data_control&subtab=operations&tool=ghost_detection`.
+     - *HRCO (40), TL (50), ATL (55), Encoder (30):* Account-targeted notification: `"{count} possible ghost employees flagged in {account}. Verify here"` → links to `/more?tab=data_control&subtab=operations&tool=ghost_detection&account={account}`.
+   - Operations Hub surface contract: Located at `/more?tab=data_control&subtab=operations&tool=ghost_detection`, with deep links from CENCOM and Executive Dashboard anomaly alerts (`"Resolve Anomalies →"`).
 
 ---
 
