@@ -27,6 +27,7 @@ import {
   Briefcase,
   Clock,
   FileText,
+  AlertTriangle,
 } from "lucide-react";
 
 type OhmniDrawerProps = {
@@ -332,6 +333,7 @@ function hasToolResults(out?: GenericToolOutput): boolean {
   if (Array.isArray(out.requests)) return out.requests.length > 0;
   if (Array.isArray(out.roster)) return out.roster.length > 0;
   if (Array.isArray(out.events)) return out.events.length > 0;
+  if (Array.isArray(out.anomalies)) return out.anomalies.length > 0;
   if (Array.isArray(out.navigationLinks) && out.navigationLinks.length > 0) return true;
   if (Boolean(out.slotCode)) return true;
   return false;
@@ -803,6 +805,91 @@ function renderFallbackBody(output: GenericToolOutput): React.ReactNode {
     );
   }
 
+  // Handle detectOperationalAnomalies (Phase 2 Layer 5)
+  if (Array.isArray(output.anomalies)) {
+    const anomalies = output.anomalies as Array<{
+      id: string;
+      type: string;
+      severity: "critical" | "warning";
+      title: string;
+      description: string;
+      entityCode?: string;
+      entityName?: string;
+      daysStale?: number;
+      remediationAction?: string;
+    }>;
+
+    if (anomalies.length === 0) {
+      return (
+        <div className="p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-700 dark:text-emerald-400">
+          ✅ <strong>All Systems Normal:</strong> Zero operational anomalies, orphan slots, or stuck queues detected across accounts.
+        </div>
+      );
+    }
+
+    const criticalCount = Number(output.criticalCount ?? anomalies.filter((a) => a.severity === "critical").length);
+    const warningCount = Number(output.warningCount ?? anomalies.filter((a) => a.severity === "warning").length);
+
+    return (
+      <div className="space-y-2.5 p-3 rounded-xl border border-[var(--border-subtle)] bg-surface-muted/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-text-primary">
+            <AlertTriangle size={14} className="text-amber-500" />
+            <span>Operational Anomaly Scanner ({anomalies.length} Flagged)</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[10px] font-bold">
+            {criticalCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-danger/10 text-danger border border-danger/20">
+                {criticalCount} Critical
+              </span>
+            )}
+            {warningCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                {warningCount} Warnings
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {anomalies.map((anom) => {
+            const isCrit = anom.severity === "critical";
+            return (
+              <div
+                key={anom.id}
+                className={`p-2.5 rounded-lg border text-xs space-y-1 ${
+                  isCrit
+                    ? "border-danger/30 bg-danger/5 text-text-primary"
+                    : "border-amber-500/30 bg-amber-500/5 text-text-primary"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold text-text-primary leading-snug">
+                    {isCrit ? "🔴 " : "🟡 "}
+                    {anom.title}
+                  </span>
+                  {anom.daysStale !== undefined && (
+                    <span className="text-[10px] font-mono text-text-muted shrink-0">
+                      {anom.daysStale}d overdue
+                    </span>
+                  )}
+                </div>
+                <p className="text-text-secondary leading-relaxed">
+                  {anom.description}
+                </p>
+                {anom.remediationAction && (
+                  <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                    💡 Suggested Action: {anom.remediationAction}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <p className="text-sm text-text-muted">
       Query completed successfully.
@@ -1112,9 +1199,27 @@ interface ContextParams {
   vcode?: string;
 }
 
-function getStarterPrompts(pathname: string, context?: ContextParams): string[] {
-  const common = ["📋 Today's Operational Briefing"];
+function getStarterPrompts(
+  pathname: string,
+  context?: ContextParams,
+  userRole?: string | null
+): string[] {
+  const common = [
+    "📋 Today's Operational Briefing",
+    "🚨 Scan operational anomalies & red flags",
+  ];
   const dynamicStarters: string[] = [];
+
+  const roleLower = (userRole || "").toLowerCase();
+  const isHr =
+    roleLower.includes("hr") ||
+    roleLower.includes("recruitment") ||
+    roleLower.includes("talent");
+  const isOps =
+    roleLower.includes("ops") ||
+    roleLower.includes("operations") ||
+    roleLower.includes("area") ||
+    roleLower.includes("coordinator");
 
   if (context?.storeName) {
     dynamicStarters.push(`Kumusta ang staffing sa ${context.storeName}?`);
@@ -1154,8 +1259,32 @@ function getStarterPrompts(pathname: string, context?: ContextParams): string[] 
       ...dynamicStarters,
       "Show pending movements stuck in hr_emploc_queue",
       "Check queue status for a specific employee",
+      "I-scan ang aging movements lagpas 14 days",
     ];
   }
+
+  if (isHr) {
+    return [
+      ...common,
+      ...dynamicStarters,
+      "Show vacancies open for more than 30 days (SLA breach)",
+      "I-check ang mga pending movements na stuck sa HR Emploc",
+      "Check pending headcount requests awaiting approval",
+      "Draft closure request for a vacancy",
+    ];
+  }
+
+  if (isOps) {
+    return [
+      ...common,
+      ...dynamicStarters,
+      "Show accounts ranked by lowest fill rate (MFR)",
+      "Ilista ang branches na may critical understaffing (<85% MFR)",
+      "Show vacancies open for more than 30 days (SLA breach)",
+      "Draft a headcount request",
+    ];
+  }
+
   return [
     ...common,
     ...dynamicStarters,
@@ -1520,8 +1649,8 @@ export function OhmniDrawer({ isOpen, onClose, currentUser }: OhmniDrawerProps) 
   };
 
   const starters = useMemo(
-    () => getStarterPrompts(pathname, activeContext),
-    [pathname, activeContext]
+    () => getStarterPrompts(pathname, activeContext, currentUser?.roleName),
+    [pathname, activeContext, currentUser?.roleName]
   );
 
   if (!isOpen) return null;

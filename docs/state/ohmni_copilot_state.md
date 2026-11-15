@@ -4,7 +4,7 @@
 **Endpoint:** `/api/ohmni` (Streaming Next.js Route Handler)  
 **UI Interface:** Tarsi-Style Centered Floating Card Overlay (`max-w-[680px]`, `h-[calc(100vh-48px)]`, rounded-3xl, centered in workspace)  
 **Navigation Placement:** Directly below CENCOM in `Sidebar.tsx` (for CENCOM roles) or below Dashboard/primary navigation (for non-CENCOM roles), Header trigger in `AdminTopbar.tsx`, and `⌘K` / `Ctrl+K` keyboard shortcut (100% visible across all authenticated roles)  
-**Last Updated:** 2026-11-15 (`ohm#ohmni-phase2-layer4`)
+**Last Updated:** 2026-11-15 (`ohm#ohmni-phase2-layer5`)
 
 ---
 
@@ -34,6 +34,16 @@ OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations ma
   - **Inline Markdown Deep Links:** `renderInlineFormatted` parses Next.js internal paths `[text](/route)` and provides direct navigation via `router.push(path)` alongside automatic drawer dismissal (`onClose()`).
   - **Backend Parity (`navigationLinks`):** All 11 read-only and drafter tools in `/api/ohmni/route.ts` return structured `navigationLinks` payloads, also generated in deterministic local fallbacks and REST mode for Mobile consumption.
   - **Mobile Parity:** Enhanced `ohmni_service.dart` and `ohmni_chat_screen.dart` with `_buildNavigationPills` and `_handleNavigationLink`, enabling 1-tap navigation to `HeadcountRequestsScreen`, `MyRequestsScreen`, `VacancyApprovalScreen`, or smooth tab switching (Plantilla / Vacancy) in `RootScreen`.
+- **Layer 5: Role-Tailored Proactive Intelligence & Operational Anomaly Alerts:**
+  - **Persona-Adaptive Context & Prompts:** `effectiveSystemPrompt` automatically injects the active caller persona (`[Active Caller Persona]: You are assisting [callerName] who holds the role of "[callerRole]". Tailor your tone, priorities, and data depth to their operational level...`). Starter prompt chips dynamically adapt based on role: Operations Managers receive MFR rankings and understaffed branch alerts; HR personnel receive SLA breach vacancy tracking and stuck queue alerts; Super Admins receive comprehensive operational audit scans.
+  - **Operational Anomaly Detection Engine (`detectOperationalAnomalies`):** Scans 5 operational health and risk dimensions across the enterprise:
+    1. *Critical Aging Vacancies:* Positions open >45 days with severe SLA breach risk.
+    2. *Ghost / Orphan Filled Slots:* Plantilla slots marked as filled (`slot_status = 'filled'`) but lacking an active occupant link (`current_occupant_plantilla_id IS NULL`).
+    3. *Stuck HR Emploc Movements:* Personnel deployment queue items pending >14 days.
+    4. *Severely Understaffed Accounts / Branches:* Accounts operating below 85% MFR.
+    5. *Stale Pending Headcount Requisitions:* Requisitions pending >7 days awaiting approval action.
+  - **Visual Anomaly Alert Cards:** In `OhmniDrawer.tsx`, anomaly results are rendered with high-visibility Critical (🔴) and Warning (🟡) badges, days overdue, entity codes, and suggested remediation actions.
+  - **Mobile Parity:** Implemented local deterministic fallback scanner in `ohmni_service.dart` querying `vw_vacancy_list`, `plantilla_slots`, `hr_emploc`, `v_account_allocation_kpi`, and `headcount_requests`. `ohmni_chat_screen.dart` dynamically personalizes `_starterPrompts` based on `widget.loggedInUser.roleName`.
 
 ### Core Architecture
 - **Creator Identity & Ecosystem Architecture:** OHMni recognizes **OHM (Ormhel Litong)**, IT Manager at Moses Coop and Systems Architect of OHMployee, as its sole designer and creator. Any questions regarding who built OHMni or who Ohm is highlight Ohm's role architecting both the Mobile and Web ecosystems (Plantilla, Vacancy, HR Emploc, CENCOM, OHMni).
@@ -88,3 +98,8 @@ OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations ma
 5. **`inspectSlot`:** Queries `plantilla_slots` by `legacy_vcode` or UUID, resolving store and account names, occupant identity (`employee_name`, `employee_no`, `status`, `deployment_type`, `date_hired`) from `plantilla`, reserved candidate from `applicants`, and latest state transition from `slot_history`.
 6. **`inspectStoreRoster`:** Queries `plantilla` for all personnel assigned to a branch/store, returning employee names, numbers, position titles, statuses (`active`, `on_leave`, `floating`), and open vacancy metrics from `vw_vacancy_list`.
 7. **`getSlotAuditHistory`:** Queries `slot_history` chronologically for a specific slot, resolving performer names from `users_profile`, and detailing status transitions, past occupants, reasons, and remarks.
+8. **`getOperationalBriefing`:** Aggregates operational priorities across 5 dimensions: pending headcount requests, open vacancies, aging vacancies (>30 days SLA alert), pending HR emploc movements, and pending vacancy closures, supplemented by priority understaffed accounts from `v_account_allocation_kpi`.
+9. **`draftHeadcountRequest`:** Prepares a structured, verified Headcount Request draft for user confirmation.
+10. **`draftVacancyClosure`:** Prepares a structured, verified Vacancy Closure draft for user confirmation.
+11. **`rankAccountsByFillRate`:** Evaluates accounts and retail branches ranked by Lowest Fill Rate (MFR) via `v_account_allocation_kpi`.
+12. **`detectOperationalAnomalies`:** Scans operational risk dimensions across `vw_vacancy_list`, `plantilla_slots`, `hr_emploc`, `v_account_allocation_kpi`, and `headcount_requests`, returning structured anomaly items categorized by severity (`CRITICAL`, `WARNING`) with actionable remediation steps.

@@ -122,6 +122,12 @@ Enterprise Rules:
      - Aging Vacancies: \`[Inspect Aging Vacancies](/vacancies?aging=true)\`
      - Approvals & Requests: \`[Review Approvals Queue](/approvals)\` or \`[Track in My Requests](/my-requests)\`
      - HR Emploc: \`[Open HR Movement Queue](/hr-emploc)\`
+9. Role-Adaptive Intelligence & Proactive Anomaly Alerts (Phase 2 Layer 5):
+   - Tailor perspective and recommendations to the user's operational role:
+     - Operations / Area Supervisors: focus on store rosters, branch staffing deficits, MFR fulfillment rates, and pending headcount approvals.
+     - HR / Encoders: focus on candidate movements in hr_emploc, pipeline delays, and unplaced applicants.
+     - Super Admin / Data Team / IT Manager (Ohm): focus on cross-system health, orphan/ghost slots, and critical SLA breaches.
+   - When asked to scan for bottlenecks, anomalies, red flags, or operational risks, invoke detectOperationalAnomalies.
 
 ${OHMPLOYEE_SOP_MANUAL}
 `;
@@ -1649,6 +1655,235 @@ async function executeSlotAuditHistory(
 }
 
 /**
+ * 13. Operational Anomaly & Bottleneck Scanner (Phase 2 Layer 5)
+ */
+async function executeDetectOperationalAnomalies(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _params?: {
+    severity?: "critical" | "warning";
+    limit?: number;
+  }
+) {
+  try {
+    return await executeWithTimeout(async () => {
+      const anomalies: Array<{
+        id: string;
+        type: string;
+        severity: "critical" | "warning";
+        title: string;
+        description: string;
+        entityCode?: string;
+        entityName?: string;
+        daysStale?: number;
+        navigationLink: NavigationLinkItem;
+        remediationAction?: string;
+      }> = [];
+
+      const now = Date.now();
+
+      // 1. Critical Aging Vacancies (>45 Days SLA Risk)
+      const threshold45d = new Date();
+      threshold45d.setDate(threshold45d.getDate() - 45);
+      const { data: agedVacancies } = await supabase
+        .from("vw_vacancy_list")
+        .select("id, vcode, position_title, store_name, account_name, created_at, status")
+        .eq("status", "Open")
+        .lte("created_at", threshold45d.toISOString())
+        .order("created_at", { ascending: true })
+        .limit(3);
+
+      for (const v of agedVacancies || []) {
+        const daysOpen = Math.floor(
+          (now - new Date(v.created_at).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        anomalies.push({
+          id: `sla-${v.id}`,
+          type: "SLA_BREACH_VACANCY",
+          severity: "critical",
+          title: `Critical SLA Breach: ${v.vcode} (${daysOpen}d open)`,
+          description: `${v.position_title} at ${v.store_name} (${v.account_name}) has remained unfilled for ${daysOpen} days.`,
+          entityCode: v.vcode,
+          entityName: v.store_name,
+          daysStale: daysOpen,
+          navigationLink: {
+            label: `Inspect ${v.vcode}`,
+            path: `/vacancies?aging=true`,
+            module: "vacancies",
+            icon: "vacancy",
+          },
+          remediationAction: "Recruitment Prioritization",
+        });
+      }
+
+      // 2. Ghost / Orphan Filled Slots (Marked filled without linked occupant)
+      const { data: ghostSlots } = await supabase
+        .from("plantilla_slots")
+        .select("id, legacy_vcode, position, slot_status, current_occupant_plantilla_id")
+        .eq("slot_status", "filled")
+        .is("current_occupant_plantilla_id", null)
+        .limit(3);
+
+      for (const s of ghostSlots || []) {
+        anomalies.push({
+          id: `ghost-${s.id}`,
+          type: "ORPHAN_FILLED_SLOT",
+          severity: "warning",
+          title: `Ghost Slot: ${s.legacy_vcode || s.id} (No Occupant)`,
+          description: `Slot is flagged as 'Filled' in Plantilla but lacks an active occupant record.`,
+          entityCode: s.legacy_vcode,
+          entityName: s.position,
+          navigationLink: {
+            label: `Inspect Slot ${s.legacy_vcode || s.id}`,
+            path: `/plantilla?q=${encodeURIComponent(s.legacy_vcode || "")}`,
+            module: "plantilla",
+            icon: "slot",
+          },
+          remediationAction: "Link Occupant or Mark Vacant",
+        });
+      }
+
+      // 3. Stuck HR Emploc Movements (>14 Days in queue)
+      const threshold14d = new Date();
+      threshold14d.setDate(threshold14d.getDate() - 14);
+      const { data: stuckEmplocs } = await supabase
+        .from("hr_emploc")
+        .select("id, applicant_name, employee_no, vcode, status, hr_status, created_at")
+        .is("deleted_at", null)
+        .ilike("status", "%pending%")
+        .lte("created_at", threshold14d.toISOString())
+        .order("created_at", { ascending: true })
+        .limit(3);
+
+      for (const e of stuckEmplocs || []) {
+        const daysStuck = Math.floor(
+          (now - new Date(e.created_at).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        anomalies.push({
+          id: `emploc-${e.id}`,
+          type: "STUCK_EMPLOC_QUEUE",
+          severity: "warning",
+          title: `Stuck Placement: ${e.applicant_name} (${daysStuck}d pending)`,
+          description: `Candidate placement to slot ${e.vcode} is awaiting deployment for ${daysStuck} days.`,
+          entityCode: e.vcode,
+          entityName: e.applicant_name,
+          daysStale: daysStuck,
+          navigationLink: {
+            label: "Open HR Emploc Queue",
+            path: "/hr-emploc",
+            module: "hr-emploc",
+            icon: "queue",
+          },
+          remediationAction: "Deploy or Clear Candidate",
+        });
+      }
+
+      // 4. Severely Understaffed Accounts (<85% MFR with vacancies)
+      const { data: lowMfrAccounts } = await supabase
+        .from("v_account_allocation_kpi")
+        .select("account_name, actual_hc, slot_vacant_hc, required_hc, mfr")
+        .lt("mfr", 0.85)
+        .gt("slot_vacant_hc", 0)
+        .order("mfr", { ascending: true })
+        .limit(2);
+
+      for (const a of lowMfrAccounts || []) {
+        const pct = typeof a.mfr === "number" ? `${(a.mfr * 100).toFixed(1)}%` : "<85%";
+        anomalies.push({
+          id: `lowmfr-${a.account_name}`,
+          type: "LOW_MFR_ACCOUNT",
+          severity: "critical",
+          title: `Severe Understaffing: ${a.account_name} (${pct} MFR)`,
+          description: `${a.account_name} operates at ${pct} fulfillment with ${a.slot_vacant_hc} unfilled slots.`,
+          entityName: a.account_name,
+          navigationLink: {
+            label: `View ${a.account_name} in Plantilla`,
+            path: `/plantilla?account=${encodeURIComponent(a.account_name)}`,
+            module: "plantilla",
+            icon: "plantilla",
+          },
+          remediationAction: "Draft Headcount or Deploy Reliever",
+        });
+      }
+
+      // 5. Stale Headcount Requests (>7 Days Pending Review)
+      const threshold7d = new Date();
+      threshold7d.setDate(threshold7d.getDate() - 7);
+      const { data: staleRequests } = await supabase
+        .from("headcount_requests")
+        .select("id, position_name_snapshot, store_name_snapshot, created_at, requested_by_name")
+        .ilike("status", "pending")
+        .lte("created_at", threshold7d.toISOString())
+        .order("created_at", { ascending: true })
+        .limit(2);
+
+      for (const r of staleRequests || []) {
+        const daysStale = Math.floor(
+          (now - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        anomalies.push({
+          id: `req-${r.id}`,
+          type: "STALE_HEADCOUNT_REQUEST",
+          severity: "warning",
+          title: `Approval Bottleneck: ${r.position_name_snapshot} (${daysStale}d pending)`,
+          description: `Headcount request for ${r.store_name_snapshot} submitted by ${r.requested_by_name} is awaiting review.`,
+          entityName: r.position_name_snapshot,
+          daysStale,
+          navigationLink: {
+            label: "Review in Approvals Queue",
+            path: "/approvals",
+            module: "approvals",
+            icon: "approvals",
+          },
+          remediationAction: "Expedite Approval Review",
+        });
+      }
+
+      const criticalCount = anomalies.filter((a) => a.severity === "critical").length;
+      const warningCount = anomalies.filter((a) => a.severity === "warning").length;
+
+      return {
+        totalAnomaliesCount: anomalies.length,
+        criticalCount,
+        warningCount,
+        anomalies,
+        navigationLinks: [
+          {
+            label: "Review Approvals Queue",
+            path: "/approvals",
+            module: "approvals",
+            icon: "approvals",
+          },
+          {
+            label: "Aging Vacancies (>30 Days)",
+            path: "/vacancies?aging=true",
+            module: "vacancies",
+            icon: "vacancy",
+          },
+          {
+            label: "HR Emploc Queue",
+            path: "/hr-emploc",
+            module: "hr-emploc",
+            icon: "queue",
+          },
+          {
+            label: "Plantilla Matrix",
+            path: "/plantilla",
+            module: "plantilla",
+            icon: "plantilla",
+          },
+        ] as NavigationLinkItem[],
+      };
+    }, "Failed to scan operational anomalies");
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Failed to scan operational anomalies",
+    };
+  }
+}
+
+/**
  * Deterministic local fallback router when Gemini Free Tier quota is exhausted
  */
 async function handleDeterministicFallback(
@@ -1718,6 +1953,37 @@ async function handleDeterministicFallback(
             msg += `• **${a.name}** — Fill Rate: ${a.fillRate} (${a.vacancies} vacant / ${a.required} required)\n`;
           }
         }
+        return msg.trim();
+      }
+    } catch {
+      // proceed
+    }
+  }
+
+  // 0.55. Operational Anomaly Scanner (Phase 2 Layer 5)
+  if (
+    p.includes("anomal") ||
+    p.includes("red flag") ||
+    p.includes("bottleneck") ||
+    p.includes("scan") ||
+    p.includes("problema") ||
+    p.includes("ghost") ||
+    p.includes("stuck")
+  ) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const anomRes: any = await executeDetectOperationalAnomalies(supabase, {});
+      if (!anomRes.error && anomRes.anomalies) {
+        if (anomRes.anomalies.length === 0) {
+          return "All operational parameters are normal. Zero critical anomalies, orphan slots, or stuck queues detected across accounts.";
+        }
+        let msg = `### 🚨 Operational Anomaly & Bottleneck Report\n\n`;
+        msg += `Detected **${anomRes.totalAnomaliesCount} operational red flags** (**${anomRes.criticalCount} Critical**, **${anomRes.warningCount} Warnings**):\n\n`;
+        for (const a of anomRes.anomalies) {
+          const badge = a.severity === "critical" ? "🔴 **[CRITICAL]**" : "🟡 **[WARNING]**";
+          msg += `${badge} **${a.title}**\n${a.description}\n*Action: ${a.remediationAction || "Review"}*\n\n`;
+        }
+        msg += `\n[Review Approvals](/approvals) • [Aging Vacancies](/vacancies?aging=true) • [HR Emploc Queue](/hr-emploc) • [Plantilla Matrix](/plantilla)`;
         return msg.trim();
       }
     } catch {
@@ -2124,6 +2390,9 @@ export async function POST(req: Request) {
     );
   }
 
+  let callerRole = "User";
+  let callerName = "User";
+
   // Active web profile & role guard: fail closed on RPC error or unauthorized access
   try {
     const { data: rpcData, error: rpcError } = await supabase.rpc("get_web_current_user_context");
@@ -2157,6 +2426,9 @@ export async function POST(req: Request) {
         }
       );
     }
+
+    callerRole = String(rpcRow?.role_name ?? "User");
+    callerName = String(rpcRow?.full_name ?? "User");
   } catch (err) {
     console.error("[OHMni Auth] Unexpected failure verifying web access:", err);
     return new Response(
@@ -2237,6 +2509,16 @@ export async function POST(req: Request) {
     }
 
     let effectiveSystemPrompt = SYSTEM_PROMPT;
+
+    if (callerRole && callerRole !== "User") {
+      effectiveSystemPrompt += `\n\n[Active Caller Persona]:
+- User Name: ${callerName}
+- User Role: ${callerRole}
+Tailor responses and suggestions to this role:
+- If Operations / Store Supervisor: prioritize branch rosters, local staffing shortages, MFR fill rates, and pending headcount approvals.
+- If HR / Encoder: prioritize pending movements in hr_emploc, candidate pipeline bottlenecks, and unplaced applicants.
+- If Super Admin / Data Team / IT Manager (Ohm): provide system-wide diagnostics, orphan/ghost slots, and critical SLA breaches.`;
+    }
     if (activeContext && typeof activeContext === "object") {
       effectiveSystemPrompt += `\n\n[Active Screen Context]:
 - Active Route: ${activeContext.route ?? "None"}
@@ -2437,6 +2719,16 @@ INSTRUCTIONS FOR ACTIVE SCREEN CONTEXT:
           limit: z.number().optional().default(10).describe("Maximum number of audit events to return"),
         }),
         execute: async (params) => executeSlotAuditHistory(supabase, params),
+      }),
+
+      detectOperationalAnomalies: tool({
+        description:
+          "Scans operations for critical red flags, SLA breaches, orphan/ghost slots, stuck HR queues, severely understaffed branches, and approval bottlenecks.",
+        inputSchema: z.object({
+          severity: z.enum(["critical", "warning"]).optional().describe("Filter by severity level"),
+          limit: z.number().optional().default(10).describe("Max anomalies to return"),
+        }),
+        execute: async (params) => executeDetectOperationalAnomalies(supabase, params),
       }),
     };
 
