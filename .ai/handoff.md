@@ -1,5 +1,30 @@
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Fix Multi-Slot Open Vacancy Visibility, Drawer Pipeline Counter, and Candidate Identity (ohm#fix-multi-slot-open-visibility-and-vacancy-detail)
 
 **Status: COMPLETE ON MAIN; RESOLVED THREE CORE DEFECTS IN VACANCY MANAGEMENT (`/vacancy`): (1) MULTI-SLOT OPEN VACANCY VISIBILITY: MULTI-SLOT REQUISITIONS (E.G. `TEST011`, 2 SLOTS) WITH PARTIAL FULFILLMENT (1 CONFIRMED ONBOARD, 1 PIPELINE CANDIDATE) ERRONEOUSLY DISAPPEARED FROM THE OPEN TAB BECAUSE `list_web_vacancies` PREVIOUSLY ENFORCED `AND lower(s.pipeline_status) NOT IN ('pipeline')` AND SUBTRACTED ACTIVE APPLICANTS FROM OPEN CAPACITY; AUTHORIZED AND APPLIED MIGRATION `20262606000117_fix_multi_slot_open_visibility_and_vacancy_detail.sql` ALIGNING `list_web_vacancies` AND `get_web_vacancy_summary` SO OPEN CAPACITY CHECKS UNFULFILLED CAPACITY `(hc_total - hc_filled - hr_processing_count) > 0`, KEEPING MULTI-SLOT VACANCIES VISIBLE IN OPEN UNTIL ALL SLOTS ARE FULFILLED ($2/2$) WHILE SIMULTANEOUSLY VISIBLE IN PIPELINE; (2) DRAWER PIPELINE KPI COUNTER: `VacancyDetailDrawer` KPI STRIP RENDERED `Pipeline = 0` (INSTEAD OF 1) BECAUSE `get_web_vacancy_detail` RPC OMITTED `active_applicant_count`, `hc_filled`, AND `hc_total` FROM ITS PAYLOAD; UPDATED RPC TO JOIN `vw_vacancy_list` AND EXPOSE ACCURATE CAPACITY METRICS IN `row_capabilities`, AND HARDENED `normalizeDetailRow` IN `src/lib/queries/vacancy/vacancyListing.ts` TO FALLBACK TO COUNTING ACTIVE NON-CONFIRMED CANDIDATES FROM `activeApplicantsList`; (3) CANDIDATE IDENTITY IN DRAWER: APPLICANTS RENDERED AS "Anonymous" BECAUSE `get_web_vacancy_detail` OMITTED NAME AND CONTACT FIELDS FROM `pipeline_summary` JSON; UPDATED RPC TO INCLUDE `first_name`, `last_name`, `middle_name`, `full_name`, `display_name`, AND `contact_number`; (4) LIVE DATABASE VERIFICATION: CONFIRMED ON STAGING (`qqiiznmqxfoamqytjica`) THAT `TEST011` APPEARS IN OPEN TAB (1/2), DRAWER KPI RENDERS `Hired 1/2`, `Pipeline 1`, `Avail 1`, AND CANDIDATE RENDERS AS `EMIL LAGO`; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (642 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
@@ -2482,6 +2507,31 @@
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -2601,6 +2651,31 @@
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -2702,6 +2777,31 @@
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -2806,6 +2906,31 @@
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -2907,6 +3032,31 @@
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -3027,6 +3177,31 @@
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -3128,6 +3303,31 @@
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -3245,6 +3445,31 @@
 
 ﻿# AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -3346,6 +3571,31 @@
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -3466,6 +3716,31 @@
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -3567,6 +3842,31 @@
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -3671,6 +3971,31 @@
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -3772,6 +4097,31 @@
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -3892,6 +4242,31 @@
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -3993,6 +4368,31 @@
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -9325,6 +9725,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -9426,6 +9851,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -9546,6 +9996,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -9647,6 +10122,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -9751,6 +10251,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -9852,6 +10377,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -9972,6 +10522,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -10073,6 +10648,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -10874,6 +11474,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -10975,6 +11600,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -11095,6 +11745,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -11196,6 +11871,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -11300,6 +12000,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -11401,6 +12126,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -11521,6 +12271,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -11622,6 +12397,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -12447,6 +13247,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -12548,6 +13373,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -12668,6 +13518,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -12769,6 +13644,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -12873,6 +13773,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -12974,6 +13899,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
@@ -13094,6 +14044,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
+
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 
 **Status: COMPLETE ON MAIN; OPTIMIZED PRE-UPLOAD VALIDATION PREVIEW TABLE IN `src/components/more/PlantillaImportModal.tsx` BY REMOVING REDUNDANT `Position` COLUMN FROM TABLE HEADERS AND ROWS (ADJUSTING EMPTY STATE `colSpan` TO 7); PREVENTED CRAMPED MULTI-LINE WRAPPING ON `Emp No` (E.G. `2060-` AND `002`) VIA `whitespace-nowrap`; IMPLEMENTED DEDICATED `formatFriendlyValidationMessage` FORMATTER TRANSFORMING TECHNICAL DATABASE SQL/RPC ERROR STRINGS (`[FIELD]: ...`) INTO CLEAN, ACTIONABLE, AND HUMAN-FRIENDLY SENTENCES PREFIXED BY THE EMPLOYEE'S LAST NAME IN TITLE CASE (E.G. `Ballesteros — Underage employee. Minimum legal working age is 18.` AND `Ballesteros — Mismatched hire date across roving store rows.`); UPDATED MODULE ARCHITECTURE STATE IN `docs/state/plantilla_web_state.md`; VERIFICATION GATES ALL PASS CLEAN (`npm test` 211/211 PASSED, `npm run lint` 0 ERRORS, `npm run build` NEXT.JS 16.2.4 EXIT CODE 0).**
@@ -13195,6 +14170,31 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — RBAC Permission Matrix Toggle & Reset to Default for Super Admin (ohm#rbac-permission-matrix-reset-to-default)
+
+**Status: COMPLETE ON MAIN; DELIVERED OPTION 1 FOR PERMISSION MATRIX GOVERNANCE IN WEB (`/more?open=permission_matrix`). (1) DATABASE ARCHITECTURE: GENERATED AND APPLIED MIGRATION `20262606000118_reset_permission_overrides_rpc.sql` CREATING ATOMIC RPC `public.reset_permission_overrides(p_role_name text, p_module_key text, p_resource_key text, p_action_key text, p_reason text)`. STRICTLY RESTRICTED TO SUPER ADMIN (`is_super_admin()`), SAFEGUARDS SUPER ADMIN ROLE IMMUTABILITY (`SA_PROTECTED`), DELETES TARGETED ACTIVE OVERRIDES FROM `public.role_permission_overrides`, AUDITS THE RESET IN `public.role_permission_audit_logs` VIA `audit_permission_change`, AND RETURNS SUMMARY PAYLOAD; (2) STAGING DATABASE DEPLOYMENT: AUTO-PUSHED TO STAGING (`qqiiznmqxfoamqytjica`) WITH 0 ERRORS; LIVE `pg_get_functiondef` CONFIRMED 100% IDENTICAL; (3) QUERY LAYER: ADDED `resetPermissionOverridesRpc` AND `useResetPermissionOverrides` HOOK IN `src/lib/queries/governance.ts` WITH AUTOMATIC CACHE INVALIDATION ACROSS `effective-permission-matrix` AND `role-permission-matrix`; (4) WEB UI IMPLEMENTATION (`PermissionMatrixModal.tsx`): ENHANCED MODAL WITH PER-ROW "Reset to Default" ACTION BUTTON FOR ANY ACTIVE OVERRIDE (`hasOverride = true`), A TOOLBAR "Reset to Default" BULK ACTION FEATURING AN ACTIVE OVERRIDES COUNTER BADGE, AND A DEDICATED `ResetAllModal` REQUIRING CONFIRMATION WITH OPTIONAL AUDIT REASON JUSTIFICATION; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (643 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Core Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Core Rule 7 (User Management Single Source of Truth), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`)**:
+   - Authored and applied atomic RPC `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)`.
+   - Security: `SECURITY DEFINER`, search_path `public`, checks `public.is_super_admin()`.
+   - Invariant: Guard against Super Admin mutation (`p_role_name = 'Super Admin' -> 'SA_PROTECTED'`).
+   - Cleans up `public.role_permission_overrides` rows where `role_id = v_role.id` matching supplied keys (or all overrides when keys are NULL).
+   - Loops and records change history in `public.role_permission_audit_logs` using `public.audit_permission_change`.
+2. **Web Query Layer (`src/lib/queries/governance.ts`)**:
+   - Added `resetPermissionOverridesRpc` wrapping `public.reset_permission_overrides`.
+   - Added `useResetPermissionOverrides` mutation hook invalidating `["effective-permission-matrix"]` and `["role-permission-matrix"]`.
+3. **Web Governance UI (`src/components/more/PermissionMatrixModal.tsx`)**:
+   - Per-row "Reset to Default" button: rendered next to the Allowed/Denied toggle for any rule that has `row.hasOverride === true`.
+   - Toolbar "Reset to Default" button: rendered next to the "Refresh" button, displaying the count of active overrides for the selected role.
+   - Confirmation Modal: `ResetAllModal` displaying the number of active overrides being reverted, explaining the restoration of base matrix defaults from `role_permission_matrix`, and prompting for an optional audit reason.
+   - Multi-action toasts for single-row resets and bulk resets.
+
+---
 
 ## Execution Report — Optimize Plantilla Pre-Upload Validation Layout & Human-Friendly Messages (ohm#k2m8p4v9)
 

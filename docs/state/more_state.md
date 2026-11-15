@@ -27,7 +27,7 @@ This document captures the current stable architecture and navigation contract f
   3. `permissions` (Head Admin & Super Admin):
      - `temp_permission`: Temporary Group Access overrides.
      - `access_control_center`: Access Control Center (Super Admin).
-     - `permission_matrix`: Role permission overrides (Super Admin).
+     - `permission_matrix`: Role permission overrides (Super Admin). Features interactive Allow/Deny toggles, per-row **"Reset to Default"** action for active overrides, and a toolbar **"Reset All to Default"** bulk action with audit confirmation dialog. Backed by PostgreSQL RPCs `get_effective_permission_matrix`, `apply_permission_overrides`, and `reset_permission_overrides`.
      - `role_permissions`: Read-only authorization matrix (Super Admin).
      - `permission_drift`: Authorization mismatch detector (Super Admin).
   4. `audit` (Super Admin Level 100 only):

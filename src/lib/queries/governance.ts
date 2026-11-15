@@ -773,6 +773,36 @@ export function useApplyPermissionOverrides() {
   });
 }
 
+export async function resetPermissionOverridesRpc(params: {
+  role_name: string;
+  module_key?: string;
+  resource_key?: string;
+  action_key?: string;
+  reason?: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("reset_permission_overrides", {
+    p_role_name: params.role_name,
+    p_module_key: params.module_key ?? null,
+    p_resource_key: params.resource_key ?? null,
+    p_action_key: params.action_key ?? null,
+    p_reason: params.reason || "Reset to default permissions via Web Governance Center",
+  });
+  if (error) throw error;
+  return data;
+}
+
+export function useResetPermissionOverrides() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: resetPermissionOverridesRpc,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["effective-permission-matrix"] });
+      queryClient.invalidateQueries({ queryKey: ["role-permission-matrix"] });
+    },
+  });
+}
+
 // ============================================================================
 // Queries: Role Permissions (Read-Only Matrix)
 // ============================================================================

@@ -306,10 +306,11 @@ The authoritative 55-item matrix governs operational drawer actions, mutations, 
 - **10: Viewer** (Read-only presentation)
 
 ### Implementation Artifacts
-- **Database Migration:** `supabase/migrations/20261026000001_update_drawer_actions_rbac.sql` & `supabase/migrations/20261111000001_enable_rls_role_permission_definitions_compat.sql`
+- **Database Migration:** `supabase/migrations/20261026000001_update_drawer_actions_rbac.sql`, `supabase/migrations/20261111000001_enable_rls_role_permission_definitions_compat.sql`, and `supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`
   - Upserts definitions into `public.role_permission_definitions_compat` with Row Level Security (RLS) enabled, `anon` access revoked, and authenticated `SELECT` policy (`rpd_compat_read_authenticated`).
   - Registers definition catalog in `public.role_permission_definitions` (`module_key`, `resource_key`, `action_key`)
   - Ensures deny-fill in `public.role_permission_matrix`
+  - Added atomic `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)` allowing Super Admin to clear active overrides (individually or in bulk) and revert permissions to base system defaults with full audit logging.
 - **TypeScript Types & Constants:** `src/types/rbac.ts`
   - `DrawerActionItem`: union of all 33 drawer action strings
   - `RolePermissionRule`, `RoleLevel`, `DrawerActionModule`

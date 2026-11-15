@@ -8,6 +8,7 @@ import {
   Layers,
   Lock,
   RefreshCw,
+  RotateCcw,
   Search,
   ShieldAlert,
   Sparkles,
@@ -18,6 +19,7 @@ import {
   useApplyPermissionOverrides,
   useEffectivePermissionMatrix,
   useGovernanceRoles,
+  useResetPermissionOverrides,
   type EffectivePermissionRow,
 } from "@/lib/queries/governance";
 import { Modal } from "@/components/shared/Modal";
@@ -49,6 +51,12 @@ export function PermissionMatrixModal({
   } = useEffectivePermissionMatrix(selectedRole?.name ?? null);
 
   const applyOverridesMutation = useApplyPermissionOverrides();
+  const resetOverridesMutation = useResetPermissionOverrides();
+
+  // Active overrides count for currently selected role
+  const activeOverridesCount = useMemo(() => {
+    return matrix.filter((row) => row.hasOverride).length;
+  }, [matrix]);
 
   // Staged changes: key = `${moduleKey}::${resourceKey}::${actionKey}` -> targetAllowed
   const [stagedChanges, setStagedChanges] = useState<Record<string, boolean>>({});
@@ -60,6 +68,12 @@ export function PermissionMatrixModal({
   const [isCommitModalOpen, setIsCommitModalOpen] = useState(false);
   const [commitReason, setCommitReason] = useState("");
   const [commitError, setCommitError] = useState<string | null>(null);
+
+  // Reset All Confirmation Dialog
+  const [isResetAllModalOpen, setIsResetAllModalOpen] = useState(false);
+  const [resetAllReason, setResetAllReason] = useState("");
+  const [resetAllError, setResetAllError] = useState<string | null>(null);
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -147,6 +161,46 @@ export function PermissionMatrixModal({
       showToast(`Successfully applied ${changesToSubmit.length} permission overrides for ${selectedRole.name}.`);
     } catch (err: unknown) {
       setCommitError((err as Error).message);
+    }
+  };
+
+  const handleResetSingle = async (row: EffectivePermissionRow) => {
+    if (!selectedRole || isRoleProtected) return;
+    try {
+      await resetOverridesMutation.mutateAsync({
+        role_name: selectedRole.name,
+        module_key: row.moduleKey,
+        resource_key: row.resourceKey,
+        action_key: row.actionKey,
+        reason: `Reset ${row.moduleKey}.${row.resourceKey}.${row.actionKey} to default for ${selectedRole.name}`,
+      });
+      const key = getChangeKey(row);
+      if (key in stagedChanges) {
+        const next = { ...stagedChanges };
+        delete next[key];
+        setStagedChanges(next);
+      }
+      refetchMatrix();
+      showToast(`Reset ${row.resourceKey} (${row.actionKey}) back to system default.`);
+    } catch (err: unknown) {
+      showToast(`Error resetting permission: ${(err as Error).message}`);
+    }
+  };
+
+  const handleConfirmResetAll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRole || isRoleProtected) return;
+    try {
+      await resetOverridesMutation.mutateAsync({
+        role_name: selectedRole.name,
+        reason: resetAllReason.trim() || `Reset all permission overrides to default for ${selectedRole.name}`,
+      });
+      setStagedChanges({});
+      setIsResetAllModalOpen(false);
+      refetchMatrix();
+      showToast(`All permission overrides for ${selectedRole.name} have been reset to system defaults.`);
+    } catch (err: unknown) {
+      setResetAllError((err as Error).message);
     }
   };
 
@@ -253,6 +307,29 @@ export function PermissionMatrixModal({
                   <span className="h-2 w-2 rounded-full bg-brand-primary" /> Overridden
                 </span>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setResetAllReason("");
+                  setResetAllError(null);
+                  setIsResetAllModalOpen(true);
+                }}
+                disabled={isRoleProtected || activeOverridesCount === 0 || resetOverridesMutation.isPending}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                title={
+                  activeOverridesCount === 0
+                    ? "No active overrides to reset"
+                    : `Reset all ${activeOverridesCount} overrides for ${selectedRole?.name}`
+                }
+              >
+                <RotateCcw className="h-3.5 w-3.5 text-text-muted" />
+                <span>Reset to Default</span>
+                {activeOverridesCount > 0 && (
+                  <span className="rounded-full bg-brand-primary text-text-inverse px-1.5 py-0.2 text-[10px] font-bold">
+                    {activeOverridesCount}
+                  </span>
+                )}
+              </button>
               <button
                 type="button"
                 onClick={() => refetchMatrix()}
@@ -399,8 +476,21 @@ export function PermissionMatrixModal({
                                 </div>
                               </div>
 
-                              {/* Toggle Button */}
-                              <div className="flex items-center gap-3 shrink-0">
+                              {/* Action Buttons: Reset to Default & Toggle */}
+                              <div className="flex items-center gap-2 shrink-0">
+                                {hasActiveOverride && (
+                                  <button
+                                    type="button"
+                                    disabled={isRoleProtected || resetOverridesMutation.isPending}
+                                    onClick={() => handleResetSingle(row)}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-border-default bg-surface-base px-2.5 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title={`Reset back to base default (${row.baseAllowed ? "Allowed" : "Denied"})`}
+                                  >
+                                    <RotateCcw className="h-3 w-3 text-text-muted" />
+                                    <span className="hidden sm:inline">Reset to Default</span>
+                                  </button>
+                                )}
+
                                 <button
                                   type="button"
                                   disabled={isRoleProtected || row.isSystemLocked}
@@ -475,7 +565,7 @@ export function PermissionMatrixModal({
           {/* Modal Footer */}
           <div className="flex items-center justify-between border-t border-border-subtle bg-surface-base px-2 py-3 pt-4">
             <span className="text-xs text-text-muted font-mono">
-              RPCs: get_effective_permission_matrix • apply_permission_overrides
+              RPCs: get_effective_permission_matrix • apply_permission_overrides • reset_permission_overrides
             </span>
             <button
               type="button"
@@ -548,6 +638,72 @@ export function PermissionMatrixModal({
                 className="rounded-lg bg-brand-primary px-4 py-2 text-xs font-bold text-text-inverse shadow-xs hover:bg-brand-primary/90 disabled:opacity-50 cursor-pointer"
               >
                 {applyOverridesMutation.isPending ? "Applying Overrides..." : "Confirm & Apply"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Reset All Overrides Confirmation Modal */}
+      <Modal
+        isOpen={isResetAllModalOpen}
+        onClose={() => setIsResetAllModalOpen(false)}
+        title="Reset All Overrides to Default"
+        subtitle={`Reverting all custom permission overrides for ${selectedRole?.name} back to system base definitions.`}
+        icon={RotateCcw}
+        maxWidthClass="max-w-lg"
+        isSubmitting={resetOverridesMutation.isPending}
+        disableBackdropClick={resetOverridesMutation.isPending}
+      >
+        <div className="space-y-4">
+          {resetAllError && (
+            <div className="rounded-lg border border-danger-border bg-danger-subtle p-3 text-xs text-danger">
+              {resetAllError}
+            </div>
+          )}
+
+          <div className="rounded-xl border border-border-default bg-surface-subtle p-3.5 space-y-2 text-xs text-text-secondary">
+            <p className="font-semibold text-text-primary">
+              Are you sure you want to reset all overrides for <strong>{selectedRole?.name}</strong>?
+            </p>
+            <p>
+              This action will clear all <strong>{activeOverridesCount}</strong> active permission {activeOverridesCount === 1 ? "override" : "overrides"} and restore the default system permissions defined in <code className="font-mono text-xs text-text-primary">role_permission_matrix</code>.
+            </p>
+            <p className="text-text-muted">
+              An audit entry will be recorded in <code className="font-mono text-xs">role_permission_audit_logs</code>.
+            </p>
+          </div>
+
+          <form onSubmit={handleConfirmResetAll} className="space-y-4">
+            <div>
+              <label htmlFor="reset-audit-reason" className="block text-xs font-bold text-text-secondary mb-1">
+                Audit Reason (Optional)
+              </label>
+              <textarea
+                id="reset-audit-reason"
+                rows={2}
+                placeholder="Explain why you are resetting these permissions (e.g. End of temporary audit cycle)..."
+                value={resetAllReason}
+                onChange={(e) => setResetAllReason(e.target.value)}
+                className="w-full rounded-xl border border-border-default bg-surface-base p-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsResetAllModalOpen(false)}
+                disabled={resetOverridesMutation.isPending}
+                className="rounded-lg border border-border-default px-4 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={resetOverridesMutation.isPending}
+                className="rounded-lg bg-danger px-4 py-2 text-xs font-bold text-text-inverse shadow-xs hover:bg-danger/90 disabled:opacity-50 cursor-pointer"
+              >
+                {resetOverridesMutation.isPending ? "Resetting to Default..." : "Confirm & Reset All"}
               </button>
             </div>
           </form>
