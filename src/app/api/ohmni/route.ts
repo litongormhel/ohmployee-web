@@ -114,6 +114,14 @@ Enterprise Rules:
    - Operational Drill-Down & Roster Tracing: When asked who occupies a slot, who is deployed to a branch, or to list staff/cashiers, invoke inspectSlot or inspectStoreRoster.
    - Slot Audit History: When asked for the history, past occupants, or vacation reasons for a slot, invoke getSlotAuditHistory.
    - Active View Context: If the prompt includes active context (e.g. current store, route, or vacancy code), resolve relative references ('here', 'this branch', 'this vacancy') using that context.
+8. Smart Navigation & Deep Linking (Phase 2 Layer 4):
+   - When answering questions about vacancies, staffing, approvals, queues, or specific slots, proactively include standard Markdown deep-links so users can navigate with 1 click:
+     - Plantilla Slots / Store Staff: \`[View {Store} in Plantilla](/plantilla?store={StoreName})\` or \`[Open Plantilla](/plantilla)\`
+     - Specific Slot: \`[Inspect {slotCode}](/plantilla?q={slotCode})\`
+     - Vacancies: \`[View Open Vacancies](/vacancies)\` or \`[Vacancies for {Store}](/vacancies?store={StoreName})\`
+     - Aging Vacancies: \`[Inspect Aging Vacancies](/vacancies?aging=true)\`
+     - Approvals & Requests: \`[Review Approvals Queue](/approvals)\` or \`[Track in My Requests](/my-requests)\`
+     - HR Emploc: \`[Open HR Movement Queue](/hr-emploc)\`
 
 ${OHMPLOYEE_SOP_MANUAL}
 `;
@@ -127,6 +135,14 @@ const CANDIDATE_MODELS = [
   "gemini-3.6-flash",
   "gemini-3.5-flash",
 ];
+
+export type NavigationLinkItem = {
+  label: string;
+  path: string;
+  module: "plantilla" | "vacancies" | "approvals" | "my-requests" | "hr-emploc" | "reports" | "general";
+  icon?: "plantilla" | "vacancy" | "approvals" | "requests" | "queue" | "store" | "slot" | "report";
+  description?: string;
+};
 
 /**
  * Resolves group aliases (e.g. 'Group 1', 'G1') to database IDs and patterns
@@ -324,6 +340,20 @@ async function executePlantillaSummary(
             position: String(s.position || "Unspecified"),
             status: String(s.slot_status || "Unknown"),
           })),
+          navigationLinks: [
+            {
+              label: `Open ${resolvedAccount.accountName} in Plantilla`,
+              path: `/plantilla?account=${encodeURIComponent(resolvedAccount.accountName)}`,
+              module: "plantilla",
+              icon: "plantilla",
+            },
+            {
+              label: `View Vacancies for ${resolvedAccount.accountName}`,
+              path: `/vacancies?account=${encodeURIComponent(resolvedAccount.accountName)}`,
+              module: "vacancies",
+              icon: "vacancy",
+            },
+          ] as NavigationLinkItem[],
         };
       }
 
@@ -403,6 +433,20 @@ async function executePlantillaSummary(
           status: r.slot_status || "Unknown",
           employmentType: r.employment_type || "Regular",
         })),
+        navigationLinks: [
+          {
+            label: "Open Plantilla Matrix",
+            path: "/plantilla",
+            module: "plantilla",
+            icon: "plantilla",
+          },
+          {
+            label: "View Open Vacancies",
+            path: "/vacancies",
+            module: "vacancies",
+            icon: "vacancy",
+          },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to query plantilla slots");
   } catch (err) {
@@ -506,6 +550,41 @@ async function executeOpenVacancies(
           status: s.slot_status || "Vacant",
           employmentType: s.employment_type || "Regular",
         })),
+        navigationLinks: [
+          branchFilter
+            ? {
+                label: `Vacancies for ${branchFilter}`,
+                path: `/vacancies?store=${encodeURIComponent(branchFilter)}`,
+                module: "vacancies",
+                icon: "vacancy",
+              }
+            : accountFilter
+            ? {
+                label: `Vacancies for ${accountFilter}`,
+                path: `/vacancies?account=${encodeURIComponent(accountFilter)}`,
+                module: "vacancies",
+                icon: "vacancy",
+              }
+            : {
+                label: "Manage All Vacancies",
+                path: "/vacancies",
+                module: "vacancies",
+                icon: "vacancy",
+              },
+          branchFilter
+            ? {
+                label: `View ${branchFilter} in Plantilla`,
+                path: `/plantilla?store=${encodeURIComponent(branchFilter)}`,
+                module: "plantilla",
+                icon: "store",
+              }
+            : {
+                label: "Review in Approvals",
+                path: "/approvals",
+                module: "approvals",
+                icon: "approvals",
+              },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to fetch open vacancies");
   } catch (err) {
@@ -573,6 +652,20 @@ async function executeEmplocQueueStatus(
           assignmentType: row.assignment_type || "Standard",
           createdAt: row.created_at,
         })),
+        navigationLinks: [
+          {
+            label: "Open HR Emploc Queue",
+            path: "/hr-emploc",
+            module: "hr-emploc",
+            icon: "queue",
+          },
+          {
+            label: "Import HR Movements CSV",
+            path: "/hr-emploc/import",
+            module: "hr-emploc",
+            icon: "queue",
+          },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to query hr_emploc queue");
   } catch (err) {
@@ -646,6 +739,20 @@ async function executeHeadcountRequests(
           requestedAt: r.requested_at || r.created_at,
           urgency: r.urgency || "Normal",
         })),
+        navigationLinks: [
+          {
+            label: "Review in Approvals Queue",
+            path: "/approvals",
+            module: "approvals",
+            icon: "approvals",
+          },
+          {
+            label: "Track in My Requests",
+            path: "/my-requests",
+            module: "my-requests",
+            icon: "requests",
+          },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to query headcount requests");
   } catch (err) {
@@ -727,6 +834,32 @@ async function executeOperationalBriefing(
           required: Number(a.required_hc ?? 0),
           fillRate: typeof a.mfr === "number" ? `${(a.mfr * 100).toFixed(1)}%` : "100%",
         })),
+        navigationLinks: [
+          {
+            label: "Review Approvals Queue",
+            path: "/approvals",
+            module: "approvals",
+            icon: "approvals",
+          },
+          {
+            label: "Aging Vacancies (>30 Days)",
+            path: "/vacancies?aging=true",
+            module: "vacancies",
+            icon: "vacancy",
+          },
+          {
+            label: "HR Emploc Queue",
+            path: "/hr-emploc",
+            module: "hr-emploc",
+            icon: "queue",
+          },
+          {
+            label: "Open Plantilla Matrix",
+            path: "/plantilla",
+            module: "plantilla",
+            icon: "plantilla",
+          },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to compile operational briefing");
   } catch (err) {
@@ -775,6 +908,20 @@ async function executeStoreAnalytics(
           required: Number(row.required_hc ?? 0),
           fillRate: typeof row.mfr === "number" ? `${(row.mfr * 100).toFixed(1)}%` : "100%",
         })),
+        navigationLinks: [
+          {
+            label: "Open Plantilla Matrix",
+            path: "/plantilla",
+            module: "plantilla",
+            icon: "plantilla",
+          },
+          {
+            label: "View All Vacancies",
+            path: "/vacancies",
+            module: "vacancies",
+            icon: "vacancy",
+          },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to fetch store analytics");
   } catch (err) {
@@ -834,6 +981,20 @@ async function executeVacancyAgingAndSla(
         totalAgedVacancies: aged.length,
         agingThresholdDays: minDaysOpen,
         vacancies: aged,
+        navigationLinks: [
+          {
+            label: "Inspect Aging Vacancies in Registry",
+            path: "/vacancies?aging=true",
+            module: "vacancies",
+            icon: "vacancy",
+          },
+          {
+            label: "Manage All Vacancies",
+            path: "/vacancies",
+            module: "vacancies",
+            icon: "vacancy",
+          },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to analyze vacancy aging and SLA");
   } catch (err) {
@@ -943,6 +1104,20 @@ async function executeDraftHeadcountRequest(
           reason: reason ?? "Operational demand",
         },
         message: `Prepared Headcount Request for ${headcountNeeded}x ${resolvedPositionName} at ${resolvedStoreName}. Please review and confirm below.`,
+        navigationLinks: [
+          {
+            label: "Track in My Requests",
+            path: "/my-requests",
+            module: "my-requests",
+            icon: "requests",
+          },
+          {
+            label: "Review in Approvals Queue",
+            path: "/approvals",
+            module: "approvals",
+            icon: "approvals",
+          },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to draft headcount request");
   } catch (err) {
@@ -994,6 +1169,20 @@ async function executeDraftVacancyClosure(
           reason: reason ?? "Position no longer required",
         },
         message: `Prepared Vacancy Closure request for slot ${vac.vcode} (${vac.position_title}). Please review and confirm below.`,
+        navigationLinks: [
+          {
+            label: "Track in My Requests",
+            path: "/my-requests",
+            module: "my-requests",
+            icon: "requests",
+          },
+          {
+            label: "Manage All Vacancies",
+            path: "/vacancies",
+            module: "vacancies",
+            icon: "vacancy",
+          },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to draft vacancy closure");
   } catch (err) {
@@ -1157,6 +1346,40 @@ async function executeInspectSlot(
         occupant,
         candidate,
         recentHistory,
+        navigationLinks: [
+          {
+            label: `Inspect ${slot.legacy_vcode} in Plantilla`,
+            path: `/plantilla?q=${encodeURIComponent(slot.legacy_vcode)}`,
+            module: "plantilla",
+            icon: "slot",
+          },
+          storeName
+            ? {
+                label: `View ${storeName} in Plantilla`,
+                path: `/plantilla?store=${encodeURIComponent(storeName)}`,
+                module: "plantilla",
+                icon: "store",
+              }
+            : {
+                label: "Open Plantilla Matrix",
+                path: "/plantilla",
+                module: "plantilla",
+                icon: "plantilla",
+              },
+          storeName
+            ? {
+                label: `View Vacancies for ${storeName}`,
+                path: `/vacancies?store=${encodeURIComponent(storeName)}`,
+                module: "vacancies",
+                icon: "vacancy",
+              }
+            : {
+                label: "Manage All Vacancies",
+                path: "/vacancies",
+                module: "vacancies",
+                icon: "vacancy",
+              },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to inspect slot");
   } catch (err) {
@@ -1276,6 +1499,26 @@ async function executeInspectStoreRoster(
         floatingCount,
         openVacanciesCount,
         roster,
+        navigationLinks: [
+          {
+            label: `View ${resolvedStoreName || "Store"} in Plantilla`,
+            path: `/plantilla?store=${encodeURIComponent(resolvedStoreName || "")}`,
+            module: "plantilla",
+            icon: "store",
+          },
+          {
+            label: `View Vacancies for ${resolvedStoreName || "Store"}`,
+            path: `/vacancies?store=${encodeURIComponent(resolvedStoreName || "")}`,
+            module: "vacancies",
+            icon: "vacancy",
+          },
+          {
+            label: "Open Plantilla Matrix",
+            path: "/plantilla",
+            module: "plantilla",
+            icon: "plantilla",
+          },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to inspect store roster");
   } catch (err) {
@@ -1382,6 +1625,20 @@ async function executeSlotAuditHistory(
         slotCode: targetSlotCode || "Slot",
         totalEvents: events.length,
         events,
+        navigationLinks: [
+          {
+            label: `Inspect ${targetSlotCode || "Slot"} in Plantilla`,
+            path: `/plantilla?q=${encodeURIComponent(targetSlotCode || "")}`,
+            module: "plantilla",
+            icon: "slot",
+          },
+          {
+            label: "Open Plantilla Matrix",
+            path: "/plantilla",
+            module: "plantilla",
+            icon: "plantilla",
+          },
+        ] as NavigationLinkItem[],
       };
     }, "Failed to retrieve slot audit history");
   } catch (err) {
@@ -1717,7 +1974,7 @@ async function handleDeterministicFallback(
           const req = res.totalHeadcount ?? act;
           const vac = res.openVacancies ?? 0;
           const rate = res.fillRatePercent ?? "100%";
-          return `Sa kasalukuyan, ang **${res.accountName}** ay may **${act} active employees** mula sa kabuuang **${req} required headcount**, na may **${vac} open vacancy** (${rate} fulfillment rate).`;
+          return `Sa kasalukuyan, ang **${res.accountName}** ay may **${act} active employees** mula sa kabuuang **${req} required headcount**, na may **${vac} open vacancy** (${rate} fulfillment rate).\n\n[Open ${res.accountName} in Plantilla](/plantilla?account=${encodeURIComponent(res.accountName)}) • [View Vacancies](/vacancies?account=${encodeURIComponent(res.accountName)})`;
         }
       }
     }
@@ -1741,7 +1998,7 @@ async function handleDeterministicFallback(
     const groupLabel = groupFilter ? ` para sa ${groupFilter}` : "";
 
     if (count === 0) {
-      return `Walang open vacancies na natagpuan${groupLabel} sa kasalukuyan.`;
+      return `Walang open vacancies na natagpuan${groupLabel} sa kasalukuyan.\n\n[Manage Vacancies](/vacancies) • [Open Plantilla](/plantilla)`;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1751,7 +2008,8 @@ async function handleDeterministicFallback(
 
     return (
       `Mayroong **${count}** open ${count === 1 ? "vacancy" : "vacancies"}${groupLabel}:\n\n` +
-      items.join("\n")
+      items.join("\n") +
+      `\n\n[Manage All Vacancies](/vacancies) • [Open Plantilla Matrix](/plantilla)`
     );
   }
 
@@ -1767,7 +2025,7 @@ async function handleDeterministicFallback(
 
     const count = res.totalRequestsFound || 0;
     if (count === 0) {
-      return "Walang pending headcount requests sa kasalukuyan.";
+      return "Walang pending headcount requests sa kasalukuyan.\n\n[Review Approvals](/approvals) • [Track in My Requests](/my-requests)";
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1777,7 +2035,8 @@ async function handleDeterministicFallback(
 
     return (
       `Mayroong **${count}** pending headcount ${count === 1 ? "request" : "requests"} sa kasalukuyan:\n\n` +
-      items.join("\n")
+      items.join("\n") +
+      `\n\n[Review Approvals Queue](/approvals) • [Track in My Requests](/my-requests)`
     );
   }
 
@@ -1791,7 +2050,7 @@ async function handleDeterministicFallback(
 
     const count = res.totalQueueCount || 0;
     if (count === 0) {
-      return "Walang pending items sa HR Emploc queue sa kasalukuyan.";
+      return "Walang pending items sa HR Emploc queue sa kasalukuyan.\n\n[Open HR Emploc](/hr-emploc) • [Batch Import Movements](/hr-emploc/import)";
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1801,7 +2060,8 @@ async function handleDeterministicFallback(
 
     return (
       `Mayroong **${count}** items sa HR Emploc queue:\n\n` +
-      items.join("\n")
+      items.join("\n") +
+      `\n\n[Open HR Emploc Queue](/hr-emploc) • [Batch Import Movements](/hr-emploc/import)`
     );
   }
 
@@ -1825,7 +2085,7 @@ async function handleDeterministicFallback(
     const groupLabel = groupFilter ? ` para sa ${groupFilter}` : "";
 
     return (
-      `Plantilla Summary${groupLabel}: Mayroong **${total}** kabuuang slots — **${vacant} vacant**, **${filled} filled** (${rate} fill rate).`
+      `Plantilla Summary${groupLabel}: Mayroong **${total}** kabuuang slots — **${vacant} vacant**, **${filled} filled** (${rate} fill rate).\n\n[Open Plantilla Matrix](/plantilla) • [View Open Vacancies](/vacancies)`
     );
   }
 
@@ -2193,10 +2453,42 @@ INSTRUCTIONS FOR ACTIVE SCREEN CONTEXT:
             tools,
           });
 
+          // Extract navigation links from toolResults or text
+          const extractedNavLinks: NavigationLinkItem[] = [];
+          if (Array.isArray(result.toolResults)) {
+            for (const tr of result.toolResults) {
+              const res = tr && typeof tr === "object" ? (tr as Record<string, unknown>).result : null;
+              if (res && typeof res === "object" && Array.isArray((res as Record<string, unknown>).navigationLinks)) {
+                extractedNavLinks.push(...((res as Record<string, unknown>).navigationLinks as NavigationLinkItem[]));
+              }
+            }
+          }
+          if (extractedNavLinks.length === 0 && result.text) {
+            const matches = Array.from(result.text.matchAll(/\[([^\]]+)\]\((\/[^)]+)\)/g));
+            for (const m of matches) {
+              extractedNavLinks.push({
+                label: m[1],
+                path: m[2],
+                module: m[2].includes("plantilla")
+                  ? "plantilla"
+                  : m[2].includes("vacanc")
+                  ? "vacancies"
+                  : m[2].includes("approval")
+                  ? "approvals"
+                  : m[2].includes("request")
+                  ? "my-requests"
+                  : m[2].includes("emploc")
+                  ? "hr-emploc"
+                  : "general",
+              });
+            }
+          }
+
           return Response.json({
             text: result.text,
             toolCalls: result.toolCalls,
             toolResults: result.toolResults,
+            navigationLinks: extractedNavLinks,
             model: modelName,
           });
         } catch (err) {
@@ -2209,9 +2501,30 @@ INSTRUCTIONS FOR ACTIVE SCREEN CONTEXT:
         "[OHMni JSON] All Gemini models exhausted. Activating deterministic local fallback."
       );
       const fallbackText = await handleDeterministicFallback(supabase, promptText);
+      const fallbackLinks: NavigationLinkItem[] = [];
+      const matches = Array.from(fallbackText.matchAll(/\[([^\]]+)\]\((\/[^)]+)\)/g));
+      for (const m of matches) {
+        fallbackLinks.push({
+          label: m[1],
+          path: m[2],
+          module: m[2].includes("plantilla")
+            ? "plantilla"
+            : m[2].includes("vacanc")
+            ? "vacancies"
+            : m[2].includes("approval")
+            ? "approvals"
+            : m[2].includes("request")
+            ? "my-requests"
+            : m[2].includes("emploc")
+            ? "hr-emploc"
+            : "general",
+        });
+      }
+
       return Response.json({
         text: fallbackText,
         isFallback: true,
+        navigationLinks: fallbackLinks,
       });
     }
 

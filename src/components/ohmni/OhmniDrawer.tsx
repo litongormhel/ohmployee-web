@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { createClient } from "@/lib/supabase/client";
@@ -18,7 +18,15 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowRight,
+  ArrowUpRight,
   Check,
+  Compass,
+  Building2,
+  Users,
+  CheckSquare,
+  Briefcase,
+  Clock,
+  FileText,
 } from "lucide-react";
 
 type OhmniDrawerProps = {
@@ -29,7 +37,88 @@ type OhmniDrawerProps = {
 
 // ── Lightweight Markdown & Inline Formatter ─────────────────────────────────
 
-function renderInlineFormatted(text: string): React.ReactNode {
+export interface NavigationLinkItem {
+  label: string;
+  path: string;
+  module?: string;
+  icon?: string;
+  description?: string;
+}
+
+function getNavigationIcon(iconOrModule?: string) {
+  switch (iconOrModule?.toLowerCase()) {
+    case "plantilla":
+    case "store":
+      return <Building2 size={12} className="text-emerald-500 shrink-0" />;
+    case "vacancies":
+    case "vacancy":
+      return <Briefcase size={12} className="text-amber-500 shrink-0" />;
+    case "approvals":
+    case "requests":
+      return <CheckSquare size={12} className="text-blue-500 shrink-0" />;
+    case "queue":
+    case "hr-emploc":
+      return <Users size={12} className="text-indigo-500 shrink-0" />;
+    case "slot":
+      return <Clock size={12} className="text-teal-500 shrink-0" />;
+    case "report":
+      return <FileText size={12} className="text-slate-500 shrink-0" />;
+    default:
+      return <Compass size={12} className="text-emerald-500 shrink-0" />;
+  }
+}
+
+function SmartNavigationPills({
+  links,
+  onNavigate,
+}: {
+  links: NavigationLinkItem[];
+  onNavigate?: (path: string) => void;
+}) {
+  if (!links || links.length === 0) return null;
+
+  // Deduplicate links by path
+  const seenPaths = new Set<string>();
+  const uniqueLinks = links.filter((link) => {
+    if (!link.path || seenPaths.has(link.path)) return false;
+    seenPaths.add(link.path);
+    return true;
+  });
+
+  if (uniqueLinks.length === 0) return null;
+
+  return (
+    <div className="pt-2 mt-2 border-t border-[var(--border-subtle)] space-y-1.5">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+        <Compass size={12} className="text-emerald-500" />
+        <span>Quick Navigation</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {uniqueLinks.map((link, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => onNavigate?.(link.path)}
+            className="group inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-surface-muted hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 border border-[var(--border-subtle)] hover:border-emerald-500/30 transition-all cursor-pointer shadow-2xs"
+            title={`Navigate to ${link.path}`}
+          >
+            {getNavigationIcon(link.icon || link.module)}
+            <span className="leading-snug">{link.label}</span>
+            <ArrowUpRight
+              size={12}
+              className="text-text-muted group-hover:text-emerald-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform shrink-0"
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function renderInlineFormatted(
+  text: string,
+  onNavigate?: (path: string) => void
+): React.ReactNode {
   const parts: React.ReactNode[] = [];
   let remaining = text;
   let keyIdx = 0;
@@ -37,6 +126,7 @@ function renderInlineFormatted(text: string): React.ReactNode {
   while (remaining.length > 0) {
     const codeMatch = remaining.match(/`([^`]+)`/);
     const boldMatch = remaining.match(/\*\*([^*]+)\*\*/);
+    const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
 
     let firstMatch: { index: number; length: number; node: React.ReactNode } | null = null;
 
@@ -69,6 +159,42 @@ function renderInlineFormatted(text: string): React.ReactNode {
       }
     }
 
+    if (linkMatch && linkMatch.index !== undefined) {
+      if (!firstMatch || linkMatch.index < firstMatch.index) {
+        const linkText = linkMatch[1];
+        const linkUrl = linkMatch[2];
+        const isInternal = linkUrl.startsWith("/");
+
+        firstMatch = {
+          index: linkMatch.index,
+          length: linkMatch[0].length,
+          node: isInternal ? (
+            <button
+              key={`link-${keyIdx++}`}
+              type="button"
+              onClick={() => onNavigate?.(linkUrl)}
+              className="text-emerald-700 dark:text-emerald-400 font-semibold hover:underline decoration-emerald-500/50 hover:decoration-emerald-500 inline-flex items-center gap-0.5 mx-0.5 cursor-pointer bg-emerald-500/10 px-1.5 py-0.5 rounded-md text-[12px] transition-colors"
+              title={`Navigate to ${linkUrl}`}
+            >
+              <span>{linkText}</span>
+              <ArrowUpRight size={11} className="inline opacity-80" />
+            </button>
+          ) : (
+            <a
+              key={`link-${keyIdx++}`}
+              href={linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-700 dark:text-emerald-400 font-semibold hover:underline inline-flex items-center gap-0.5 mx-0.5"
+            >
+              <span>{linkText}</span>
+              <ArrowUpRight size={11} className="inline opacity-80" />
+            </a>
+          ),
+        };
+      }
+    }
+
     if (!firstMatch) {
       parts.push(remaining);
       break;
@@ -84,7 +210,13 @@ function renderInlineFormatted(text: string): React.ReactNode {
   return parts;
 }
 
-function FormattedContent({ content }: { content: string }) {
+function FormattedContent({
+  content,
+  onNavigate,
+}: {
+  content: string;
+  onNavigate?: (path: string) => void;
+}) {
   const lines = content.split("\n");
   const renderedElements: React.ReactNode[] = [];
   let tableRows: string[][] = [];
@@ -114,7 +246,7 @@ function FormattedContent({ content }: { content: string }) {
                 <tr key={`tr-${rIdx}`} className="hover:bg-surface-hover transition-colors">
                   {r.map((col, cIdx) => (
                     <td key={`td-${cIdx}`} className="px-3 py-2 whitespace-nowrap text-text-secondary">
-                      {renderInlineFormatted(col)}
+                      {renderInlineFormatted(col, onNavigate)}
                     </td>
                   ))}
                 </tr>
@@ -157,7 +289,7 @@ function FormattedContent({ content }: { content: string }) {
         <div key={`li-${idx}`} className="flex items-start gap-2 pl-1 my-1">
           <span className="text-emerald-500 mt-1.5 text-[7px]">●</span>
           <span className="flex-1 leading-relaxed text-sm text-text-secondary">
-            {renderInlineFormatted(trimmed.slice(2))}
+            {renderInlineFormatted(trimmed.slice(2), onNavigate)}
           </span>
         </div>
       );
@@ -166,7 +298,7 @@ function FormattedContent({ content }: { content: string }) {
 
     renderedElements.push(
       <p key={`p-${idx}`} className="leading-relaxed my-1.5 text-sm text-text-secondary">
-        {renderInlineFormatted(trimmed)}
+        {renderInlineFormatted(trimmed, onNavigate)}
       </p>
     );
   });
@@ -200,6 +332,7 @@ function hasToolResults(out?: GenericToolOutput): boolean {
   if (Array.isArray(out.requests)) return out.requests.length > 0;
   if (Array.isArray(out.roster)) return out.roster.length > 0;
   if (Array.isArray(out.events)) return out.events.length > 0;
+  if (Array.isArray(out.navigationLinks) && out.navigationLinks.length > 0) return true;
   if (Boolean(out.slotCode)) return true;
   return false;
 }
@@ -215,8 +348,10 @@ function isActionDraftTool(tp: unknown): boolean {
 
 function ToolOutputFallbackView({
   toolParts,
+  onNavigate,
 }: {
   toolParts: unknown[];
+  onNavigate?: (path: string) => void;
 }) {
   if (!toolParts || toolParts.length === 0) return null;
 
@@ -241,6 +376,20 @@ function ToolOutputFallbackView({
 
   const { output } = selected;
 
+  return (
+    <div className="space-y-2">
+      {renderFallbackBody(output)}
+      {Array.isArray(output.navigationLinks) && output.navigationLinks.length > 0 && (
+        <SmartNavigationPills
+          links={output.navigationLinks as NavigationLinkItem[]}
+          onNavigate={onNavigate}
+        />
+      )}
+    </div>
+  );
+}
+
+function renderFallbackBody(output: GenericToolOutput): React.ReactNode {
   if (output.error) {
     return (
       <p className="text-sm text-danger">
@@ -1019,12 +1168,21 @@ function getStarterPrompts(pathname: string, context?: ContextParams): string[] 
 // ── Main OHMni Centered Floating Card ───────────────────────────────────────
 
 export function OhmniDrawer({ isOpen, onClose, currentUser }: OhmniDrawerProps) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleNavigate = useCallback(
+    (path: string) => {
+      router.push(path);
+      onClose();
+    },
+    [router, onClose]
+  );
 
   // In-flight and completed interactive action draft states (Phase 2 Layer 2)
   const [submittingDrafts, setSubmittingDrafts] = useState<Record<string, boolean>>({});
@@ -1526,7 +1684,11 @@ export function OhmniDrawer({ isOpen, onClose, currentUser }: OhmniDrawerProps) 
                       <div className="text-sm text-text-secondary leading-relaxed bg-[var(--surface-base)] p-3.5 rounded-2xl border border-[var(--border-subtle)] shadow-2xs w-full space-y-2">
                         {hasNonEmptyText &&
                           textParts.map((t, idx) => (
-                            <FormattedContent key={idx} content={t.text} />
+                            <FormattedContent
+                              key={idx}
+                              content={t.text}
+                              onNavigate={handleNavigate}
+                            />
                           ))}
 
                         {/* Interactive Action Draft Cards (Phase 2 Layer 2) */}
@@ -1548,8 +1710,41 @@ export function OhmniDrawer({ isOpen, onClose, currentUser }: OhmniDrawerProps) 
                           nonActionToolParts.length > 0 && (
                             <ToolOutputFallbackView
                               toolParts={nonActionToolParts}
+                              onNavigate={handleNavigate}
                             />
                           )}
+
+                        {/* Smart Navigation Quick Jump Pills (Phase 2 Layer 4) */}
+                        {hasNonEmptyText && !isLoading && (() => {
+                          const navLinks: NavigationLinkItem[] = [];
+                          for (const tp of toolParts) {
+                            const out = getToolOutputPayload(tp);
+                            if (out && Array.isArray(out.navigationLinks)) {
+                              navLinks.push(...(out.navigationLinks as NavigationLinkItem[]));
+                            }
+                          }
+                          for (const tp of textParts) {
+                            const matches = Array.from(tp.text.matchAll(/\[([^\]]+)\]\((\/[^)]+)\)/g));
+                            for (const match of matches) {
+                              navLinks.push({
+                                label: match[1],
+                                path: match[2],
+                                module: match[2].includes("plantilla")
+                                  ? "plantilla"
+                                  : match[2].includes("vacanc")
+                                  ? "vacancies"
+                                  : match[2].includes("approval")
+                                  ? "approvals"
+                                  : match[2].includes("request")
+                                  ? "my-requests"
+                                  : match[2].includes("emploc")
+                                  ? "hr-emploc"
+                                  : "general",
+                              });
+                            }
+                          }
+                          return <SmartNavigationPills links={navLinks} onNavigate={handleNavigate} />;
+                        })()}
 
                         {/* Loading State while stream is in flight */}
                         {!hasNonEmptyText && isLoading && (

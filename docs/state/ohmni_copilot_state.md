@@ -4,7 +4,7 @@
 **Endpoint:** `/api/ohmni` (Streaming Next.js Route Handler)  
 **UI Interface:** Tarsi-Style Centered Floating Card Overlay (`max-w-[680px]`, `h-[calc(100vh-48px)]`, rounded-3xl, centered in workspace)  
 **Navigation Placement:** Directly below CENCOM in `Sidebar.tsx` (for CENCOM roles) or below Dashboard/primary navigation (for non-CENCOM roles), Header trigger in `AdminTopbar.tsx`, and `⌘K` / `Ctrl+K` keyboard shortcut (100% visible across all authenticated roles)  
-**Last Updated:** 2026-11-15 (`ohm#ohmni-phase2-layer3`)
+**Last Updated:** 2026-11-15 (`ohm#ohmni-phase2-layer4`)
 
 ---
 
@@ -29,6 +29,11 @@ OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations ma
   - **Branch Staff Roster (`inspectStoreRoster`):** Aggregates staff currently deployed to a specific branch/store from `plantilla`, calculating active, on-leave, and floating breakdowns, accompanied by open vacancy counts from `vw_vacancy_list`.
   - **Relational Audit Trail (`getSlotAuditHistory`):** Queries chronological state transitions from `slot_history`, resolves performer identities from `users_profile`, and traces changes in status, occupants, reasons, and remarks.
   - **Rich Visual Cards & Fallbacks:** `ToolOutputFallbackView` presents structured cards for slot details, branch rosters, and audit event logs, complemented by dynamic contextual starter prompts (`"Sino-sino ang nakaduty sa [Store]?"`, `"Ano ang audit history ng [VCODE]?"`) and Flutter Mobile local deterministic fallbacks in `ohmni_service.dart`.
+- **Layer 4: Cross-Module Smart Navigation & Deep Linking:**
+  - **Contextual Quick Jump Action Pills (`SmartNavigationPills`):** Every operational response (briefing, staffing query, open vacancies, headcount queue, slot audit, and interactive draft) automatically computes and surfaces clean, 1-click navigation chips linking directly to filtered tables, detail pages, and workflow queues (e.g. `[ 📋 View Plantilla for Alturas ]`, `[ 🎯 View Open Vacancies ]`, `[ ⚡ Review in Approvals Queue ]`).
+  - **Inline Markdown Deep Links:** `renderInlineFormatted` parses Next.js internal paths `[text](/route)` and provides direct navigation via `router.push(path)` alongside automatic drawer dismissal (`onClose()`).
+  - **Backend Parity (`navigationLinks`):** All 11 read-only and drafter tools in `/api/ohmni/route.ts` return structured `navigationLinks` payloads, also generated in deterministic local fallbacks and REST mode for Mobile consumption.
+  - **Mobile Parity:** Enhanced `ohmni_service.dart` and `ohmni_chat_screen.dart` with `_buildNavigationPills` and `_handleNavigationLink`, enabling 1-tap navigation to `HeadcountRequestsScreen`, `MyRequestsScreen`, `VacancyApprovalScreen`, or smooth tab switching (Plantilla / Vacancy) in `RootScreen`.
 
 ### Core Architecture
 - **Creator Identity & Ecosystem Architecture:** OHMni recognizes **OHM (Ormhel Litong)**, IT Manager at Moses Coop and Systems Architect of OHMployee, as its sole designer and creator. Any questions regarding who built OHMni or who Ohm is highlight Ohm's role architecting both the Mobile and Web ecosystems (Plantilla, Vacancy, HR Emploc, CENCOM, OHMni).
