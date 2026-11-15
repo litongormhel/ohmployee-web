@@ -111,6 +111,8 @@ Enterprise Rules:
    - Daily Briefing: When asked for today's summary, morning briefing, or priority check, invoke getOperationalBriefing.
    - Analytics & Aging: When asked for store rankings, fill rates (MFR), or aging vacancies (>30 days / SLA breach risk), invoke getStoreAnalytics or getVacancyAgingAndSla.
    - Action Drafting: When asked to file or request headcount, invoke draftHeadcountRequest. When asked to close a vacancy, invoke draftVacancyClosure. This prepares a verified confirmation card for the user. Never claim you directly submitted or committed the change—always state that you prepared the draft for their confirmation.
+   - Operational Drill-Down & Roster Tracing: When asked who occupies a slot, who is deployed to a branch, or to list staff/cashiers, invoke inspectSlot or inspectStoreRoster.
+   - Slot Audit History: When asked for the history, past occupants, or vacation reasons for a slot, invoke getSlotAuditHistory.
    - Active View Context: If the prompt includes active context (e.g. current store, route, or vacancy code), resolve relative references ('here', 'this branch', 'this vacancy') using that context.
 
 ${OHMPLOYEE_SOP_MANUAL}
@@ -1005,6 +1007,391 @@ async function executeDraftVacancyClosure(
 }
 
 /**
+ * 10. Slot & Occupant Deep Dive Inspector (Phase 2 Layer 3)
+ */
+async function executeInspectSlot(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  {
+    slotCode,
+    slotId,
+  }: {
+    slotCode?: string;
+    slotId?: string;
+  }
+) {
+  try {
+    return await executeWithTimeout(async () => {
+      let query = supabase
+        .from("plantilla_slots")
+        .select(`
+          id,
+          legacy_vcode,
+          slot_status,
+          position,
+          employment_type,
+          is_roving,
+          slot_ordinal,
+          store_id,
+          account_id,
+          current_occupant_plantilla_id,
+          stores(store_name),
+          accounts(account_name)
+        `);
+
+      if (slotId) {
+        query = query.eq("id", slotId);
+      } else if (slotCode) {
+        const clean = sanitizeOrTerm(slotCode);
+        query = query.ilike("legacy_vcode", `%${clean}%`);
+      } else {
+        return { error: "Please provide a slotCode or slotId to inspect." };
+      }
+
+      const { data: slotRows, error: slotError } = await query.limit(1);
+      if (slotError) throw slotError;
+      if (!slotRows || slotRows.length === 0) {
+        return {
+          error: `Slot "${slotCode || slotId}" was not found in your accessible accounts.`,
+        };
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const slot: any = slotRows[0];
+      const storeName = slot.stores?.store_name ?? "—";
+      const accountName = slot.accounts?.account_name ?? "—";
+
+      // 1. Resolve occupant details if occupied or assigned
+      let occupant: {
+        name: string;
+        employeeNo: string;
+        position: string;
+        status: string;
+        deploymentType?: string;
+        dateHired?: string;
+      } | null = null;
+
+      if (slot.current_occupant_plantilla_id) {
+        const { data: occRows } = await supabase
+          .from("plantilla")
+          .select("id, employee_name, employee_no, position, status, deployment_type, date_hired")
+          .eq("id", slot.current_occupant_plantilla_id)
+          .limit(1);
+
+        if (occRows && occRows.length > 0) {
+          const occ = occRows[0];
+          occupant = {
+            name: occ.employee_name || "—",
+            employeeNo: occ.employee_no || "—",
+            position: occ.position || slot.position || "—",
+            status: occ.status || "Active",
+            deploymentType: occ.deployment_type || "Stationary",
+            dateHired: occ.date_hired || undefined,
+          };
+        }
+      }
+
+      // 2. Resolve candidate if in pipeline or HR processing
+      let candidate: {
+        name: string;
+        stage: string;
+        contactNo?: string;
+      } | null = null;
+
+      if (slot.slot_status === "pipeline" || slot.slot_status === "hr_processing") {
+        const { data: appRows } = await supabase
+          .from("applicants")
+          .select("full_name, stage, contact_number")
+          .ilike("target_slot_code", `%${slot.legacy_vcode}%`)
+          .limit(1);
+
+        if (appRows && appRows.length > 0) {
+          candidate = {
+            name: appRows[0].full_name,
+            stage: appRows[0].stage,
+            contactNo: appRows[0].contact_number,
+          };
+        }
+      }
+
+      // 3. Resolve recent slot history transitions (limit 3)
+      let recentHistory: Array<{
+        action: string;
+        oldValue: string;
+        newValue: string;
+        remarks: string;
+        createdAt: string;
+      }> = [];
+
+      try {
+        const { data: histRows } = await supabase
+          .from("slot_history")
+          .select("action_type, old_value, new_value, remarks, created_at")
+          .eq("slot_id", slot.id)
+          .order("created_at", { ascending: false })
+          .limit(3);
+
+        if (histRows && histRows.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          recentHistory = histRows.map((h: any) => ({
+            action: h.action_type,
+            oldValue: h.old_value,
+            newValue: h.new_value,
+            remarks: h.remarks,
+            createdAt: h.created_at,
+          }));
+        }
+      } catch {
+        // non-blocking
+      }
+
+      return {
+        slotCode: slot.legacy_vcode,
+        slotId: slot.id,
+        status: slot.slot_status,
+        position: slot.position,
+        employmentType: slot.employment_type,
+        isRoving: slot.is_roving,
+        storeName,
+        accountName,
+        occupant,
+        candidate,
+        recentHistory,
+      };
+    }, "Failed to inspect slot");
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Failed to inspect slot",
+    };
+  }
+}
+
+/**
+ * 11. Branch Staff Roster & Occupancy Drill-Down (Phase 2 Layer 3)
+ */
+async function executeInspectStoreRoster(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  {
+    storeName,
+    storeId,
+    accountName,
+    limit = 20,
+  }: {
+    storeName?: string;
+    storeId?: string;
+    accountName?: string;
+    limit?: number;
+  }
+) {
+  try {
+    return await executeWithTimeout(async () => {
+      let resolvedStoreId = storeId;
+      let resolvedStoreName = storeName;
+      let resolvedAccountName = accountName;
+
+      // 1. Resolve store if storeName is provided
+      if (!resolvedStoreId && storeName) {
+        const cleanStore = sanitizeOrTerm(storeName);
+        const { data: storeRows } = await supabase
+          .from("stores")
+          .select("id, store_name, account_id, accounts(id, account_name)")
+          .ilike("store_name", `%${cleanStore}%`)
+          .limit(1);
+
+        if (storeRows && storeRows.length > 0) {
+          resolvedStoreId = storeRows[0].id;
+          resolvedStoreName = storeRows[0].store_name;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          resolvedAccountName = (storeRows[0].accounts as any)?.account_name ?? resolvedAccountName;
+        }
+      }
+
+      if (!resolvedStoreId && !resolvedStoreName) {
+        return { error: "Please provide a storeName to inspect the staff roster." };
+      }
+
+      // 2. Query plantilla occupants in this store
+      let plantillaQuery = supabase
+        .from("plantilla")
+        .select("id, employee_name, employee_no, position, status, deployment_type, schedule_days, vcode")
+        .eq("is_deleted", false);
+
+      if (resolvedStoreId) {
+        plantillaQuery = plantillaQuery.eq("store_id", resolvedStoreId);
+      } else if (resolvedStoreName) {
+        const clean = sanitizeOrTerm(resolvedStoreName);
+        plantillaQuery = plantillaQuery.ilike("store_name", `%${clean}%`);
+      }
+
+      const { data: occupants, error: occError } = await plantillaQuery
+        .order("employee_name", { ascending: true })
+        .limit(Math.min(limit, 50));
+
+      if (occError) throw occError;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const roster = (occupants || []).map((o: any) => ({
+        name: o.employee_name || "—",
+        employeeNo: o.employee_no || "—",
+        position: o.position || "Staff",
+        status: o.status || "Active",
+        deploymentType: o.deployment_type || "Stationary",
+        scheduleDays: o.schedule_days || null,
+        slotCode: o.vcode || null,
+      }));
+
+      // Count by status
+      const totalStaff = roster.length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const activeCount = roster.filter((r: any) => r.status?.toLowerCase() === "active").length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const onLeaveCount = roster.filter((r: any) => r.status?.toLowerCase() === "on leave").length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const floatingCount = roster.filter((r: any) => r.status?.toLowerCase() === "floating").length;
+
+      // 3. Query open vacancies in this store for complete staffing picture
+      let openVacanciesCount = 0;
+      try {
+        let vacQuery = supabase
+          .from("vw_vacancy_list")
+          .select("id")
+          .eq("status", "Open");
+
+        if (resolvedStoreName) {
+          vacQuery = vacQuery.ilike("store_name", `%${sanitizeOrTerm(resolvedStoreName)}%`);
+        }
+        const { data: vacs } = await vacQuery;
+        openVacanciesCount = vacs?.length ?? 0;
+      } catch {
+        // non-blocking
+      }
+
+      return {
+        storeName: resolvedStoreName || "Store",
+        accountName: resolvedAccountName || "Account",
+        totalStaff,
+        activeCount,
+        onLeaveCount,
+        floatingCount,
+        openVacanciesCount,
+        roster,
+      };
+    }, "Failed to inspect store roster");
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Failed to inspect store roster",
+    };
+  }
+}
+
+/**
+ * 12. Slot Audit History & Transition Timeline (Phase 2 Layer 3)
+ */
+async function executeSlotAuditHistory(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  {
+    slotCode,
+    slotId,
+    limit = 10,
+  }: {
+    slotCode?: string;
+    slotId?: string;
+    limit?: number;
+  }
+) {
+  try {
+    return await executeWithTimeout(async () => {
+      let targetSlotId = slotId;
+      let targetSlotCode = slotCode;
+
+      // If slotCode given, resolve slotId from plantilla_slots
+      if (!targetSlotId && slotCode) {
+        const clean = sanitizeOrTerm(slotCode);
+        const { data: slotRows } = await supabase
+          .from("plantilla_slots")
+          .select("id, legacy_vcode")
+          .ilike("legacy_vcode", `%${clean}%`)
+          .limit(1);
+
+        if (slotRows && slotRows.length > 0) {
+          targetSlotId = slotRows[0].id;
+          targetSlotCode = slotRows[0].legacy_vcode;
+        }
+      }
+
+      if (!targetSlotId) {
+        return { error: `Slot code "${slotCode}" was not found.` };
+      }
+
+      const { data: historyRows, error: histError } = await supabase
+        .from("slot_history")
+        .select(`
+          id,
+          action_type,
+          old_value,
+          new_value,
+          reason_code,
+          remarks,
+          created_at,
+          performed_by
+        `)
+        .eq("slot_id", targetSlotId)
+        .order("created_at", { ascending: false })
+        .limit(Math.min(limit, 20));
+
+      if (histError) throw histError;
+
+      // Resolve performer names
+      const performerIds = Array.from(
+        new Set(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (historyRows || []).map((r: any) => r.performed_by).filter(Boolean)
+        )
+      );
+
+      const performerMap = new Map<string, string>();
+      if (performerIds.length > 0) {
+        try {
+          const { data: users } = await supabase
+            .from("users_profile")
+            .select("id, full_name")
+            .in("id", performerIds);
+
+          for (const u of users || []) {
+            performerMap.set(u.id, u.full_name);
+          }
+        } catch {
+          // non-blocking
+        }
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const events = (historyRows || []).map((r: any) => ({
+        action: r.action_type,
+        oldValue: r.old_value,
+        newValue: r.new_value,
+        reasonCode: r.reason_code,
+        remarks: r.remarks,
+        performedBy: performerMap.get(r.performed_by) || "System Administrator",
+        createdAt: r.created_at,
+      }));
+
+      return {
+        slotCode: targetSlotCode || "Slot",
+        totalEvents: events.length,
+        events,
+      };
+    }, "Failed to retrieve slot audit history");
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Failed to retrieve slot audit history",
+    };
+  }
+}
+
+/**
  * Deterministic local fallback router when Gemini Free Tier quota is exhausted
  */
 async function handleDeterministicFallback(
@@ -1124,6 +1511,112 @@ async function handleDeterministicFallback(
         let msg = `Here are the accounts ranked by **Lowest Fill Rate (MFR)**:\n\n`;
         for (const a of analytics.accounts) {
           msg += `• **${a.name}** — Fill Rate: **${a.fillRate}** (Actual: ${a.actual}, Vacant: ${a.vacancies}, Required: ${a.required})\n`;
+        }
+        return msg.trim();
+      }
+    } catch {
+      // proceed
+    }
+  }
+
+  // 0.8. Slot Inspection & Occupant Lookups (Phase 2 Layer 3)
+  const slotMatch = p.match(/\b(vc[a-z0-9_]+|test[0-9]+|slot-[0-9a-z_]+)\b/i);
+  if (
+    slotMatch ||
+    p.includes("sino ang nakadestino") ||
+    p.includes("occupant") ||
+    p.includes("check details ng slot") ||
+    p.includes("inspect slot")
+  ) {
+    const code = slotMatch ? slotMatch[0] : undefined;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const slotRes: any = await executeInspectSlot(supabase, { slotCode: code });
+      if (!slotRes.error && slotRes.slotCode) {
+        let msg = `### 🔍 Slot Details: \`${slotRes.slotCode}\`\n\n`;
+        msg += `• **Position:** ${slotRes.position || "—"} (${slotRes.employmentType || "Regular"}, ${slotRes.isRoving ? "Roving" : "Stationary"})\n`;
+        msg += `• **Status:** \`${slotRes.status}\`\n`;
+        msg += `• **Store:** ${slotRes.storeName} (${slotRes.accountName})\n`;
+        if (slotRes.occupant) {
+          msg += `• **Current Occupant:** **${slotRes.occupant.name}** (Emp No: \`${slotRes.occupant.employeeNo}\`, Status: ${slotRes.occupant.status})\n`;
+        } else {
+          msg += `• **Current Occupant:** *None (Vacant)*\n`;
+        }
+        if (slotRes.candidate) {
+          msg += `• **Candidate Reserved:** **${slotRes.candidate.name}** [Stage: ${slotRes.candidate.stage}]\n`;
+        }
+        if (slotRes.recentHistory && slotRes.recentHistory.length > 0) {
+          msg += `\n**Recent Audit History:**\n`;
+          for (const h of slotRes.recentHistory) {
+            msg += `• *${h.action}* — ${h.oldValue || "—"} ➔ ${h.newValue || "—"} (${h.remarks || "No remarks"})\n`;
+          }
+        }
+        return msg.trim();
+      }
+    } catch {
+      // proceed
+    }
+  }
+
+  // 0.9. Staff Roster Inspection (Phase 2 Layer 3)
+  if (
+    p.includes("roster") ||
+    p.includes("sino-sino") ||
+    p.includes("list staff") ||
+    p.includes("list employees") ||
+    p.includes("mga nakaduty") ||
+    p.includes("sinong nakaduty")
+  ) {
+    try {
+      let targetStore = "";
+      const words = p.split(/\s+/);
+      const saIdx = words.findIndex((w) => w === "sa" || w === "at" || w === "for");
+      if (saIdx !== -1 && words[saIdx + 1]) {
+        targetStore = words.slice(saIdx + 1).join(" ").replace(/[?.,!]/g, "").trim();
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rosterRes: any = await executeInspectStoreRoster(supabase, {
+        storeName: targetStore || undefined,
+        limit: 15,
+      });
+
+      if (!rosterRes.error && rosterRes.roster) {
+        let msg = `### 👥 Staff Roster: ${rosterRes.storeName} (${rosterRes.accountName})\n\n`;
+        msg += `• **Total Staff:** **${rosterRes.totalStaff}** (${rosterRes.activeCount} Active, ${rosterRes.onLeaveCount} On Leave, ${rosterRes.floatingCount} Floating)\n`;
+        msg += `• **Open Vacancies:** **${rosterRes.openVacanciesCount}** open slots\n\n`;
+        if (rosterRes.roster.length > 0) {
+          msg += `**Assigned Staff Members:**\n`;
+          for (const s of rosterRes.roster) {
+            const statusTag = s.status !== "Active" ? ` [${s.status}]` : "";
+            msg += `• **${s.name}** (\`${s.employeeNo}\`) — ${s.position}${statusTag}\n`;
+          }
+        } else {
+          msg += `*No assigned staff found for this branch.*\n`;
+        }
+        return msg.trim();
+      }
+    } catch {
+      // proceed
+    }
+  }
+
+  // 0.10. Slot Audit History Tracing (Phase 2 Layer 3)
+  if (
+    (p.includes("history") || p.includes("audit") || p.includes("kailan nabakante") || p.includes("bakit nabakante")) &&
+    (slotMatch || p.includes("slot"))
+  ) {
+    const code = slotMatch ? slotMatch[0] : undefined;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const histRes: any = await executeSlotAuditHistory(supabase, { slotCode: code, limit: 5 });
+      if (!histRes.error && histRes.events) {
+        let msg = `### 📜 Audit Timeline: \`${histRes.slotCode}\` (${histRes.totalEvents} events)\n\n`;
+        for (const e of histRes.events) {
+          const dateStr = e.createdAt ? new Date(e.createdAt).toLocaleDateString() : "";
+          msg += `• **${e.action}** (${dateStr}) by ${e.performedBy}: ${e.oldValue || "—"} ➔ ${e.newValue || "—"}`;
+          if (e.remarks) msg += ` — *"${e.remarks}"*`;
+          msg += `\n`;
         }
         return msg.trim();
       }
@@ -1651,6 +2144,39 @@ INSTRUCTIONS FOR ACTIVE SCREEN CONTEXT:
           reason: z.string().optional().describe("Reason for closing the vacancy"),
         }),
         execute: async (params) => executeDraftVacancyClosure(supabase, params),
+      }),
+
+      inspectSlot: tool({
+        description:
+          "Inspects a specific slot or vacancy code (e.g. 'VCBPIG1_0183' or 'TEST011') to retrieve status, assigned store, position, current employee occupant (name, ID, leave/duty status), candidate in pipeline if any, and recent audit transitions.",
+        inputSchema: z.object({
+          slotCode: z.string().optional().describe("Legacy VCode or slot code (e.g. 'VCBPIG1_0183')"),
+          slotId: z.string().optional().describe("UUID of the plantilla slot"),
+        }),
+        execute: async (params) => executeInspectSlot(supabase, params),
+      }),
+
+      inspectStoreRoster: tool({
+        description:
+          "Retrieves the active staff roster for a store/branch, including assigned employees, position titles, employee IDs, and leave/duty statuses (Active, On Leave, Floating).",
+        inputSchema: z.object({
+          storeName: z.string().optional().describe("Store or branch name (e.g. 'Alturas Mall', 'ICM')"),
+          storeId: z.string().optional().describe("UUID of the store"),
+          accountName: z.string().optional().describe("Billing account name"),
+          limit: z.number().optional().default(20).describe("Maximum number of roster rows to return"),
+        }),
+        execute: async (params) => executeInspectStoreRoster(supabase, params),
+      }),
+
+      getSlotAuditHistory: tool({
+        description:
+          "Retrieves chronological audit history and lifecycle transitions for a slot or vacancy, including past occupants, status changes, reasons for vacation, and actors who performed the actions.",
+        inputSchema: z.object({
+          slotCode: z.string().optional().describe("Slot code or vacancy code (e.g. 'VCBPIG1_0183')"),
+          slotId: z.string().optional().describe("UUID of the plantilla slot"),
+          limit: z.number().optional().default(10).describe("Maximum number of audit events to return"),
+        }),
+        execute: async (params) => executeSlotAuditHistory(supabase, params),
       }),
     };
 

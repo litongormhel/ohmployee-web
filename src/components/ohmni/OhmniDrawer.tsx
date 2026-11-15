@@ -198,6 +198,9 @@ function hasToolResults(out?: GenericToolOutput): boolean {
   if (typeof out.totalFound === "number") return out.totalFound > 0;
   if (Array.isArray(out.items)) return out.items.length > 0;
   if (Array.isArray(out.requests)) return out.requests.length > 0;
+  if (Array.isArray(out.roster)) return out.roster.length > 0;
+  if (Array.isArray(out.events)) return out.events.length > 0;
+  if (Boolean(out.slotCode)) return true;
   return false;
 }
 
@@ -507,6 +510,145 @@ function ToolOutputFallbackView({
           )}
           <li>• <strong>HR Emploc Queue:</strong> {briefing.pendingEmploc ?? 0} pending</li>
           <li>• <strong>Closure Requests:</strong> {briefing.pendingClosures ?? 0}</li>
+        </ul>
+      </div>
+    );
+  }
+
+  // Handle inspectSlot (Phase 2 Layer 3)
+  if (output.slotCode && (output.occupant !== undefined || output.candidate !== undefined || output.slotId)) {
+    const slot = output as {
+      slotCode?: string;
+      status?: string;
+      position?: string;
+      employmentType?: string;
+      isRoving?: boolean;
+      storeName?: string;
+      accountName?: string;
+      occupant?: {
+        name: string;
+        employeeNo: string;
+        position: string;
+        status: string;
+        dateHired?: string;
+      } | null;
+      candidate?: {
+        name: string;
+        stage: string;
+        contactNo?: string;
+      } | null;
+      recentHistory?: Array<{
+        action: string;
+        oldValue: string;
+        newValue: string;
+        remarks: string;
+      }>;
+    };
+
+    return (
+      <div className="space-y-2 p-3 rounded-xl border border-[var(--border-subtle)] bg-surface-muted/50">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-text-primary">
+            🔍 Slot Details: <code className="tech-token">{slot.slotCode}</code>
+          </p>
+          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-surface-elevated text-text-secondary font-semibold">
+            {slot.status || "—"}
+          </span>
+        </div>
+        <div className="text-xs space-y-1 text-text-secondary">
+          <p>• <strong>Position:</strong> {slot.position || "—"} ({slot.employmentType || "Regular"}, {slot.isRoving ? "Roving" : "Stationary"})</p>
+          <p>• <strong>Branch:</strong> {slot.storeName || "—"} ({slot.accountName || "—"})</p>
+          {slot.occupant ? (
+            <p className="text-emerald-600 dark:text-emerald-400 font-medium">
+              • <strong>Occupant:</strong> {slot.occupant.name} (<code className="tech-token">{slot.occupant.employeeNo}</code>, {slot.occupant.status})
+            </p>
+          ) : (
+            <p className="text-amber-600 dark:text-amber-400 font-medium">• <strong>Occupant:</strong> None (Vacant)</p>
+          )}
+          {slot.candidate && (
+            <p className="text-sky-600 dark:text-sky-400 font-medium">
+              • <strong>Candidate Reserved:</strong> {slot.candidate.name} [{slot.candidate.stage}]
+            </p>
+          )}
+        </div>
+        {slot.recentHistory && slot.recentHistory.length > 0 && (
+          <div className="pt-1.5 border-t border-[var(--border-subtle)] text-[11px] text-text-secondary space-y-1">
+            <span className="font-semibold text-text-primary">Recent Transition:</span>
+            <p className="pl-1 text-text-muted">
+              {slot.recentHistory[0].action}: {slot.recentHistory[0].oldValue || "—"} ➔ {slot.recentHistory[0].newValue || "—"} ({slot.recentHistory[0].remarks || "No remarks"})
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Handle inspectStoreRoster (Phase 2 Layer 3)
+  if (Array.isArray(output.roster)) {
+    const data = output as {
+      storeName?: string;
+      accountName?: string;
+      totalStaff?: number;
+      activeCount?: number;
+      onLeaveCount?: number;
+      floatingCount?: number;
+      openVacanciesCount?: number;
+      roster: Array<{
+        name: string;
+        employeeNo: string;
+        position: string;
+        status: string;
+        deploymentType?: string;
+        slotCode?: string;
+      }>;
+    };
+
+    return (
+      <div className="space-y-2 p-3 rounded-xl border border-[var(--border-subtle)] bg-surface-muted/50">
+        <p className="text-xs font-semibold text-text-primary">
+          👥 Staff Roster: {data.storeName || "Store"} ({data.totalStaff ?? 0} Staff, {data.openVacanciesCount ?? 0} Vacancies):
+        </p>
+        <ul className="space-y-1.5 pl-1 max-h-48 overflow-y-auto">
+          {data.roster.slice(0, 15).map((m, idx) => (
+            <li key={idx} className="flex items-start gap-2 text-xs text-text-secondary">
+              <span className="text-emerald-500 mt-1.5 text-[7px]">●</span>
+              <span className="leading-relaxed">
+                <strong className="font-semibold text-text-primary">{m.name}</strong> (<code className="tech-token">{m.employeeNo}</code>) — {m.position} [{m.status}]
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  // Handle getSlotAuditHistory (Phase 2 Layer 3)
+  if (Array.isArray(output.events) && output.slotCode) {
+    const hist = output as {
+      slotCode: string;
+      totalEvents?: number;
+      events: Array<{
+        action: string;
+        oldValue: string;
+        newValue: string;
+        remarks: string;
+        performedBy: string;
+        createdAt?: string;
+      }>;
+    };
+
+    return (
+      <div className="space-y-2 p-3 rounded-xl border border-[var(--border-subtle)] bg-surface-muted/50">
+        <p className="text-xs font-semibold text-text-primary">
+          📜 Audit Timeline: <code className="tech-token">{hist.slotCode}</code> ({hist.totalEvents ?? hist.events.length} Events):
+        </p>
+        <ul className="space-y-1.5 pl-1">
+          {hist.events.slice(0, 5).map((e, idx) => (
+            <li key={idx} className="text-xs text-text-secondary leading-relaxed">
+              <span className="font-semibold text-text-primary">• {e.action}</span>: {e.oldValue || "—"} ➔ {e.newValue || "—"} by {e.performedBy}
+              {e.remarks ? <span className="italic text-text-muted"> ({e.remarks})</span> : null}
+            </li>
+          ))}
         </ul>
       </div>
     );
@@ -827,9 +969,11 @@ function getStarterPrompts(pathname: string, context?: ContextParams): string[] 
 
   if (context?.storeName) {
     dynamicStarters.push(`Kumusta ang staffing sa ${context.storeName}?`);
+    dynamicStarters.push(`Sino-sino ang nakaduty sa ${context.storeName}?`);
   }
   if (context?.vcode) {
-    dynamicStarters.push(`I-check ang details at applicant ng ${context.vcode}`);
+    dynamicStarters.push(`I-check ang details at occupant ng ${context.vcode}`);
+    dynamicStarters.push(`Ano ang audit history ng ${context.vcode}?`);
   }
   if (context?.accountName && !context?.storeName) {
     dynamicStarters.push(`Summarize headcount and vacancies for ${context.accountName}`);
@@ -840,6 +984,7 @@ function getStarterPrompts(pathname: string, context?: ContextParams): string[] 
       ...common,
       ...dynamicStarters,
       "Summarize Plantilla fill-rate and vacant slots by branch",
+      "Sino-sino ang nakaduty sa branch na ito?",
       "Draft a headcount request for Cashier",
       "How do I bulk-import or Sync MIKA in Plantilla?",
     ];
@@ -849,6 +994,7 @@ function getStarterPrompts(pathname: string, context?: ContextParams): string[] 
       ...common,
       ...dynamicStarters,
       "Show vacancies open for more than 30 days (SLA breach)",
+      "I-check ang history ng slot na ito",
       "Count open vacancies grouped by branch",
       "Draft closure request for a vacancy",
     ];

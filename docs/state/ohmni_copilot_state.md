@@ -4,7 +4,7 @@
 **Endpoint:** `/api/ohmni` (Streaming Next.js Route Handler)  
 **UI Interface:** Tarsi-Style Centered Floating Card Overlay (`max-w-[680px]`, `h-[calc(100vh-48px)]`, rounded-3xl, centered in workspace)  
 **Navigation Placement:** Directly below CENCOM in `Sidebar.tsx` (for CENCOM roles) or below Dashboard/primary navigation (for non-CENCOM roles), Header trigger in `AdminTopbar.tsx`, and `⌘K` / `Ctrl+K` keyboard shortcut (100% visible across all authenticated roles)  
-**Last Updated:** 2026-11-15 (`ohm#ohmni-phase2-layer2`)
+**Last Updated:** 2026-11-15 (`ohm#ohmni-phase2-layer3`)
 
 ---
 
@@ -24,6 +24,11 @@ OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations ma
     - **Headcount Request:** Submits via `submitHeadcountRequest` RPC (`public.submit_headcount_request`), immediately invalidates query caches (`request-category-counts`, `my-requests`, `headcount-requests`, `plantilla`, `vacancies`), and transitions the card into a confirmed state with direct links to `/my-requests` and `/approvals`.
     - **Vacancy Closure:** Submits via `requestVacancyClosure` (`rpc_submit_vacancy_closure_request`), invalidates relevant caches, and renders confirmed state linking to `/my-requests` and `/vacancy`.
   - **Mobile Parity:** Updated `_confirmAndSubmitHeadcount` in `ohmni_chat_screen.dart` utilizing `PlantillaScopeService().submitHeadcountRequest` with store/position/account resolution conforming strictly to database contracts.
+- **Layer 3: Deep Operational Drill-Down & Relational Audit Tracing:**
+  - **Slot Deep Dive (`inspectSlot`):** Queries `plantilla_slots`, resolves `stores` & `accounts`, links current occupant (`employee_name`, `employee_no`, `status`, `deployment_type`, `date_hired`) via `plantilla`, reserved candidate applicant via `applicants`, and recent transition history via `slot_history`.
+  - **Branch Staff Roster (`inspectStoreRoster`):** Aggregates staff currently deployed to a specific branch/store from `plantilla`, calculating active, on-leave, and floating breakdowns, accompanied by open vacancy counts from `vw_vacancy_list`.
+  - **Relational Audit Trail (`getSlotAuditHistory`):** Queries chronological state transitions from `slot_history`, resolves performer identities from `users_profile`, and traces changes in status, occupants, reasons, and remarks.
+  - **Rich Visual Cards & Fallbacks:** `ToolOutputFallbackView` presents structured cards for slot details, branch rosters, and audit event logs, complemented by dynamic contextual starter prompts (`"Sino-sino ang nakaduty sa [Store]?"`, `"Ano ang audit history ng [VCODE]?"`) and Flutter Mobile local deterministic fallbacks in `ohmni_service.dart`.
 
 ### Core Architecture
 - **Creator Identity & Ecosystem Architecture:** OHMni recognizes **OHM (Ormhel Litong)**, IT Manager at Moses Coop and Systems Architect of OHMployee, as its sole designer and creator. Any questions regarding who built OHMni or who Ohm is highlight Ohm's role architecting both the Mobile and Web ecosystems (Plantilla, Vacancy, HR Emploc, CENCOM, OHMni).
@@ -75,3 +80,6 @@ OHMni is an enterprise AI co-pilot designed to allow HR personnel, operations ma
 2. **`getOpenVacancies`:** Returns vacant/open slots from `plantilla_slots` with position title, branch, and status. Supports `groupFilter` and `accountFilter` (filtering by resolved `account_id`). Wrapped in 8-second timeout safeguard.
 3. **`getEmplocQueueStatus`:** Queries `hr_emploc` table for pending or active movement items, `hr_status`, and employee details, wrapped in 8-second timeout safeguard.
 4. **`getHeadcountRequests`:** Queries `headcount_requests` table for requisition status, urgency, branch, requested role, and creation dates, wrapped in 8-second timeout safeguard.
+5. **`inspectSlot`:** Queries `plantilla_slots` by `legacy_vcode` or UUID, resolving store and account names, occupant identity (`employee_name`, `employee_no`, `status`, `deployment_type`, `date_hired`) from `plantilla`, reserved candidate from `applicants`, and latest state transition from `slot_history`.
+6. **`inspectStoreRoster`:** Queries `plantilla` for all personnel assigned to a branch/store, returning employee names, numbers, position titles, statuses (`active`, `on_leave`, `floating`), and open vacancy metrics from `vw_vacancy_list`.
+7. **`getSlotAuditHistory`:** Queries `slot_history` chronologically for a specific slot, resolving performer names from `users_profile`, and detailing status transitions, past occupants, reasons, and remarks.
