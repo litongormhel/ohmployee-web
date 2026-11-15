@@ -1,5 +1,25 @@
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -2682,6 +2702,26 @@
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -2905,6 +2945,26 @@
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -3110,6 +3170,26 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -3318,6 +3398,26 @@
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -3523,6 +3623,26 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -3747,6 +3867,26 @@
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -3952,6 +4092,26 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -4173,6 +4333,26 @@
 
 ﻿# AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -4378,6 +4558,26 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -4602,6 +4802,26 @@
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -4807,6 +5027,26 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -5015,6 +5255,26 @@
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -5220,6 +5480,26 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -5444,6 +5724,26 @@
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -5649,6 +5949,26 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -11085,6 +11405,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -11290,6 +11630,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -11514,6 +11874,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -11719,6 +12099,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -11927,6 +12327,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -12132,6 +12552,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -12356,6 +12796,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -12561,6 +13021,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -13466,6 +13946,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -13671,6 +14171,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -13895,6 +14415,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -14100,6 +14640,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -14308,6 +14868,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -14513,6 +15093,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -14737,6 +15337,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -14942,6 +15562,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -15871,6 +16511,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -16076,6 +16736,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -16300,6 +16980,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -16505,6 +17205,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -16713,6 +17433,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -16918,6 +17658,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
@@ -17142,6 +17902,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
+
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SLIDING-WINDOW RATE LIMITER (`src/app/api/ohmni/route.ts`): HARD-CAPPED TO MAXIMUM 15 REQUESTS PER 5-MINUTE ROLLING WINDOW PER USER ID, RETURNING HTTP 429 TOO MANY REQUESTS WITH `Retry-After` HEADER AND A POLITE TAGLISH COOLDOWN EXPLANATION, WITH AUTOMATIC LRU MAP PRUNING; (2) PROMPT LENGTH GUARD: HARD-CAPPED AT MAXIMUM 1,000 CHARACTERS PER PROMPT TO PREVENT CONTEXT FLOODING / WHOLE-DOC INJECTIONS, REJECTING WITH HTTP 400 IF EXCEEDED; (3) CHAT CONVERSATION HISTORY TRUNCATION: AUTOMATICALLY SLICES AND RETAINS ONLY THE LAST 10 MESSAGES (5 CONVERSATIONAL TURNS) BEFORE COMPILING `modelMessages`, PREVENTING TOKEN EXPONENTIAL BLOAT IN LONG SESSIONS; (4) CLIENT-SIDE ENFORCEMENT & UX: WEB DRAWER (`OhmniDrawer.tsx`) CONFIGURED WITH `maxLength={1000}` AND REAL-TIME CHARACTER WARNING COUNTER (`800+/1000`); MOBILE (`ohmni_chat_screen.dart` & `ohmni_service.dart`) ENFORCED WITH 1,000 CHAR LIMIT, DYNAMIC LENGTH WARNING, AND ACCURATE HTTP 429/400 ERROR EXTRACTION; (5) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -17347,6 +18127,26 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web Implementation (`src/components/settings/ChangePasswordModal.tsx`)
+- Added `currentPassword` state and `showCurrent` toggle.
+- Added "Current Password" input field above "New Password".
+- Re-authenticates with Supabase Auth via `signInWithPassword` using the active session email/phone and current password before invoking `updateUser`.
+- Throws `"Incorrect current password. Please check and try again."` if verification fails.
+- Enforces `newPassword !== currentPassword` and displays inline warning pill.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+- `lib/core/auth/auth_service.dart`: `updatePassword` accepts optional `currentPassword`. When provided, validates credentials against Supabase Auth before performing `updateUser`. Preserves unauthenticated recovery flow in `reset_password_screen.dart`.
+- `lib/features/more/more_screen.dart`: `ChangePasswordSheet` updated with `_currCtrl`, visibility toggle, non-empty validation, difference validation (`newPass != currPass`), and error handling.
+
+---
 
 ## Execution Report — OHMni Anti-Abuse Guardrails (Rate Limiting, Length Guard & History Truncation) Across Web & Mobile (ohm#ohmni-anti-abuse-hardening)
 
