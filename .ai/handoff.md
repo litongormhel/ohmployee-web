@@ -1,5 +1,39 @@
 # AI Handoff
 
+## Execution Report — OHMni AI Co-Pilot Mobile Implementation & Parity (ohm#mobile-ohmni-copilot)
+
+**Status: COMPLETE ACROSS WEB AND MOBILE. (1) WEB NON-STREAMING API ENHANCEMENT (`src/app/api/ohmni/route.ts`): ADDED `stream: false` MODE CALLING `generateText` OVER CANDIDATE GEMINI MODELS (`gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`, `gemini-flash-lite-latest`, `gemini-3.8-flash`) WITH TOOL CALLING (`getPlantillaSummary`, `getOpenVacancies`, `getEmplocQueueStatus`, `getHeadcountRequests`) AND LOCAL DETERMINISTIC FALLBACK, RETURNING CLEAN JSON PAYLOADS FOR MOBILE CLIENTS; (2) MOBILE SERVICE LAYER (`D:\Projects\OHMployee\lib\data\services\ohmni_service.dart`): IMPLEMENTED `OhmniService` WITH RLS-SCOPED SUPABASE BEARER AUTH, TIMEOUT GUARDS, AND AN OFFLINE DETERMINISTIC FALLBACK ENGINE QUERYING `vw_vacancy_list`, `headcount_requests`, AND `hr_emploc`; (3) MOBILE CHAT INTERFACE (`D:\Projects\OHMployee\lib\features\ohmni\ohmni_chat_screen.dart`): CRAFTED A HIGH-POLISH DEDICATED CHAT EXPERIENCE WITH ONLINE CO-PILOT INDICATOR, STARTER PROMPT CARDS, ADAPTIVE BUBBLE RENDERING, CODE BADGE CHIPS (`SLOT-001`), RESET CONVERSATION MODAL, AND LIVE THINKING INDICATOR; (4) MOBILE INTEGRATION POINTS: ADDED `IconButton` TO `main.dart` APPBAR, A FIRST-CLASS TILE IN `MoreScreen` UNDER TEAM DIRECTORY, AND AN "ASK OHMNI AI" LAUNCH CHIP IN `GlobalSearchScreen` SEARCH & EMPTY STATES; (5) VERIFIED CLEAN: `dart analyze lib/` (0 ERRORS), `flutter test` (172/172 PASSED), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND LOCAL COMMITS ACROSS REPOSITORIES.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/approvals_web_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Web API Support (`ohmployee-web`)
+1. **Non-Streaming Endpoint Mode (`src/app/api/ohmni/route.ts`)**:
+   - Parses `{ stream: false }` from the request body.
+   - Executes `generateText({ model, system, messages, tools, stopWhen: stepCountIs(3) })` iterating through candidate Gemini models.
+   - Retains exact streaming UI behavior for Web (`createUIMessageStreamResponse`).
+   - If models hit quota/errors, invokes `handleDeterministicFallback(supabase, promptText)` returning `{ text: fallbackText, isFallback: true }`.
+   - Local commit: `195e144`.
+
+### 2. Mobile Implementation (`D:\Projects\OHMployee`)
+1. **Service Layer (`lib/data/services/ohmni_service.dart`)**:
+   - Queries `https://ohmployee-web.vercel.app/api/ohmni` using user's active session token (`accessToken`).
+   - Handles network timeouts and offline scenarios with an intelligent local fallback querying `vw_vacancy_list`, `headcount_requests`, `hr_emploc`, and built-in creator identity answers ("Built by OHM").
+2. **Chat Screen UI (`lib/features/ohmni/ohmni_chat_screen.dart`)**:
+   - Navigation entry: `OhmniChatScreen.open(context, user, initialPrompt: query)`.
+   - Polished theme support with dark/light mode surface fills, monospace code spans for IDs/VCodes, bulleted formatting, and live thinking indicators.
+3. **App Integration Points**:
+   - `lib/main.dart`: AI Sparkle action icon button in the main AppBar.
+   - `lib/features/more/more_screen.dart`: Dedicated menu card under Team Directory.
+   - `lib/features/global_search/global_search_screen.dart`: Topbar action icon & "Ask OHMni AI about '$query'" button.
+4. **Verification**:
+   - Unit tests: `test/ohmni_service_test.dart` (3 tests passed).
+   - Full suite: 172/172 tests passed.
+   - Code analysis: `dart analyze lib/` 0 errors.
+   - Local commit: `f352ad2`.
+
+---
+
 ## Execution Report — Mobile Orphaned Import Cleanup & Web Parity (My Requests & Global Search) (ohm#mobile-import-cleanup-and-web-parity)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) DEDICATED MY REQUESTS PAGE ON WEB (`/my-requests`): IMPLEMENTED END-TO-END TRACKING PAGE DIRECTLY BELOW APPROVALS IN NAVIGATION WITH 4X METRIC CARDS, TABBED STATUS FILTERS (`all`, `pending`, `approved`, `rejected`), SEARCH, REVIEWER FEEDBACK BANNERS, AND POSTGREST COLUMN GUARDS ACROSS 6 REQUEST TABLES; (2) UNIVERSAL GLOBAL SEARCH ON WEB (`search_global_index` / `⌘K`): COMMAND PALETTE INTEGRATING POSTGRES RPC `search_global_index`, KEYBOARD NAVIGATION (ARROWS, ENTER, ESCAPE), RECENT SEARCH PERSISTENCE (`localStorage`), QUICK JUMP NAVIGATION, AND AI BRIDGE TO OHMNI (`⌘J`); (3) MOBILE BATCH IMPORT CODEBASE CLEANUP (`D:\Projects\OHMployee`): SAFELY REMOVED 9,529 LINES OF ORPHANED IMPORT SCREENS (`hr_emploc_import_screen.dart`, `store_import_screen.dart`, `vacancy_import_screen.dart`), REPLACED LEGACY NOTIFICATION ROUTING WITH FRIENDLY WEB REDIRECT NOTICES; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (169/169 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), AND LOCAL COMMITS ACROSS REPOSITORIES.**
