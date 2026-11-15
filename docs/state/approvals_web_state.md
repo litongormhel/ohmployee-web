@@ -146,5 +146,20 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
   - In `src/lib/auth.ts`, `loadCurrentUserContext` populates `roleLevel: 100` and `role_level: 100` on `WebCurrentUserContext`.
 - **Strict Role Integrity**: Non-admin roles (OM, HRCO, Recruitment, Backoffice, Viewer) retain their strict ADR-001 defense-in-depth boundaries (HRCO strictly denied Approvals, CENCOM, Reports; Backoffice restricted to deactivations only; Encoder restricted to 5 categories).
 
+---
+
+## 10. Dedicated Requester Tracking Feed (`/my-requests`)
+- **Overview**: Dedicated personal request tracker positioned directly below `Approvals` in the sidebar navigation, providing 100% parity with mobile OHMployee `my_requests_screen.dart`.
+- **Target Audience**: All authenticated roles (Operations Managers, HR Coordinators, Area Coordinators, Team Leaders, Encoders, Admins). Enables requesters who lack access to the admin `/approvals` clearinghouse to monitor their submitted requests.
+- **Unified Request Aggregation (`fetchMyRequests`)**:
+  - Pulls user-submitted requests across 6 operational tables: `headcount_requests`, `new_store_requests`, `vacancy_closure_requests`, `v_deactivation_requests`, `applicant_movement_requests`, and `coverage_requests`.
+  - Normalizes payloads into `MyRequestItem` with unified status taxonomy (`pending`, `approved`, `rejected`, `cancelled`).
+  - Cross-references user identity via `authUserId` and `profileId` with PostgREST column error guards.
+- **UI Presentation (`MyRequestsPage`)**:
+  - 4x KPI metric cards: Total Submitted, Pending Review, Approved, and Rejected/Closed.
+  - Segmented status tabs (`All`, `Pending`, `Approved`, `Rejected`), category dropdown selector, and client search filter.
+  - High-contrast request cards displaying category badges, relative time, store/account/position metadata, stated justification, and clear reviewer feedback/rejection remarks banners.
+
+
 
 

@@ -6,7 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Sparkles, Sun, Moon, Laptop } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveModule, type WebModule } from "@/lib/modules";
+import { useCurrentUser } from "@/lib/auth";
 import { useRequestCategoryCounts } from "@/lib/queries/requests";
+import { useMyRequests, calculateMyRequestsCounts } from "@/lib/queries/my_requests";
 import { useUnreadNotificationsCount } from "@/lib/queries/notifications";
 import { useTheme } from "@/providers/ThemeProvider";
 
@@ -45,6 +47,12 @@ export function Sidebar({
     : 0;
 
   const { data: unreadNotificationsCount = 0 } = useUnreadNotificationsCount();
+
+  const currentUser = useCurrentUser();
+  const { data: myRequestsData } = useMyRequests(currentUser);
+  const myRequestsPendingCount = myRequestsData
+    ? calculateMyRequestsCounts(myRequestsData).pending
+    : 0;
 
   const mainModules = visibleModules.filter((m) => MAIN_MODULE_KEYS.has(m.key));
   const secondaryModules = visibleModules.filter((m) => !MAIN_MODULE_KEYS.has(m.key));
@@ -115,6 +123,7 @@ export function Sidebar({
         {secondaryModules.map(({ key, href, title }) => {
           const isActive = activeModule.href === href;
           const isApprovals = key === "approvals";
+          const isMyRequests = key === "my_requests";
           const isNotifications = key === "notifications";
           const displayTitle =
             key === "users"
@@ -143,6 +152,11 @@ export function Sidebar({
                 {isApprovals && totalPendingCount > 0 && (
                   <span className="ml-auto text-xs font-semibold text-[var(--accent)]">
                     {totalPendingCount}
+                  </span>
+                )}
+                {isMyRequests && myRequestsPendingCount > 0 && (
+                  <span className="ml-auto text-xs font-semibold text-[var(--accent)]">
+                    {myRequestsPendingCount}
                   </span>
                 )}
                 {isNotifications && unreadNotificationsCount > 0 && (

@@ -80,6 +80,9 @@ function buildModuleAccess(allowedModuleKeys: string[]) {
       ? new Set(allowedModuleKeys)
       : SAFE_MINIMAL_MODULE_KEYS;
 
+  // My Requests is a personal tracking space accessible to all authenticated users
+  visibleModuleKeys.add("my_requests");
+
   return Object.fromEntries(
     webModules.map((module) => [
       module.key,

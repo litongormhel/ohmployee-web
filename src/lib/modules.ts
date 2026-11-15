@@ -65,6 +65,13 @@ export const webModules: WebModule[] = [
     icon: CheckCheck,
   },
   {
+    key: "my_requests",
+    title: "My Requests",
+    href: "/my-requests",
+    purpose: "Requester tracking feed for submitted headcount, store, vacancy closure, and deactivation requests.",
+    icon: ClipboardList,
+  },
+  {
     key: "users",
     title: "User Management",
     href: "/users",
