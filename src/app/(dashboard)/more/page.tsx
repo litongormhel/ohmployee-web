@@ -716,18 +716,18 @@ function MorePageContent() {
     <div className="space-y-6">
       {/* Standard Admin Header */}
       <AdminPageHeader
-        categoryTag="Admin panel"
-        moduleName="Admin Tools"
-        title="Admin Tools & Governance Hub"
-        subtitle="Access administrator utilities, batch data imports, security matrices, audit trails, and command controls."
-        icon={Wrench}
+        categoryTag="Operations"
+        moduleName="Operations Hub"
+        title="Operations Hub & Governance Tools"
+        subtitle="Access batch data imports, payroll reviews, roving coverage, security matrices, and system controls."
+        icon={Layers}
       />
 
       {/* Categorized Tab Navigation Strip */}
       <div className="border-b border-border-subtle pb-3">
         <nav
           className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none"
-          aria-label="Admin Tools Navigation Tabs"
+          aria-label="Operations Hub Navigation Tabs"
           role="tablist"
         >
           {visibleTabs.map((tab) => {

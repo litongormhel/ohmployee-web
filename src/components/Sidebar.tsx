@@ -154,7 +154,7 @@ export function Sidebar({
               : key === "team_directory"
               ? "Team directory"
               : key === "more"
-              ? "Admin Tools"
+              ? "Operations Hub"
               : title;
 
           const shouldRenderOhmniHere =

@@ -1,25 +1,25 @@
 # AI Handoff
 
-## Execution Report — Separation & Rebranding of Admin Tools (formerly More) and Sidebar Settings Integration (ohm#w52s843a)
+## Execution Report — Separation & Rebranding of Operations Hub (formerly More) and Sidebar Settings Integration (ohm#w52s843a)
 
-**Status: COMPLETE. (1) REBRANDED OVERFLOW MODULE: CHANGED "MORE" TO "ADMIN TOOLS" ACROSS `src/lib/modules.ts`, `src/components/Sidebar.tsx`, AND `src/app/(dashboard)/more/page.tsx` TO ACCURATELY REFLECT ITS OPERATIONAL IDENTITY (BATCH IMPORTS, QA CENTER, GOVERNANCE, PERMISSION MATRIX, AUDIT TRAILS); (2) SIDEBAR SETTINGS INTEGRATION: INTEGRATED 1-CLICK ACCESS TO `/settings` IN THE `Sidebar.tsx` FOOTER (CLICKABLE USER IDENTITY BADGE + DEDICATED ⚙️ SETTINGS ICON BUTTON ADJACENT TO THEME TOGGLE AND LOGOUT), PREVENTING DUPLICATION IN THE SECONDARY MODULE ROSTER; (3) CLEAN PARITY & CONTRACTS: PRESERVED FULL BACKWARD COMPATIBILITY FOR ALL DEEP LINKS (`/more`), RBAC CAPABILITIES, AND QUERY PARAMETERS; (4) VERIFIED CLEAN: ALL 226 TESTS PASSING (`npm test`), 0 LINT ERRORS AND 0 LINT WARNINGS (`npm run lint`), AND ZERO SQL CONTRACT REGRESSIONS.**
+**Status: COMPLETE. (1) REBRANDED OVERFLOW MODULE: CHANGED "MORE" TO "OPERATIONS HUB" ACROSS `src/lib/modules.ts`, `src/components/Sidebar.tsx`, AND `src/app/(dashboard)/more/page.tsx` TO ACCURATELY REFLECT ITS OPERATIONAL IDENTITY (BATCH DATA IMPORTS FOR ENCODERS, PAYROLL REVIEWS FOR OPERATIONS MANAGERS, ROVING COVERAGE, QA CENTER, GOVERNANCE, AUDIT TRAILS); (2) SIDEBAR SETTINGS INTEGRATION: INTEGRATED 1-CLICK ACCESS TO `/settings` IN THE `Sidebar.tsx` FOOTER (CLICKABLE USER IDENTITY BADGE + DEDICATED ⚙️ SETTINGS ICON BUTTON ADJACENT TO THEME TOGGLE AND LOGOUT), PREVENTING DUPLICATION IN THE SECONDARY MODULE ROSTER; (3) CLEAN PARITY & CONTRACTS: PRESERVED FULL BACKWARD COMPATIBILITY FOR ALL DEEP LINKS (`/more`), RBAC CAPABILITIES, AND QUERY PARAMETERS; (4) VERIFIED CLEAN: ALL 226 TESTS PASSING (`npm test`), 0 LINT ERRORS AND 0 LINT WARNINGS (`npm run lint`), AND ZERO SQL CONTRACT REGRESSIONS.**
 
 - **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/more_state.md`, `docs/state/web_auth_rbac_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants: Rule 7), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`).
 - **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
 
 ### 1. Key Changes
 1. **`src/lib/modules.ts`**:
-   - Replaced `MoreHorizontal` with `Wrench` icon for `key: "more"`.
-   - Updated title to `"Admin Tools"`.
-   - Updated purpose description to reflect administrative tools, batch imports, governance, permissions, and audit center.
+   - Registered `more` with `Layers` icon.
+   - Updated title to `"Operations Hub"`.
+   - Updated purpose description to reflect operations hub for batch data imports, payroll reviews, roving coverage, governance, and system tools.
 2. **`src/components/Sidebar.tsx`**:
    - Filtered out `settings` from `secondaryModules` list to eliminate visual clutter in the navigation stack.
-   - Replaced module title with `"Admin Tools"`.
+   - Replaced module title with `"Operations Hub"`.
    - Updated the sidebar footer: wrapped user profile information (`userName` & `userRole`) in a `<Link href="/settings">` with interactive hover states.
    - Added a dedicated ⚙️ Settings icon button in the footer actions strip (between user profile and Theme/Logout buttons) with active-state styling when on `/settings`.
 3. **`src/app/(dashboard)/more/page.tsx`**:
-   - Updated `AdminPageHeader` with `moduleName="Admin Tools"`, `title="Admin Tools & Governance Hub"`, and `Wrench` icon.
-   - Updated tab navigation `aria-label="Admin Tools Navigation Tabs"`.
+   - Updated `AdminPageHeader` with `categoryTag="Operations"`, `moduleName="Operations Hub"`, `title="Operations Hub & Governance Tools"`, and `Layers` icon.
+   - Updated tab navigation `aria-label="Operations Hub Navigation Tabs"`.
 4. **Documentation**:
    - Updated `docs/state/more_state.md` and `.ai/current_state.md` reflecting the new module naming and footer integration.
 

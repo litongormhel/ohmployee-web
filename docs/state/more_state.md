@@ -1,10 +1,10 @@
-# Admin Tools (formerly More) & Settings Module State
+# Operations Hub (formerly More) & Settings Module State
 
 ## Overview
-This document captures the current stable architecture and navigation contract for `/settings` and `/more` ("Admin Tools").
+This document captures the current stable architecture and navigation contract for `/settings` and `/more` ("Operations Hub").
 
 ### Web Navigation & Sidebar Placement
-- **Admin Tools (`/more`)**: Rebranded from "More" to "Admin Tools" across `src/lib/modules.ts`, `Sidebar.tsx`, and `AdminPageHeader`. Serves as the dedicated hub for batch XLSX imports, governance tools, system diagnostics, QA sandboxing, and security/audit centers.
+- **Operations Hub (`/more`)**: Rebranded to "Operations Hub" across `src/lib/modules.ts`, `Sidebar.tsx`, and `AdminPageHeader`. Serves as the dedicated hub for batch XLSX imports (Data Team / Encoders), payroll review & reconciliations (Operations Managers), roving coverage & store transfers, governance tools, system diagnostics, QA sandboxing, and security/audit centers.
 - **Settings (`/settings`) Integration**:
   - Permanently integrated into the `Sidebar.tsx` footer:
     - User identity badge (`userName` & `userRole`) functions as a direct 1-click link to `/settings`.

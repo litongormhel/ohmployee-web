@@ -5,12 +5,12 @@ import {
   CheckCheck,
   ClipboardList,
   FileBarChart,
+  Layers,
   LayoutDashboard,
   Settings,
   ShieldCheck,
   Users,
   UsersRound,
-  Wrench,
 } from "lucide-react";
 
 export type WebModule = {
@@ -108,10 +108,10 @@ export const webModules: WebModule[] = [
   },
   {
     key: "more",
-    title: "Admin Tools",
+    title: "Operations Hub",
     href: "/more",
-    purpose: "Administrative tools, batch data imports, governance, permissions, and audit center.",
-    icon: Wrench,
+    purpose: "Operations hub for batch data imports, payroll reviews, roving coverage, governance, and system tools.",
+    icon: Layers,
   },
 ];
 
