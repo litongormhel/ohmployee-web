@@ -445,6 +445,28 @@ In Loop 2, the Dashboard module was fully migrated onto the UI Standard & Motion
   - Restored `--danger` tokens strictly on destructive actions (reject batch, rollback batch) and validation/submission error banners.
   - Reverted gate submodule checks; verified full real module `hr-emploc` gate passes with `"decision": "allow"` and `'npm run build' completed successfully (0 errors)`.
 
+---
+
+## 15. Global Search Command Palette (`search_global_index` / ⌘K)
+
+- **Overview**: Universal command palette and spotlight search modal (`src/components/global-search/GlobalSearchModal.tsx`) achieving 100% functional parity with mobile `global_search_screen.dart`.
+- **Keyboard Shortcuts & Triggers**:
+  - `⌘K` / `Ctrl+K`: Opens the universal search dialog from anywhere in the app.
+  - `⌘J` / `Ctrl+J`: Opens the OHMni AI Co-Pilot assistant drawer.
+  - `Escape`: Closes modal or active drawer.
+  - `ArrowUp` / `ArrowDown`: Navigates through search results with auto-scroll into view.
+  - `Enter`: Navigates to the selected record or opens OHMni query bridge.
+  - Quick triggers placed in `Sidebar.tsx` (top search bar button) and `AdminTopbar.tsx` (mobile search trigger).
+- **Backend RPC Integration (`src/lib/queries/globalSearch.ts`)**:
+  - Authoritative query layer calling Supabase RPC `public.search_global_index(p_query text, p_limit integer DEFAULT 50)`.
+  - Searches Vacancies (VCODE, position, store, account), Plantilla personnel (name, employee #), HR Emploc (emploc #, applicant name), and Applicants (name, contact).
+  - Returns `result_type`, `record_id`, `primary_label`, `secondary_label`, `status`, `matched_field`, `group_name`, `account_name`, `navigation_target`, and `navigation_id`.
+  - Resolves target URLs with direct module deep-linking (`/vacancy?search=...`, `/plantilla?search=...`, `/hr-emploc?search=...`).
+- **Recent Searches & Shortcuts**:
+  - Stores up to 8 unique recent search terms in `localStorage` under `ohm_global_search_recent_v1` with 1-click execution and clear button.
+  - Provides quick-jump navigation shortcuts to `/vacancy`, `/plantilla`, `/approvals`, `/my-requests`, and seamless bridge to OHMni AI.
+
+
 
 
 

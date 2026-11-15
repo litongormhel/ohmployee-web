@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Sparkles, Sun, Moon, Laptop } from "lucide-react";
+import { LogOut, Sparkles, Sun, Moon, Laptop, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveModule, type WebModule } from "@/lib/modules";
 import { useCurrentUser } from "@/lib/auth";
@@ -18,6 +18,7 @@ type SidebarProps = {
   userName?: string;
   userRole?: string;
   onOpenOhmni?: () => void;
+  onOpenGlobalSearch?: () => void;
 };
 
 const MAIN_MODULE_KEYS = new Set(["vacancy", "hr_emploc", "plantilla"]);
@@ -36,6 +37,7 @@ export function Sidebar({
   userName = "Admin",
   userRole = "Super admin",
   onOpenOhmni,
+  onOpenGlobalSearch,
 }: SidebarProps) {
   const path = usePathname();
   const router = useRouter();
@@ -86,11 +88,29 @@ export function Sidebar({
       {/* Brand Header */}
       <Link
         href="/vacancy"
-        className="px-2.5 pb-6 pt-1 font-semibold text-[15px] text-[var(--text)] block hover:opacity-90 outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-lg"
+        className="px-2.5 pb-3 pt-1 font-semibold text-[15px] text-[var(--text)] block hover:opacity-90 outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-lg"
       >
         OHMployee
         <small className="block text-[13px] font-normal text-[var(--muted)]">Admin Command</small>
       </Link>
+
+      {/* Global Search Quick Bar */}
+      {onOpenGlobalSearch && (
+        <button
+          type="button"
+          onClick={onOpenGlobalSearch}
+          title="Search records across all modules (⌘K / Ctrl+K)"
+          className="mb-3 mx-0 flex items-center justify-between rounded-lg border border-[var(--line)] bg-[var(--card)] px-2.5 py-1.5 text-xs text-[var(--muted)] hover:border-[var(--line-strong)] hover:text-[var(--text)] transition cursor-pointer shadow-2xs group"
+        >
+          <span className="flex items-center gap-2 truncate">
+            <Search size={13} className="text-[var(--muted)] group-hover:text-brand-500 transition-colors" />
+            <span className="truncate">Search records…</span>
+          </span>
+          <kbd className="inline-flex items-center gap-0.5 rounded border border-[var(--line)] bg-[var(--soft)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--muted)] font-medium">
+            ⌘K
+          </kbd>
+        </button>
+      )}
 
       {/* Main Group: Vacancy, HR Emploc, Plantilla */}
       <nav className="flex flex-col gap-0.5" aria-label="Main modules">
@@ -171,7 +191,7 @@ export function Sidebar({
                 <button
                   type="button"
                   onClick={onOpenOhmni}
-                  title="Ask OHMni AI Co-Pilot (⌘K)"
+                  title="Ask OHMni AI Co-Pilot (⌘J)"
                   className="flex items-center justify-between rounded-[10px] px-2.5 py-2 text-[13.5px] transition outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 text-[var(--accent)] hover:bg-[var(--soft)] font-medium group cursor-pointer"
                 >
                   <span className="flex items-center gap-2 truncate">
@@ -179,7 +199,7 @@ export function Sidebar({
                     <span>OHMni Co-Pilot</span>
                   </span>
                   <span className="rounded bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-mono text-[var(--accent)] font-semibold">
-                    ⌘K
+                    ⌘J
                   </span>
                 </button>
               )}

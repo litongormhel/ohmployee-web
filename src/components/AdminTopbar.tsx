@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Sun, Moon, Laptop } from "lucide-react";
+import { Sparkles, Sun, Moon, Laptop, Search } from "lucide-react";
 import { getActiveModule, type WebModule } from "@/lib/modules";
 import { useTheme } from "@/providers/ThemeProvider";
 
@@ -10,6 +10,7 @@ type AdminTopbarProps = {
   visibleModules: WebModule[];
   moduleCapabilities: Record<string, string[]>;
   onOpenOhmni?: () => void;
+  onOpenGlobalSearch?: () => void;
 };
 
 function getCapabilitySummary(moduleKey: string, capabilities: Record<string, string[]>) {
@@ -24,6 +25,7 @@ export function AdminTopbar({
   visibleModules,
   moduleCapabilities,
   onOpenOhmni,
+  onOpenGlobalSearch,
 }: AdminTopbarProps) {
   const pathname = usePathname();
   const activeModule = getActiveModule(pathname, visibleModules);
@@ -56,6 +58,18 @@ export function AdminTopbar({
         </div>
 
         <div className="flex items-center gap-2">
+          {onOpenGlobalSearch && (
+            <button
+              type="button"
+              onClick={onOpenGlobalSearch}
+              title="Search records (⌘K / Ctrl+K)"
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--card)] px-2 py-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--text)] transition cursor-pointer"
+            >
+              <Search size={13} />
+              <span className="hidden sm:inline">Search</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={cycleTheme}

@@ -7,6 +7,7 @@ import { AdminTopbar } from "@/components/AdminTopbar";
 import { Sidebar } from "@/components/Sidebar";
 import { IdleWarningModal } from "@/components/IdleWarningModal";
 import { OhmniDrawer } from "@/components/ohmni/OhmniDrawer";
+import { GlobalSearchModal } from "@/components/global-search/GlobalSearchModal";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { useMotionLevel } from "@/hooks/useMotionLevel";
 import {
@@ -38,22 +39,32 @@ function AuthenticatedShell({
   const motionLevel = useMotionLevel();
   const [idleWarningOpen, setIdleWarningOpen] = useState(false);
   const [isOhmniOpen, setIsOhmniOpen] = useState(false);
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Toggle OHMni Co-Pilot on Cmd+K or Ctrl+K
+      // Toggle Global Search on Cmd+K or Ctrl+K
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsGlobalSearchOpen((prev) => !prev);
+      }
+      // Toggle OHMni Co-Pilot on Cmd+J or Ctrl+J
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") {
         e.preventDefault();
         setIsOhmniOpen((prev) => !prev);
       }
-      // Escape closes drawer
-      if (e.key === "Escape" && isOhmniOpen) {
-        setIsOhmniOpen(false);
+      // Escape closes open drawer or modal
+      if (e.key === "Escape") {
+        if (isGlobalSearchOpen) {
+          setIsGlobalSearchOpen(false);
+        } else if (isOhmniOpen) {
+          setIsOhmniOpen(false);
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOhmniOpen]);
+  }, [isGlobalSearchOpen, isOhmniOpen]);
 
   const { data: activeActingSession } = useActiveActingSession();
   const stopActingMutation = useStopActingSession();
@@ -175,12 +186,14 @@ function AuthenticatedShell({
           userName={currentUser.displayName || currentUser.email || "Admin"}
           userRole={currentUser.roleName || currentUser.roleKey || "Super admin"}
           onOpenOhmni={() => setIsOhmniOpen(true)}
+          onOpenGlobalSearch={() => setIsGlobalSearchOpen(true)}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <AdminTopbar
             visibleModules={visibleModules}
             moduleCapabilities={currentUser.moduleCapabilities}
             onOpenOhmni={() => setIsOhmniOpen(true)}
+            onOpenGlobalSearch={() => setIsGlobalSearchOpen(true)}
           />
           {activeActingSession && !activeActingSession.isExpired && (
             <div className="bg-[var(--surface-sunken)] text-[var(--foreground)] px-4 py-2 text-xs font-semibold flex items-center justify-between border-b border-[var(--border-subtle)] shadow-xs z-10">
@@ -215,6 +228,14 @@ function AuthenticatedShell({
         <OhmniDrawer
           isOpen={isOhmniOpen}
           onClose={() => setIsOhmniOpen(false)}
+        />
+        <GlobalSearchModal
+          isOpen={isGlobalSearchOpen}
+          onClose={() => setIsGlobalSearchOpen(false)}
+          onOpenOhmni={() => {
+            setIsGlobalSearchOpen(false);
+            setIsOhmniOpen(true);
+          }}
         />
       </div>
     </>
