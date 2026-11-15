@@ -1,5 +1,53 @@
 # AI Handoff
 
+## Execution Report — Fix Multi-Slot Open Vacancy Visibility, Drawer Pipeline Counter, and Candidate Identity (ohm#fix-multi-slot-open-visibility-and-vacancy-detail)
+
+**Status: COMPLETE ON MAIN; RESOLVED THREE CORE DEFECTS IN VACANCY MANAGEMENT (`/vacancy`): (1) MULTI-SLOT OPEN VACANCY VISIBILITY: MULTI-SLOT REQUISITIONS (E.G. `TEST011`, 2 SLOTS) WITH PARTIAL FULFILLMENT (1 CONFIRMED ONBOARD, 1 PIPELINE CANDIDATE) ERRONEOUSLY DISAPPEARED FROM THE OPEN TAB BECAUSE `list_web_vacancies` PREVIOUSLY ENFORCED `AND lower(s.pipeline_status) NOT IN ('pipeline')` AND SUBTRACTED ACTIVE APPLICANTS FROM OPEN CAPACITY; AUTHORIZED AND APPLIED MIGRATION `20262606000117_fix_multi_slot_open_visibility_and_vacancy_detail.sql` ALIGNING `list_web_vacancies` AND `get_web_vacancy_summary` SO OPEN CAPACITY CHECKS UNFULFILLED CAPACITY `(hc_total - hc_filled - hr_processing_count) > 0`, KEEPING MULTI-SLOT VACANCIES VISIBLE IN OPEN UNTIL ALL SLOTS ARE FULFILLED ($2/2$) WHILE SIMULTANEOUSLY VISIBLE IN PIPELINE; (2) DRAWER PIPELINE KPI COUNTER: `VacancyDetailDrawer` KPI STRIP RENDERED `Pipeline = 0` (INSTEAD OF 1) BECAUSE `get_web_vacancy_detail` RPC OMITTED `active_applicant_count`, `hc_filled`, AND `hc_total` FROM ITS PAYLOAD; UPDATED RPC TO JOIN `vw_vacancy_list` AND EXPOSE ACCURATE CAPACITY METRICS IN `row_capabilities`, AND HARDENED `normalizeDetailRow` IN `src/lib/queries/vacancy/vacancyListing.ts` TO FALLBACK TO COUNTING ACTIVE NON-CONFIRMED CANDIDATES FROM `activeApplicantsList`; (3) CANDIDATE IDENTITY IN DRAWER: APPLICANTS RENDERED AS "Anonymous" BECAUSE `get_web_vacancy_detail` OMITTED NAME AND CONTACT FIELDS FROM `pipeline_summary` JSON; UPDATED RPC TO INCLUDE `first_name`, `last_name`, `middle_name`, `full_name`, `display_name`, AND `contact_number`; (4) LIVE DATABASE VERIFICATION: CONFIRMED ON STAGING (`qqiiznmqxfoamqytjica`) THAT `TEST011` APPEARS IN OPEN TAB (1/2), DRAWER KPI RENDERS `Hired 1/2`, `Pipeline 1`, `Avail 1`, AND CANDIDATE RENDERS AS `EMIL LAGO`; (5) VERIFIED CLEAN VIA `npm run check:adr` (FRESH), `npm run check:sql` (642 MIGRATIONS OK), `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS), AND `npm run build` (TURBOPACK EXIT 0, 20/20 ROUTES); LOCAL COMMIT ON MAIN.**
+
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md`, `docs/state/vacancy_web_state.md`, ADR-001 mirror (`ADR-001-ohmployee-system-architecture.md` § Core Cross-Module Invariants, § Vacancy / Rule 4), ADR-002 mirror (`adr002_plantilla_import_store_identity_and_governance.md`), `D:\Projects\OHMployee\lib\features\vacancy\vacancy_screen.dart`, `models.dart`, `vacancy_service.dart`.
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` § Rule 4 (Classification Priority), commit `390162b`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40`.
+
+### 1. Root Cause Analysis
+1. **Multi-Slot Premature Dropping from Open Tab**:
+   - `TEST011` (`SUPER 11`) has `hc_total = 2`. Slot 1 is occupied by `CRUZ, JAMES PAUL` (`slot_status = 'hr_processing'`, `status = 'Confirmed Onboard'`). Slot 2 has active candidate `LAGO, EMIL SUMANGIL` (`slot_status = 'pipeline'`, `status = 'New'`).
+   - In `vw_vacancy_list`, `derived_status` evaluated to `'Pipeline'`.
+   - Migration `20262606000101` in `list_web_vacancies` checked `(s.hc_total - s.hc_filled - s.hr_processing_count - s.active_applicant_count) > 0` AND added `AND lower(s.pipeline_status) NOT IN ('hired', 'pipeline')`.
+   - Because `2 - 0 - 1 - 1 = 0` and `s.pipeline_status = 'Pipeline'`, `TEST011` was prematurely dropped from the Open tab before its 2nd slot was actually fulfilled.
+2. **Drawer Pipeline Counter Showing 0**:
+   - In `VacancyDetailDrawer.tsx`, `pipelineCount = detail.activeApplicantCount ?? 0`.
+   - In `vacancyListing.ts`, `normalizeDetailRow` read `asCount(row.active_applicant_count)`.
+   - However, `public.get_web_vacancy_detail` RPC did not return `active_applicant_count` in its `RETURNS TABLE`, nor did its `row_capabilities` expose `active_applicant_count`, `hc_filled`, or `hc_total`. Thus `row.active_applicant_count` was undefined, evaluating to 0.
+3. **Applicant Rendering as "Anonymous"**:
+   - In `get_web_vacancy_detail` RPC, Section 6 built `pipeline_summary` with only `applicant_id`, `status`, `source_channel`, `created_at`, `updated_at`.
+   - Candidate names (`first_name`, `last_name`, `middle_name`, `full_name`) and `contact_number` were missing from the payload, causing `normalizeActiveApplicant` to fall back to `"Anonymous"`.
+
+### 2. Changes Delivered
+1. **Database Migration (`supabase/migrations/20262606000117_fix_multi_slot_open_visibility_and_vacancy_detail.sql`)**:
+   - Updated `public.list_web_vacancies`:
+     - Open tab filter checks unfulfilled capacity: `((s.hc_total - s.hc_filled - s.hr_processing_count) > 0 OR lower(s.pipeline_status) = 'open') AND lower(s.pipeline_status) <> 'hired'`.
+     - Removed blanket `AND lower(s.pipeline_status) NOT IN ('pipeline')`, allowing multi-slot requisitions with unfulfilled slots to stay in Open while also appearing in Pipeline.
+   - Updated `public.get_web_vacancy_summary`:
+     - Projected `vl.hc_filled`, `vl.hc_total`, `vl.hr_processing_count` in `scoped`.
+     - Aligned `total_open` filter to check `(f.hc_total - f.hc_filled - f.hr_processing_count) > 0 OR f.pipeline_status = 'Open'`, keeping badge and table counts synchronized.
+   - Updated `public.get_web_vacancy_detail`:
+     - Left-joined `public.vw_vacancy_list vl ON vl.id = vd.id`.
+     - Exposed `hc_filled`, `hc_total`, `hc_display`, `active_applicant_count`, `confirmed_onboard_count`, and `hr_processing_count` inside `row_capabilities` JSONB.
+     - Enriched `pipeline_summary` JSON with `first_name`, `last_name`, `middle_name`, `full_name`, `display_name`, `contact_number`, and `profile_edit_count`.
+2. **Frontend Query Normalization (`src/lib/queries/vacancy/vacancyListing.ts`)**:
+   - In `normalizeDetailRow`:
+     - `activeApplicantCount` resolves from `row.active_applicant_count ?? rowCaps.active_applicant_count`, falling back to counting active non-confirmed applicants from `activeApplicantsList`.
+     - `confirmedOnboardCount` resolves from `row.confirmed_onboard_count ?? rowCaps.confirmed_onboard_count`, falling back to `activeApplicantsList` confirmed candidates, and then `hcFilled`.
+
+### 3. Verification & Live Confirmation
+- Applied migration `20262606000117` to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging` with 0 errors.
+- Verified live `pg_get_functiondef` on Staging: 100% diff match.
+- Live query probe on Staging:
+  - `list_web_vacancies(p_status => 'open', p_search => 'TEST011')` returns `TEST011` with `total_count: 1`, `pipeline_status: 'Pipeline'`, `vacancy_status: 'Open'`, `hc_total: 2`, `hc_filled: 0`, `hr_processing_count: 1`.
+  - `get_web_vacancy_detail('13616e2a-ff30-4f42-99bd-4ab8354a83d8')` returns `pipeline_summary` with `EMIL LAGO` (`09464649488`, `New`) and `JAMES CRUZ` (`09654654646`, `Confirmed Onboard`), and `row_capabilities` with `hc_total: 2`, `confirmed_onboard_count: 1`, `active_applicant_count: 1`.
+  - Drawer displays: `Hired 1/2`, `Pipeline 1`, `Avail 1`.
+
+---
+
 ## Execution Report — Zero Refresh & Optimistic UI across Web & Mobile (ohm#zero-refresh-cross-module-invalidation)
 
 **Status: COMPLETE ON MAIN; DELIVERED ZERO REFRESH & OPTIMISTIC UI ACROSS WEB AND MOBILE REPOSITORIES: (1) WEB CROSS-MODULE CACHE INVALIDATION (`src/lib/queries/plantilla.ts`, `src/lib/queries/vacancy.ts`): EXPANDED `invalidatePlantillaCaches` TO AUTOMATICALLY INVALIDATE `cencom`, `cencom-allocation-kpi`, `cencom-group-kpi`, `dashboard`, `dashboard-metrics`, AND `dashboard-operational-analytics` WHENEVER PLANTILLA DATA MUTATES (ADD EMPLOYEE, TRANSFER, SEPARATION); ADDED `invalidateVacancyEcosystem` HELPER IN `vacancy.ts` INVALIDATING VACANCY LISTS, DETAILS, HIRED APPLICANTS, PLANTILLA, STORE VACANCIES, CENCOM, DASHBOARD, AND APPROVAL QUEUES (`request-category-counts`, `vacancy-closure-requests`); WIRED INTO `useEndorseApplicant`, `useUpdateApplicantPipeline`, `useConfirmApplicantOnboard`, `useFailBackoutApplicant`, `useReviewClosureRequest`, `useWithdrawVacancyClosureRequest`, AND `useApproveAllClosureRequests`; (2) MOBILE OPTIMISTIC UI (`D:\Projects\OHMployee`): IN `lib/features/requests/applicant_movement_request_screen.dart`, APPLIED OPTIMISTIC STATE REMOVAL OF PROCESSED REQUESTS FROM `_all` ON `_approveRequest` AND `_rejectRequest`; IN `lib/features/requests/request_center_screen.dart`, APPLIED OPTIMISTIC STATE REMOVAL OF APPROVED/REJECTED NEW STORE REQUESTS FROM `_items` ON `_approveNewStoreRequest` AND `_rejectNewStoreRequest`; (3) VERIFIED CLEAN VIA `npm test` (226/226 PASSED), `npm run lint` (0 ERRORS, 0 WARNINGS), `npm run check:adr` (FRESH), AND `flutter analyze` (0 ISSUES); COMMITTED LOCALLY ON MAIN ACROSS BOTH REPOSITORIES.**

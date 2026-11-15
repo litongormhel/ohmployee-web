@@ -8,6 +8,19 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Multi-Slot Open Vacancy Visibility, Drawer Pipeline Counter, and Candidate Identity (`ohm#fix-multi-slot-open-visibility-and-vacancy-detail` — 2026-11-15)**:
+  - **The Requirement**:
+    1. Multi-slot vacancies (e.g. `TEST011` with 2 slots) must remain visible in the Open tab until all slots are actually fulfilled ($2/2$). Adding an applicant to the pipeline ($1/2$ fulfilled) must not kick the vacancy out of the Open tab.
+    2. In `VacancyDetailDrawer`, the Pipeline counter must accurately reflect active candidates ($1$ instead of $0$), and headcount capacity must reflect the true multi-slot quota (e.g., $1/2$ Hired, $1$ Avail).
+    3. Candidate profiles in the drawer must display the applicant's real name and contact details, never falling back to "Anonymous".
+  - **Database Migration 117 (`20262606000117_fix_multi_slot_open_visibility_and_vacancy_detail.sql`)**:
+    - Updated `public.list_web_vacancies` and `public.get_web_vacancy_summary` to gate Open capacity strictly on unfulfilled headcount (`(s.hc_total - s.hc_filled - s.hr_processing_count) > 0`). Removed the blanket `AND lower(s.pipeline_status) NOT IN ('pipeline')` exclusion so multi-slot vacancies stay in Open while also appearing in Pipeline.
+    - Updated `public.get_web_vacancy_detail` to left-join `public.vw_vacancy_list` and expose `hc_filled`, `hc_total`, `hc_display`, `active_applicant_count`, `confirmed_onboard_count`, and `hr_processing_count` in `row_capabilities`.
+    - Enriched `pipeline_summary` in `get_web_vacancy_detail` with `first_name`, `last_name`, `middle_name`, `full_name`, `display_name`, and `contact_number`.
+  - **Frontend Normalization (`src/lib/queries/vacancy/vacancyListing.ts`)**:
+    - Hardened `normalizeDetailRow` so `activeApplicantCount` resolves from `row_capabilities` or counts active candidates from `activeApplicantsList`, and `hcTotal`/`hcFilled` accurately reflects the vacancy quota.
+  - **Verification**: Verified clean via `npm run check:sql` (642 migrations OK), `npm test` (226/226 passed), `npm run lint` (0 errors), and `npm run build` (Turbopack exit 0, 20/20 routes). Confirmed live query probe on Staging (`qqiiznmqxfoamqytjica`) returns `TEST011` in Open tab, and renders `EMIL LAGO` (`09464649488`, `New`) and `JAMES CRUZ` in the drawer with `Hired 1/2`, `Pipeline 1`, `Avail 1`.
+
 - **Thin Architecture Streamlining for Vacancy Summary (`ohm#thin-arch-vacancy-dashboard` — 2026-11-15)**:
   - Enforced the KISS ("Database Computes, UI Renders") architectural principle on the `/vacancy` summary metrics query.
   - In `src/lib/queries/vacancy.ts`, eliminated 190 lines of bloated client-side querying and in-memory loops in `getVacancySummary`:

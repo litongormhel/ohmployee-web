@@ -159,8 +159,8 @@ export function normalizeListRow(row: VacancyRpcRow): VacancyListItem | null {
     vacancyStatus: asString(row.vacancy_status ?? row.status),
     pipelineStatus: asString(row.pipeline_status),
     derivedStatus: asString(row.derived_status),
-    activeApplicantCount: asCount(row.active_applicant_count),
-    confirmedOnboardCount: hcFilled,
+    activeApplicantCount: asCount(row.active_applicant_count ?? rowCaps.active_applicant_count),
+    confirmedOnboardCount: asCount(row.confirmed_onboard_count ?? rowCaps.confirmed_onboard_count) || hcFilled,
     hasRecentHire: asBoolean(row.has_recent_hire),
     hasPendingClosure: asBoolean(row.has_pending_closure),
     closureRequestStatus: asString(row.closure_request_status),
@@ -440,8 +440,13 @@ function normalizeDetailRow(row: VacancyRpcRow): VacancyDetailItem | null {
     vacancyStatus: asString(row.vacancy_status ?? row.status),
     pipelineStatus: asString(row.pipeline_status),
     derivedStatus: asString(row.derived_status ?? row.pipeline_status),
-    activeApplicantCount: asCount(row.active_applicant_count),
-    confirmedOnboardCount: hcFilled,
+    activeApplicantCount:
+      asCount(row.active_applicant_count ?? rowCaps.active_applicant_count) ||
+      activeApplicantsList.filter((a) => (a.statusLabel || "").toLowerCase() !== "confirmed onboard").length,
+    confirmedOnboardCount:
+      asCount(row.confirmed_onboard_count ?? rowCaps.confirmed_onboard_count) ||
+      activeApplicantsList.filter((a) => (a.statusLabel || "").toLowerCase() === "confirmed onboard").length ||
+      hcFilled,
     hasRecentHire: asBoolean(row.has_recent_hire),
     hasPendingClosure:
       asBoolean(row.has_pending_closure) ||
