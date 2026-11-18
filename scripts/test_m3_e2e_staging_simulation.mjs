@@ -19,8 +19,23 @@ import { createClient } from "@supabase/supabase-js";
 
 const STAGING_PROJECT_REF = "qqiiznmqxfoamqytjica";
 const STAGING_URL = "https://qqiiznmqxfoamqytjica.supabase.co";
-const STAGING_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxaWl6bm1xeGZvYW1xeXRqaWNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxODQ2NjksImV4cCI6MjA5Nzc2MDY2OX0.e4v0-wkAwchas5NMF7QIDvUDW32Y7V7Rl8WF4_BC0OA";
+
+function resolveStagingAnonKey() {
+  if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.trim();
+  }
+  const root = process.cwd();
+  for (const envFile of [".env.staging", ".env"]) {
+    const envPath = path.resolve(root, envFile);
+    if (fs.existsSync(envPath)) {
+      const match = fs.readFileSync(envPath, "utf8").match(/^NEXT_PUBLIC_SUPABASE_ANON_KEY=(.+)$/m);
+      if (match) return match[1].trim();
+    }
+  }
+  throw new Error("[test_m3] Missing NEXT_PUBLIC_SUPABASE_ANON_KEY in environment or .env.staging");
+}
+
+const STAGING_ANON_KEY = resolveStagingAnonKey();
 
 // Super Admin auth_user_id for authorized impersonation inside test execution harness
 const SUPER_ADMIN_AUTH_UID = "71d245b9-10b1-42b9-ad9e-253f999daf6d";

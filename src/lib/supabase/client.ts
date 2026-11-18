@@ -2,10 +2,6 @@
 
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const STAGING_URL = "https://qqiiznmqxfoamqytjica.supabase.co";
-const STAGING_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxaWl6bm1xeGZvYW1xeXRqaWNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxODQ2NjksImV4cCI6MjA5Nzc2MDY2OX0.e4v0-wkAwchas5NMF7QIDvUDW32Y7V7Rl8WF4_BC0OA";
-
 let cachedClient: SupabaseClient | null = null;
 
 function isValidHttpUrl(candidate?: string | null): boolean {
@@ -31,23 +27,22 @@ export function isSupabaseConfigured(): boolean {
 
 /**
  * Returns a cached browser SupabaseClient instance.
- * Falls back gracefully to Staging if environment variables are not provided.
+ * Reads credentials strictly from environment variables (NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY).
+ * Hardcoded API keys are strictly forbidden.
  */
 export function createClient(): SupabaseClient {
   if (cachedClient) {
     return cachedClient;
   }
 
-  let finalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  let finalKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const finalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const finalKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
   if (!finalUrl || !finalKey || !isValidHttpUrl(finalUrl)) {
-    console.warn(
-      `[supabase] No explicit environment credentials found; applying default STAGING connection (${STAGING_URL}).`
-    );
-
-    finalUrl = STAGING_URL;
-    finalKey = STAGING_ANON_KEY;
+    const errorMsg =
+      "[supabase] Missing or invalid NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY. Please verify your environment (.env) configuration.";
+    console.error(errorMsg);
+    throw new Error(errorMsg);
   }
 
   try {
