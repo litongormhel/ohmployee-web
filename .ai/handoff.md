@@ -1,5 +1,16 @@
 # AI Handoff
 
+## Execution Report — Custom Workspace Agent Skills Suite (`ohmployee-cross-repo-parity`, `nextjs-16-app-router-tanstack`, `xlsx-import-reconciliation`) (ohm#workspace-custom-skills-suite)
+
+**Status: COMPLETE ACROSS ALL 3 WORKSPACE AGENT SKILLS IN `.agents/skills/`.**
+- **`ohmployee-cross-repo-parity` (`.agents/skills/ohmployee-cross-repo-parity/SKILL.md`)**: Codified cross-platform parity standards between `ohmployee-web` (Next.js 16 + TypeScript) and `OHMployee` (Flutter/Dart) backed by the shared Supabase PostgreSQL database (`qqiiznmqxfoamqytjica` Staging / `rwxelulyapjgaarlwkus` Prod). Enforces auto-numbered migration generation (`npm run db:new`), surgical-diff function updates preserving `SET search_path = public`, `DEFAULT NULL` on new RPC parameters, append-only `WITH (security_invoker = true)` views, physical column verification against `scripts/check-sql-contracts.mjs`, and shared status lifecycle rules across HR Emploc, Plantilla, Vacancy, RBAC (11 roles), and OHMni Copilot.
+- **`nextjs-16-app-router-tanstack` (`.agents/skills/nextjs-16-app-router-tanstack/SKILL.md`)**: Codified Next.js 16 App Router and React 19 standards, Node `--test` + Turbopack ESM dual compatibility, SOLID Phase 1–4 dependency inversion (`createClient()` strictly isolated to `src/lib/queries/`) and segregated modal/drawer interfaces (`src/types/modal.ts`, `src/types/display.ts`), mandatory `[PostgREST Schema Error]` logging, re-export facade decomposition, and the authoritative cross-module TanStack Query v5 cache invalidation matrix.
+- **`xlsx-import-reconciliation` (`.agents/skills/xlsx-import-reconciliation/SKILL.md`)**: Codified ingestion, validation, and security rules across all 5 batch spreadsheet channels (Plantilla Baseline ADR-002, HR Emploc v3 Slot-First, Vacancy Batch Import, Payroll Reconciliation 6-finding matrix, and MIKA Biometrics & Ghost Detection Center) plus CWE-1236 CSV formula injection neutralization and regression test verification (`src/lib/utils/__tests__/all_imports_sanity.test.mjs`).
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index), `docs/state/web_foundation_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+
+---
+
 ## Execution Report — Cross-Repo Security Remediation (`ohmployee-web` & `OHMployee`) (ohm#sec-audit-remediation-both-repos)
 
 **Status: COMPLETE ACROSS DATABASE MIGRATION (LIVE ON STAGING), WEB APP, EDGE FUNCTION, AND MOBILE CLIENT.**
