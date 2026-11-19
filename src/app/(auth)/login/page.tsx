@@ -1,9 +1,10 @@
 // app/(auth)/login/page.tsx
 'use client'
 import { createClient } from '@/lib/supabase/client'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Mail, Lock, Eye, EyeOff, AlertCircle, LayoutDashboard } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -63,8 +64,15 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md z-10 space-y-6">
         <div className="flex flex-col items-center space-y-2 text-center">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-tr from-brand-600 to-brand-500 text-white shadow-md shadow-brand-500/20">
-            <LayoutDashboard className="h-6 w-6" />
+          <div className="h-20 w-20 flex items-center justify-center transition-transform hover:scale-105 duration-200">
+            <Image
+              src="/images/ohm_logo_transparent.png"
+              alt="OHMployee Logo"
+              width={80}
+              height={80}
+              priority
+              className="h-20 w-20 object-contain drop-shadow-sm select-none"
+            />
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">
             OHMployee
