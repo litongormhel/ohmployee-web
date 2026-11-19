@@ -117,17 +117,23 @@ export function CencomDeploymentActivityTab({
       "Status",
     ];
 
+    const safeCsv = (v: string | null | undefined) => {
+      const raw = v ?? "";
+      const neutralized = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+      return `"${neutralized.replace(/"/g, '""')}"`;
+    };
+
     const rows = filteredRecords.map((r) => [
-      `"${r.applicantName.replace(/"/g, '""')}"`,
-      `"${(r.employeeNo || "").replace(/"/g, '""')}"`,
-      `"${(r.emplocNo || "").replace(/"/g, '""')}"`,
-      `"${r.account.replace(/"/g, '""')}"`,
-      `"${r.storeName.replace(/"/g, '""')}"`,
-      `"${r.area.replace(/"/g, '""')}"`,
-      `"${r.position.replace(/"/g, '""')}"`,
-      `"${(r.vcode || "").replace(/"/g, '""')}"`,
-      `"${r.hiredDate || ""}"`,
-      `"${r.status.replace(/"/g, '""')}"`,
+      safeCsv(r.applicantName),
+      safeCsv(r.employeeNo),
+      safeCsv(r.emplocNo),
+      safeCsv(r.account),
+      safeCsv(r.storeName),
+      safeCsv(r.area),
+      safeCsv(r.position),
+      safeCsv(r.vcode),
+      safeCsv(r.hiredDate),
+      safeCsv(r.status),
     ]);
 
     const csvContent =

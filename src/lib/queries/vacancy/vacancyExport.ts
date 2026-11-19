@@ -43,7 +43,8 @@ const VACANCY_EXPORT_HEADERS = [
 
 function escapeCsvValue(val: unknown): string {
   if (val === null || val === undefined) return "";
-  const str = String(val).trim();
+  const raw = String(val).trim();
+  const str = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   if (/[",\r\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }

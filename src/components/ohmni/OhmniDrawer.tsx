@@ -163,8 +163,9 @@ function renderInlineFormatted(
     if (linkMatch && linkMatch.index !== undefined) {
       if (!firstMatch || linkMatch.index < firstMatch.index) {
         const linkText = linkMatch[1];
-        const linkUrl = linkMatch[2];
-        const isInternal = linkUrl.startsWith("/");
+        const linkUrl = linkMatch[2].trim();
+        const isInternal = linkUrl.startsWith("/") && !linkUrl.startsWith("//");
+        const isSafeExternal = /^https?:\/\//i.test(linkUrl);
 
         firstMatch = {
           index: linkMatch.index,
@@ -180,7 +181,7 @@ function renderInlineFormatted(
               <span>{linkText}</span>
               <ArrowUpRight size={11} className="inline opacity-80" />
             </button>
-          ) : (
+          ) : isSafeExternal ? (
             <a
               key={`link-${keyIdx++}`}
               href={linkUrl}
@@ -191,6 +192,10 @@ function renderInlineFormatted(
               <span>{linkText}</span>
               <ArrowUpRight size={11} className="inline opacity-80" />
             </a>
+          ) : (
+            <span key={`link-${keyIdx++}`} className="font-semibold">
+              {linkText}
+            </span>
           ),
         };
       }

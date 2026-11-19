@@ -85,6 +85,9 @@ export function DocumentPreviewModal({
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const blob = await resp.blob();
             if (isCancelled) return;
+            if (blob.type !== "application/pdf") {
+              throw new Error(`Unexpected PDF MIME type: ${blob.type}`);
+            }
             createdBlobUrl = URL.createObjectURL(blob);
             setBlobUrl(createdBlobUrl);
           } catch {

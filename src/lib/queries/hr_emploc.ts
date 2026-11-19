@@ -2198,8 +2198,9 @@ export interface HrEmplocExportResult {
 
 function escapeCsvValue(val: unknown): string {
   if (val === null || val === undefined) return '""';
-  const str = String(val).replace(/"/g, '""');
-  return `"${str}"`;
+  const raw = String(val);
+  const neutralized = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+  return `"${neutralized.replace(/"/g, '""')}"`;
 }
 
 export const HR_EMPLOC_EXPORT_HEADERS = [

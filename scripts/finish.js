@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const readline = require('readline');
 
 const STAGING_REF = 'qqiiznmqxfoamqytjica';
@@ -175,7 +175,7 @@ function performCommit(rootDir, filesToStage, promptId, taskTitle, envName) {
   try {
     // Stage Group A untracked files
     for (const f of filesToStage) {
-      execSync(`git add "${f}"`, { cwd: rootDir });
+      execFileSync('git', ['add', '--', f], { cwd: rootDir });
     }
     // Stage modified and deleted files
     execSync('git add -u', { cwd: rootDir });
