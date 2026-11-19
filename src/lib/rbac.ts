@@ -8,24 +8,26 @@
  *   - more_screen.dart (Request Center / Approvals category permissions)
  */
 
-import type { RequestCategoryKey } from "@/lib/queries/requests";
-import type { DrawerActionItem } from "@/types/rbac";
+import type { RequestCategoryKey } from "./queries/requests.ts";
+import type { DrawerActionItem } from "../types/rbac.ts";
 
-export * from "@/types/rbac";
+export * from "../types/rbac.ts";
 
-export enum AppRole {
-  SUPER_ADMIN = "super_admin",
-  HEAD_ADMIN = "head_admin",
-  OM = "om",
-  HRCO = "hrco",
-  ATL = "atl",
-  TL = "tl",
-  ENCODER = "encoder",
-  HR_PERSONNEL = "hr_personnel",
-  RECRUITMENT = "recruitment",
-  BACKOFFICE_PERSONNEL = "backoffice_personnel",
-  VIEWER = "viewer",
-}
+export const AppRole = {
+  SUPER_ADMIN: "super_admin",
+  HEAD_ADMIN: "head_admin",
+  OM: "om",
+  HRCO: "hrco",
+  ATL: "atl",
+  TL: "tl",
+  ENCODER: "encoder",
+  HR_PERSONNEL: "hr_personnel",
+  RECRUITMENT: "recruitment",
+  BACKOFFICE_PERSONNEL: "backoffice_personnel",
+  VIEWER: "viewer",
+} as const;
+
+export type AppRole = (typeof AppRole)[keyof typeof AppRole];
 
 export type RoleIdentifiable = {
   roleKey?: string | null;
@@ -79,6 +81,7 @@ export function normalizeRole(roleKeyOrName?: string | null): AppRole | null {
       return AppRole.HR_PERSONNEL;
     case "recruitment":
     case "recruitmentteam":
+    case "recruitmentspecialist":
       return AppRole.RECRUITMENT;
     case "backoffice":
     case "backofficepersonnel":
@@ -86,6 +89,7 @@ export function normalizeRole(roleKeyOrName?: string | null): AppRole | null {
       return AppRole.BACKOFFICE_PERSONNEL;
     case "viewer":
     case "executiveviewer":
+    case "managementviewer":
       return AppRole.VIEWER;
     default:
       return null;

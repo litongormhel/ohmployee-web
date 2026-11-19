@@ -331,6 +331,15 @@ The authoritative 55-item matrix governs operational drawer actions, mutations, 
   - `canPerformDrawerAction(action, userOrRole)`
   - Individual action helper functions: `canEditHiredDate`, `canReopenVacancySlot`, `canRequestApplicantMovement`, `canExportVacancyDataset`, `canApproveDeficiencyCorrection`, `canRevertDeficiencyCorrection`, `canRollbackImportBatch`, `canUpdateEmploymentLifecycleStatus`, `canUpdateWorkSchedule`, `canRequestPoolConversion`, `canRequestRelieverCoverage`, `canSubmitNewStoreRequest`, `canArchiveUserAccount`, etc.
   - Reconciled `getAllowedApprovalCategories(userOrRole)` matching matrix item 35-42
+- **Authoritative Sanity Test Suite:** `src/lib/utils/__tests__/rbac_sanity.test.mjs`
+  - Automated unit test suite verifying all 11 system roles across 7 test suites (249 total assertions):
+    1. Role Normalization & Level Mapping: verifies canonical `AppRole` normalization, numeric level assignments (10-100), and case/whitespace tolerance for all 11 roles and synonyms (including `Recruitment Specialist`, `Back Office`, `Management Viewer`).
+    2. Role Grouping Invariants: evaluates strict exclusivity for `isOwner`, `hasFullAccess`, `isDataTeam`, `isOpsTeam`, and `isEncoder`.
+    3. Module Access Gatekeeper (`isModuleAllowedForUser` & individual getters): verifies permissions across all 13 modules (dashboard, vacancy, plantilla, hr_emploc, cencom, approvals, users, reports, notifications, settings, team_directory, more, rbac) confirming `/rbac` is locked exclusively to Super Admin (`level 100`).
+    4. Authoritative Drawer Actions (`canPerformDrawerAction`): verifies all 11 roles × 33 drawer actions (363 combinations) with Head Admin immunity and Super Admin ownership.
+    5. Action Helper Invariants: confirms 1:1 behavioral parity between `canPerformDrawerAction` and all 33 convenience wrapper functions.
+    6. Specialized Pipeline & Quota Invariants: tests `canAddApplicant`, `canManageApplicantPipeline`, `canEditApplicantProfile`, `canReviewVacancyClosures`, `canRequestVacancyClosure`, `canRequestHeadcountAdjustment`, and `canReviseHeadcountQuota`.
+    7. Approvals Review Queue Scoping: tests `getAllowedApprovalCategories` across all roles, confirming only SA (13), HA (11), Encoder (6), and Backoffice (2) receive actionable queues while all other 7 roles receive empty lists.
 - **Hook & Guard Component:** `src/hooks/useRolePermissions.tsx`
   - `useRolePermissions()`: exposes `canPerformAction`, `roleLevel`, `role`, and groupings
   - `<RoleGuard action="..." minLevel={...} fallback={...}>`: declarative UI barrier
