@@ -6,6 +6,7 @@ import {
   Building2,
   CheckCircle2,
   Clock,
+  Sparkles,
   User,
   Users,
   XCircle,
@@ -14,6 +15,7 @@ import { Modal } from "@/components/shared/Modal";
 import {
   useApproveHeadcountRequest,
   useRejectHeadcountRequest,
+  useHcRequestStores,
   type HeadcountRequestItem,
 } from "@/lib/queries/requests";
 
@@ -31,6 +33,11 @@ export function HeadcountStandardApprovalCard({
 
   const approveMutation = useApproveHeadcountRequest();
   const rejectMutation = useRejectHeadcountRequest();
+
+  const isRoving = request.workforceType?.toLowerCase() === "roving";
+  const { data: rovingStores = [] } = useHcRequestStores(request.id, {
+    enabled: isRoving,
+  });
 
   const handleOpenApprove = () => {
     setActionError(null);
@@ -143,6 +150,47 @@ export function HeadcountStandardApprovalCard({
         </p>
       </div>
 
+      {/* Roving Stores Breakdown */}
+      {isRoving && rovingStores.length > 0 && (
+        <div className="mt-3.5 space-y-1.5">
+          <div className="flex items-center justify-between text-xs font-medium text-text-muted">
+            <span>Roving Cluster Breakdown ({rovingStores.length} stores)</span>
+            {rovingStores.some((s) => s.is_new_store) && (
+              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
+                ✨ {rovingStores.filter((s) => s.is_new_store).length} new store(s) pending creation
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5 rounded-md border border-border-default bg-surface-subtle p-2.5">
+            {rovingStores.map((s) => (
+              <span
+                key={s.id}
+                className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium border ${
+                  s.is_new_store
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300"
+                    : "bg-surface border-border-default text-text-primary"
+                }`}
+              >
+                {s.is_new_store ? (
+                  <Sparkles className="h-3 w-3 text-amber-500 shrink-0" />
+                ) : (
+                  <Building2 className="h-3 w-3 text-text-muted shrink-0" />
+                )}
+                <span className="font-semibold">{s.store_name}</span>
+                <span className="text-[10px] text-text-muted">
+                  • {[s.city, s.province].filter(Boolean).join(", ")}
+                </span>
+                {s.is_new_store && (
+                  <span className="rounded bg-amber-500/20 px-1 text-[9px] font-semibold text-amber-600 dark:text-amber-400">
+                    New Store — Will be created on approval
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Footer: Requester Meta + Actions */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-default pt-3">
         <div className="flex flex-wrap items-center gap-4 text-xs text-text-muted">
@@ -200,13 +248,29 @@ export function HeadcountStandardApprovalCard({
             <p>
               Approving this request will advance the requisition for{" "}
               <span className="font-semibold text-text-primary">
-                {request.storeName}
+                {request.storeName || (isRoving ? "Roving Cluster" : "Headcount Requisition")}
               </span>{" "}
               ({request.positionName}) requesting{" "}
               <span className="font-semibold text-text-primary">
                 +{request.headcountNeeded} headcount
               </span>.
             </p>
+
+            {isRoving && rovingStores.some((s) => s.is_new_store) && (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-700 dark:text-amber-300">
+                <div className="flex items-start gap-1.5">
+                  <Sparkles className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
+                  <div>
+                    <span className="font-semibold">Atomic Store Provisioning: </span>
+                    Approving will automatically register{" "}
+                    <span className="font-semibold">
+                      {rovingStores.filter((s) => s.is_new_store).length} new store(s)
+                    </span>{" "}
+                    ({rovingStores.filter((s) => s.is_new_store).map((s) => s.store_name).join(", ")}) into the store registry and bind them to the new Coverage Group.
+                  </div>
+                </div>
+              </div>
+            )}
 
             {actionError && (
               <div className="rounded-md border border-border-danger bg-danger-subtle p-3 text-xs text-text-danger">

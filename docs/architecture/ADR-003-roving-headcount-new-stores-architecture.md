@@ -1,6 +1,6 @@
 # ADR-003: Unified Roving Headcount Requisition with Atomic Store Provisioning & Mandatory Operational Justification
 
-- **Status**: Proposed (Aligned via `/grill-me`)
+- **Status**: Accepted & Implemented (Migration `20262606000126_roving_hc_new_stores_and_mandatory_justification.sql`)
 - **Date**: 2026-11-19
 - **Deciders**: Engineering Lead, Operations Lead, System Architecture
 - **Consulted**: Mobile Architecture (`OHMployee`), Approvals Center Core Team

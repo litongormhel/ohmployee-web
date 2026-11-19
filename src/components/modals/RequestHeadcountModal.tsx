@@ -27,7 +27,7 @@ import {
   type SubmitHeadcountRequestInput,
   type SubmitHeadcountRequestResult,
 } from "@/lib/queries/requests";
-import { useRefCities } from "@/lib/queries/locations";
+import { useRefCities, useRefProvinces, useRefLocations } from "@/lib/queries/locations";
 import { NewStoreRequestModal } from "@/components/modals/NewStoreRequestModal";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
@@ -61,6 +61,7 @@ interface StoreItem {
   island_group?: string | null;
   account_id?: string | null;
   is_active?: boolean;
+  is_new_store?: boolean;
 }
 
 function formatDate(date: Date): string {
@@ -221,6 +222,38 @@ function RequestHeadcountModalDialog({
   // Form Fields - Roving
   const [selectedRovingStores, setSelectedRovingStores] = useState<StoreItem[]>([]);
   const [rovingSearch, setRovingSearch] = useState<string>("");
+  const [isAddingUnlistedStore, setIsAddingUnlistedStore] = useState<boolean>(false);
+  const [unlistedStoreName, setUnlistedStoreName] = useState<string>("");
+  const [unlistedProvince, setUnlistedProvince] = useState<string>("");
+  const [unlistedCity, setUnlistedCity] = useState<string>("");
+  const [unlistedFormError, setUnlistedFormError] = useState<string | null>(null);
+
+  // Unlisted store reference locations (ADR-003)
+  const { data: refProvinces = [] } = useRefProvinces({
+    enabled: isAddingUnlistedStore,
+  });
+  const { data: refUnlistedCities = [] } = useRefCities(unlistedProvince, {
+    enabled: isAddingUnlistedStore && Boolean(unlistedProvince),
+  });
+  const { data: allRefLocations = [] } = useRefLocations({
+    enabled: isAddingUnlistedStore,
+  });
+
+  const unlistedIslandGroup = useMemo(() => {
+    if (!unlistedProvince) return null;
+    if (unlistedCity) {
+      const match = allRefLocations.find(
+        (l) =>
+          l.province.toLowerCase() === unlistedProvince.toLowerCase() &&
+          l.city.toLowerCase() === unlistedCity.toLowerCase()
+      );
+      if (match?.island_group) return match.island_group;
+    }
+    const provMatch = allRefLocations.find(
+      (l) => l.province.toLowerCase() === unlistedProvince.toLowerCase()
+    );
+    return provMatch?.island_group || null;
+  }, [unlistedProvince, unlistedCity, allRefLocations]);
 
   // Form Fields - Position & Quota
   const [customPositionId, setCustomPositionId] = useState<string>("");
@@ -327,6 +360,75 @@ function RequestHeadcountModalDialog({
     }
     return null;
   }, [workforceType, rovingIslandGroups]);
+
+  const handleAddUnlistedStore = () => {
+    setUnlistedFormError(null);
+    const cleanName = unlistedStoreName.trim();
+    if (!cleanName) {
+      setUnlistedFormError("Store name is required.");
+      return;
+    }
+    if (!unlistedProvince) {
+      setUnlistedFormError("Province is required.");
+      return;
+    }
+    if (!unlistedCity) {
+      setUnlistedFormError("City / Municipality is required.");
+      return;
+    }
+
+    const duplicateInSelected = selectedRovingStores.some(
+      (s) => s.store_name.toLowerCase() === cleanName.toLowerCase()
+    );
+    if (duplicateInSelected) {
+      setUnlistedFormError(`A store named "${cleanName}" is already in this roving cluster.`);
+      return;
+    }
+
+    const duplicateInStores = stores.some(
+      (s) => s.store_name.toLowerCase() === cleanName.toLowerCase()
+    );
+    if (duplicateInStores) {
+      setUnlistedFormError(
+        `"${cleanName}" already exists in this account. Please select it from the registered stores list instead.`
+      );
+      return;
+    }
+
+    if (unlistedIslandGroup && rovingIslandGroups.length > 0) {
+      if (!rovingIslandGroups.includes(unlistedIslandGroup)) {
+        setUnlistedFormError(
+          `Cannot add store in ${unlistedIslandGroup}. The selected roving cluster belongs to ${rovingIslandGroups.join(
+            " + "
+          )}.`
+        );
+        return;
+      }
+    }
+
+    if (selectedRovingStores.length >= 20) {
+      setUnlistedFormError("Maximum 20 stores per roving cluster.");
+      return;
+    }
+
+    const newStore: StoreItem = {
+      id: `new-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      store_name: cleanName,
+      province: unlistedProvince,
+      area_province: unlistedProvince,
+      area_city: unlistedCity,
+      island_group: unlistedIslandGroup,
+      is_new_store: true,
+      account_id: selectedAccountId,
+    };
+
+    setSelectedRovingStores((prev) => [...prev, newStore]);
+    setUnlistedStoreName("");
+    setUnlistedProvince("");
+    setUnlistedCity("");
+    setUnlistedFormError(null);
+    setIsAddingUnlistedStore(false);
+  };
 
   // In-flight pending request checks for selected store
   const storePendingRequests = useMemo(() => {
@@ -447,11 +549,12 @@ function RequestHeadcountModalDialog({
         setValidationError("Target Fill Date cannot precede Vacant Date.");
         return;
       }
-    } else {
-      if (reason.trim().length < 20) {
-        setValidationError("Business justification is mandatory for HC Reduction requests (minimum 20 characters).");
-        return;
-      }
+    }
+
+    // Mandatory Operational Justification (ADR-003: minimum 20 characters for all requests)
+    if (reason.trim().length < 20) {
+      setValidationError("Operational justification is mandatory (minimum 20 characters).");
+      return;
     }
 
     setCurrentStep("review");
@@ -508,7 +611,29 @@ function RequestHeadcountModalDialog({
         payload.area_city = selectedStore.area_city || selectedCity || null;
       }
     } else if (workforceType === "roving") {
-      payload.store_ids = selectedRovingStores.map((s) => s.id);
+      // Polymorphic store ingestion (ADR-003)
+      payload.stores = selectedRovingStores.map((s) => {
+        if (s.is_new_store) {
+          return {
+            is_new_store: true,
+            store_name: s.store_name,
+            area_province: s.area_province || s.province || "",
+            area_city: s.area_city || "",
+            island_group: s.island_group || undefined,
+          };
+        }
+        return {
+          is_new_store: false,
+          store_id: s.id,
+          store_name: s.store_name,
+          area_province: s.area_province || s.province || "",
+          area_city: s.area_city || "",
+          island_group: s.island_group || undefined,
+        };
+      });
+      payload.store_ids = selectedRovingStores
+        .filter((s) => !s.is_new_store)
+        .map((s) => s.id);
       if (linkedNewStoreRequestId) {
         payload.source_new_store_request_id = linkedNewStoreRequestId;
       }
@@ -951,14 +1076,24 @@ function RequestHeadcountModalDialog({
                       {selectedRovingStores.map((s) => (
                         <span
                           key={s.id}
-                          className="inline-flex items-center gap-1.5 rounded-md bg-surface-base border border-border-default pl-2.5 pr-1.5 py-1 text-xs font-medium text-text-primary shadow-xs"
+                          className={`inline-flex items-center gap-1.5 rounded-md border pl-2.5 pr-1.5 py-1 text-xs font-medium shadow-xs ${
+                            s.is_new_store
+                              ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300"
+                              : "bg-surface-base border-border-default text-text-primary"
+                          }`}
                         >
+                          {s.is_new_store && (
+                            <Sparkles className="h-3 w-3 text-amber-500 shrink-0" />
+                          )}
                           <span>{s.store_name}</span>
-                          {s.island_group && (
-                            <span className="text-[10px] font-mono text-text-muted">
-                              ({s.island_group})
+                          {s.is_new_store && (
+                            <span className="rounded bg-amber-500/20 px-1 py-0.2 text-[9px] font-semibold text-amber-600 dark:text-amber-400">
+                              New Store
                             </span>
                           )}
+                          <span className="text-[10px] font-mono text-text-muted">
+                            {[s.area_city, s.island_group].filter(Boolean).join(" • ")}
+                          </span>
                           <button
                             type="button"
                             onClick={() =>
@@ -979,27 +1114,149 @@ function RequestHeadcountModalDialog({
                     </div>
                   )}
 
+                  {/* Quick Add Unlisted Store Sub-Form (ADR-003) */}
+                  {isAddingUnlistedStore && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3.5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                          Add Unlisted / Opening Store (ADR-003)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingUnlistedStore(false);
+                            setUnlistedFormError(null);
+                          }}
+                          className="text-text-muted hover:text-text-primary text-xs"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+
+                      {unlistedFormError && (
+                        <div className="rounded border border-border-danger bg-danger-subtle p-2 text-xs text-text-danger flex items-start gap-1.5">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span>{unlistedFormError}</span>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div>
+                          <label className="text-[11px] font-medium text-text-secondary block mb-1">
+                            Store Name <RequiredAsterisk />
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Savemore Antipolo"
+                            value={unlistedStoreName}
+                            onChange={(e) => setUnlistedStoreName(e.target.value)}
+                            className="w-full rounded border border-border-default bg-surface px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-brand-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-medium text-text-secondary block mb-1">
+                            Province <RequiredAsterisk />
+                          </label>
+                          <select
+                            value={unlistedProvince}
+                            onChange={(e) => {
+                              setUnlistedProvince(e.target.value);
+                              setUnlistedCity("");
+                            }}
+                            className="w-full rounded border border-border-default bg-surface px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-brand-500"
+                          >
+                            <option value="">Select Province...</option>
+                            {refProvinces.map((prov) => (
+                              <option key={prov} value={prov}>
+                                {prov}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-medium text-text-secondary block mb-1">
+                            City / Municipality <RequiredAsterisk />
+                          </label>
+                          <select
+                            value={unlistedCity}
+                            disabled={!unlistedProvince}
+                            onChange={(e) => setUnlistedCity(e.target.value)}
+                            className="w-full rounded border border-border-default bg-surface px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-brand-500 disabled:opacity-50"
+                          >
+                            <option value="">
+                              {!unlistedProvince ? "Select Province First..." : "Select City..."}
+                            </option>
+                            {refUnlistedCities.map((city) => (
+                              <option key={city} value={city}>
+                                {city}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="text-[11px] text-text-muted flex items-center gap-1.5">
+                          {unlistedIslandGroup ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-surface px-2 py-0.5 border border-border-default font-mono text-[10px] text-text-secondary">
+                              Island Group: <strong>{unlistedIslandGroup}</strong>
+                            </span>
+                          ) : (
+                            <span>Select province & city to derive Island Group</span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAddUnlistedStore}
+                          className="rounded bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 text-xs font-semibold transition cursor-pointer"
+                        >
+                          Add to Cluster
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Store Multi-picker list */}
                   <div className="space-y-2 pt-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" />
-                      <input
-                        type="text"
-                        placeholder="Search stores to add to roving cluster..."
-                        value={rovingSearch}
-                        onChange={(e) => setRovingSearch(e.target.value)}
-                        className="w-full rounded-md border border-border-default bg-surface-muted pl-9 pr-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500"
-                      />
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" />
+                        <input
+                          type="text"
+                          placeholder="Search stores across all cities..."
+                          value={rovingSearch}
+                          onChange={(e) => setRovingSearch(e.target.value)}
+                          className="w-full rounded-md border border-border-default bg-surface-muted pl-9 pr-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUnlistedFormError(null);
+                          if (rovingSearch.trim() && !unlistedStoreName) {
+                            setUnlistedStoreName(rovingSearch.trim());
+                          }
+                          setIsAddingUnlistedStore(!isAddingUnlistedStore);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300 transition shrink-0 cursor-pointer"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>+ Add Unlisted Store</span>
+                      </button>
                     </div>
 
-                    <div className="max-h-40 overflow-y-auto rounded-md border border-border-default bg-surface-base divide-y divide-border-subtle">
+                    <div className="max-h-44 overflow-y-auto rounded-md border border-border-default bg-surface-base divide-y divide-border-subtle">
                       {stores
                         .filter((s) => {
                           if (!rovingSearch.trim()) return true;
                           const q = rovingSearch.toLowerCase();
                           return (
                             s.store_name.toLowerCase().includes(q) ||
-                            (s.area_city || "").toLowerCase().includes(q)
+                            (s.area_city || "").toLowerCase().includes(q) ||
+                            (s.province || s.area_province || "").toLowerCase().includes(q)
                           );
                         })
                         .map((s) => {
@@ -1018,7 +1275,9 @@ function RequestHeadcountModalDialog({
                                   {s.store_name}
                                 </span>
                                 <span className="text-[11px] text-text-muted ml-2">
-                                  {[s.area_city, s.island_group].filter(Boolean).join(" • ")}
+                                  {[s.area_city, s.province || s.area_province, s.island_group]
+                                    .filter(Boolean)
+                                    .join(" • ")}
                                 </span>
                               </div>
                               <button
@@ -1044,6 +1303,33 @@ function RequestHeadcountModalDialog({
                             </div>
                           );
                         })}
+
+                      {stores.filter((s) => {
+                        if (!rovingSearch.trim()) return true;
+                        const q = rovingSearch.toLowerCase();
+                        return (
+                          s.store_name.toLowerCase().includes(q) ||
+                          (s.area_city || "").toLowerCase().includes(q) ||
+                          (s.province || s.area_province || "").toLowerCase().includes(q)
+                        );
+                      }).length === 0 && (
+                        <div className="p-4 text-center text-xs text-text-muted space-y-2">
+                          <p>No registered stores found matching &quot;{rovingSearch}&quot;.</p>
+                          {!isAddingUnlistedStore && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUnlistedStoreName(rovingSearch.trim());
+                                setIsAddingUnlistedStore(true);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition cursor-pointer"
+                            >
+                              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                              Add &quot;{rovingSearch.trim()}&quot; as an Unlisted Store
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1219,26 +1505,26 @@ function RequestHeadcountModalDialog({
               {/* SECTION 5: OPERATIONAL JUSTIFICATION */}
               <div className="space-y-2 rounded-lg border border-border-default bg-surface-base p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-text-secondary">
-                    Operational Justification {requestType === "HC Reduction" ? "(Mandatory)" : "(Optional)"}
+                  <span className="text-xs font-semibold text-text-secondary flex items-center gap-1">
+                    Operational Justification <RequiredAsterisk />
                   </span>
                   <span className="text-xs text-text-muted">
                     {reason.length}/500 chars{" "}
-                    {requestType === "HC Reduction" && (
-                      <span className={reason.trim().length >= 20 ? "text-[var(--foreground)] font-semibold" : "text-[var(--text-muted)] font-semibold"}>
-                        (Min 20 required)
-                      </span>
-                    )}
+                    <span
+                      className={
+                        reason.trim().length >= 20
+                          ? "text-text-success font-semibold"
+                          : "text-text-danger font-semibold"
+                      }
+                    >
+                      ({reason.trim().length}/20 chars min)
+                    </span>
                   </span>
                 </div>
                 <textarea
                   rows={3}
                   maxLength={500}
-                  placeholder={
-                    requestType === "HC Reduction"
-                      ? "Detail the business or operational rationale for this quota reduction (minimum 20 characters required)..."
-                      : "Provide operational context, seasonal demands, or store expansion justification..."
-                  }
+                  placeholder="Detail the operational justification, store coverage, expansion rationale, or business demand (minimum 20 characters required)..."
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   className="w-full rounded-md border border-border-default bg-surface-muted p-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors resize-none"
@@ -1305,15 +1591,37 @@ function RequestHeadcountModalDialog({
                       </span>
                     </div>
                   ) : (
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {selectedRovingStores.map((s) => (
-                        <span
-                          key={s.id}
-                          className="rounded bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary border border-border-default"
-                        >
-                          {s.store_name}
-                        </span>
-                      ))}
+                    <div className="mt-2 space-y-1.5">
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedRovingStores.map((s) => (
+                          <span
+                            key={s.id}
+                            className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium border ${
+                              s.is_new_store
+                                ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300"
+                                : "bg-surface-muted border-border-default text-text-secondary"
+                            }`}
+                          >
+                            {s.is_new_store && (
+                              <Sparkles className="h-3 w-3 text-amber-500 shrink-0" />
+                            )}
+                            <span>{s.store_name}</span>
+                            <span className="text-[10px] text-text-muted">
+                              • {[s.area_city, s.area_province || s.province].filter(Boolean).join(", ")}
+                            </span>
+                            {s.is_new_store && (
+                              <span className="rounded bg-amber-500/20 px-1 text-[9px] font-semibold text-amber-600 dark:text-amber-400">
+                                New Store
+                              </span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                      {selectedRovingStores.some((s) => s.is_new_store) && (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                          ✨ Unlisted proposed stores will be atomically provisioned in the store registry upon formal approval.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

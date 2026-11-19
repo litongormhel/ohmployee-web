@@ -771,6 +771,15 @@ export function useRejectHeadcountRequest() {
   });
 }
 
+export interface HeadcountStoreInput {
+  store_id?: string | null;
+  store_name?: string;
+  area_province?: string;
+  area_city?: string;
+  island_group?: string;
+  is_new_store?: boolean;
+}
+
 export interface SubmitHeadcountRequestInput {
   account_id: string;
   account_name?: string;
@@ -794,8 +803,21 @@ export interface SubmitHeadcountRequestInput {
   area_province?: string | null;
   area_city?: string | null;
   store_ids?: string[];
+  stores?: (string | HeadcountStoreInput)[];
   source_new_store_request_id?: string | null;
   coverage_group_id?: string | null;
+}
+
+export interface HcRequestStoreItem {
+  id: string;
+  store_id: string | null;
+  store_name: string;
+  province: string | null;
+  city: string | null;
+  island_group: string | null;
+  is_new_store: boolean;
+  created_store_id: string | null;
+  sort_order: number;
 }
 
 export interface SubmitHeadcountRequestResult {
@@ -851,6 +873,37 @@ export function useSubmitHeadcountRequest() {
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
       queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
     },
+  });
+}
+
+/**
+ * Fetch roving stores associated with a headcount request.
+ */
+export async function fetchHcRequestStores(requestId: string): Promise<HcRequestStoreItem[]> {
+  if (!requestId?.trim()) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_hc_request_stores", {
+    p_request_id: requestId,
+  });
+
+  if (error) {
+    console.error("[PostgREST Schema Error] get_hc_request_stores failed:", error);
+    throw new RequestDataError("generic", error.message);
+  }
+
+  return (data as HcRequestStoreItem[]) || [];
+}
+
+export function useHcRequestStores(
+  requestId?: string | null,
+  options?: { enabled?: boolean }
+) {
+  const cleanId = requestId?.trim() || null;
+  return useQuery({
+    queryKey: ["hc-request-stores", cleanId],
+    queryFn: () => (cleanId ? fetchHcRequestStores(cleanId) : Promise.resolve([])),
+    enabled: (options?.enabled ?? true) && Boolean(cleanId),
+    staleTime: 1000 * 60 * 5,
   });
 }
 
