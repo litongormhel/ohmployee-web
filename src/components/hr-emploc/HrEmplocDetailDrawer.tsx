@@ -17,6 +17,7 @@ import {
   RefreshCw,
   ShieldAlert,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -28,6 +29,7 @@ import {
   useWithdrawEmplocDeletion,
   useRequestEmplocDeletion,
   HrEmplocDataError,
+  type HrEmplocListItem,
   type HrEmplocDetailItem,
   type HrEmplocAuditLogItem,
 } from "@/lib/queries/hr_emploc";
@@ -35,6 +37,7 @@ import {
 export type HrEmplocDetailDrawerProps = {
   hrEmplocId: string | null;
   onClose: () => void;
+  onUploadDocs?: (row: HrEmplocListItem) => void;
 };
 
 function formatDate(value: string | null) {
@@ -211,6 +214,7 @@ function formatTimelineItem(item: HrEmplocAuditLogItem, detail: HrEmplocDetailIt
 export function HrEmplocDetailDrawer({
   hrEmplocId,
   onClose,
+  onUploadDocs,
 }: HrEmplocDetailDrawerProps) {
   const queryClient = useQueryClient();
 
@@ -578,16 +582,67 @@ export function HrEmplocDetailDrawer({
             )}
           </div>
 
-          {/* Section 6: Documents & Attachments Card (Hidden once Deployed per Stage 2b rules) */}
-          {!isDeployed && detail.rowCapabilities.can_view_docs && (
+          {/* Section 6: Documents & Attachments Card */}
+          {(detail.rowCapabilities.can_view_docs || detail.rowCapabilities.can_upload_docs) && (
             <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
                   Requirements & Attachments
                 </h3>
-                <Badge className="bg-surface-muted text-text-muted border border-border-subtle text-[10px]">
-                  {(detail.attachments || []).length} Files
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-surface-muted text-text-muted border border-border-subtle text-[10px]">
+                    {(detail.attachments || []).length} Files
+                  </Badge>
+                  {detail.rowCapabilities.can_upload_docs && onUploadDocs && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onUploadDocs({
+                          id: detail.id,
+                          applicantName: detail.applicantName,
+                          vcode: detail.vcode,
+                          accountId: detail.accountId ?? null,
+                          accountName: detail.accountName,
+                          groupId: detail.groupId ?? null,
+                          groupName: detail.groupName ?? null,
+                          storeId: (detail as unknown as { storeId?: string | null }).storeId ?? null,
+                          storeName: detail.storeName,
+                          positionTitle: detail.positionTitle,
+                          hrcoName: detail.hrcoName,
+                          hrStatus: detail.hrStatus,
+                          deploymentStatus: detail.deploymentStatus,
+                          employeeNo: detail.employeeNo,
+                          assignmentType: detail.assignmentType,
+                          coveredStoresCount: (detail.coveredStores || []).length,
+                          deficiencySummary: null,
+                          deficiencyIssues: [],
+                          correctionReason: detail.correctionReason ?? null,
+                          requestedByName: detail.requestedByName ?? null,
+                          hrcoRemarks: detail.hrRemarks ?? null,
+                          notes: null,
+                          remarks: detail.hrRemarks || detail.opsRemarks,
+                          attachmentUrl: null,
+                          attachmentFileName: null,
+                          attachmentMetadata: null,
+                          attachments: detail.attachments,
+                          docCount: detail.docCount || (detail.attachments || []).length,
+                          hiredDate: detail.hiredDate,
+                          dateRequested: detail.dateRequested,
+                          slaBreached: detail.slaBreached,
+                          slaElapsedDays: detail.slaElapsedDays || 0,
+                          rowCapabilities: detail.rowCapabilities,
+                          isPendingDeletion: !!detail.activeDeletionRequest,
+                          totalCount: 1,
+                        });
+                      }}
+                      className="inline-flex items-center gap-1 rounded bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                      title="Upload Documents"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      <span>Upload Docs</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Remarks if any */}

@@ -66,8 +66,17 @@ export function UploadDocsModal({
   if (!isOpen || !row) return null;
 
   const isCorrectionMode = mode === "correction" || row.hrStatus === "For Correction";
-  const title = isCorrectionMode ? "Upload Correction Documents" : "Upload Requirements";
-  const submitLabel = isCorrectionMode ? "Submit Correction" : "Submit & Move to For Emploc";
+  const isPendingMode = row.hrStatus === "Pending";
+  const title = isCorrectionMode
+    ? "Upload Correction Documents"
+    : isPendingMode
+    ? "Upload Requirements"
+    : "Upload Documents";
+  const submitLabel = isCorrectionMode
+    ? "Submit Correction"
+    : isPendingMode
+    ? "Submit & Move to For Emploc"
+    : "Save Documents";
 
   const handleFilesSelected = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -248,7 +257,7 @@ export function UploadDocsModal({
 
       // Check that at least one document exists before moving to For Emploc in Pending mode
       const totalDocs = existingDocs.length;
-      if (!isCorrectionMode && totalDocs === 0) {
+      if (isPendingMode && totalDocs === 0) {
         setGlobalError({
           code: "REQUIREMENTS_DOCS_MISSING",
           title: "Requirements Missing",
@@ -267,12 +276,14 @@ export function UploadDocsModal({
           hrcoNotes: trimmedNotes,
         });
         onSuccess(`Correction submitted for ${row.applicantName}. Record moved to Review.`);
-      } else {
+      } else if (isPendingMode) {
         await submitHrEmplocRequirements({
           hrEmplocId: row.id,
           notes: trimmedNotes,
         });
         onSuccess(`Requirements submitted for ${row.applicantName}. Record moved to For Emploc.`);
+      } else {
+        onSuccess(`Documents uploaded successfully for ${row.applicantName}.`);
       }
 
       onClose();

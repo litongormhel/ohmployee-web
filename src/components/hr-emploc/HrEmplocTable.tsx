@@ -668,6 +668,22 @@ export function HrEmplocTable({
                                 <span>! For Correction</span>
                               </button>
                             )}
+
+                            {caps.can_upload_docs && onUploadDocs && (
+                              <button
+                                type="button"
+                                disabled={isPendingDeletion}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onUploadDocs(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Upload requirements / documents"
+                              >
+                                <Upload className="h-3.5 w-3.5" />
+                                <span>Upload Docs</span>
+                              </button>
+                            )}
                           </>
                         )}
 
@@ -723,6 +739,22 @@ export function HrEmplocTable({
                                 <span>Revert</span>
                               </button>
                             )}
+
+                            {caps.can_upload_docs && onUploadDocs && (
+                              <button
+                                type="button"
+                                disabled={isPendingDeletion}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onUploadDocs(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Upload additional documents"
+                              >
+                                <Upload className="h-3.5 w-3.5" />
+                                <span>Upload Docs</span>
+                              </button>
+                            )}
                           </>
                         )}
 
@@ -756,6 +788,22 @@ export function HrEmplocTable({
                               >
                                 <RotateCcw className="h-3.5 w-3.5" />
                                 <span>Revert</span>
+                              </button>
+                            )}
+
+                            {caps.can_upload_docs && onUploadDocs && (
+                              <button
+                                type="button"
+                                disabled={isPendingDeletion}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onUploadDocs(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface hover:bg-surface-hover px-2 py-1 text-xs font-semibold text-text-primary shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Upload documents (Super Admin)"
+                              >
+                                <Upload className="h-3.5 w-3.5" />
+                                <span>Upload Docs</span>
                               </button>
                             )}
                           </>

@@ -92,10 +92,11 @@ Del Rosario, A. | VAC-101 | Davao South / Davao Hub    | Stationary | Pending De
 7. **SLA Counter**: Calculated days active since `coalesce(date_requested, created_at)`. If exceeding 3 days, it prints a rose alert badge (`text-red-700 bg-red-50 border-red-200`).
 8. **Actions Area**: Desktop actions per queue tab, 100% driven by `row_capabilities`. Actions column uses `sticky right-0` to eliminate horizontal clipping on wide viewports:
    - **Pending Tab**: `Upload Docs` (driven by `can_upload_docs`). `+ Add Emploc` / `! For Correction` are removed here; SA override `+ Add Emploc` resides in row overflow menu via `can_assign_employee_no`.
-   - **For Emploc Tab**: `+ Add Emploc` (driven by `can_assign_employee_no`) and `! For Correction` (driven by `can_tag_deficiency`).
-   - **Correction & Review Tabs**: Position and HRCO columns removed to allocate space for Reasons (rendered in flex-wrap gap-1.5 badges without truncation) and Remarks (rendered with Ops remark precedence). Attachment column provides `View` button with document count.
-   - **Deployed Tab**: Actions menu provides `Edit Emploc #` (driven by `can_edit_emploc_number`) and `Revert to Pending` (driven by `can_revert_to_pending`). Document viewing is hidden once deployed.
-   - Row clicking opens the Detail Drawer with active overlay highlight (`bg-blue-50`).
+   - **For Emploc Tab**: `+ Add Emploc` (driven by `can_assign_employee_no`) and `! For Correction` (driven by `can_tag_deficiency`). `Upload Docs` available for Super Admin and permitted uploaders (`can_upload_docs`).
+   - **Correction Tab**: `Upload Docs` (driven by `can_upload_docs` / `can_submit_correction`). Reasons rendered in flex-wrap gap-1.5 badges without truncation.
+   - **Review Tab**: `Upload Docs` (driven by `can_upload_docs`), plus `Approve` / `Revert` actions for reviewers.
+   - **Deployed Tab**: Actions menu provides `Edit Emploc #` (driven by `can_edit_emploc_number`) and `Revert to Pending` (driven by `can_revert_to_pending`). `Upload Docs` available for Super Admin (`can_upload_docs`).
+   - Row clicking opens the Detail Drawer with active overlay highlight (`bg-blue-50`), where Section 6 (Requirements & Attachments) also provides direct `Upload Docs` access when `can_upload_docs` is true.
 
 ### 4.1 Stage 2b-Web Implementation Details (ohm#q3v8n2kd)
 1. **Capability-Driven Architecture**:
