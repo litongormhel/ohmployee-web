@@ -1,7 +1,7 @@
 // components/hr-emploc/HrEmplocTable.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   LockKeyhole,
   AlertTriangle,
@@ -12,7 +12,6 @@ import {
   RotateCcw,
   Edit3,
   Eye,
-  MoreVertical,
 } from "lucide-react";
 import { useCurrentUser } from "@/lib/auth";
 import { DataState } from "@/components/shared/DataState";
@@ -97,7 +96,6 @@ function getTableColumns(queue: HrEmplocQueue, hideActions: boolean = false): st
         "Position",
         "HRCO",
         "SLA",
-        "Docs",
         "Actions",
       ];
       break;
@@ -109,7 +107,6 @@ function getTableColumns(queue: HrEmplocQueue, hideActions: boolean = false): st
         "Position",
         "HRCO",
         "SLA",
-        "Docs",
         "Actions",
       ];
       break;
@@ -121,7 +118,6 @@ function getTableColumns(queue: HrEmplocQueue, hideActions: boolean = false): st
         "SLA",
         "Reason",
         "Remarks",
-        "Docs",
         "Actions",
       ];
       break;
@@ -156,7 +152,6 @@ function getTableColumns(queue: HrEmplocQueue, hideActions: boolean = false): st
         "Position",
         "HRCO",
         "SLA",
-        "Docs",
         "Actions",
       ];
       break;
@@ -164,8 +159,15 @@ function getTableColumns(queue: HrEmplocQueue, hideActions: boolean = false): st
   return hideActions ? cols.filter((c) => c !== "Actions") : cols;
 }
 
-const SLA_BADGE_CLASS =
-  "border border-border-default bg-surface-muted font-mono font-medium text-text-secondary";
+function getSlaBadgeClass(days: number, isBreached?: boolean): string {
+  if (isBreached || days >= 3) {
+    return "border border-red-200 bg-red-50 font-mono font-semibold text-red-700";
+  }
+  if (days === 2) {
+    return "border border-amber-200 bg-amber-50 font-mono font-medium text-amber-700";
+  }
+  return "border border-emerald-200 bg-emerald-50 font-mono font-medium text-emerald-700";
+}
 
 export function HrEmplocTable({
   queue,
@@ -205,7 +207,6 @@ export function HrEmplocTable({
     [queue, shouldHideActions]
   );
   const { getHrcosForRecord } = useInheritedHrcoMap();
-  const [openOverflowId, setOpenOverflowId] = useState<string | null>(null);
 
   const getErrorTitle = () => {
     return errorKind === "access_denied"
@@ -234,7 +235,7 @@ export function HrEmplocTable({
                     scope="col"
                     className={`border-b border-table-rule-section px-4 py-3 whitespace-nowrap bg-table-header ${
                       isActions
-                        ? "sticky right-0 z-30 text-right shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)]"
+                        ? "sticky right-0 z-30 text-right"
                         : ""
                     }`}
                   >
@@ -343,28 +344,14 @@ export function HrEmplocTable({
 
                         {/* 5. SLA */}
                         <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
-                          <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-2xs ${SLA_BADGE_CLASS}`}>
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-2xs ${getSlaBadgeClass(
+                              row.slaElapsedDays,
+                              row.slaBreached
+                            )}`}
+                          >
                             {row.slaElapsedDays}d
                           </span>
-                        </td>
-
-                        {/* 6. Docs */}
-                        <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
-                          {row.docCount > 0 ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onViewDocs?.(row);
-                              }}
-                              className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-1 text-2xs font-medium text-text-primary hover:bg-surface-hover hover:border-brand-primary cursor-pointer transition"
-                            >
-                              <Eye className="h-3 w-3 text-brand-primary" />
-                              <span>{row.docCount > 1 ? `View (${row.docCount})` : "View"}</span>
-                            </button>
-                          ) : (
-                            <span className="text-3xs text-text-muted italic">0 docs</span>
-                          )}
                         </td>
                       </>
                     )}
@@ -412,28 +399,14 @@ export function HrEmplocTable({
 
                         {/* 6. SLA */}
                         <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
-                          <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-2xs ${SLA_BADGE_CLASS}`}>
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-2xs ${getSlaBadgeClass(
+                              row.slaElapsedDays,
+                              row.slaBreached
+                            )}`}
+                          >
                             {row.slaElapsedDays}d
                           </span>
-                        </td>
-
-                        {/* 7. Docs */}
-                        <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
-                          {row.docCount > 0 ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onViewDocs?.(row);
-                              }}
-                              className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-1 text-2xs font-medium text-text-primary hover:bg-surface-hover hover:border-brand-primary cursor-pointer transition"
-                            >
-                              <Eye className="h-3 w-3 text-brand-primary" />
-                              <span>{row.docCount > 1 ? `View (${row.docCount})` : "View"}</span>
-                            </button>
-                          ) : (
-                            <span className="text-3xs text-text-muted italic">0 docs</span>
-                          )}
                         </td>
                       </>
                     )}
@@ -468,7 +441,12 @@ export function HrEmplocTable({
 
                         {/* 4. SLA */}
                         <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
-                          <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-2xs ${SLA_BADGE_CLASS}`}>
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-2xs ${getSlaBadgeClass(
+                              row.slaElapsedDays,
+                              row.slaBreached
+                            )}`}
+                          >
                             {row.slaElapsedDays}d
                           </span>
                         </td>
@@ -507,24 +485,26 @@ export function HrEmplocTable({
                           )}
                         </td>
 
-                        {/* 7. Docs / Attachment */}
-                        <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
-                          {row.docCount > 0 ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onViewDocs?.(row);
-                              }}
-                              className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-1 text-2xs font-medium text-text-primary hover:bg-surface-hover hover:border-brand-primary cursor-pointer transition"
-                            >
-                              <Eye className="h-3 w-3 text-brand-primary" />
-                              <span>{row.docCount > 1 ? `View (${row.docCount})` : "View"}</span>
-                            </button>
-                          ) : (
-                            <span className="text-3xs text-text-muted italic">0 docs</span>
-                          )}
-                        </td>
+                        {/* 7. Attachment (Review tab only) */}
+                        {queue === "review" && (
+                          <td className="border-b border-table-rule px-4 py-2.5 whitespace-nowrap">
+                            {row.docCount > 0 ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onViewDocs?.(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-subtle px-2 py-1 text-2xs font-medium text-text-primary hover:bg-surface-hover hover:border-brand-primary cursor-pointer transition"
+                              >
+                                <Eye className="h-3 w-3 text-brand-primary" />
+                                <span>{row.docCount > 1 ? `View (${row.docCount})` : "View"}</span>
+                              </button>
+                            ) : (
+                              <span className="text-3xs text-text-muted italic">0 docs</span>
+                            )}
+                          </td>
+                        )}
                       </>
                     )}
 
@@ -576,9 +556,9 @@ export function HrEmplocTable({
 
                     {/* ── Sticky Right Actions Column ─────────────────── */}
                     {!shouldHideActions && (
-                      <td className="sticky right-0 z-10 border-b border-table-rule bg-table-row group-hover:bg-table-row-hover px-4 py-2.5 text-right whitespace-nowrap shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)]">
+                      <td className="sticky right-0 z-10 border-b border-table-rule bg-table-row group-hover:bg-table-row-hover px-4 py-2.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
-                        {/* Pending Tab Primary Action: Upload Docs */}
+                        {/* Pending Tab Primary Action: Upload Docs & Add Emploc */}
                         {queue === "pending" && (
                           <>
                             {caps.can_upload_docs && onUploadDocs && (
@@ -597,39 +577,20 @@ export function HrEmplocTable({
                               </button>
                             )}
 
-                            {/* SA Override Add Emploc from Pending */}
                             {caps.can_assign_employee_no && onAddEmploc && (
-                              <div className="relative">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenOverflowId(openOverflowId === row.id ? null : row.id);
-                                  }}
-                                  className="rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text-primary"
-                                  title="Admin actions"
-                                >
-                                  <MoreVertical className="h-3.5 w-3.5" />
-                                </button>
-                                {openOverflowId === row.id && (
-                                  <div
-                                    className="absolute right-0 top-full mt-1 z-30 w-44 rounded-lg border border-border-default bg-surface-base p-1 shadow-lg text-left"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenOverflowId(null);
-                                        onAddEmploc(row);
-                                      }}
-                                      className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-xs text-text-primary hover:bg-surface-hover"
-                                    >
-                                      <UserCheck className="h-3.5 w-3.5 text-accent-primary" />
-                                      <span>Add Emploc (SA)</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              <button
+                                type="button"
+                                disabled={isPendingDeletion}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onAddEmploc(row);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Assign Emploc Number & Deploy to Plantilla"
+                              >
+                                <UserCheck className="h-3.5 w-3.5" />
+                                <span>+ Add Emploc</span>
+                              </button>
                             )}
                           </>
                         )}

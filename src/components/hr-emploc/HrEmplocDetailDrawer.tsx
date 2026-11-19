@@ -18,6 +18,7 @@ import {
   ShieldAlert,
   Trash2,
   Upload,
+  UserCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -38,6 +39,7 @@ export type HrEmplocDetailDrawerProps = {
   hrEmplocId: string | null;
   onClose: () => void;
   onUploadDocs?: (row: HrEmplocListItem) => void;
+  onAddEmploc?: (row: HrEmplocListItem) => void;
 };
 
 function formatDate(value: string | null) {
@@ -215,6 +217,7 @@ export function HrEmplocDetailDrawer({
   hrEmplocId,
   onClose,
   onUploadDocs,
+  onAddEmploc,
 }: HrEmplocDetailDrawerProps) {
   const queryClient = useQueryClient();
 
@@ -339,12 +342,78 @@ export function HrEmplocDetailDrawer({
     );
   };
 
+  const asListItem = (detailRow: HrEmplocDetailItem): HrEmplocListItem => ({
+    id: detailRow.id,
+    applicantName: detailRow.applicantName,
+    vcode: detailRow.vcode,
+    accountId: detailRow.accountId ?? null,
+    accountName: detailRow.accountName,
+    groupId: detailRow.groupId ?? null,
+    groupName: detailRow.groupName ?? null,
+    storeId: (detailRow as unknown as { storeId?: string | null }).storeId ?? null,
+    storeName: detailRow.storeName,
+    positionTitle: detailRow.positionTitle,
+    hrcoName: detailRow.hrcoName,
+    hrStatus: detailRow.hrStatus,
+    deploymentStatus: detailRow.deploymentStatus,
+    employeeNo: detailRow.employeeNo,
+    assignmentType: detailRow.assignmentType,
+    coveredStoresCount: (detailRow.coveredStores || []).length,
+    deficiencySummary: null,
+    deficiencyIssues: [],
+    correctionReason: detailRow.correctionReason ?? null,
+    requestedByName: detailRow.requestedByName ?? null,
+    hrcoRemarks: detailRow.hrRemarks ?? null,
+    notes: null,
+    remarks: detailRow.hrRemarks || detailRow.opsRemarks,
+    attachmentUrl: null,
+    attachmentFileName: null,
+    attachmentMetadata: null,
+    attachments: detailRow.attachments,
+    docCount: detailRow.docCount || (detailRow.attachments || []).length,
+    hiredDate: detailRow.hiredDate,
+    dateRequested: detailRow.dateRequested,
+    slaBreached: detailRow.slaBreached,
+    slaElapsedDays: detailRow.slaElapsedDays || 0,
+    rowCapabilities: detailRow.rowCapabilities,
+    isPendingDeletion: !!detailRow.activeDeletionRequest,
+    totalCount: 1,
+  });
+
   return (
     <>
       <DetailDrawer
       isOpen={!!hrEmplocId}
       onClose={onClose}
       widthClass="w-[var(--drawer-width-lg)] max-w-full"
+      actionSlot={
+        !isLoading && detail && !isPendingDeletion ? (
+          <div className="flex items-center gap-1.5">
+            {detail.rowCapabilities.can_upload_docs && onUploadDocs && (
+              <button
+                type="button"
+                onClick={() => onUploadDocs(asListItem(detail))}
+                className="inline-flex items-center gap-1 rounded bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                title="Upload Requirements"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                <span>Upload Docs</span>
+              </button>
+            )}
+            {detail.rowCapabilities.can_assign_employee_no && onAddEmploc && (
+              <button
+                type="button"
+                onClick={() => onAddEmploc(asListItem(detail))}
+                className="inline-flex items-center gap-1 rounded bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                title="Assign Emploc Number & Deploy to Plantilla"
+              >
+                <UserCheck className="h-3.5 w-3.5" />
+                <span>+ Add Emploc</span>
+              </button>
+            )}
+          </div>
+        ) : null
+      }
       /* Section 1: Drawer Header (VCode badge, Applicant Full Name, 📍 Account / Store) */
       badge={
         isLoading ? (
@@ -534,7 +603,7 @@ export function HrEmplocDetailDrawer({
                   SLA Closed
                 </span>
               ) : detail.slaBreached ? (
-                <StatusBadge variant="neutral" className="font-semibold text-[10px]">
+                <StatusBadge variant="danger" className="font-semibold text-[10px]">
                   SLA Breached
                 </StatusBadge>
               ) : null}
@@ -596,50 +665,23 @@ export function HrEmplocDetailDrawer({
                   {detail.rowCapabilities.can_upload_docs && onUploadDocs && (
                     <button
                       type="button"
-                      onClick={() => {
-                        onUploadDocs({
-                          id: detail.id,
-                          applicantName: detail.applicantName,
-                          vcode: detail.vcode,
-                          accountId: detail.accountId ?? null,
-                          accountName: detail.accountName,
-                          groupId: detail.groupId ?? null,
-                          groupName: detail.groupName ?? null,
-                          storeId: (detail as unknown as { storeId?: string | null }).storeId ?? null,
-                          storeName: detail.storeName,
-                          positionTitle: detail.positionTitle,
-                          hrcoName: detail.hrcoName,
-                          hrStatus: detail.hrStatus,
-                          deploymentStatus: detail.deploymentStatus,
-                          employeeNo: detail.employeeNo,
-                          assignmentType: detail.assignmentType,
-                          coveredStoresCount: (detail.coveredStores || []).length,
-                          deficiencySummary: null,
-                          deficiencyIssues: [],
-                          correctionReason: detail.correctionReason ?? null,
-                          requestedByName: detail.requestedByName ?? null,
-                          hrcoRemarks: detail.hrRemarks ?? null,
-                          notes: null,
-                          remarks: detail.hrRemarks || detail.opsRemarks,
-                          attachmentUrl: null,
-                          attachmentFileName: null,
-                          attachmentMetadata: null,
-                          attachments: detail.attachments,
-                          docCount: detail.docCount || (detail.attachments || []).length,
-                          hiredDate: detail.hiredDate,
-                          dateRequested: detail.dateRequested,
-                          slaBreached: detail.slaBreached,
-                          slaElapsedDays: detail.slaElapsedDays || 0,
-                          rowCapabilities: detail.rowCapabilities,
-                          isPendingDeletion: !!detail.activeDeletionRequest,
-                          totalCount: 1,
-                        });
-                      }}
+                      onClick={() => onUploadDocs(asListItem(detail))}
                       className="inline-flex items-center gap-1 rounded bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
                       title="Upload Documents"
                     >
                       <Upload className="h-3.5 w-3.5" />
                       <span>Upload Docs</span>
+                    </button>
+                  )}
+                  {detail.rowCapabilities.can_assign_employee_no && onAddEmploc && (
+                    <button
+                      type="button"
+                      onClick={() => onAddEmploc(asListItem(detail))}
+                      className="inline-flex items-center gap-1 rounded bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                      title="Assign Emploc Number & Deploy to Plantilla"
+                    >
+                      <UserCheck className="h-3.5 w-3.5" />
+                      <span>+ Add Emploc</span>
                     </button>
                   )}
                 </div>

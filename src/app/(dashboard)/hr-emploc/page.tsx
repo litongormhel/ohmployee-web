@@ -792,6 +792,7 @@ export default function HrEmplocPage() {
         hrEmplocId={selectedId}
         onClose={() => setSelectedId(null)}
         onUploadDocs={(row) => setUploadTarget(row)}
+        onAddEmploc={(row) => setAssignTarget(row)}
       />
 
       {/* Add Emploc / Placement Onboarding Modal */}

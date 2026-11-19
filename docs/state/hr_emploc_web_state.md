@@ -521,6 +521,12 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - Enforced role-scoped Actions column visibility in `HrEmplocTable.tsx`: completely hid Actions column for Recruitment across all queues, and hid Actions column for Ops (OM, TL, ATL, HRCO) on queues where Ops has no actions (`for_emploc`, `review`, `deployed`), keeping `Actions` visible for Ops on `pending` and `correction` for `Upload Docs`.
 - Standardized SLA badge display to compact `${days}d` format (e.g. `0d`, `1d`, `2d`).
 
+## Action Visibility, SLA Color Coding & Column Clean-up (ohm#hr-emploc-table-sla-and-action-cleanup)
+- **`+ Add Emploc` Button Visibility**: Exposed `+ Add Emploc` as an explicit visible action button on the `Pending` queue in `HrEmplocTable.tsx` whenever `caps.can_assign_employee_no && onAddEmploc` is true, replacing the hidden `<MoreVertical>` 3-dots overflow menu. Extended `HrEmplocDetailDrawerProps` with `onAddEmploc`, rendering `+ Add Emploc` in the drawer header (`actionSlot`) and Section 6 (Requirements & Attachments).
+- **Vertical Line Artifact Removal**: Removed `shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)]` from sticky Actions column in both `<th>` and `<td>`, completely removing the artificial vertical dark line between the table content and Actions.
+- **Docs Column Removal**: Removed the "Docs" column header and cells from `pending`, `for_emploc`, `correction`, and `default` queues. Attachment preview is preserved exclusively on the `review` queue.
+- **Dynamic SLA Badge Color Coding**: Implemented `getSlaBadgeClass(days, isBreached)` across all table rows: emerald (`border-emerald-200 bg-emerald-50 text-emerald-700`) for $\le 1$ day, amber (`border-amber-200 bg-amber-50 text-amber-700`) for $2$ days warning, and red (`border-red-200 bg-red-50 text-red-700 font-semibold`) for $\ge 3$ days or breached. Updated the detail drawer SLA breach badge to `variant="danger"`.
+
 
 
 
