@@ -59,6 +59,38 @@ type HrEmplocTableProps = {
   onEditEmploc?: (row: HrEmplocListItem) => void;
 };
 
+function isSuperAdminRole(role?: string | null): boolean {
+  if (!role) return false;
+  const n = role.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  const raw = role.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return n === "super_admin" || raw === "superadmin";
+}
+
+function isHeadAdminRole(role?: string | null): boolean {
+  if (!role) return false;
+  const n = role.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  const raw = role.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return n === "head_admin" || raw === "headadmin";
+}
+
+function isEncoderRole(role?: string | null): boolean {
+  if (!role) return false;
+  const n = role.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return n === "encoder" || n === "data_team" || n.includes("encoder");
+}
+
+function isHrPersonnelRole(role?: string | null): boolean {
+  if (!role) return false;
+  const n = role.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return (
+    n === "hr_personnel" ||
+    n === "hr" ||
+    n === "hr_dept" ||
+    n === "hr_staff" ||
+    n === "hr_admin"
+  );
+}
+
 function isOpsRole(role?: string | null): boolean {
   if (!role) return false;
   const n = role.toLowerCase().replace(/[^a-z0-9]/g, "_");
@@ -84,6 +116,99 @@ function isRecruitmentRole(role?: string | null): boolean {
     n === "recruiter" ||
     n.includes("recruitment")
   );
+}
+
+function roleHasActionsOnQueue(
+  role: string | null | undefined,
+  queue: HrEmplocQueue,
+  rows: HrEmplocListItem[]
+): boolean {
+  if (!role) return false;
+  if (isRecruitmentRole(role)) return false;
+
+  if (isSuperAdminRole(role)) {
+    // Super Admin has actions across all tabs when actionable rows exist
+    if (rows.length > 0) {
+      return rows.some((r) => {
+        const c = r.rowCapabilities;
+        switch (queue) {
+          case "pending":
+            return c.can_upload_docs || c.can_assign_employee_no;
+          case "for_emploc":
+            return c.can_assign_employee_no || c.can_tag_deficiency;
+          case "correction":
+            return c.can_upload_docs || c.can_submit_correction;
+          case "review":
+            return c.can_review_approve || c.can_review_return;
+          case "deployed":
+          case "ready":
+            return c.can_edit_emploc_no || c.can_revert_to_pending;
+          default:
+            return false;
+        }
+      });
+    }
+    return true;
+  }
+
+  let roleAllowed = false;
+  switch (queue) {
+    case "pending":
+      // Upload Docs is for Ops (+SA)
+      roleAllowed = isOpsRole(role);
+      break;
+
+    case "for_emploc":
+      // Add Emploc is for HR Personnel, Head Admin, Encoder (+SA); Tag Deficiency is for HR Personnel (+SA)
+      roleAllowed = isHrPersonnelRole(role) || isHeadAdminRole(role) || isEncoderRole(role);
+      break;
+
+    case "correction":
+      // Upload Docs is for Ops (+SA)
+      roleAllowed = isOpsRole(role);
+      break;
+
+    case "review":
+      // Review Approve/Revert is for HR Personnel (+SA)
+      roleAllowed = isHrPersonnelRole(role);
+      break;
+
+    case "deployed":
+    case "ready":
+      // Edit Emploc # and Revert to Pending are for Head Admin and Encoder (+SA)
+      roleAllowed = isHeadAdminRole(role) || isEncoderRole(role);
+      break;
+
+    default:
+      roleAllowed = false;
+      break;
+  }
+
+  if (!roleAllowed) return false;
+
+  // When rows are present, also ensure at least one row has an actionable capability on this queue
+  if (rows.length > 0) {
+    return rows.some((r) => {
+      const c = r.rowCapabilities;
+      switch (queue) {
+        case "pending":
+          return c.can_upload_docs || c.can_assign_employee_no;
+        case "for_emploc":
+          return c.can_assign_employee_no || c.can_tag_deficiency;
+        case "correction":
+          return c.can_upload_docs || c.can_submit_correction;
+        case "review":
+          return c.can_review_approve || c.can_review_return;
+        case "deployed":
+        case "ready":
+          return c.can_edit_emploc_no || c.can_revert_to_pending;
+        default:
+          return false;
+      }
+    });
+  }
+
+  return true;
 }
 
 function getTableColumns(queue: HrEmplocQueue, hideActions: boolean = false): string[] {
@@ -194,13 +319,9 @@ export function HrEmplocTable({
 }: HrEmplocTableProps) {
   const currentUser = useCurrentUser();
   const role = currentUser?.roleKey ?? currentUser?.roleName;
-  const isRecruitment = isRecruitmentRole(role);
-  const isOps = isOpsRole(role);
-
-  // Recruitment has zero actions in HR Emploc; Ops has no actions on for_emploc, review, or deployed queues
+  // Hide actions column for roles without actions on this queue, or when no row offers actionable capabilities
   const shouldHideActions =
-    hideActions ??
-    (isRecruitment || (isOps && queue !== "pending" && queue !== "correction"));
+    hideActions ?? !roleHasActionsOnQueue(role, queue, rows);
 
   const columns = useMemo(
     () => getTableColumns(queue, shouldHideActions),
@@ -629,22 +750,6 @@ export function HrEmplocTable({
                                 <span>! For Correction</span>
                               </button>
                             )}
-
-                            {caps.can_upload_docs && onUploadDocs && (
-                              <button
-                                type="button"
-                                disabled={isPendingDeletion}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onUploadDocs(row);
-                                }}
-                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Upload requirements / documents"
-                              >
-                                <Upload className="h-3.5 w-3.5" />
-                                <span>Upload Docs</span>
-                              </button>
-                            )}
                           </>
                         )}
 
@@ -700,22 +805,6 @@ export function HrEmplocTable({
                                 <span>Revert</span>
                               </button>
                             )}
-
-                            {caps.can_upload_docs && onUploadDocs && (
-                              <button
-                                type="button"
-                                disabled={isPendingDeletion}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onUploadDocs(row);
-                                }}
-                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Upload additional documents"
-                              >
-                                <Upload className="h-3.5 w-3.5" />
-                                <span>Upload Docs</span>
-                              </button>
-                            )}
                           </>
                         )}
 
@@ -749,22 +838,6 @@ export function HrEmplocTable({
                               >
                                 <RotateCcw className="h-3.5 w-3.5" />
                                 <span>Revert</span>
-                              </button>
-                            )}
-
-                            {caps.can_upload_docs && onUploadDocs && (
-                              <button
-                                type="button"
-                                disabled={isPendingDeletion}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onUploadDocs(row);
-                                }}
-                                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface hover:bg-surface-hover px-2 py-1 text-xs font-semibold text-text-primary shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Upload documents (Super Admin)"
-                              >
-                                <Upload className="h-3.5 w-3.5" />
-                                <span>Upload Docs</span>
                               </button>
                             )}
                           </>

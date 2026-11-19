@@ -389,17 +389,21 @@ export function HrEmplocDetailDrawer({
       actionSlot={
         !isLoading && detail && !isPendingDeletion ? (
           <div className="flex items-center gap-1.5">
-            {detail.rowCapabilities.can_upload_docs && onUploadDocs && (
-              <button
-                type="button"
-                onClick={() => onUploadDocs(asListItem(detail))}
-                className="inline-flex items-center gap-1 rounded bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
-                title="Upload Requirements"
-              >
-                <Upload className="h-3.5 w-3.5" />
-                <span>Upload Docs</span>
-              </button>
-            )}
+            {detail.rowCapabilities.can_upload_docs &&
+              (detail.hrStatus.toLowerCase().trim() === "pending" ||
+                detail.hrStatus.toLowerCase().trim() === "for correction" ||
+                detail.hrStatus.toLowerCase().trim() === "for_correction") &&
+              onUploadDocs && (
+                <button
+                  type="button"
+                  onClick={() => onUploadDocs(asListItem(detail))}
+                  className="inline-flex items-center gap-1 rounded bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                  title="Upload Requirements"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>Upload Docs</span>
+                </button>
+              )}
             {detail.rowCapabilities.can_assign_employee_no && onAddEmploc && (
               <button
                 type="button"
@@ -662,17 +666,21 @@ export function HrEmplocDetailDrawer({
                   <Badge className="bg-surface-muted text-text-muted border border-border-subtle text-[10px]">
                     {(detail.attachments || []).length} Files
                   </Badge>
-                  {detail.rowCapabilities.can_upload_docs && onUploadDocs && (
-                    <button
-                      type="button"
-                      onClick={() => onUploadDocs(asListItem(detail))}
-                      className="inline-flex items-center gap-1 rounded bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
-                      title="Upload Documents"
-                    >
-                      <Upload className="h-3.5 w-3.5" />
-                      <span>Upload Docs</span>
-                    </button>
-                  )}
+                  {detail.rowCapabilities.can_upload_docs &&
+                    (detail.hrStatus.toLowerCase().trim() === "pending" ||
+                      detail.hrStatus.toLowerCase().trim() === "for correction" ||
+                      detail.hrStatus.toLowerCase().trim() === "for_correction") &&
+                    onUploadDocs && (
+                      <button
+                        type="button"
+                        onClick={() => onUploadDocs(asListItem(detail))}
+                        className="inline-flex items-center gap-1 rounded bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                        title="Upload Documents"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        <span>Upload Docs</span>
+                      </button>
+                    )}
                   {detail.rowCapabilities.can_assign_employee_no && onAddEmploc && (
                     <button
                       type="button"

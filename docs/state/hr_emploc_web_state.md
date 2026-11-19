@@ -90,13 +90,14 @@ Del Rosario, A. | VAC-101 | Davao South / Davao Hub    | Stationary | Pending De
    - `Transferred` / `Rejected` → `neutral` (gray)
 6. **Deficiency Summary**: High-level text listing deficient items extracted from `correction_reason` JSONB.
 7. **SLA Counter**: Calculated days active since `coalesce(date_requested, created_at)`. If exceeding 3 days, it prints a rose alert badge (`text-red-700 bg-red-50 border-red-200`).
-8. **Actions Area**: Desktop actions per queue tab, 100% driven by `row_capabilities`. Actions column uses `sticky right-0` to eliminate horizontal clipping on wide viewports:
-   - **Pending Tab**: `Upload Docs` (driven by `can_upload_docs`). `+ Add Emploc` / `! For Correction` are removed here; SA override `+ Add Emploc` resides in row overflow menu via `can_assign_employee_no`.
-   - **For Emploc Tab**: `+ Add Emploc` (driven by `can_assign_employee_no`) and `! For Correction` (driven by `can_tag_deficiency`). `Upload Docs` available for Super Admin and permitted uploaders (`can_upload_docs`).
-   - **Correction Tab**: `Upload Docs` (driven by `can_upload_docs` / `can_submit_correction`). Reasons rendered in flex-wrap gap-1.5 badges without truncation.
-   - **Review Tab**: `Upload Docs` (driven by `can_upload_docs`), plus `Approve` / `Revert` actions for reviewers.
-   - **Deployed Tab**: Actions menu provides `Edit Emploc #` (driven by `can_edit_emploc_number`) and `Revert to Pending` (driven by `can_revert_to_pending`). `Upload Docs` available for Super Admin (`can_upload_docs`).
-   - Row clicking opens the Detail Drawer with active overlay highlight (`bg-blue-50`), where Section 6 (Requirements & Attachments) also provides direct `Upload Docs` access when `can_upload_docs` is true.
+8. **Actions Area**: Desktop actions per queue tab, role-scoped and capability-driven (`row_capabilities` + `roleHasActionsOnQueue`):
+   - **Pending Tab**: `Upload Docs` (Ops coordinators in scope + Super Admin via `can_upload_docs`) and `+ Add Emploc` (Super Admin override visible button via `can_assign_employee_no`). For roles without actions on Pending (e.g. HR Personnel, Head Admin, Encoder, Recruitment), the `Actions` column is completely hidden.
+   - **For Emploc Tab**: `+ Add Emploc` (HR Personnel, Head Admin, Encoder, Super Admin via `can_assign_employee_no`) and `! For Correction` (HR Personnel and Super Admin via `can_tag_deficiency`). `Upload Docs` is strictly removed from this tab.
+   - **Correction Tab**: `Upload Docs` (Ops coordinators in scope + Super Admin via `can_upload_docs` / `can_submit_correction`). Reasons rendered in flex-wrap gap-1.5 badges without truncation. "Docs" column is completely removed. For roles without actions on Correction (HR Personnel, Head Admin, Encoder, Recruitment), the `Actions` column is completely hidden.
+   - **Review Tab**: `Approve` and `Revert` actions (HR Personnel + Super Admin). `Upload Docs` is strictly removed from this tab. Document attachments are inspected via the dedicated `Attachment` column.
+   - **Deployed Tab**: Actions menu provides `Edit Emploc #` and `Revert to Pending` (Data Team: Encoder, Head Admin + Super Admin). `Upload Docs` is strictly removed from this tab.
+   - **Global Action Column Guard**: When logged in as a role with no operational actions on a queue tab, or when no row in the active dataset possesses actionable capabilities, the `Actions` column (`<th>` and `<td>`) is automatically hidden via `roleHasActionsOnQueue(role, queue, rows)`.
+   - Row clicking opens the Detail Drawer with active overlay highlight (`bg-blue-50`), where Section 6 (Requirements & Attachments) provides `Upload Docs` strictly on `Pending` and `For Correction` statuses.
 
 ### 4.1 Stage 2b-Web Implementation Details (ohm#q3v8n2kd)
 1. **Capability-Driven Architecture**:
