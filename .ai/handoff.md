@@ -1,5 +1,36 @@
 # AI Handoff
 
+## Execution Report — Cross-Repo Security Audit Run-2: Remediation Verification & Delta Audit (`ohmployee-web` & `OHMployee`) (ohm#sec-audit-run2-verification-delta)
+
+**Status: COMPLETE (READ-ONLY SOURCE AUDIT, `quick` PROFILE, `run-2`, ZERO APPLICATION CODE MODIFIED).**
+- **Targets Audited**: `ohmployee-web` (`7f5bc2a`, clean on `main`) and `OHMployee` (`0051b97`, clean on `main`).
+- **Artifacts Written**:
+  - `C:/Users/Ohm/security-audit-skill/ohmployee-web/run-2/{run-metadata.json,architecture.md,coverage-ledger.json,findings.json,REPORT.md,FINDINGS-DETAIL.md,NEEDS-VALIDATION.md}`
+  - `C:/Users/Ohm/security-audit-skill/OHMployee/run-2/{run-metadata.json,architecture.md,coverage-ledger.json,findings.json,REPORT.md,FINDINGS-DETAIL.md,NEEDS-VALIDATION.md}`
+- **Run-1 Remediation Verification**:
+  - **Closed (9/12 Web, 2/5 Mobile + 3/6 Leads)**: `.ai/handoff.md:96` DB password redaction; `enqueue_hr_emploc_docs_cleanup` & `process_storage_cleanup_queue` restricted to `service_role`; `plantilla_super_admin_select` & `employees_super_admin_select` switched to `public.is_super_admin()`; `update_plantilla_schedule` role (`>= 25`) + account-scope gated; 5 core views set `security_invoker = true`; `anon` revoked on `employee_number_registry` & `fn_get_archive_batch_history`; `hr_emploc_write_scoped` replaced with role-gated policies & `vacancies_write_scoped` dropped; `/api/ohmni` history capped (`MAX_TOTAL_HISTORY_CHARS = 10000`) & `activeContext` sanitized; CSV formula injection neutralized; `scripts/finish.js` switched to `execFileSync`; `workforce-push-dispatch` Edge Function fail-closed with `X-Webhook-Secret`; `android:allowBackup="false"` in `AndroidManifest.xml:9`; `OHMNI_API_URL` HTTPS check + `.limit(1)` removal in Mobile `ohmni_chat_screen.dart:1085-1110`; HTTP headers added to `next.config.ts` and `netlify.toml`.
+- **Summary of Source-Confirmed Findings (`run-2`, `ohmployee-web` — 1 High, 5 Medium, 1 Needs-Validation)**:
+  - **HIGH (1)**: `trg_enforce_user_hierarchy` (`supabase/migrations/20262606000127_security_hardening_rls_rpcs_views.sql:54-65`) checks only `role_id`, `role`, and `is_active` before `RETURN NEW;` on self-updates (`OLD.auth_user_id = auth.uid()`), allowing any authenticated HRCO or scoped user to self-update `hrco_global_visibility = true` (bypassing `plantilla_hrco_assignments` narrowing in `plantilla_read_scoped` at `20260707120000:75`), `account_id`, `group_id`, `scope_type`, `archived_at`, and `email`; additionally, the non-self branch (`:74-82`) checks `NEW.role_id` but not `NEW.role`.
+  - **MEDIUM (5)**:
+    1. `DocumentPreviewModal.tsx:88-96,325`: `blob.type !== "application/pdf"` throws inside a `try/catch` that swallows the exception (`setBlobUrl(null)`) and falls back to rendering `<iframe src={blobUrl || signedUrl || ""}>` with no `sandbox` attribute.
+    2. ADR-003 `get_hc_request_stores` (`20262606000126:1104-1115`) grants any `public.i_am_ops()` user cross-account read access without checking `get_my_allowed_accounts()`, and `submit_headcount_request` (`:188-220,298-302`) trusts client-supplied `island_group` on proposed new stores.
+    3. `/api/ohmni/route.ts:2398-2432,2561-2758,1889-2362` checks only `access_status === "allowed"` and ignores `allowed_module_keys` / role capabilities across all 13 tools and deterministic fallback, plus retains `.limit(1)` arbitrary account/position fallbacks (`route.ts:1075-1097`, `OhmniDrawer.tsx:1372-1402`).
+    4. `OhmniDrawer.tsx:1861,1315` (`SmartNavigationPills` & `handleNavigate`) and `route.ts:2784,2822` extract markdown links matching `/\[([^\]]+)\]\((\/[^)]+)\)/g` and pass `//attacker.example` to `router.push(path)`.
+    5. Carried from `run-1`: `package.json:35` still pins unmaintained `xlsx@^0.18.5` (CVE-2023-30533, CVE-2024-22363) in `hr_emploc_xlsx.ts:207` and `data_control_xlsx.ts:609`.
+  - **Needs Validation (1)**: Missing `Content-Security-Policy` header in `next.config.ts:3-9`.
+- **Summary of Source-Confirmed Findings (`run-2`, `OHMployee` — 2 High, 2 Medium, 1 Needs-Validation)**:
+  - **HIGH (2)**:
+    1. Mobile-authored `SECURITY DEFINER` RPCs `search_candidates_for_intake` and `check_candidate_duplicate` (`D:/Projects/OHMployee/supabase/migrations/20262606000064_applicant_duplicate_blocking_and_reuse.sql:182-522`) omit `REVOKE ALL FROM PUBLIC, anon` and have zero `auth.uid()` or role checks (exposing cross-account candidate & active employee PII across `applicants`, `plantilla`, and `hr_emploc`), while `fn_sync_pool_slot_to_hr_processing` (`20262606000043_pool_slot_hr_processing_reservation.sql:166-267`) is granted to `authenticated` with zero role/scope checks.
+    2. Carried from `run-1`: `android/app/build.gradle.kts:9,24,37` still signs `release` builds with the `debug` keystore and placeholder `com.example.flutter_application_1`.
+  - **MEDIUM (2)**:
+    1. `build/unit_test_assets/.env` on disk still contains `STAGING_DB_URL`, and `scripts/switch-env.sh:13,18` still copies `.env.staging`/`.env.prod` verbatim without stripping server DB credentials.
+    2. `security_session_service.dart:53-114` (`heartbeatCurrentSession`) runs only at cold startup (`lib/main.dart:304`) and fails open (`return cachedSessionId`), while `canOfferBiometricLogin()` (`biometric_auth_service.dart:47`) reads `_refreshTokenKey` before biometric prompt and uses default `FlutterSecureStorage()`.
+  - **Needs Validation (1)**: Live deployment status of legacy unauthenticated service-role Edge Functions `lib/supabase/functions/{import-csv,notify-dispatch}/index.ts`.
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index), `docs/state/web_auth_rbac_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, § HC Request & Coverage Semantics).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+
+---
+
 ## Execution Report — Custom Workspace Agent Skills Suite (`ohmployee-cross-repo-parity`, `nextjs-16-app-router-tanstack`, `xlsx-import-reconciliation`) (ohm#workspace-custom-skills-suite)
 
 **Status: COMPLETE ACROSS ALL 3 WORKSPACE AGENT SKILLS IN `.agents/skills/`.**
