@@ -306,11 +306,23 @@ The authoritative 55-item matrix governs operational drawer actions, mutations, 
 - **10: Viewer** (Read-only presentation)
 
 ### Implementation Artifacts
-- **Database Migration:** `supabase/migrations/20261026000001_update_drawer_actions_rbac.sql`, `supabase/migrations/20261111000001_enable_rls_role_permission_definitions_compat.sql`, and `supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`
+- **Database Migration:** 
+  - `supabase/migrations/20261026000001_update_drawer_actions_rbac.sql`
+  - `supabase/migrations/20261111000001_enable_rls_role_permission_definitions_compat.sql`
+  - `supabase/migrations/20262606000118_reset_permission_overrides_rpc.sql`
+  - `supabase/migrations/20262606000125_rbac_page_batch_matrix_rpc.sql` (`get_all_roles_effective_permission_matrix()`)
   - Upserts definitions into `public.role_permission_definitions_compat` with Row Level Security (RLS) enabled, `anon` access revoked, and authenticated `SELECT` policy (`rpd_compat_read_authenticated`).
-  - Registers definition catalog in `public.role_permission_definitions` (`module_key`, `resource_key`, `action_key`)
-  - Ensures deny-fill in `public.role_permission_matrix`
-  - Added atomic `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)` allowing Super Admin to clear active overrides (individually or in bulk) and revert permissions to base system defaults with full audit logging.
+  - Registers definition catalog in `public.role_permission_definitions` (`module_key`, `resource_key`, `action_key`).
+  - Ensures deny-fill in `public.role_permission_matrix`.
+  - Added atomic `public.reset_permission_overrides(p_role_name, p_module_key, p_resource_key, p_action_key, p_reason)` allowing Super Admin to clear active overrides (individually or per-role) and revert permissions to base system defaults with full audit logging.
+  - Added batch effective permission matrix RPC `public.get_all_roles_effective_permission_matrix()` returning all 11 roles × 58 permission definitions in a single optimized Security Definer call guarded by `public.is_super_admin()`.
+- **Independent RBAC Management Page (`/rbac`):** `src/app/(dashboard)/rbac/page.tsx`
+  - Dedicated full-page matrix view (not a modal) accessible exclusively to Super Admin (`roleLevel >= 100`).
+  - Hierarchical Module / Route / Roles layout: top-level collapsible module sections with route badges (e.g., `Vacancy` • `/vacancy`), expanding to show individual drawer permissions and resource actions.
+  - 11 Role columns with sticky left column for Module/Action names. Super Admin is permanently locked ON (`SA_PROTECTED`).
+  - Role grouping filter pills (`All Roles (11)`, `Operations`, `Data Team`, `HR & Recruitment`, `Viewer`) and instant search across module names, action labels, resource keys, and route paths.
+  - Staged changes bar at bottom with commit count, "Discard", and "Review & Save Changes" modal requiring mandatory audit reason for compliance tracking.
+  - Multi-level reset functionality: per-cell inline revert for active overrides, per-role column header reset (`↺ Reset Role`), and global toolbar reset (`↺ Reset All Overrides`).
 - **TypeScript Types & Constants:** `src/types/rbac.ts`
   - `DrawerActionItem`: union of all 33 drawer action strings
   - `RolePermissionRule`, `RoleLevel`, `DrawerActionModule`

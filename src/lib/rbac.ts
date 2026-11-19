@@ -452,6 +452,11 @@ export function isModuleAllowedForUser(
 ): boolean {
   if (!user) return false;
 
+  // Super Admin Exclusive Management Surface: /rbac
+  if (moduleKey === "rbac") {
+    return isOwner(user) || getRoleLevel(user) >= 100;
+  }
+
   // Administrative Universal Immunity: Super Admin (100) & Head Admin (90) bypass all restrictions
   if (hasFullAccess(user) || isOwner(user) || getRoleLevel(user) >= 90) return true;
 

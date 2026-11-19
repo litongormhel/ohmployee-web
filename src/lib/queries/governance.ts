@@ -170,6 +170,7 @@ export interface RoleEntry {
   name: string;
   level: number;
 }
+export type GovernanceRole = RoleEntry;
 
 export interface EffectivePermissionRow {
   roleName: string;
@@ -769,6 +770,7 @@ export function useApplyPermissionOverrides() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["effective-permission-matrix"] });
       queryClient.invalidateQueries({ queryKey: ["role-permission-matrix"] });
+      queryClient.invalidateQueries({ queryKey: ["all-roles-effective-matrix"] });
     },
   });
 }
@@ -799,7 +801,51 @@ export function useResetPermissionOverrides() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["effective-permission-matrix"] });
       queryClient.invalidateQueries({ queryKey: ["role-permission-matrix"] });
+      queryClient.invalidateQueries({ queryKey: ["all-roles-effective-matrix"] });
     },
+  });
+}
+
+export interface AllRolesMatrixRow extends EffectivePermissionRow {
+  roleId: string;
+}
+
+export async function fetchAllRolesEffectivePermissionMatrix(): Promise<AllRolesMatrixRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_all_roles_effective_permission_matrix");
+
+  if (error || !data) {
+    if (error) console.error("Error fetching all roles effective matrix:", error);
+    return [];
+  }
+
+  return (data as Record<string, unknown>[]).map((m) => ({
+    roleId: String(m.role_id ?? ""),
+    roleName: String(m.role_name ?? ""),
+    roleLevel: Number(m.role_level ?? 0),
+    moduleKey: String(m.module_key ?? ""),
+    resourceKey: String(m.resource_key ?? ""),
+    actionKey: String(m.action_key ?? ""),
+    scopeMode: String(m.scope_mode ?? "global"),
+    enforcementTier: String(m.enforcement_tier ?? "standard"),
+    baseAllowed: Boolean(m.base_allowed ?? false),
+    overrideAllowed: m.override_allowed != null ? Boolean(m.override_allowed) : null,
+    isAllowed: Boolean(m.is_allowed ?? false),
+    sourceType: String(m.source_type ?? "base"),
+    hasOverride: Boolean(m.has_override ?? false),
+    isSensitive: Boolean(m.is_sensitive ?? false),
+    isSystemLocked: Boolean(m.is_system_locked ?? false),
+    description: m.description ? String(m.description) : null,
+    sortOrder: Number(m.sort_order ?? 0),
+    overrideReason: m.override_reason ? String(m.override_reason) : null,
+  }));
+}
+
+export function useAllRolesEffectiveMatrix() {
+  return useQuery({
+    queryKey: ["all-roles-effective-matrix"],
+    queryFn: fetchAllRolesEffectivePermissionMatrix,
+    staleTime: 30_000,
   });
 }
 

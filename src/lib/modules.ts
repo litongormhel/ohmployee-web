@@ -5,6 +5,7 @@ import {
   CheckCheck,
   ClipboardList,
   FileBarChart,
+  KeyRound,
   Layers,
   LayoutDashboard,
   Settings,
@@ -77,6 +78,13 @@ export const webModules: WebModule[] = [
     href: "/users",
     purpose: "Access and account administration workspace.",
     icon: Users,
+  },
+  {
+    key: "rbac",
+    title: "RBAC & Permissions",
+    href: "/rbac",
+    purpose: "Hierarchical role-based access control and permission overrides matrix.",
+    icon: KeyRound,
   },
   {
     key: "team_directory",

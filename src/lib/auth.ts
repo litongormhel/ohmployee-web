@@ -410,12 +410,17 @@ export function getVisibleModules(
     return [];
   }
 
-  // Administrative Universal Immunity: Super Admin & Head Admin see all modules
+  const isSuperAdmin = isOwner(currentUser) || getRoleLevel(currentUser) >= 100;
+  const filteredCatalog = isSuperAdmin
+    ? webModules
+    : webModules.filter((m) => m.key !== "rbac");
+
+  // Administrative Universal Immunity: Super Admin & Head Admin see all allowed modules
   if (hasFullAccess(currentUser) || isOwner(currentUser) || getRoleLevel(currentUser) >= 90) {
-    return webModules;
+    return filteredCatalog;
   }
 
-  return webModules.filter(
+  return filteredCatalog.filter(
     (module) =>
       currentUser.moduleAccess[module.key]?.visible === true &&
       isModuleAllowedForUser(module.key, currentUser),

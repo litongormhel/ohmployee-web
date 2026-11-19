@@ -91,6 +91,10 @@ function AuthenticatedShell({
     if (!matchedModule) {
       return true;
     }
+    // RBAC module is exclusively for Super Admin (Level 100)
+    if (matchedModule.key === "rbac") {
+      return Boolean(currentUser && (isOwner(currentUser) || getRoleLevel(currentUser) >= 100));
+    }
     // Administrative Universal Immunity: Super Admin & Head Admin can ALWAYS view any matched module
     if (currentUser && (hasFullAccess(currentUser) || isOwner(currentUser) || getRoleLevel(currentUser) >= 90)) {
       return true;
