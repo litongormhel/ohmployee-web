@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo } from "react";
 import {
-  Clock,
   Loader2,
   Calendar,
   Building2,
@@ -10,8 +9,7 @@ import {
   Lock,
   RotateCcw,
   ChevronDown,
-  ChevronUp,
-  Copy,
+  X,
 } from "lucide-react";
 import { updatePlantillaSchedule, type StoreAllocationInput } from "@/lib/queries/plantilla";
 import { Modal } from "@/components/shared/Modal";
@@ -40,8 +38,17 @@ export interface UpdateScheduleModalProps extends BaseModalProps {
 
 const DAYS_OF_WEEK = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
 type DayCode = (typeof DAYS_OF_WEEK)[number];
+const DAY_SHORT_NAMES: Record<DayCode, string> = {
+  MON: "Mon",
+  TUE: "Tue",
+  WED: "Wed",
+  THU: "Thu",
+  FRI: "Fri",
+  SAT: "Sat",
+  SUN: "Sun",
+};
 
-// Palette derived directly from HTML mockup template (COL)
+// Exact COL palette from interactive HTML mockup
 export const STORE_COLORS = [
   { solid: "#1d4ed8", tint: "#e6edff", ink: "#12338f" }, // Store 1: Blue
   { solid: "#a14d00", tint: "#fff0d9", ink: "#6b3300" }, // Store 2: Amber
@@ -55,6 +62,49 @@ export const STORE_COLORS = [
 
 export function getStoreColor(index: number) {
   return STORE_COLORS[index % STORE_COLORS.length];
+}
+
+const pad = (n: number) => (n < 10 ? "0" : "") + n;
+
+export function fmtLong(h: number): string {
+  const norm = Math.max(0, Math.min(23.5, Math.round(h * 2) / 2));
+  const hh = Math.floor(norm);
+  const mm = norm % 1 ? "30" : "00";
+  const displayH = hh % 12 || 12;
+  return `${pad(displayH)}:${mm} ${hh >= 12 ? "PM" : "AM"}`;
+}
+
+export function fmtShort(h: number): string {
+  const norm = Math.max(0, Math.min(23.5, Math.round(h * 2) / 2));
+  const hh = Math.floor(norm);
+  const mm = norm % 1 ? ":30" : "";
+  const displayH = hh % 12 || 12;
+  return `${displayH}${mm} ${hh >= 12 ? "PM" : "AM"}`;
+}
+
+export function fmtH(n: number): string {
+  return (Number.isInteger(n) ? n : n.toFixed(1)) + "h";
+}
+
+export function parseTimeToDecimalHours(timeStr?: string | null): number | null {
+  if (!timeStr) return null;
+  const clean = timeStr.trim().toUpperCase();
+  const m = clean.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = m[2] ? parseInt(m[2], 10) : 0;
+  const ampm = m[3] || (h >= 12 ? "PM" : "AM");
+  if (ampm === "PM" && h < 12) h += 12;
+  if (ampm === "AM" && h === 12) h = 0;
+  return h + (min >= 15 && min < 45 ? 0.5 : min >= 45 ? 1 : 0);
+}
+
+export function parseShiftToHours(scheduleTime?: string | null): { start: number; end: number } {
+  if (!scheduleTime) return { start: 8, end: 17 };
+  const parts = scheduleTime.split("-").map((p) => p.trim());
+  const start = parseTimeToDecimalHours(parts[0]) ?? 8;
+  const end = parseTimeToDecimalHours(parts[1]) ?? 17;
+  return { start, end };
 }
 
 function parseDayoffString(raw?: string | null): DayCode[] {
@@ -124,577 +174,198 @@ function formatDaysFromSet(days: Set<string>): string {
   return ordered.join(", ");
 }
 
-function parseShiftWindow(raw?: string | null): { timeIn: string; timeOut: string } {
-  if (!raw || !raw.trim()) return { timeIn: "08:00 AM", timeOut: "05:00 PM" };
-  const parts = raw.split("-").map((p) => p.trim());
-  if (parts.length >= 2) {
-    return { timeIn: parts[0] || "08:00 AM", timeOut: parts[1] || "05:00 PM" };
-  }
-  return { timeIn: raw.trim(), timeOut: "05:00 PM" };
-}
-
-function timeStringToMinutes(timeStr: string): number | null {
-  if (!timeStr) return null;
-  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return null;
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  const period = match[3].toUpperCase();
-  if (period === "PM" && hours < 12) hours += 12;
-  if (period === "AM" && hours === 12) hours = 0;
-  return hours * 60 + minutes;
-}
-
-function parseShiftInterval(shiftStr?: string | null): { start: number; end: number } | null {
-  if (!shiftStr) return null;
-  const parts = shiftStr.split("-").map((p) => p.trim());
-  if (parts.length < 2) return null;
-  const start = timeStringToMinutes(parts[0]);
-  const end = timeStringToMinutes(parts[1]);
-  if (start === null || end === null) return null;
-  return { start, end };
-}
-
-function formatShortTime(timeStr?: string | null): string {
-  if (!timeStr) return "";
-  return timeStr
-    .replace(/^0(\d):00\s*(AM|PM)/gi, "$1 $2")
-    .replace(/ - 0?(\d):00\s*(AM|PM)/gi, " – $1 $2")
-    .replace(/:00\s*(AM|PM)/gi, " $1");
-}
-
-function getShiftDurationMinutes(scheduleTime?: string | null): number | null {
-  const parts = parseShiftWindow(scheduleTime);
-  const start = timeStringToMinutes(parts.timeIn);
-  const end = timeStringToMinutes(parts.timeOut);
-  if (start === null || end === null) return null;
-  if (end <= start) return null;
-  return end - start;
-}
-
-function formatDurationText(minutes: number | null): string {
-  if (minutes === null || minutes <= 0) return "--";
-  const hrs = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (mins === 0) return `${hrs} hrs/day`;
-  return `${hrs}h ${mins}m/day`;
-}
-
-function checkTimeError(scheduleTime?: string | null): string | null {
-  const parts = parseShiftWindow(scheduleTime);
-  const start = timeStringToMinutes(parts.timeIn);
-  const end = timeStringToMinutes(parts.timeOut);
-  if (start === null || end === null) return "Invalid time format";
-  if (end <= start) return "Time-out must be later than time-in";
-  return null;
-}
-
-function parse12HourTime(raw?: string): { hours: string; minutes: string; period: "AM" | "PM" } {
-  if (!raw || !raw.trim()) {
-    return { hours: "", minutes: "", period: "AM" };
-  }
-  const match = raw.match(/(\d{1,2}|--):(\d{2}|--)\s*(AM|PM)?/i);
-  if (!match) {
-    return { hours: "", minutes: "", period: "AM" };
-  }
-  return {
-    hours: match[1] === "--" ? "" : match[1],
-    minutes: match[2] === "--" ? "" : match[2],
-    period: (match[3] || "AM").toUpperCase() === "PM" ? "PM" : "AM",
-  };
-}
-
-interface TimeSegmentInputProps {
-  label: "Time-in" | "Time-out";
-  value?: string;
-  onChange: (val: string) => void;
-}
-
-function TimeSegmentInput({ label, value, onChange }: TimeSegmentInputProps) {
-  const { hours, minutes, period } = useMemo(() => parse12HourTime(value), [value]);
-
-  const hoursRef = React.useRef<HTMLInputElement>(null);
-  const minutesRef = React.useRef<HTMLInputElement>(null);
-
-  const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
-    const num = parseInt(raw, 10);
-    let finalH = raw;
-    if (num > 12) finalH = "12";
-    if (num === 0 && raw.length === 2) finalH = "12";
-    onChange(`${finalH || "--"}:${minutes || "--"} ${period}`);
-    if (raw.length === 2 || num > 1) {
-      minutesRef.current?.focus();
-      minutesRef.current?.select();
-    }
-  };
-
-  const handleHoursBlur = () => {
-    if (!hours) return;
-    const num = parseInt(hours, 10);
-    let finalH = hours;
-    if (isNaN(num) || num === 0) finalH = "12";
-    else if (num > 12) finalH = "12";
-    onChange(`${finalH.padStart(2, "0")}:${minutes || "--"} ${period}`);
-  };
-
-  const handleMinutesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
-    const num = parseInt(raw, 10);
-    let finalM = raw;
-    if (num > 59) finalM = "59";
-    onChange(`${hours || "--"}:${finalM || "--"} ${period}`);
-  };
-
-  const handleMinutesBlur = () => {
-    if (!minutes) return;
-    const num = parseInt(minutes, 10);
-    let finalM = minutes;
-    if (isNaN(num)) finalM = "00";
-    else if (num > 59) finalM = "59";
-    onChange(`${hours || "--"}:${finalM.padStart(2, "0")} ${period}`);
-  };
-
-  const handleHoursKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === ":" || e.key === "Enter" || e.key === "ArrowRight") {
-      e.preventDefault();
-      minutesRef.current?.focus();
-      minutesRef.current?.select();
-    }
-  };
-
-  const handleMinutesKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !minutes) {
-      e.preventDefault();
-      hoursRef.current?.focus();
-      hoursRef.current?.select();
-    } else if (e.key === "a" || e.key === "A") {
-      e.preventDefault();
-      onChange(`${hours || "--"}:${minutes || "--"} AM`);
-    } else if (e.key === "p" || e.key === "P") {
-      e.preventDefault();
-      onChange(`${hours || "--"}:${minutes || "--"} PM`);
-    }
-  };
-
-  const togglePeriod = () => {
-    const next = period === "AM" ? "PM" : "AM";
-    onChange(`${hours || "--"}:${minutes || "--"} ${next}`);
-  };
-
-  const handleNativePicker = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.value) return;
-    const [h24, m] = e.target.value.split(":");
-    let hNum = parseInt(h24, 10);
-    const p: "AM" | "PM" = hNum >= 12 ? "PM" : "AM";
-    hNum = hNum % 12;
-    if (hNum === 0) hNum = 12;
-    const h12 = String(hNum).padStart(2, "0");
-    onChange(`${h12}:${m} ${p}`);
-  };
-
-  const nativeTime24 = useMemo(() => {
-    if (!hours || !minutes || hours === "--" || minutes === "--") return "";
-    let hNum = parseInt(hours, 10);
-    if (isNaN(hNum)) return "";
-    if (period === "PM" && hNum < 12) hNum += 12;
-    if (period === "AM" && hNum === 12) hNum = 0;
-    return `${String(hNum).padStart(2, "0")}:${minutes.padStart(2, "0")}`;
-  }, [hours, minutes, period]);
-
-  return (
-    <fieldset className="rounded-xl border border-slate-300 dark:border-slate-700 px-3.5 pt-1 pb-2 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition bg-white dark:bg-slate-900 shadow-2xs">
-      <legend className="px-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 select-none">
-        {label}
-      </legend>
-      <div className="flex items-center justify-between gap-1.5 mt-0.5">
-        <div className="flex items-center gap-1 font-mono text-sm font-bold text-slate-900 dark:text-slate-100">
-          <input
-            ref={hoursRef}
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={2}
-            value={hours}
-            onChange={handleHoursChange}
-            onBlur={handleHoursBlur}
-            onKeyDown={handleHoursKeyDown}
-            placeholder="--"
-            className="w-7 text-center bg-transparent focus:outline-none focus:bg-brand-50 dark:focus:bg-brand-950/40 rounded py-0.5 selection:bg-brand-primary selection:text-white"
-            aria-label={`${label} Hours`}
-          />
-          <span className="text-slate-400 select-none font-bold">:</span>
-          <input
-            ref={minutesRef}
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={2}
-            value={minutes}
-            onChange={handleMinutesChange}
-            onBlur={handleMinutesBlur}
-            onKeyDown={handleMinutesKeyDown}
-            placeholder="--"
-            className="w-7 text-center bg-transparent focus:outline-none focus:bg-brand-50 dark:focus:bg-brand-950/40 rounded py-0.5 selection:bg-brand-primary selection:text-white"
-            aria-label={`${label} Minutes`}
-          />
-          <button
-            type="button"
-            onClick={togglePeriod}
-            className="ml-2 px-2.5 py-0.5 text-xs font-bold rounded-md bg-brand-50 text-brand-primary dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200 dark:border-brand-800 hover:bg-brand-100 transition cursor-pointer select-none"
-            title="Click to toggle AM / PM"
-          >
-            {period}
-          </button>
-        </div>
-
-        <label className="relative cursor-pointer text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition shrink-0 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-          <Clock className="w-4 h-4" />
-          <input
-            type="time"
-            value={nativeTime24}
-            onChange={handleNativePicker}
-            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            title={`Pick ${label}`}
-          />
-        </label>
-      </div>
-    </fieldset>
-  );
-}
-
 export function UpdateScheduleModal({
   isOpen,
   onClose,
   plantillaId,
   employeeNo,
-  employeeName,
   initialScheduleDays,
   initialScheduleTime,
   initialDayoff,
   initialStoreAllocations,
   onSuccess,
 }: UpdateScheduleModalProps) {
-  // Multi-select designated rest days
-  const [selectedDayoffs, setSelectedDayoffs] = useState<DayCode[]>(() =>
-    parseDayoffString(initialDayoff)
-  );
-
-  // Store allocations matrix (strictly read-only for store identity and HC share)
   const defaultAllocations: StoreAllocationItem[] = useMemo(() => {
     if (initialStoreAllocations && initialStoreAllocations.length > 0) {
-      return initialStoreAllocations.map((a) => ({
-        storeId: a.storeId ?? "",
-        storeName: a.storeName || "Primary Store",
-        vcode: a.vcode ?? "",
-        scheduleDays:
-          (a.scheduleDays && a.scheduleDays.trim()) ||
-          (initialStoreAllocations.length === 1
-            ? (initialScheduleDays && initialScheduleDays.trim()) || "MON-SAT"
-            : ""),
-        scheduleTime:
-          (a.scheduleTime && a.scheduleTime.trim()) ||
-          (initialScheduleTime && initialScheduleTime.trim()) ||
-          "08:00 AM - 05:00 PM",
-        allocationPercent:
-          a.allocationPercent ??
-          (initialStoreAllocations.length > 1
-            ? Math.round(100 / initialStoreAllocations.length)
-            : 100),
-      }));
+      return initialStoreAllocations;
     }
     return [
       {
-        storeId: "",
+        storeId: null,
         storeName: "Primary Store Assignment",
         vcode: "",
-        scheduleDays: (initialScheduleDays && initialScheduleDays.trim()) || "MON-SAT",
-        scheduleTime: (initialScheduleTime && initialScheduleTime.trim()) || "08:00 AM - 05:00 PM",
+        scheduleDays: initialScheduleDays || "MON-SAT",
+        scheduleTime: initialScheduleTime || "08:00 AM - 05:00 PM",
         allocationPercent: 100,
       },
     ];
   }, [initialStoreAllocations, initialScheduleDays, initialScheduleTime]);
 
+  const [selectedDayoffs, setSelectedDayoffs] = useState<DayCode[]>(() =>
+    parseDayoffString(initialDayoff)
+  );
   const [allocations, setAllocations] = useState<StoreAllocationItem[]>(defaultAllocations);
   const [expandedStoreIdx, setExpandedStoreIdx] = useState<number | null>(0);
   const [restDayNotice, setRestDayNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
 
-  // Dismiss rest day notice on any user action
-  const dismissNotice = () => {
-    if (restDayNotice) setRestDayNotice(null);
+  const resetAll = () => {
+    setSelectedDayoffs(parseDayoffString(initialDayoff));
+    setAllocations(defaultAllocations);
+    setExpandedStoreIdx(0);
+    setRestDayNotice(null);
+    setErrorMessage(null);
   };
 
-  const handleResetSchedule = () => {
-    setSelectedDayoffs([]);
-    setAllocations((prev) =>
-      prev.map((a) => ({
-        ...a,
-        scheduleDays: "",
-        scheduleTime: "",
-      }))
-    );
-    setIsConfirmResetOpen(false);
-  };
+  const dismissNotice = () => setRestDayNotice(null);
 
-  const isScheduleComplete = useMemo(() => {
-    if (selectedDayoffs.length === 0) return false;
-    return allocations.every((a) => {
-      const days = (a.scheduleDays || "").trim();
-      const time = (a.scheduleTime || "08:00 AM - 05:00 PM").trim();
-      if (!days) return false;
-      if (time.includes("--") || time === "-") return false;
-      const parts = time.split("-").map((p) => p.trim());
-      if (parts.length < 2 || !parts[0] || !parts[1]) return false;
-      return true;
-    });
-  }, [selectedDayoffs, allocations]);
-
-  // Total HC calculation & validation
-  const totalPercent = useMemo(() => {
-    return allocations.reduce(
-      (sum, item) => sum + (Number(item.allocationPercent) || 0),
-      0
-    );
-  }, [allocations]);
-
-  const totalHcShare = (totalPercent / 100).toFixed(2);
-  const isHcValid = Math.abs(totalPercent - 100) <= 1 || allocations.length === 1;
-
-  // Toggle multi-select rest days with auto-carving from store duty days & notice banner
-  const handleToggleDayoff = (day: DayCode) => {
+  // Toggle Rest Day (Support multi-day rest or single)
+  const handleToggleRestDay = (day: DayCode) => {
+    dismissNotice();
     setSelectedDayoffs((prev) => {
+      let updated: DayCode[];
       if (prev.includes(day)) {
-        if (prev.length === 1) return prev; // Keep at least 1 rest day
-        setRestDayNotice(null);
-        return prev.filter((d) => d !== day);
-      }
-
-      // Day is being designated as rest day: remove from any store duty days
-      const affectedStores: string[] = [];
-      setAllocations((prevAlloc) =>
-        prevAlloc.map((item, idx) => {
-          const daySet = parseDaysToSet(item.scheduleDays);
-          if (daySet.has(day)) {
-            daySet.delete(day);
-            affectedStores.push(item.storeName || `Store ${idx + 1}`);
-            return { ...item, scheduleDays: formatDaysFromSet(daySet) };
-          }
-          return item;
-        })
-      );
-
-      if (affectedStores.length > 0) {
-        setRestDayNotice(
-          `${day} marked as rest day. Removed from ${affectedStores.join(", ")}.`
-        );
+        if (prev.length === 1) {
+          setRestDayNotice("Employee must have at least one designated Rest Day per week.");
+          return prev;
+        }
+        updated = prev.filter((d) => d !== day);
       } else {
-        setRestDayNotice(null);
+        updated = [...prev, day];
+        // Remove day from all stores' duty days
+        setAllocations((curr) =>
+          curr.map((alloc) => {
+            const set = parseDaysToSet(alloc.scheduleDays);
+            if (set.has(day)) {
+              set.delete(day);
+              return {
+                ...alloc,
+                scheduleDays: formatDaysFromSet(set),
+              };
+            }
+            return alloc;
+          })
+        );
       }
-
-      return [...prev, day];
+      return updated;
     });
   };
 
-  // Check if any allocation day conflicts with rest days (failsafe guard)
-  const conflictingDays = useMemo(() => {
-    const conflicts = new Set<string>();
-    allocations.forEach((item) => {
-      const daysStr = (item.scheduleDays || "").toUpperCase();
-      selectedDayoffs.forEach((d) => {
-        if (daysStr.includes(d)) conflicts.add(d);
-      });
-    });
-    return Array.from(conflicts);
-  }, [allocations, selectedDayoffs]);
-
-  // Strict Roving Policy: Detect overlapping duty days and shift windows across stores
-  const rovingOverlapConflicts = useMemo(() => {
-    if (allocations.length <= 1) return [];
-    const conflicts: Array<{
-      storeA: string;
-      storeB: string;
-      days: string[];
-      timeA: string;
-      timeB: string;
-    }> = [];
-
-    for (let i = 0; i < allocations.length; i++) {
-      for (let j = i + 1; j < allocations.length; j++) {
-        const allocA = allocations[i];
-        const allocB = allocations[j];
-        const daysA = parseDaysToSet(allocA.scheduleDays);
-        const daysB = parseDaysToSet(allocB.scheduleDays);
-        const sharedDays = DAYS_OF_WEEK.filter((d) => daysA.has(d) && daysB.has(d));
-
-        if (sharedDays.length > 0) {
-          const timeA = (allocA.scheduleTime || "08:00 AM - 05:00 PM").trim();
-          const timeB = (allocB.scheduleTime || "08:00 AM - 05:00 PM").trim();
-          const intervalA = parseShiftInterval(timeA);
-          const intervalB = parseShiftInterval(timeB);
-
-          const overlaps =
-            !intervalA ||
-            !intervalB ||
-            Math.max(intervalA.start, intervalB.start) < Math.min(intervalA.end, intervalB.end);
-
-          if (overlaps) {
-            conflicts.push({
-              storeA: allocA.storeName || `Store ${i + 1}`,
-              storeB: allocB.storeName || `Store ${j + 1}`,
-              days: sharedDays,
-              timeA,
-              timeB,
-            });
-          }
-        }
-      }
-    }
-    return conflicts;
-  }, [allocations]);
-
-  const hasRovingConflict = rovingOverlapConflicts.length > 0;
-  const hasRestDayConflict = conflictingDays.length > 0;
-
-  // Time errors across stores
-  const hasTimeError = useMemo(() => {
-    return allocations.some((a) => checkTimeError(a.scheduleTime) !== null);
-  }, [allocations]);
-
-  // Unassigned days count
-  const unassignedDays = useMemo(() => {
-    return DAYS_OF_WEEK.filter(
-      (d) =>
-        !selectedDayoffs.includes(d) &&
-        !allocations.some((a) => parseDaysToSet(a.scheduleDays).has(d))
-    );
-  }, [selectedDayoffs, allocations]);
-
-  // Total weekly hours calculation across all assigned duty days
-  const totalWeeklyHours = useMemo(() => {
-    let totalMinutes = 0;
-    DAYS_OF_WEEK.forEach((d) => {
-      if (selectedDayoffs.includes(d)) return;
-      const store = allocations.find((a) => parseDaysToSet(a.scheduleDays).has(d));
-      if (store) {
-        const duration = getShiftDurationMinutes(store.scheduleTime);
-        if (duration !== null && duration > 0) {
-          totalMinutes += duration;
-        }
-      }
-    });
-    const hours = (totalMinutes / 60).toFixed(1).replace(/\.0$/, "");
-    return hours;
-  }, [selectedDayoffs, allocations]);
-
-  const isDirty = useMemo(() => {
-    const initialDayoffs = parseDayoffString(initialDayoff);
-    const dayoffsChanged =
-      selectedDayoffs.length !== initialDayoffs.length ||
-      selectedDayoffs.some((d) => !initialDayoffs.includes(d));
-    if (dayoffsChanged) return true;
-
-    for (let i = 0; i < allocations.length; i++) {
-      if (
-        allocations[i].scheduleDays !== defaultAllocations[i]?.scheduleDays ||
-        allocations[i].scheduleTime !== defaultAllocations[i]?.scheduleTime
-      ) {
-        return true;
-      }
-    }
-    return false;
-  }, [selectedDayoffs, initialDayoff, allocations, defaultAllocations]);
-
-  // Update allocation duty days / shift time
-  const updateAllocation = (index: number, updates: Partial<StoreAllocationItem>) => {
-    setAllocations((prev) => {
-      const copy = [...prev];
-      copy[index] = { ...copy[index], ...updates };
-      return copy;
-    });
-  };
-
-  // Cross-store aware duty day chip click:
-  // - If day in current store: removes it
-  // - If day in other store: takes over day from other store to current store
-  // - If day unassigned: assigns to current store
-  // - If rest day: disabled/no-op
-  const handleDayChipClick = (storeIdx: number, day: DayCode) => {
+  // Toggle Duty Day on a store
+  const handleToggleDutyDay = (storeIdx: number, day: DayCode) => {
     dismissNotice();
-    if (selectedDayoffs.includes(day)) return;
+    if (selectedDayoffs.includes(day)) {
+      setRestDayNotice(
+        `${day} is a designated Rest Day. Please untoggle it from Rest Days first.`
+      );
+      return;
+    }
 
     setAllocations((prev) => {
-      const next = [...prev];
-      const currentSet = parseDaysToSet(next[storeIdx].scheduleDays);
-
-      if (currentSet.has(day)) {
-        currentSet.delete(day);
-        next[storeIdx] = {
-          ...next[storeIdx],
-          scheduleDays: formatDaysFromSet(currentSet),
+      return prev.map((item, i) => {
+        const set = parseDaysToSet(item.scheduleDays);
+        if (i === storeIdx) {
+          if (set.has(day)) {
+            set.delete(day);
+          } else {
+            set.add(day);
+          }
+        } else {
+          // Exclusive assignment across stores
+          set.delete(day);
+        }
+        return {
+          ...item,
+          scheduleDays: formatDaysFromSet(set),
         };
-        return next;
-      }
-
-      // Check if another store currently owns this day; if so, release it
-      next.forEach((item, otherIdx) => {
-        if (otherIdx !== storeIdx) {
-          const otherSet = parseDaysToSet(item.scheduleDays);
-          if (otherSet.has(day)) {
-            otherSet.delete(day);
-            next[otherIdx] = {
-              ...item,
-              scheduleDays: formatDaysFromSet(otherSet),
-            };
-          }
-        }
       });
-
-      // Assign to current store
-      currentSet.add(day);
-      next[storeIdx] = {
-        ...next[storeIdx],
-        scheduleDays: formatDaysFromSet(currentSet),
-      };
-      return next;
     });
   };
 
-  const handleTimeInChange = (idx: number, newTimeIn: string) => {
+  // Adjust shift time by delta (e.g. +0.5 or -0.5 hours)
+  const adjustShift = (storeIdx: number, key: "start" | "end", delta: number) => {
     dismissNotice();
-    const current = parseShiftWindow(allocations[idx]?.scheduleTime);
-    const timeOut = current.timeOut || "05:00 PM";
-    const updated = newTimeIn ? `${newTimeIn} - ${timeOut}` : "";
-    updateAllocation(idx, { scheduleTime: updated });
+    setAllocations((prev) =>
+      prev.map((a, i) => {
+        if (i !== storeIdx) return a;
+        const { start, end } = parseShiftToHours(a.scheduleTime);
+        let newStart = start;
+        let newEnd = end;
+        if (key === "start") {
+          newStart = Math.min(23, Math.max(0, start + delta));
+        } else {
+          newEnd = Math.min(23.5, Math.max(0.5, end + delta));
+        }
+        return {
+          ...a,
+          scheduleTime: `${fmtLong(newStart)} - ${fmtLong(newEnd)}`,
+        };
+      })
+    );
   };
 
-  const handleTimeOutChange = (idx: number, newTimeOut: string) => {
-    dismissNotice();
-    const current = parseShiftWindow(allocations[idx]?.scheduleTime);
-    const timeIn = current.timeIn || "08:00 AM";
-    const updated = newTimeOut ? `${timeIn} - ${newTimeOut}` : "";
-    updateAllocation(idx, { scheduleTime: updated });
-  };
-
-  // Apply shift time window to all stores
+  // Apply shift time to all stores
   const handleApplyTimeToAll = (sourceIdx: number) => {
     dismissNotice();
-    const targetTime = allocations[sourceIdx]?.scheduleTime || "08:00 AM - 05:00 PM";
+    const sourceTime = allocations[sourceIdx]?.scheduleTime || "08:00 AM - 05:00 PM";
     setAllocations((prev) =>
       prev.map((a) => ({
         ...a,
-        scheduleTime: targetTime,
+        scheduleTime: sourceTime,
       }))
     );
   };
+
+  // Calculations for preview, status bar, and validation
+  let totalWeeklyHours = 0;
+  let timeErrorsCount = 0;
+  const storeDayOwner: Record<DayCode, number> = {} as Record<DayCode, number>;
+
+  allocations.forEach((a, idx) => {
+    const { start, end } = parseShiftToHours(a.scheduleTime);
+    const bad = end <= start;
+    if (bad) {
+      timeErrorsCount++;
+    } else {
+      const daysCount = parseDaysToSet(a.scheduleDays).size;
+      totalWeeklyHours += (end - start) * daysCount;
+    }
+
+    const set = parseDaysToSet(a.scheduleDays);
+    set.forEach((day) => {
+      storeDayOwner[day] = idx;
+    });
+  });
+
+  // Calculate gaps (duty days that are neither rest day nor assigned to any store)
+  const unassignedDutyDays = DAYS_OF_WEEK.filter(
+    (d) => !selectedDayoffs.includes(d) && storeDayOwner[d] === undefined
+  );
+  const unassignedGapsCount = unassignedDutyDays.length;
+
+  const totalHc = allocations.reduce((sum, a) => sum + (a.allocationPercent || 0), 0);
+  const isHcValid = Math.abs(totalHc - 100) <= 2;
+
+  const statusText =
+    timeErrorsCount > 0
+      ? `${timeErrorsCount} time error${timeErrorsCount > 1 ? "s" : ""} to fix`
+      : unassignedGapsCount > 0
+      ? `${unassignedGapsCount} day${unassignedGapsCount > 1 ? "s" : ""} without a store · ${fmtH(totalWeeklyHours)}/week`
+      : `Ready to save · ${fmtH(totalWeeklyHours)}/week`;
+
+  const statusColor =
+    timeErrorsCount > 0
+      ? "#a3141f"
+      : unassignedGapsCount > 0
+      ? "#8a4300"
+      : "#0b6b3a";
+
+  const canSave = timeErrorsCount === 0 && isHcValid && !isSubmitting;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (hasTimeError || !isScheduleComplete || !isHcValid || hasRovingConflict || hasRestDayConflict) {
-      return;
-    }
+    if (!canSave) return;
     setIsSubmitting(true);
     setErrorMessage(null);
 
@@ -725,300 +396,175 @@ export function UpdateScheduleModal({
       onClose();
     } catch (err) {
       setErrorMessage(
-        err instanceof Error ? err.message : "Failed to update schedule and allocations."
+        err instanceof Error ? err.message : "Failed to update schedule. Please try again."
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Render modal footer (Sticky & Clean matching screenshot)
-  const modalFooter = (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setIsConfirmResetOpen(true)}
-          disabled={isSubmitting}
-          className="h-10 px-4 rounded-xl border border-rose-200 bg-white dark:bg-slate-900 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
-          title="Reset all duty days, shift times, and rest days"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset</span>
-        </button>
-
-        {/* Footer Status Indicators */}
-        <div className="flex items-center gap-3">
-          {hasTimeError ? (
-            <span className="text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shrink-0" />
-              <span>Time-out must be later than time-in</span>
-            </span>
-          ) : !isScheduleComplete ? (
-            <span className="text-amber-600 dark:text-amber-400 font-semibold text-xs flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
-              <span>Schedule incomplete (each store requires duty days)</span>
-            </span>
-          ) : hasRovingConflict ? (
-            <span className="text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shrink-0" />
-              <span>
-                Overlap conflict: {rovingOverlapConflicts[0]?.storeA} &amp; {rovingOverlapConflicts[0]?.storeB}
-              </span>
-            </span>
-          ) : hasRestDayConflict ? (
-            <span className="text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shrink-0" />
-              <span>Rest day conflict on {conflictingDays.join(", ")}</span>
-            </span>
-          ) : !isHcValid ? (
-            <span className="text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shrink-0" />
-              <span>Sum is {totalHcShare} HC. Must equal 1.00 HC.</span>
-            </span>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2.5 text-xs">
-              <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                {totalWeeklyHours} hrs/wk
-              </span>
-              {unassignedDays.length > 0 ? (
-                <span className="text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
-                  <span>
-                    {unassignedDays.length} {unassignedDays.length === 1 ? "day" : "days"} without a store
-                  </span>
-                </span>
-              ) : (
-                <span className="text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-                  <span>Ready to save</span>
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={isSubmitting}
-          className="h-10 px-5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition cursor-pointer"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          form="update-schedule-form"
-          disabled={
-            isSubmitting ||
-            hasTimeError ||
-            !isScheduleComplete ||
-            !isHcValid ||
-            hasRovingConflict ||
-            hasRestDayConflict
-          }
-          className="h-10 px-6 rounded-xl bg-brand-primary hover:bg-brand-secondary text-white font-bold text-xs transition shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>Saving…</span>
-            </>
-          ) : (
-            <span>Save Schedule & Work Terms</span>
-          )}
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Schedule & Work Terms"
-      subtitle="Configuring rest days, per-store duty days, and shift time windows"
-      icon={Clock}
-      isSubmitting={isSubmitting}
-      isDirty={isDirty}
-      maxWidthClass="max-w-[760px]"
-      footer={modalFooter}
+      description="Configuring rest days, per-store duty days, and shift time windows"
+      size="2xl"
     >
-      {errorMessage && (
-        <div className="mb-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3.5 text-xs text-rose-800 dark:text-rose-200 flex items-center justify-between">
-          <span>{errorMessage}</span>
-          <button
-            type="button"
-            onClick={() => setErrorMessage(null)}
-            className="font-bold text-sm ml-2 cursor-pointer text-rose-600 hover:text-rose-800"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      <form id="update-schedule-form" onSubmit={handleSave} className="space-y-4">
-        {/* TOP CARD: REST DAY + WEEKLY COVERAGE PREVIEW */}
-        <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/90 dark:border-slate-800 space-y-3.5">
-          {/* Row 1: Rest Day Selector */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 select-none">
-                <Calendar className="w-4 h-4 text-brand-primary shrink-0" />
-                <span>Rest Day:</span>
-              </span>
-              <div className="flex items-center gap-1.5">
-                {DAYS_OF_WEEK.map((d) => {
-                  const isSelected = selectedDayoffs.includes(d);
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => handleToggleDayoff(d)}
-                      className={`px-3 py-1 text-xs font-bold rounded-lg border transition cursor-pointer select-none ${
-                        isSelected
-                          ? "bg-brand-primary text-white border-brand-primary shadow-xs"
-                          : "bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                      }`}
-                    >
-                      {d}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 select-none">
-              {selectedDayoffs.length} {selectedDayoffs.length === 1 ? "Rest Day" : "Rest Days"}
-            </span>
-          </div>
-
-          {/* Row 2: Weekly Coverage Preview */}
-          <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider select-none">
-                WEEKLY COVERAGE PREVIEW
-              </span>
-              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1 select-none">
-                <span>Live sync</span>
-              </span>
-            </div>
-
-            <div className="grid grid-cols-7 gap-2">
-              {DAYS_OF_WEEK.map((day) => {
-                const isRestDay = selectedDayoffs.includes(day);
-                const assignedStoreIdx = allocations.findIndex((a) =>
-                  parseDaysToSet(a.scheduleDays).has(day)
-                );
-                const assignedStore = assignedStoreIdx !== -1 ? allocations[assignedStoreIdx] : null;
-
-                if (isRestDay) {
-                  return (
-                    <div
-                      key={day}
-                      className="rounded-xl border border-[#d5d9e0] dark:border-slate-700 bg-[#eceef2] dark:bg-slate-800 p-2.5 text-center flex flex-col items-center justify-between min-h-[96px] shadow-2xs"
-                    >
-                      <span className="text-[11px] font-bold tracking-wider text-[#3a4150] dark:text-slate-300 select-none">
-                        {day}
-                      </span>
-                      <div className="w-[26px] h-[26px] rounded-full bg-[#5f6675] text-white text-xs font-bold flex items-center justify-center shadow-xs shrink-0 select-none">
-                        R
-                      </div>
-                      <p className="font-mono text-[10.5px] font-bold text-slate-800 dark:text-slate-200 select-none">
-                        Rest
-                      </p>
-                      <p className="text-[11px] text-[#4a5262] dark:text-slate-400 font-medium select-none">
-                        Day off
-                      </p>
-                    </div>
-                  );
-                }
-
-                if (assignedStore) {
-                  const color = getStoreColor(assignedStoreIdx);
-                  const timeFormatted = formatShortTime(assignedStore.scheduleTime);
-                  return (
-                    <div
-                      key={day}
-                      className="rounded-xl p-2.5 text-center flex flex-col items-center justify-between min-h-[96px] shadow-2xs transition"
-                      style={{
-                        backgroundColor: color.tint,
-                        border: `1px solid ${color.solid}`,
-                      }}
-                      title={`${day}: ${assignedStore.storeName} (${assignedStore.vcode || "No VCode"}) · ${assignedStore.scheduleTime}`}
-                    >
-                      <span className="text-[11px] font-bold tracking-wider text-[#3a4150] select-none">
-                        {day}
-                      </span>
-                      <div
-                        className="w-[26px] h-[26px] rounded-full text-white text-xs font-bold flex items-center justify-center shadow-xs shrink-0 select-none"
-                        style={{ backgroundColor: color.solid }}
-                      >
-                        {assignedStoreIdx + 1}
-                      </div>
-                      <p className="font-mono text-[10.5px] font-bold text-[#1a1f2b] tracking-tight whitespace-nowrap w-full px-0.5 select-none">
-                        {assignedStore.vcode || assignedStore.storeName}
-                      </p>
-                      <p className="text-[11px] text-[#4a5262] font-semibold truncate w-full select-none">
-                        {timeFormatted || "8 AM – 5 PM"}
-                      </p>
-                    </div>
-                  );
-                }
-
-                // Unassigned day
-                return (
-                  <div
-                    key={day}
-                    className="rounded-xl border border-dashed border-[#a14d00] bg-[#fff7e6] p-2.5 text-center flex flex-col items-center justify-between min-h-[96px] shadow-2xs"
-                    title={`${day}: No store assigned`}
-                  >
-                    <span className="text-[11px] font-bold tracking-wider text-[#a14d00] select-none">
-                      {day}
-                    </span>
-                    <div className="w-[26px] h-[26px] rounded-full bg-white text-[#a14d00] border border-[#a14d00] text-xs font-bold flex items-center justify-center shadow-xs shrink-0 select-none">
-                      !
-                    </div>
-                    <p className="font-mono text-[10.5px] font-bold text-[#a14d00] select-none">
-                      No store
-                    </p>
-                    <p className="text-[11px] text-[#a14d00]/80 font-medium select-none">
-                      Unassigned
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* REST DAY NOTICE BANNER */}
+      <form onSubmit={handleSave} className="space-y-4">
+        {/* Banner Notice (if rest day conflict or notice) */}
         {restDayNotice && (
-          <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-200 flex items-center justify-between animate-fade-in">
-            <div className="flex items-center gap-2 font-medium">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-800 dark:text-amber-300 text-xs flex items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
               <span>{restDayNotice}</span>
             </div>
             <button
               type="button"
-              onClick={() => setRestDayNotice(null)}
-              className="text-amber-600 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-100 font-bold text-sm ml-2 cursor-pointer p-0.5"
-              title="Dismiss notice"
+              onClick={dismissNotice}
+              className="text-amber-700 hover:text-amber-900 dark:text-amber-400 p-0.5 rounded cursor-pointer"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        {/* ASSIGNED STORES & SHIFT WINDOWS (ACCORDION CARDS) */}
+        {/* REST DAY SELECTOR */}
+        <div className="bg-[#f8f9fb] dark:bg-slate-900/60 p-3.5 rounded-xl border border-[#dfe2e8] dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#1b1f28] dark:text-slate-200 mr-2">
+              <Calendar className="w-4 h-4 text-[#1d4ed8]" />
+              <span>Rest Day:</span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {DAYS_OF_WEEK.map((day) => {
+                const isSelected = selectedDayoffs.includes(day);
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => handleToggleRestDay(day)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer select-none ${
+                      isSelected
+                        ? "bg-[#1d4ed8] text-white shadow-xs"
+                        : "bg-white dark:bg-slate-800 text-[#3a4150] dark:text-slate-300 border border-[#cfd4dc] dark:border-slate-700 hover:bg-[#f1f2f5]"
+                    }`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="text-xs font-semibold text-[#5a6272] dark:text-slate-400 shrink-0">
+            {selectedDayoffs.length} Rest {selectedDayoffs.length === 1 ? "Day" : "Days"}
+          </div>
+        </div>
+
+        {/* WEEKLY COVERAGE PREVIEW */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-[#1b1f28] dark:text-slate-200 uppercase tracking-wide">
+              WEEKLY COVERAGE PREVIEW
+            </h4>
+            <span className="text-[11px] font-medium text-[#5a6272] dark:text-slate-400">
+              Live sync
+            </span>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1.5 text-center">
+            {DAYS_OF_WEEK.map((day) => {
+              const isRest = selectedDayoffs.includes(day);
+              const ownerIdx = storeDayOwner[day];
+              const isAssigned = ownerIdx !== undefined;
+              const storeColor = isAssigned ? getStoreColor(ownerIdx) : null;
+              const storeAlloc = isAssigned ? allocations[ownerIdx] : null;
+              const { start, end } = storeAlloc ? parseShiftToHours(storeAlloc.scheduleTime) : { start: 8, end: 17 };
+              const shiftTimeStr = `${fmtShort(start)} – ${fmtShort(end)}`;
+
+              if (isRest) {
+                return (
+                  <div
+                    key={day}
+                    className="p-2 rounded-xl border border-[#dfe2e8] dark:border-slate-800 bg-[#f8f9fb] dark:bg-slate-900/60 flex flex-col items-center justify-center min-h-[78px] gap-1 select-none"
+                  >
+                    <span className="text-xs font-bold text-[#5a6272] dark:text-slate-400">
+                      {day}
+                    </span>
+                    <span className="text-[10px] font-bold text-[#5a6272] dark:text-slate-400 bg-[#e6e8ed] dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                      Rest
+                    </span>
+                  </div>
+                );
+              }
+
+              if (isAssigned && storeColor && storeAlloc) {
+                return (
+                  <div
+                    key={day}
+                    className="p-2 rounded-xl border transition flex flex-col items-center justify-between min-h-[78px] gap-1 shadow-2xs select-none"
+                    style={{
+                      backgroundColor: storeColor.tint,
+                      borderColor: storeColor.solid,
+                    }}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span
+                        className="text-xs font-bold"
+                        style={{ color: storeColor.ink }}
+                      >
+                        {day}
+                      </span>
+                      <span
+                        className="w-4 h-4 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: storeColor.solid }}
+                      >
+                        {ownerIdx + 1}
+                      </span>
+                    </div>
+                    <span
+                      className="font-mono text-[11px] font-bold truncate max-w-full"
+                      style={{ color: storeColor.ink }}
+                      title={storeAlloc.vcode || storeAlloc.storeName}
+                    >
+                      {storeAlloc.vcode || `Store ${ownerIdx + 1}`}
+                    </span>
+                    <span
+                      className="text-[10px] font-medium leading-none"
+                      style={{ color: storeColor.ink }}
+                    >
+                      {shiftTimeStr}
+                    </span>
+                  </div>
+                );
+              }
+
+              // Unassigned Duty Day
+              return (
+                <div
+                  key={day}
+                  className="p-2 rounded-xl border border-dashed border-[#cfd4dc] dark:border-slate-700 bg-white dark:bg-slate-900 flex flex-col items-center justify-center min-h-[78px] gap-1 select-none"
+                >
+                  <span className="text-xs font-bold text-[#8a919e]">
+                    {day}
+                  </span>
+                  <span className="text-[10px] font-medium text-[#8a919e]">
+                    Unassigned
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ASSIGNED STORES & SHIFT WINDOWS (ACCORDIONS) */}
         <div className="space-y-3 pt-1">
-          <div className="flex items-center justify-between px-0.5">
-            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-brand-primary" />
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-[#1b1f28] dark:text-slate-200 flex items-center gap-2 uppercase tracking-wide">
+              <Building2 className="w-4 h-4 text-[#1d4ed8]" />
               <span>Assigned Stores & Shift Windows</span>
             </h4>
-            <span className="text-xs text-slate-500 dark:text-slate-400">
+            <span className="text-[11px] font-medium text-[#5a6272] dark:text-slate-400">
               Click header to expand or collapse
             </span>
           </div>
@@ -1028,20 +574,23 @@ export function UpdateScheduleModal({
               const color = getStoreColor(idx);
               const isExpanded = expandedStoreIdx === idx;
               const currentDaySet = parseDaysToSet(alloc.scheduleDays);
-              const formattedDays = formatDaysFromSet(currentDaySet) || "No duty days";
-              const timeFormatted = formatShortTime(alloc.scheduleTime) || "08:00 AM - 05:00 PM";
+              const { start, end } = parseShiftToHours(alloc.scheduleTime);
+              const isBadTime = end <= start;
+              const dailyDurHours = isBadTime ? 0 : end - start;
               const hcFraction = (alloc.allocationPercent / 100).toFixed(2);
-              const durationMin = getShiftDurationMinutes(alloc.scheduleTime);
-              const timeError = checkTimeError(alloc.scheduleTime);
-              const shiftTimes = parseShiftWindow(alloc.scheduleTime);
+
+              const dayNames = DAYS_OF_WEEK.filter((d) => currentDaySet.has(d))
+                .map((d) => DAY_SHORT_NAMES[d])
+                .join(", ") || "No duty days";
+              const shiftSummary = isBadTime ? "Invalid shift" : `${fmtShort(start)} – ${fmtShort(end)}`;
+              const summaryText = `${dayNames} · ${shiftSummary}`;
 
               return (
                 <div
                   key={idx}
-                  className="rounded-2xl border transition overflow-hidden bg-white dark:bg-slate-900 shadow-2xs"
+                  className="rounded-[14px] border transition overflow-hidden bg-white dark:bg-slate-900 shadow-2xs"
                   style={{
-                    borderColor: isExpanded ? color.solid : undefined,
-                    boxShadow: isExpanded ? `0 0 0 1px ${color.solid}33` : undefined,
+                    borderColor: isExpanded ? color.solid : "#dfe2e8",
                   }}
                 >
                   {/* Card Header (Accordion Toggle) */}
@@ -1051,200 +600,223 @@ export function UpdateScheduleModal({
                       dismissNotice();
                       setExpandedStoreIdx((prev) => (prev === idx ? null : idx));
                     }}
-                    className="w-full text-left p-3.5 flex items-center justify-between gap-3 cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition"
+                    className="w-full text-left p-3 flex items-center gap-3 cursor-pointer bg-white dark:bg-slate-900 hover:bg-[#f6f7f9]/60 dark:hover:bg-slate-800/40 transition"
                   >
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300 min-w-0">
-                      <span
-                        className="w-[26px] h-[26px] rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-xs select-none"
-                        style={{ backgroundColor: color.solid }}
-                      >
-                        {idx + 1}
-                      </span>
-                      <span className="font-bold text-slate-900 dark:text-slate-100 truncate max-w-[200px] uppercase">
-                        {alloc.storeName}
-                      </span>
-                      {alloc.vcode && (
-                        <span
-                          className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md border shrink-0"
-                          style={{
-                            color: color.solid,
-                            borderColor: color.solid + "66",
-                            backgroundColor: color.tint,
-                          }}
-                        >
-                          {alloc.vcode}
+                    {/* Numbered Badge Circle */}
+                    <span
+                      className="w-[26px] h-[26px] rounded-full text-white text-[13px] font-bold flex items-center justify-center shrink-0 select-none shadow-xs"
+                      style={{ backgroundColor: color.solid }}
+                    >
+                      {idx + 1}
+                    </span>
+
+                    {/* Store Info Column */}
+                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-[#1b1f28] dark:text-slate-100 text-sm truncate">
+                          {alloc.storeName}
                         </span>
-                      )}
-                      <span className="text-slate-300 dark:text-slate-700">·</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300 shrink-0">
-                        {formattedDays}
-                      </span>
-                      <span className="text-slate-300 dark:text-slate-700">·</span>
-                      <span className="font-medium text-slate-600 dark:text-slate-400 shrink-0">
-                        {timeFormatted}
-                      </span>
-                      <span className="text-slate-300 dark:text-slate-700">·</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium shrink-0">
-                        {hcFraction} HC
+                        {alloc.vcode && (
+                          <span
+                            className="font-mono text-[11px] font-medium px-1.5 py-0.5 rounded-[5px] border shrink-0"
+                            style={{
+                              color: color.ink,
+                              borderColor: color.solid + "66",
+                              backgroundColor: color.tint,
+                            }}
+                          >
+                            {alloc.vcode}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[12.5px] text-[#3f4757] dark:text-slate-400">
+                        {summaryText}
                       </span>
                     </div>
 
-                    <div className="shrink-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                      {isExpanded ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
-                    </div>
+                    {/* HC text */}
+                    <span className="text-xs text-[#5a6272] dark:text-slate-400 whitespace-nowrap">
+                      {hcFraction} HC · {alloc.allocationPercent}%
+                    </span>
+
+                    {/* Chevron */}
+                    <ChevronDown
+                      className="w-4 h-4 text-[#3a4150] dark:text-slate-400 shrink-0 transition-transform duration-150"
+                      style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+                    />
                   </button>
 
-                  {/* Expanded Card Content */}
+                  {/* Expanded Store Body */}
                   {isExpanded && (
-                    <div className="p-4.5 pt-3 border-t border-slate-100 dark:border-slate-800/70 bg-slate-50/40 dark:bg-slate-900/40 space-y-4">
-                      {/* Subtitle row */}
-                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pb-1.5 border-b border-slate-200/60 dark:border-slate-800">
+                    <div className="border-t border-[#e6e8ed] dark:border-slate-800 p-3.5 space-y-3.5 bg-white dark:bg-slate-900">
+                      {/* Sub-header info */}
+                      <div className="flex items-center justify-between text-xs text-[#5a6272] dark:text-slate-400 pb-1">
                         <span>Duty days and shift hours for {alloc.storeName}</span>
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        <span className="font-semibold text-[#1b1f28] dark:text-slate-200">
                           HC Share: {hcFraction} ({alloc.allocationPercent}%)
                         </span>
                       </div>
 
-                      {/* DUTY DAYS selector */}
-                      <div className="space-y-2">
+                      {/* DUTY DAYS CHIPS */}
+                      <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider select-none">
+                          <label className="text-xs font-bold tracking-[0.05em] text-[#3a4150] dark:text-slate-300">
                             DUTY DAYS
                           </label>
-                          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 select-none">
-                            {currentDaySet.size} {currentDaySet.size === 1 ? "day assigned" : "days assigned"}
+                          <span className="text-[11px] font-medium text-[#5a6272] dark:text-slate-400">
+                            {currentDaySet.size} {currentDaySet.size === 1 ? "day" : "days"} assigned
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-7 gap-2">
-                          {DAYS_OF_WEEK.map((d) => {
-                            const isRestDay = selectedDayoffs.includes(d);
-                            const isCurrentStore = currentDaySet.has(d);
-                            const otherStoreIdx = allocations.findIndex(
-                              (a, i) => i !== idx && parseDaysToSet(a.scheduleDays).has(d)
+                        <div className="grid grid-cols-7 gap-1.5">
+                          {DAYS_OF_WEEK.map((day) => {
+                            const isMine = currentDaySet.has(day);
+                            const otherOwnerIdx = allocations.findIndex(
+                              (a, i) => i !== idx && parseDaysToSet(a.scheduleDays).has(day)
                             );
+                            const isOther = otherOwnerIdx >= 0;
+                            const isRest = selectedDayoffs.includes(day);
 
-                            if (isRestDay) {
-                              return (
-                                <button
-                                  key={d}
-                                  type="button"
-                                  disabled
-                                  className="h-13 rounded-xl border border-[#e3e6eb] bg-[#f1f2f5] text-[#5f6675] cursor-not-allowed text-center flex flex-col items-center justify-center gap-0.5 select-none opacity-60"
-                                  title={`${d} is marked as rest day`}
-                                >
-                                  <span className="text-xs font-bold">{d}</span>
-                                  <span className="text-[10px] font-semibold text-[#5f6675]">Rest</span>
-                                </button>
-                              );
+                            let chipBg = "#fff";
+                            let chipBorder = "#cfd4dc";
+                            let chipColor = "#3a4150";
+                            let subText = "";
+
+                            if (isRest) {
+                              chipBg = "#f1f2f5";
+                              chipBorder = "#e3e6eb";
+                              chipColor = "#5f6675";
+                              subText = "Rest";
+                            } else if (isMine) {
+                              chipBg = color.tint;
+                              chipBorder = color.solid;
+                              chipColor = color.ink;
+                              subText = "✓";
+                            } else if (isOther) {
+                              chipBg = "#f1f2f5";
+                              chipBorder = "#e3e6eb";
+                              chipColor = "#5f6675";
+                              subText = `In ${otherOwnerIdx + 1}`;
                             }
 
-                            if (isCurrentStore) {
-                              return (
-                                <button
-                                  key={d}
-                                  type="button"
-                                  onClick={() => handleDayChipClick(idx, d)}
-                                  className="h-13 rounded-xl border shadow-xs transition cursor-pointer text-center flex flex-col items-center justify-center gap-0.5 select-none"
-                                  style={{
-                                    backgroundColor: color.tint,
-                                    borderColor: color.solid,
-                                    color: color.ink,
-                                  }}
-                                  title={`Assigned to ${alloc.storeName}. Click to remove.`}
-                                >
-                                  <span className="text-xs font-bold">{d}</span>
-                                  <span className="text-[10px] font-bold">✓ Active</span>
-                                </button>
-                              );
-                            }
-
-                            if (otherStoreIdx !== -1) {
-                              const otherColor = getStoreColor(otherStoreIdx);
-                              return (
-                                <button
-                                  key={d}
-                                  type="button"
-                                  onClick={() => handleDayChipClick(idx, d)}
-                                  className="h-13 rounded-xl border border-[#e3e6eb] bg-[#f1f2f5] text-[#5f6675] hover:border-slate-400 transition cursor-pointer text-center flex flex-col items-center justify-center gap-0.5 select-none"
-                                  title={`Currently assigned to Store ${otherStoreIdx + 1} (${allocations[otherStoreIdx].storeName}). Tap to move here.`}
-                                >
-                                  <span className="text-xs font-bold text-slate-700">{d}</span>
-                                  <span
-                                    className="text-[10px] font-bold"
-                                    style={{ color: otherColor.solid }}
-                                  >
-                                    In {otherStoreIdx + 1}
-                                  </span>
-                                </button>
-                              );
-                            }
-
-                            // Unassigned
                             return (
                               <button
-                                key={d}
+                                key={day}
                                 type="button"
-                                onClick={() => handleDayChipClick(idx, d)}
-                                className="h-13 rounded-xl border border-[#cfd4dc] bg-white text-[#3a4150] hover:bg-slate-50 hover:border-slate-400 transition cursor-pointer text-center flex flex-col items-center justify-center gap-0.5 select-none"
-                                title={`Unassigned. Tap to assign to ${alloc.storeName}.`}
+                                disabled={isRest}
+                                onClick={() => handleToggleDutyDay(idx, day)}
+                                className="h-[52px] rounded-[10px] border flex flex-col items-center justify-center gap-0.5 text-xs font-bold transition cursor-pointer select-none disabled:cursor-not-allowed"
+                                style={{
+                                  backgroundColor: chipBg,
+                                  borderColor: chipBorder,
+                                  color: chipColor,
+                                }}
                               >
-                                <span className="text-xs font-semibold">{d}</span>
-                                <span className="text-[10px] text-slate-300">—</span>
+                                <span>{day}</span>
+                                <span className="text-[10px] font-semibold min-h-[12px]">
+                                  {subText}
+                                </span>
                               </button>
                             );
                           })}
                         </div>
                       </div>
 
-                      {/* SHIFT TIME WINDOW */}
+                      {/* SHIFT TIME WINDOW (STEPPERS WITH − AND +) */}
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider select-none">
-                            SHIFT TIME WINDOW
-                          </label>
-                          <div className="flex items-center gap-3">
-                            {!timeError && durationMin !== null && (
-                              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                                {formatDurationText(durationMin)}
-                              </span>
-                            )}
-                            {allocations.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handleApplyTimeToAll(idx)}
-                                className="text-xs font-bold text-brand-primary hover:text-brand-secondary transition inline-flex items-center gap-1.5 cursor-pointer hover:underline"
-                                title="Apply this shift time to all stores"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                                <span>Apply this time to all stores</span>
-                              </button>
-                            )}
+                        <div className="text-xs font-bold tracking-[0.05em] text-[#3a4150] dark:text-slate-300">
+                          SHIFT TIME WINDOW
+                        </div>
+
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          {/* TIME-IN BOX */}
+                          <div className="flex items-center border border-[#cfd4dc] dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800">
+                            <button
+                              type="button"
+                              aria-label="Time-in 30 minutes earlier"
+                              onClick={() => adjustShift(idx, "start", -0.5)}
+                              className="w-11 h-11 border-0 bg-[#f6f7f9] hover:bg-[#eef0f4] dark:bg-slate-700 dark:hover:bg-slate-600 text-lg font-bold text-[#1b1f28] dark:text-white flex items-center justify-center cursor-pointer transition select-none"
+                            >
+                              −
+                            </button>
+                            <div className="px-3.5 text-center min-w-[96px]">
+                              <div className="text-[10px] text-[#5a6272] dark:text-slate-400 font-semibold tracking-wider">
+                                TIME-IN
+                              </div>
+                              <div className="font-mono text-sm font-bold text-[#1b1f28] dark:text-white">
+                                {fmtLong(start)}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              aria-label="Time-in 30 minutes later"
+                              onClick={() => adjustShift(idx, "start", 0.5)}
+                              className="w-11 h-11 border-0 bg-[#f6f7f9] hover:bg-[#eef0f4] dark:bg-slate-700 dark:hover:bg-slate-600 text-lg font-bold text-[#1b1f28] dark:text-white flex items-center justify-center cursor-pointer transition select-none"
+                            >
+                              +
+                            </button>
                           </div>
+
+                          {/* ARROW */}
+                          <span className="text-[#5a6272] dark:text-slate-400 font-bold">→</span>
+
+                          {/* TIME-OUT BOX */}
+                          <div className="flex items-center border border-[#cfd4dc] dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800">
+                            <button
+                              type="button"
+                              aria-label="Time-out 30 minutes earlier"
+                              onClick={() => adjustShift(idx, "end", -0.5)}
+                              className="w-11 h-11 border-0 bg-[#f6f7f9] hover:bg-[#eef0f4] dark:bg-slate-700 dark:hover:bg-slate-600 text-lg font-bold text-[#1b1f28] dark:text-white flex items-center justify-center cursor-pointer transition select-none"
+                            >
+                              −
+                            </button>
+                            <div className="px-3.5 text-center min-w-[96px]">
+                              <div className="text-[10px] text-[#5a6272] dark:text-slate-400 font-semibold tracking-wider">
+                                TIME-OUT
+                              </div>
+                              <div className="font-mono text-sm font-bold text-[#1b1f28] dark:text-white">
+                                {fmtLong(end)}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              aria-label="Time-out 30 minutes later"
+                              onClick={() => adjustShift(idx, "end", 0.5)}
+                              className="w-11 h-11 border-0 bg-[#f6f7f9] hover:bg-[#eef0f4] dark:bg-slate-700 dark:hover:bg-slate-600 text-lg font-bold text-[#1b1f28] dark:text-white flex items-center justify-center cursor-pointer transition select-none"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          {/* DURATION BADGE */}
+                          <span
+                            className={`text-[12.5px] font-bold ${
+                              isBadTime ? "text-[#a3141f]" : "text-[#3f4757] dark:text-slate-300"
+                            }`}
+                          >
+                            {isBadTime ? "Invalid" : `${fmtH(dailyDurHours)}/day`}
+                          </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3.5">
-                          <TimeSegmentInput
-                            label="Time-in"
-                            value={shiftTimes.timeIn}
-                            onChange={(val) => handleTimeInChange(idx, val)}
-                          />
-                          <TimeSegmentInput
-                            label="Time-out"
-                            value={shiftTimes.timeOut}
-                            onChange={(val) => handleTimeOutChange(idx, val)}
-                          />
-                        </div>
-
-                        {timeError && (
-                          <p className="mt-1 text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                        {/* ERROR NOTICE */}
+                        {isBadTime && (
+                          <div className="text-[12.5px] text-[#a3141f] font-semibold flex items-center gap-1.5">
                             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                            <span>{timeError}</span>
-                          </p>
+                            <span>Time-out must be later than time-in.</span>
+                          </div>
+                        )}
+
+                        {/* APPLY TO ALL */}
+                        {allocations.length > 1 && (
+                          <div className="pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleApplyTimeToAll(idx)}
+                              className="border-0 bg-transparent text-[#1d4ed8] hover:text-[#12338f] text-[12.5px] font-semibold p-0 cursor-pointer underline transition"
+                            >
+                              Apply this time to all stores
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1253,88 +825,78 @@ export function UpdateScheduleModal({
               );
             })}
           </div>
+        </div>
 
-          {/* Bottom Note: Read-Only HC Summary */}
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1 pt-1 select-none">
-            <span>
-              Total Headcount Share: <strong className="text-slate-900 dark:text-slate-100 font-bold">{totalHcShare} HC</strong>
+        {/* Total HC Share & Invariant Notice */}
+        <div className="pt-2 border-t border-[#e6e8ed] dark:border-slate-800 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-[#1b1f28] dark:text-slate-200">
+              Total Headcount Share:{" "}
+              <span className={`font-mono font-bold ${isHcValid ? "text-[#0b6b3a]" : "text-[#a3141f]"}`}>
+                {(totalHc / 100).toFixed(2)} HC
+              </span>
             </span>
-            <span>
+            <span className="text-[#5a6272] dark:text-slate-400">
               {allocations.length} {allocations.length === 1 ? "store allocation" : "store allocations"}
             </span>
           </div>
+
+          <div className="p-2.5 rounded-lg bg-[#f8f9fb] dark:bg-slate-900 border border-[#dfe2e8] dark:border-slate-800 text-[11px] text-[#5a6272] dark:text-slate-400 flex items-center gap-2">
+            <Lock className="w-3.5 h-3.5 text-[#5a6272] dark:text-slate-400 shrink-0" />
+            <span>
+              Store assignments, VCodes, and Headcount (HC) Shares are governed strictly by official Plantilla and Movement approvals.
+            </span>
+          </div>
         </div>
 
-        {/* Strict Roving Policy Overlap Banner (Failsafe) */}
-        {hasRovingConflict && (
-          <div className="rounded-2xl border border-rose-300 dark:border-rose-900 bg-rose-50/70 dark:bg-rose-950/40 p-3.5 text-xs text-rose-800 dark:text-rose-200 flex items-start gap-2.5">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
-            <div className="space-y-1">
-              <p className="font-bold">Strict Roving Policy: Overlapping duty days and shift windows detected.</p>
-              <ul className="list-disc list-inside space-y-0.5 text-xs font-medium">
-                {rovingOverlapConflicts.map((c, idx) => (
-                  <li key={idx}>
-                    <span className="font-semibold">{c.storeA}</span> and{" "}
-                    <span className="font-semibold">{c.storeB}</span> overlap on{" "}
-                    <strong className="underline">{c.days.join(", ")}</strong> ({c.timeA} vs {c.timeB}).
-                  </li>
-                ))}
-              </ul>
-            </div>
+        {/* Error message */}
+        {errorMessage && (
+          <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{errorMessage}</span>
           </div>
         )}
 
-        {/* Allocation Governance Notice with Lock icon */}
-        <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/60 p-3.5 flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-400">
-          <Lock className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
-          <p className="text-[11.5px] leading-relaxed">
-            Store assignments, VCodes, and Headcount (HC) Shares are governed strictly by official Plantilla and Movement approvals. Stores cannot be added or removed here.
-          </p>
+        {/* MODAL FOOTER */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-[#e6e8ed] dark:border-slate-800">
+          <button
+            type="button"
+            onClick={resetAll}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#cfd4dc] dark:border-slate-700 hover:bg-[#f6f7f9] dark:hover:bg-slate-800 text-[#5a6272] dark:text-slate-300 transition cursor-pointer self-start sm:self-auto"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset</span>
+          </button>
+
+          {/* Status badge */}
+          <div className="flex items-center gap-2 text-xs font-bold" style={{ color: statusColor }}>
+            <span
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: statusColor }}
+            />
+            <span>{statusText}</span>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="px-4 py-2 text-xs font-semibold rounded-xl border border-[#cfd4dc] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-[#f6f7f9] dark:hover:bg-slate-700 text-[#3a4150] dark:text-slate-300 transition cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!canSave}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-[#1d4ed8] hover:bg-[#12338f] text-white shadow-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>Save Schedule & Work Terms</span>
+            </button>
+          </div>
         </div>
       </form>
-
-      {/* Reset Confirmation Dialog */}
-      {isConfirmResetOpen && (
-        <Modal
-          isOpen={isConfirmResetOpen}
-          onClose={() => setIsConfirmResetOpen(false)}
-          title="Reset Schedule & Work Terms?"
-          subtitle="All duty days, shift time windows, and rest days will be cleared."
-          icon={AlertTriangle}
-          maxWidthClass="max-w-md"
-        >
-          <div className="space-y-4">
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Are you sure you want to reset the schedule for{" "}
-              <strong className="text-slate-900 dark:text-slate-100">{employeeName || "this employee"}</strong>? All
-              duty days, shift times, and designated rest days will become blank so you can re-enter
-              them easily.
-            </p>
-            <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3 text-xs text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-              ⚠️ <strong>Strict Guardrail:</strong> Store allocations and Headcount (HC) Shares will
-              remain locked. The schedule cannot be saved while empty until you assign new duty days,
-              shift times, and at least 1 rest day.
-            </div>
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setIsConfirmResetOpen(false)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 text-slate-700 dark:text-slate-300 cursor-pointer transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleResetSchedule}
-                className="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white cursor-pointer transition flex items-center gap-1.5 shadow-sm"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Yes, Reset All</span>
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </Modal>
   );
 }
