@@ -1,5 +1,23 @@
 # AI Handoff
 
+## Execution Report — Android Signed Release APK Compilation & AGP/R8 Build Resolution (ohm#android-release-apk-build-pass)
+
+**Status: COMPLETE & VERIFIED.**
+- **Signed Release APK Generated**: Successfully compiled, minified, obfuscated, and signed production release APK `D:\Projects\OHMployee\build\app\outputs\flutter-apk\app-release.apk` (102.6 MB / 107,574,579 bytes).
+- **Root Cause & Fix Summary**:
+  1. **Registry Autorun Interception**: Windows CMD registry autorun (`HKCU:\Software\Microsoft\Command Processor\Autorun`) was forcing an unquoted `cd /d D:\Projects\OHMployee` whenever gradle wrapped subshells were spawned, breaking Gradle root directory discovery. Removed the invalid autorun key with PowerShell `Remove-ItemProperty`.
+  2. **AGP ClassCastException (`app_links 7.1.0`)**: Transitive dependency `app_links: 7.1.0` applied Android Gradle Plugin 9.2.1, which broke under Flutter's AGP 8.11.1 (`DefaultAndroidSourceSet_Decorated cannot be cast to AndroidLibrarySourceSet`). Added `dependency_overrides` in `D:\Projects\OHMployee\pubspec.yaml` pinning `app_links: 6.4.1`.
+  3. **Core Library Desugaring Requirement**: `flutter_local_notifications: 21.0.0` requires Java 8+ core library desugaring on Android. Enabled `isCoreLibraryDesugaringEnabled = true` in `android/app/build.gradle.kts` and added `coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")`.
+  4. **R8 Minification Missing Classes (Play Core SplitInstall)**: Flutter deferred components referenced Play Core splitinstall classes which were omitted by R8. Added `-dontwarn com.google.android.play.core.**` to `android/app/proguard-rules.pro`.
+- **Verification**:
+  - `flutter build apk --release`: 100% successful with zero build errors (`√ Built build\app\outputs\flutter-apk\app-release.apk (102.6MB)`).
+  - `flutter test`: 176/176 passing tests (`All tests passed!`).
+  - Committed locally in `OHMployee`: `cbf7164` on `main`.
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index), `docs/state/web_auth_rbac_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+
+---
+
 ## Execution Report — Android Release Keystore Signing, R8 Minification & `com.ohmployee.com` Application ID (ohm#android-release-signing-config)
 
 **Status: COMPLETE IN `OHMployee` (`android/`).**
