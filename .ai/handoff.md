@@ -1,5 +1,16 @@
 # AI Handoff
 
+## Execution Report — Migrate `xlsx@0.18.5` → `exceljs@^4.4.0` & Remove Legacy Edge Functions (ohm#sec-cleanup-xlsx-and-legacy-edge-fns)
+
+**Status: COMPLETE ACROSS BOTH REPOS.**
+- **Web (`ohmployee-web`)**: Migrated all workbook read/write/template utilities from unmaintained `xlsx@0.18.5` (CVE-2023-30533 Prototype Pollution & CVE-2024-22363 ReDoS) to `exceljs@^4.4.0` (`src/lib/utils/reports_export.ts`, `src/lib/utils/hr_emploc_xlsx.ts`, `src/lib/utils/data_control_xlsx.ts`, `src/components/hr-emploc/import/UploadTab.tsx`, `src/lib/utils/__tests__/all_imports_sanity.test.mjs`, `src/lib/utils/__tests__/mika_import_sanity.test.mjs`, `scripts/verify-full-system-health.mjs`), added a pure RFC-4180 CSV parser for `.csv` uploads in `parseSpreadsheetToRows`, and removed `"xlsx"` from `package.json`.
+- **Mobile (`OHMployee`)**: Deleted unused legacy unauthenticated Edge Functions `lib/supabase/functions/import-csv/index.ts` and `lib/supabase/functions/notify-dispatch/index.ts` after confirming 0 Edge Functions deployed on both Staging and Production.
+- **Verification**: Web `npm test` (255/255 passing), `npm run lint` (0 errors/warnings), `npm run build` (22/22 routes clean).
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index), `docs/state/web_auth_rbac_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+
+---
+
 ## Execution Report — Fix Roving Headcount Requisition Island Group Resolution & PostgREST Column Guard (ohm#fix-headcount-request-island-group-resolution)
 
 **Status: COMPLETE (DATABASE MIGRATION 128 PUSHED TO STAGING, FRONTEND QUERIES HARDENED, 255/255 TESTS PASSING, 0 LINT ERRORS).**

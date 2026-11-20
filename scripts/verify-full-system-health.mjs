@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { createClient } from "@supabase/supabase-js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -82,12 +82,13 @@ try {
   ];
 
   // Helper matching src/lib/utils/hr_emploc_xlsx.ts
-  function buildHrEmplocImportTemplateXlsx(variant = "v3") {
-    const wb = XLSX.utils.book_new();
+  async function buildHrEmplocImportTemplateXlsx(variant = "v3") {
+    const wb = new ExcelJS.Workbook();
 
     if (variant === "standard") {
-      const headers = [...STANDARD_REQUIRED_HEADERS];
-      const sampleRow = [
+      const ws = wb.addWorksheet("IMPORT_TEMPLATE");
+      ws.addRow([...STANDARD_REQUIRED_HEADERS]);
+      ws.addRow([
         "SM Mall of Asia",
         "Account Alpha",
         "Sales Associate",
@@ -95,12 +96,11 @@ try {
         "DELA CRUZ",
         "SANTOS",
         "V-2026-001",
-      ];
-      const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
-      XLSX.utils.book_append_sheet(wb, ws, "IMPORT_TEMPLATE");
+      ]);
     } else {
-      const headers = [...V3_REQUIRED_HEADERS];
-      const sampleRow = [
+      const ws = wb.addWorksheet("IMPORT_TEMPLATE");
+      ws.addRow([...V3_REQUIRED_HEADERS]);
+      ws.addRow([
         "Group Alpha",
         "Account Alpha",
         "V-2026-001",
@@ -108,70 +108,65 @@ try {
         "JUAN",
         "SANTOS",
         "2026-01-15",
-      ];
-      const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
-      XLSX.utils.book_append_sheet(wb, ws, "IMPORT_TEMPLATE");
-
-      const wsStandard = XLSX.utils.aoa_to_sheet([
-        [...STANDARD_REQUIRED_HEADERS],
-        [
-          "SM Mall of Asia",
-          "Account Alpha",
-          "Sales Associate",
-          "JUAN",
-          "DELA CRUZ",
-          "SANTOS",
-          "V-2026-001",
-        ],
       ]);
-      XLSX.utils.book_append_sheet(wb, wsStandard, "STANDARD_SCHEMA");
+
+      const wsStandard = wb.addWorksheet("STANDARD_SCHEMA");
+      wsStandard.addRow([...STANDARD_REQUIRED_HEADERS]);
+      wsStandard.addRow([
+        "SM Mall of Asia",
+        "Account Alpha",
+        "Sales Associate",
+        "JUAN",
+        "DELA CRUZ",
+        "SANTOS",
+        "V-2026-001",
+      ]);
     }
 
-    const guideData = [
-      ["COLUMN", "REQUIRED", "FORMAT / NOTES"],
-      ["GROUP", "YES", "Must match group"],
-    ];
-    const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
-    XLSX.utils.book_append_sheet(wb, wsGuide, "VALIDATION_GUIDE");
+    const wsGuide = wb.addWorksheet("VALIDATION_GUIDE");
+    wsGuide.addRow(["COLUMN", "REQUIRED", "FORMAT / NOTES"]);
+    wsGuide.addRow(["GROUP", "YES", "Must match group"]);
 
-    const arrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const arrayBuffer = await wb.xlsx.writeBuffer();
     return new Uint8Array(arrayBuffer);
   }
 
   // Test v3 template
-  const v3Bytes = buildHrEmplocImportTemplateXlsx("v3");
-  const wbV3 = XLSX.read(v3Bytes, { type: "array" });
+  const v3Bytes = await buildHrEmplocImportTemplateXlsx("v3");
+  const wbV3 = new ExcelJS.Workbook();
+  await wbV3.xlsx.load(v3Bytes.buffer);
+  const v3Names = wbV3.worksheets.map((s) => s.name);
   const hasExpectedSheetsV3 =
-    wbV3.SheetNames.includes("IMPORT_TEMPLATE") &&
-    wbV3.SheetNames.includes("STANDARD_SCHEMA") &&
-    wbV3.SheetNames.includes("VALIDATION_GUIDE");
+    v3Names.includes("IMPORT_TEMPLATE") &&
+    v3Names.includes("STANDARD_SCHEMA") &&
+    v3Names.includes("VALIDATION_GUIDE");
 
-  const v3Sheet = wbV3.Sheets["IMPORT_TEMPLATE"];
-  const v3Json = XLSX.utils.sheet_to_json(v3Sheet);
+  const v3Sheet = wbV3.getWorksheet("IMPORT_TEMPLATE");
   const v3HeaderMatch =
-    Object.keys(v3Json[0] || {}).join(",") === V3_REQUIRED_HEADERS.join(",");
+    v3Sheet.getRow(1).values.slice(1).join(",") === V3_REQUIRED_HEADERS.join(",");
 
   recordTest(
     "XLSX Template (v3 ADR-001) Generation & Sheet Contract",
     v3Bytes.byteLength > 0 && hasExpectedSheetsV3 && v3HeaderMatch,
-    `Bytes: ${v3Bytes.byteLength}, Sheets: ${wbV3.SheetNames.join(", ")}`
+    `Bytes: ${v3Bytes.byteLength}, Sheets: ${v3Names.join(", ")}`
   );
 
   // Test standard template
-  const stdBytes = buildHrEmplocImportTemplateXlsx("standard");
-  const wbStd = XLSX.read(stdBytes, { type: "array" });
+  const stdBytes = await buildHrEmplocImportTemplateXlsx("standard");
+  const wbStd = new ExcelJS.Workbook();
+  await wbStd.xlsx.load(stdBytes.buffer);
+  const stdNames = wbStd.worksheets.map((s) => s.name);
   const hasExpectedSheetsStd =
-    wbStd.SheetNames.includes("IMPORT_TEMPLATE") &&
-    wbStd.SheetNames.includes("VALIDATION_GUIDE");
-  const stdSheet = wbStd.Sheets["IMPORT_TEMPLATE"];
-  const stdJson = XLSX.utils.sheet_to_json(stdSheet);
+    stdNames.includes("IMPORT_TEMPLATE") &&
+    stdNames.includes("VALIDATION_GUIDE");
+  const stdSheet = wbStd.getWorksheet("IMPORT_TEMPLATE");
   const stdHeaderMatch =
-    Object.keys(stdJson[0] || {}).join(",") === STANDARD_REQUIRED_HEADERS.join(",");
+    stdSheet.getRow(1).values.slice(1).join(",") === STANDARD_REQUIRED_HEADERS.join(",");
 
   recordTest(
     "XLSX Template (Standard 7-col) Generation & Sheet Contract",
     stdBytes.byteLength > 0 && hasExpectedSheetsStd && stdHeaderMatch,
-    `Bytes: ${stdBytes.byteLength}, Sheets: ${wbStd.SheetNames.join(", ")}`
+    `Bytes: ${stdBytes.byteLength}, Sheets: ${stdNames.join(", ")}`
   );
 } catch (err) {
   recordTest("XLSX Template Generation Crash Check", false, err.message);

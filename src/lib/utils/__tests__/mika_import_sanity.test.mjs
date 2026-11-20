@@ -1,48 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import {
   MIKA_REQUIRED_HEADERS,
   MIKA_OPTIONAL_HEADERS,
   MIKA_SAMPLE_ROW,
+  parseSpreadsheetToRows,
 } from "../data_control_xlsx.ts";
 
-// Helper to simulate parseSpreadsheetToRows on Node buffers
-function parseBufferToRows(buffer) {
-  const wb = XLSX.read(buffer, { type: "buffer", cellDates: true });
-  const sheetName = wb.SheetNames[0];
-  if (!sheetName) throw new Error("Spreadsheet contains no sheets.");
-
-  const sheet = wb.Sheets[sheetName];
-  const rawMatrix = XLSX.utils.sheet_to_json(sheet, {
-    header: 1,
-    defval: "",
-    raw: false,
+async function buildMockFile(sheetName, aoa) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(sheetName);
+  for (const row of aoa) ws.addRow(row);
+  const buffer = await wb.xlsx.writeBuffer();
+  return new File([buffer], "mika_test.xlsx", {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-
-  if (!rawMatrix || rawMatrix.length === 0) {
-    throw new Error("Spreadsheet sheet is empty.");
-  }
-
-  const rawHeaders = rawMatrix[0].map((c) => String(c ?? "").trim());
-  const rows = [];
-  for (let r = 1; r < rawMatrix.length; r++) {
-    const rawRow = rawMatrix[r];
-    if (!rawRow || rawRow.length === 0) continue;
-    const hasValue = rawRow.some((val) => String(val ?? "").trim() !== "");
-    if (!hasValue) continue;
-
-    const rowObj = {};
-    for (let c = 0; c < rawHeaders.length; c++) {
-      const headerKey = rawHeaders[c];
-      if (headerKey) {
-        rowObj[headerKey] = String(rawRow[c] ?? "").trim();
-      }
-    }
-    rows.push(rowObj);
-  }
-
-  return { headers: rawHeaders, rows };
 }
 
 // Split full name helper (mirroring MikaImportModal.tsx)
@@ -84,16 +57,12 @@ test("SANITY-01: MIKA Template Specification and Header Completeness", () => {
   assert.ok(MIKA_OPTIONAL_HEADERS.includes("Date Hired"));
 });
 
-test("SANITY-02: Generating and Parsing a Clean MIKA XLSX File", () => {
-  const wb = XLSX.utils.book_new();
+test("SANITY-02: Generating and Parsing a Clean MIKA XLSX File", async () => {
   const headers = [...MIKA_REQUIRED_HEADERS, ...MIKA_OPTIONAL_HEADERS];
-  const ws = XLSX.utils.aoa_to_sheet([headers, MIKA_SAMPLE_ROW]);
-  XLSX.utils.book_append_sheet(wb, ws, "IMPORT_TEMPLATE");
+  const file = await buildMockFile("IMPORT_TEMPLATE", [headers, MIKA_SAMPLE_ROW]);
+  assert.ok(file.size > 0, "Workbook binary buffer generated");
 
-  const buffer = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
-  assert.ok(buffer && buffer.length > 0, "Workbook binary buffer generated");
-
-  const { headers: parsedHeaders, rows: parsedRows } = parseBufferToRows(buffer);
+  const { headers: parsedHeaders, rows: parsedRows } = await parseSpreadsheetToRows(file);
 
   assert.equal(parsedHeaders.length, headers.length, "Parsed headers count must match template");
   assert.equal(parsedRows.length, 1, "Parsed rows count must equal 1 sample row");
@@ -123,15 +92,11 @@ test("SANITY-03: Fullname Parsing and Splitting Logic", () => {
   assert.equal(res2.lastName, "REYES");
 });
 
-test("SANITY-04: Header Normalization and Aliasing Tolerates Case & Whitespace", () => {
-  const wb = XLSX.utils.book_new();
+test("SANITY-04: Header Normalization and Aliasing Tolerates Case & Whitespace", async () => {
   const messyHeaders = ["  EMPLOYEE_NO  ", "full_name", "ACCOUNT_NAME", "sss_no", "contact"];
   const messyRow = ["E-9988", "SANTOS, MARIA", "ACTISERVE", "34-9988771-0", "09181112233"];
-  const ws = XLSX.utils.aoa_to_sheet([messyHeaders, messyRow]);
-  XLSX.utils.book_append_sheet(wb, ws, "SHEET1");
-
-  const buffer = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
-  const { headers, rows } = parseBufferToRows(buffer);
+  const file = await buildMockFile("SHEET1", [messyHeaders, messyRow]);
+  const { headers, rows } = await parseSpreadsheetToRows(file);
 
   const upperHeaders = new Set(headers.map((h) => h.toUpperCase().replace(/\s+/g, "_")));
   const hasEmpNo = upperHeaders.has("EMPLOYEE_NO") || upperHeaders.has("EMPLOYEE_NO.");
@@ -144,15 +109,11 @@ test("SANITY-04: Header Normalization and Aliasing Tolerates Case & Whitespace",
   assert.equal(rows[0]["EMPLOYEE_NO"], "E-9988");
 });
 
-test("SANITY-05: Missing Required Headers Detection", () => {
-  const wb = XLSX.utils.book_new();
+test("SANITY-05: Missing Required Headers Detection", async () => {
   const incompleteHeaders = ["Employee No.", "Fullname"]; // Missing Account
   const row = ["10001", "DELA CRUZ, JUAN"];
-  const ws = XLSX.utils.aoa_to_sheet([incompleteHeaders, row]);
-  XLSX.utils.book_append_sheet(wb, ws, "SHEET1");
-
-  const buffer = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
-  const { headers } = parseBufferToRows(buffer);
+  const file = await buildMockFile("SHEET1", [incompleteHeaders, row]);
+  const { headers } = await parseSpreadsheetToRows(file);
   const upperHeaders = new Set(headers.map((h) => h.toUpperCase()));
 
   const hasEmpNo = upperHeaders.has("EMPLOYEE NO.") || upperHeaders.has("EMPLOYEE_NO");

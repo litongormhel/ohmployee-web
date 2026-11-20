@@ -1,50 +1,82 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+
+function triggerXlsxDownload(buffer: ArrayBuffer, filename: string): void {
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function appendJsonSheet(
+  wb: ExcelJS.Workbook,
+  rows: Record<string, unknown>[],
+  sheetName: string,
+): void {
+  const ws = wb.addWorksheet(sheetName.substring(0, 31));
+  const safeRows = rows.length ? rows : [{ Note: "No data available" }];
+  const headers = Array.from(
+    new Set(safeRows.flatMap((row) => Object.keys(row))),
+  );
+  ws.addRow(headers);
+  for (const row of safeRows) {
+    ws.addRow(headers.map((h) => row[h] ?? ""));
+  }
+}
 
 /**
  * Downloads tabular data as an XLSX workbook.
  */
-export function exportToXlsx(
+export async function exportToXlsx(
   data: Record<string, unknown>[],
   filename: string,
-  sheetName = "Report"
-): void {
+  sheetName = "Report",
+): Promise<void> {
   if (typeof window === "undefined" || !data.length) return;
 
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
-  XLSX.writeFile(wb, `${filename}.xlsx`);
+  const wb = new ExcelJS.Workbook();
+  appendJsonSheet(wb, data, sheetName);
+  const buffer = await wb.xlsx.writeBuffer();
+  triggerXlsxDownload(buffer, filename);
 }
 
 /**
  * Downloads tabular data as a multi-sheet XLSX workbook.
  */
-export function exportMultiSheetXlsx(
+export async function exportMultiSheetXlsx(
   sheets: { name: string; data: Record<string, unknown>[] }[],
-  filename: string
-): void {
+  filename: string,
+): Promise<void> {
   if (typeof window === "undefined" || !sheets.length) return;
 
-  const wb = XLSX.utils.book_new();
+  const wb = new ExcelJS.Workbook();
   for (const sheet of sheets) {
-    const ws = XLSX.utils.json_to_sheet(sheet.data.length ? sheet.data : [{ Note: "No data available" }]);
-    XLSX.utils.book_append_sheet(wb, ws, sheet.name.substring(0, 31));
+    appendJsonSheet(wb, sheet.data, sheet.name);
   }
-  XLSX.writeFile(wb, `${filename}.xlsx`);
+  const buffer = await wb.xlsx.writeBuffer();
+  triggerXlsxDownload(buffer, filename);
 }
 
-function escapeCsvCell(val: unknown): unknown {
-  if (typeof val === "string") {
-    // Exempt pure-numeric strings (e.g. "+123", "-45.67", "0")
-    if (/^[+-]?\d+(\.\d+)?$/.test(val.trim())) {
-      return val;
-    }
+function escapeCsvCell(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  let str = String(val);
+  // Exempt pure-numeric strings (e.g. "+123", "-45.67", "0")
+  if (!/^[+-]?\d+(\.\d+)?$/.test(str.trim())) {
     // Prefix single quote if string starts with formula trigger (=, +, -, @, tab, CR)
-    if (/^[\=\+\-\@\t\r]/.test(val)) {
-      return `'${val}`;
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = `'${str}`;
     }
   }
-  return val;
+  if (/[",\r\n]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
 }
 
 /**
@@ -52,21 +84,17 @@ function escapeCsvCell(val: unknown): unknown {
  */
 export function exportToCsv(
   data: Record<string, unknown>[],
-  filename: string
+  filename: string,
 ): void {
   if (typeof window === "undefined" || !data.length) return;
 
-  const escapedData = data.map((row) => {
-    const escapedRow: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(row)) {
-      escapedRow[key] = escapeCsvCell(val);
-    }
-    return escapedRow;
-  });
+  const headers = Array.from(new Set(data.flatMap((row) => Object.keys(row))));
+  const lines = [
+    headers.map(escapeCsvCell).join(","),
+    ...data.map((row) => headers.map((h) => escapeCsvCell(row[h])).join(",")),
+  ];
 
-  const ws = XLSX.utils.json_to_sheet(escapedData);
-  const csv = XLSX.utils.sheet_to_csv(ws);
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

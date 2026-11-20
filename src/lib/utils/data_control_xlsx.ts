@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
 
 // ============================================================================
@@ -439,13 +438,75 @@ export const VACANCY_SAMPLE_ROW = [
   "Imported from legacy tracker",
 ];
 
-export function downloadVacancyImportTemplate(): void {
+function appendAoaSheet(wb: ExcelJS.Workbook, name: string, aoa: unknown[][]): void {
+  const ws = wb.addWorksheet(name);
+  for (const row of aoa) {
+    ws.addRow(row);
+  }
+}
+
+function cellValueToString(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  if (val instanceof Date) return val.toISOString().slice(0, 10);
+  if (typeof val === "object") {
+    const obj = val as Record<string, unknown>;
+    if ("result" in obj && obj.result !== undefined) return cellValueToString(obj.result);
+    if ("richText" in obj && Array.isArray(obj.richText)) {
+      return obj.richText.map((r: { text?: string }) => r?.text ?? "").join("").trim();
+    }
+    if ("text" in obj && typeof obj.text === "string") return obj.text.trim();
+  }
+  return String(val).trim();
+}
+
+function parseCsvMatrix(text: string): string[][] {
+  const clean = text.replace(/^\uFEFF/, "");
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (clean[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      row.push(field.trim());
+      field = "";
+    } else if (ch === "\r" || ch === "\n") {
+      if (ch === "\r" && clean[i + 1] === "\n") i++;
+      row.push(field.trim());
+      rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += ch;
+    }
+  }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field.trim());
+    rows.push(row);
+  }
+  return rows;
+}
+
+export async function downloadVacancyImportTemplate(): Promise<void> {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
-  const wb = XLSX.utils.book_new();
+  const wb = new ExcelJS.Workbook();
   const headers = [...VACANCY_REQUIRED_HEADERS, ...VACANCY_OPTIONAL_HEADERS];
-  const wsTemplate = XLSX.utils.aoa_to_sheet([headers, VACANCY_SAMPLE_ROW]);
-  XLSX.utils.book_append_sheet(wb, wsTemplate, "IMPORT_TEMPLATE");
+  appendAoaSheet(wb, "IMPORT_TEMPLATE", [headers, VACANCY_SAMPLE_ROW]);
 
   const guideData = [
     ["COLUMN", "REQUIRED", "DESCRIPTION / FORMAT"],
@@ -473,10 +534,9 @@ export function downloadVacancyImportTemplate(): void {
     ["MIGRATION_SOURCE", "NO", "Google Sheets, Excel, or Legacy."],
     ["MIGRATION_NOTES", "NO", "Administrative migration notes."],
   ];
-  const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
-  XLSX.utils.book_append_sheet(wb, wsGuide, "VALIDATION_GUIDE");
+  appendAoaSheet(wb, "VALIDATION_GUIDE", guideData);
 
-  const arrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const arrayBuffer = await wb.xlsx.writeBuffer();
   triggerBrowserDownload(new Uint8Array(arrayBuffer), "vacancy_import_template.xlsx");
 }
 
@@ -521,13 +581,12 @@ export const MIKA_SAMPLE_ROW = [
   "1234567890",
 ];
 
-export function downloadMikaImportTemplate(): void {
+export async function downloadMikaImportTemplate(): Promise<void> {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
-  const wb = XLSX.utils.book_new();
+  const wb = new ExcelJS.Workbook();
   const headers = [...MIKA_REQUIRED_HEADERS, ...MIKA_OPTIONAL_HEADERS];
-  const wsTemplate = XLSX.utils.aoa_to_sheet([headers, MIKA_SAMPLE_ROW]);
-  XLSX.utils.book_append_sheet(wb, wsTemplate, "IMPORT_TEMPLATE");
+  appendAoaSheet(wb, "IMPORT_TEMPLATE", [headers, MIKA_SAMPLE_ROW]);
 
   const guideData = [
     ["COLUMN", "REQUIRED", "DESCRIPTION / FORMAT"],
@@ -546,10 +605,9 @@ export function downloadMikaImportTemplate(): void {
     ["TIN", "NO", "Tax Identification Number."],
     ["ATM No.", "NO", "Payroll ATM account number."],
   ];
-  const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
-  XLSX.utils.book_append_sheet(wb, wsGuide, "VALIDATION_GUIDE");
+  appendAoaSheet(wb, "VALIDATION_GUIDE", guideData);
 
-  const arrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const arrayBuffer = await wb.xlsx.writeBuffer();
   triggerBrowserDownload(new Uint8Array(arrayBuffer), "mika_import_template.xlsx");
 }
 
@@ -568,15 +626,14 @@ export const PAYROLL_SAMPLE_ROWS = [
   ["10002", "REYES, MARIA ANA", "GROUP 3 / SAVEMORE"],
 ];
 
-export function downloadPayrollCheckTemplate(): void {
+export async function downloadPayrollCheckTemplate(): Promise<void> {
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
-  const wb = XLSX.utils.book_new();
-  const wsTemplate = XLSX.utils.aoa_to_sheet([
+  const wb = new ExcelJS.Workbook();
+  appendAoaSheet(wb, "PAYROLL_TEMPLATE", [
     [...PAYROLL_REQUIRED_HEADERS],
     ...PAYROLL_SAMPLE_ROWS,
   ]);
-  XLSX.utils.book_append_sheet(wb, wsTemplate, "PAYROLL_TEMPLATE");
 
   const guideData = [
     ["COLUMN", "REQUIRED", "DESCRIPTION / FORMAT"],
@@ -591,10 +648,9 @@ export function downloadPayrollCheckTemplate(): void {
     ["4. Mismatch: Name or Account mismatch between payroll file and Plantilla profile."],
     ["5. Duplicates: Multiple payroll entries with identical Employee Number in same upload."],
   ];
-  const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
-  XLSX.utils.book_append_sheet(wb, wsGuide, "GUIDE");
+  appendAoaSheet(wb, "GUIDE", guideData);
 
-  const arrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const arrayBuffer = await wb.xlsx.writeBuffer();
   triggerBrowserDownload(new Uint8Array(arrayBuffer), "OHMployee_Payroll_Template.xlsx");
 }
 
@@ -605,32 +661,46 @@ export function downloadPayrollCheckTemplate(): void {
 export async function parseSpreadsheetToRows(
   file: File,
 ): Promise<{ headers: string[]; rows: Record<string, string>[] }> {
-  const buffer = await file.arrayBuffer();
-  const wb = XLSX.read(buffer, { type: "array", cellDates: true });
+  let rawMatrix: string[][];
 
-  const firstSheetName = wb.SheetNames[0];
-  if (!firstSheetName) {
-    throw new Error("Spreadsheet contains no sheets.");
+  if (file.name.toLowerCase().endsWith(".csv")) {
+    const text = await file.text();
+    rawMatrix = parseCsvMatrix(text);
+  } else {
+    const buffer = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer);
+
+    const sheet = wb.worksheets[0];
+    if (!sheet) {
+      throw new Error("Spreadsheet contains no sheets.");
+    }
+    if (sheet.rowCount === 0) {
+      throw new Error("Spreadsheet sheet is empty.");
+    }
+
+    const headerRow = sheet.getRow(1);
+    const colCount = Math.max(headerRow.cellCount, sheet.columnCount);
+    rawMatrix = [];
+    for (let r = 1; r <= sheet.rowCount; r++) {
+      const row = sheet.getRow(r);
+      const vals: string[] = [];
+      for (let c = 1; c <= colCount; c++) {
+        vals.push(cellValueToString(row.getCell(c).value));
+      }
+      rawMatrix.push(vals);
+    }
   }
-
-  const sheet = wb.Sheets[firstSheetName];
-  const rawMatrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-    header: 1,
-    defval: "",
-    raw: false,
-  });
 
   if (!rawMatrix || rawMatrix.length === 0) {
     throw new Error("Spreadsheet sheet is empty.");
   }
 
-  const rawHeaders = (rawMatrix[0] as unknown[]).map((c) =>
-    String(c ?? "").trim(),
-  );
+  const rawHeaders = rawMatrix[0].map((c) => String(c ?? "").trim());
 
   const rows: Record<string, string>[] = [];
   for (let r = 1; r < rawMatrix.length; r++) {
-    const rawRow = rawMatrix[r] as unknown[];
+    const rawRow = rawMatrix[r];
     if (!rawRow || rawRow.length === 0) continue;
 
     // Check if entire row is blank

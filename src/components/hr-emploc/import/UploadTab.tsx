@@ -67,7 +67,7 @@ export function UploadTab({ onSuccess }: UploadTabProps) {
 
     try {
       const buffer = await file.arrayBuffer();
-      const parsed = xlsxToHrEmplocRows(buffer);
+      const parsed = await xlsxToHrEmplocRows(buffer);
 
       if (parsed.length === 0) {
         setParseError(

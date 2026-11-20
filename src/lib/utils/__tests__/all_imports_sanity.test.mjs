@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import {
   PLANTILLA_BASELINE_STORE_HEADERS,
   PLANTILLA_EMPLOYEE_HEADERS,
@@ -27,11 +27,11 @@ import {
 } from "../payroll_reconciliation.ts";
 
 // Helper to create in-memory File from array-of-arrays
-function createMockXlsxFile(sheetName, aoa, fileName = "import_test.xlsx") {
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+async function createMockXlsxFile(sheetName, aoa, fileName = "import_test.xlsx") {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(sheetName);
+  for (const row of aoa) ws.addRow(row);
+  const buffer = await wb.xlsx.writeBuffer();
   return new File([buffer], fileName, {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
@@ -48,7 +48,7 @@ test("1. Plantilla Import: parseSpreadsheetToRows parses store & employee rows c
     ...PLANTILLA_OPTIONAL_HEADERS,
   ];
 
-  const file = createMockXlsxFile("IMPORT_TEMPLATE", [
+  const file = await createMockXlsxFile("IMPORT_TEMPLATE", [
     allHeaders,
     PLANTILLA_SAMPLE_ROW,
     // Add a blank row to verify blank row resilience
@@ -67,7 +67,7 @@ test("1. Plantilla Import: parseSpreadsheetToRows parses store & employee rows c
 
 test("1. Plantilla Import: Detects missing required store headers", async () => {
   const incompleteHeaders = ["GROUP_NAME", "ACCOUNT_NAME", "VCODE"]; // Missing STORE_NAME, AREA_PROVINCE, AREA_CITY, POSITION, etc.
-  const file = createMockXlsxFile("IMPORT_TEMPLATE", [
+  const file = await createMockXlsxFile("IMPORT_TEMPLATE", [
     incompleteHeaders,
     ["GROUP 2", "SUPER 8", "PG-DAU-001"],
   ]);
@@ -104,19 +104,19 @@ test("1. Plantilla Import: validateSpreadsheetScopeContext enforces group and ac
 // 2. HR Emploc Import Sanity Checks
 // ============================================================================
 
-test("2. HR Emploc Import: Template generation produces valid XLSX for both v3 and standard", () => {
+test("2. HR Emploc Import: Template generation produces valid XLSX for both v3 and standard", async () => {
   assert.equal(V3_REQUIRED_HEADERS.length, 7, "v3 schema should require exactly 7 columns");
   assert.equal(STANDARD_REQUIRED_HEADERS.length, 7, "standard schema should require exactly 7 columns");
 
-  const v3Bytes = buildHrEmplocImportTemplateXlsx("v3");
+  const v3Bytes = await buildHrEmplocImportTemplateXlsx("v3");
   assert.ok(v3Bytes.length > 0, "v3 template should have content");
-  const v3Rows = xlsxToHrEmplocRows(v3Bytes);
+  const v3Rows = await xlsxToHrEmplocRows(v3Bytes);
   assert.ok(v3Rows.length > 0, "Should parse sample row from v3 template");
   assert.ok("VCODE" in v3Rows[0] || "GROUP" in v3Rows[0], "v3 should contain v3 headers");
 
-  const stdBytes = buildHrEmplocImportTemplateXlsx("standard");
+  const stdBytes = await buildHrEmplocImportTemplateXlsx("standard");
   assert.ok(stdBytes.length > 0, "standard template should have content");
-  const stdRows = xlsxToHrEmplocRows(stdBytes);
+  const stdRows = await xlsxToHrEmplocRows(stdBytes);
   assert.ok(stdRows.length > 0, "Should parse sample row from standard template");
   assert.ok("STORE_NAME" in stdRows[0] || "EMPLOYEE_NO" in stdRows[0]);
 });
@@ -193,7 +193,7 @@ test("2. HR Emploc Import: buildParsePreview validates required fields & duplica
 
 test("3. Vacancy Import: parseSpreadsheetToRows parses all 12 required vacancy headers", async () => {
   const allHeaders = [...VACANCY_REQUIRED_HEADERS, ...VACANCY_OPTIONAL_HEADERS];
-  const file = createMockXlsxFile("IMPORT_TEMPLATE", [allHeaders, VACANCY_SAMPLE_ROW]);
+  const file = await createMockXlsxFile("IMPORT_TEMPLATE", [allHeaders, VACANCY_SAMPLE_ROW]);
 
   const { headers, rows } = await parseSpreadsheetToRows(file);
   const upperHeaders = new Set(headers.map((h) => h.toUpperCase()));
@@ -215,7 +215,7 @@ test("3. Vacancy Import: parseSpreadsheetToRows parses all 12 required vacancy h
 test("3. Vacancy Import: Detects missing required vacancy headers", async () => {
   // Omit CITY, HC, and REQUEST_TYPE
   const partialHeaders = ["VCODE", "GROUP_NAME", "CHAIN", "ACCOUNT_NAME", "STORE_NAME", "POSITION", "PROVINCE"];
-  const file = createMockXlsxFile("IMPORT_TEMPLATE", [
+  const file = await createMockXlsxFile("IMPORT_TEMPLATE", [
     partialHeaders,
     ["VAC-001", "GROUP 2", "CHAIN", "SUPER 8", "Store", "Merchandiser", "Pampanga"],
   ]);
@@ -237,7 +237,7 @@ test("3. Vacancy Import: Detects missing required vacancy headers", async () => 
 test("4. Payroll Import: Header alias resolution recognizes diverse payroll formats", async () => {
   assert.equal(PAYROLL_REQUIRED_HEADERS.length, 3, "Payroll required headers should have 3 columns");
   const aliasHeaders = ["EMPLOYEE NO.", "FULLNAME", "ACCOUNT GROUP"];
-  const file = createMockXlsxFile("PAYROLL", [
+  const file = await createMockXlsxFile("PAYROLL", [
     aliasHeaders,
     ["10001", "DELA CRUZ, JUAN SANTOS", "SUPER 8 / GROUP 2"],
   ]);

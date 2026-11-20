@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants & Types
@@ -67,16 +67,29 @@ function hasValidNameChars(val: string): boolean {
 // Template Generator Utility
 // ─────────────────────────────────────────────────────────────────────────────
 
+function cellValueToString(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  if (val instanceof Date) return val.toISOString().slice(0, 10);
+  if (typeof val === "object") {
+    const obj = val as Record<string, unknown>;
+    if ("result" in obj && obj.result !== undefined) return cellValueToString(obj.result);
+    if ("richText" in obj && Array.isArray(obj.richText)) {
+      return obj.richText.map((r: { text?: string }) => r?.text ?? "").join("").trim();
+    }
+    if ("text" in obj && typeof obj.text === "string") return obj.text.trim();
+  }
+  return String(val).trim();
+}
+
 /**
  * Generates official Excel workbook with template sheets and validation guidelines.
  */
-export function buildHrEmplocImportTemplateXlsx(
+export async function buildHrEmplocImportTemplateXlsx(
   variant: "v3" | "standard" = "v3",
-): Uint8Array {
-  const wb = XLSX.utils.book_new();
+): Promise<Uint8Array> {
+  const wb = new ExcelJS.Workbook();
 
   if (variant === "standard") {
-    // 7 columns: STORE_NAME, ACCOUNT, POSITION, FIRST_NAME, LAST_NAME, MIDDLE_NAME, EMPLOYEE_NO
     const headers = [...STANDARD_REQUIRED_HEADERS];
     const sampleRow = [
       "SM Mall of Asia",
@@ -87,11 +100,10 @@ export function buildHrEmplocImportTemplateXlsx(
       "SANTOS",
       "V-2026-001",
     ];
-
-    const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
-    XLSX.utils.book_append_sheet(wb, ws, "IMPORT_TEMPLATE");
+    const ws = wb.addWorksheet("IMPORT_TEMPLATE");
+    ws.addRow(headers);
+    ws.addRow(sampleRow);
   } else {
-    // Authoritative v3 ADR-001 columns
     const headers = [...V3_REQUIRED_HEADERS];
     const sampleRow = [
       "Group Alpha",
@@ -102,11 +114,10 @@ export function buildHrEmplocImportTemplateXlsx(
       "SANTOS",
       "2026-01-15",
     ];
+    const ws = wb.addWorksheet("IMPORT_TEMPLATE");
+    ws.addRow(headers);
+    ws.addRow(sampleRow);
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
-    XLSX.utils.book_append_sheet(wb, ws, "IMPORT_TEMPLATE");
-
-    // Also include Standard 7-column sheet for interoperability
     const standardHeaders = [...STANDARD_REQUIRED_HEADERS];
     const standardSample = [
       "SM Mall of Asia",
@@ -117,11 +128,9 @@ export function buildHrEmplocImportTemplateXlsx(
       "SANTOS",
       "V-2026-001",
     ];
-    const wsStandard = XLSX.utils.aoa_to_sheet([
-      standardHeaders,
-      standardSample,
-    ]);
-    XLSX.utils.book_append_sheet(wb, wsStandard, "STANDARD_SCHEMA");
+    const wsStandard = wb.addWorksheet("STANDARD_SCHEMA");
+    wsStandard.addRow(standardHeaders);
+    wsStandard.addRow(standardSample);
   }
 
   // Validation Guide Sheet
@@ -162,24 +171,26 @@ export function buildHrEmplocImportTemplateXlsx(
     ],
   ];
 
-  const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
-  XLSX.utils.book_append_sheet(wb, wsGuide, "VALIDATION_GUIDE");
+  const wsGuide = wb.addWorksheet("VALIDATION_GUIDE");
+  for (const row of guideData) {
+    wsGuide.addRow(row);
+  }
 
-  const arrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const arrayBuffer = await wb.xlsx.writeBuffer();
   return new Uint8Array(arrayBuffer);
 }
 
 /**
  * Downloads the XLSX template in the browser.
  */
-export function downloadHrEmplocTemplate(
+export async function downloadHrEmplocTemplate(
   variant: "v3" | "standard" = "v3",
   filename = "hr_emploc_import_template.xlsx",
-): void {
+): Promise<void> {
   if (typeof window === "undefined" || typeof document === "undefined") {
     return;
   }
-  const bytes = buildHrEmplocImportTemplateXlsx(variant);
+  const bytes = await buildHrEmplocImportTemplateXlsx(variant);
   const blob = new Blob([bytes as unknown as BlobPart], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
@@ -200,32 +211,45 @@ export function downloadHrEmplocTemplate(
 /**
  * Parses raw ArrayBuffer or Uint8Array of XLSX file into key-value rows.
  */
-export function xlsxToHrEmplocRows(
+export async function xlsxToHrEmplocRows(
   buffer: ArrayBuffer | Uint8Array,
-): Record<string, string>[] {
+): Promise<Record<string, string>[]> {
   try {
-    const wb = XLSX.read(buffer, { type: "array" });
-    if (!wb.SheetNames || wb.SheetNames.length === 0) return [];
+    const wb = new ExcelJS.Workbook();
+    const rawBuf =
+      buffer instanceof Uint8Array
+        ? buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+        : buffer;
+    await wb.xlsx.load(rawBuf as ArrayBuffer);
+    if (!wb.worksheets || wb.worksheets.length === 0) return [];
 
-    const sheetName = wb.SheetNames.includes("IMPORT_TEMPLATE")
-      ? "IMPORT_TEMPLATE"
-      : wb.SheetNames[0];
+    const ws =
+      wb.getWorksheet("IMPORT_TEMPLATE") ?? wb.worksheets[0];
+    if (!ws || ws.rowCount < 2) return [];
 
-    const ws = wb.Sheets[sheetName];
-    if (!ws) return [];
+    const headerRow = ws.getRow(1);
+    const headers: string[] = [];
+    for (let c = 1; c <= headerRow.cellCount; c++) {
+      headers.push(cellValueToString(headerRow.getCell(c).value).toUpperCase());
+    }
 
-    const rawData = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-      defval: "",
-      raw: false,
-    });
-
-    return rawData.map((row) => {
+    const rows: Record<string, string>[] = [];
+    for (let r = 2; r <= ws.rowCount; r++) {
+      const row = ws.getRow(r);
       const normalized: Record<string, string> = {};
-      for (const [key, val] of Object.entries(row)) {
-        normalized[key.trim().toUpperCase()] = String(val ?? "").trim();
+      let hasAnyValue = false;
+      for (let c = 0; c < headers.length; c++) {
+        const key = headers[c];
+        if (!key) continue;
+        const val = cellValueToString(row.getCell(c + 1).value);
+        if (val !== "") hasAnyValue = true;
+        normalized[key] = val;
       }
-      return normalized;
-    });
+      if (hasAnyValue) {
+        rows.push(normalized);
+      }
+    }
+    return rows;
   } catch (err) {
     console.error("[hr_emploc_xlsx] Error parsing XLSX buffer:", err);
     return [];
