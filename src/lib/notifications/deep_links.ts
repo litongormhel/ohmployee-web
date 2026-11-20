@@ -298,10 +298,10 @@ export function sanitizeNotificationDeepLink(
     trimmedRoute.includes("account-transfer")
   ) {
     return {
-      route: "/approvals?tab=account_group_transfers",
+      route: "/plantilla",
       referenceId: normalizedRefId,
       requestId: normalizedReqId,
-      label: "View in Approvals →",
+      label: "View in Plantilla →",
     };
   }
 

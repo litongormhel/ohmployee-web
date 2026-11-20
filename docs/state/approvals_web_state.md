@@ -1,34 +1,36 @@
 # Approvals Module (Web) State
 
 ## 1. Overview & Architecture
-The Approvals Module (`/approvals`) serves as the administrative hub and request review center for operational requests across functional categories, led by the unified **All Requests** command tab, followed by 11 functional categories:
-0. `all_requests` — All Requests Unified Hub (Default active tab for Super Admin / Admin review)
-1. `account_archives` — Account Archive Requests (Super Admin only)
-2. `account_group_transfers` — Account Group Transfers
+The Approvals Module (`/approvals`) serves as the administrative hub and request review center for operational requests across 11 functional categories:
+1. `new_stores` — New Store Requests & Roving Door Expansion Requisitions (Option 1)
+2. `headcount` — Headcount Quota Amendments & Standard Requisitions
 3. `account_requests` — Account Sign-Ups & Provisioning
-4. `applicant_movements` — Applicant Movements & Cross-Store Transfers
-5. `coverage` — Roving Coverage Group Requests
-6. `deactivations` — Employee Deactivation & Separation Clearance
-7. `headcount` — Headcount Quota Amendments & Requests
-8. `hr_emploc_deletions` — HR Emploc Deletion Requests
-9. `new_stores` — New Store Requests
-10. `relievers` — Reliever Coverage Endorsements
+4. `coverage` — Roving Coverage Group Requests
+5. `vacancy_closures` — Vacancy Closure Requests
+6. `hr_emploc_deletions` — HR Emploc Deletion Requests
+7. `deactivations` — Employee Deactivation & Separation Clearance
+8. `applicant_movements` — Applicant Movements & Cross-Store Transfers
+9. `relievers` — Reliever Coverage Endorsements
+10. `account_archives` — Billing Account Retirement and Archive Approval Queue (Super Admin only)
 11. `rollbacks` — Import Batch Rollbacks & Reversal Queue (Super Admin & Head Admin)
-12. `vacancy_closures` — Vacancy Closure Requests
+
+*(Note: "All Requests" unified master tab and "Account Group Transfers" approval queue have been removed from `/approvals`. Account Group Transfers are now directly executed by Head Admin and Super Admin within Plantilla with full audit trail logging).*
 
 ---
 
-## 2. All Requests Unified Command Center (`all_requests`)
-- **Default Landing Tab**: Automatically defaults to `"all_requests"` when entering `/approvals` without a `?tab=` query parameter.
-- **Top Badge**: Sum of all pending operational requests across categories.
-- **Toolbar & Global Search**: Status pills (`Pending`, `Approved / Completed`, `Rejected`), global search input filtering items across all categories simultaneously, a `"Collapse All / Expand All"` master accordion toggle, and a unified refresh button.
-- **Resilient Parallel Fetching**: Utilizes `Promise.allSettled()` to fetch queues across all operational categories in parallel; individual category failures are safely isolated without crashing the entire hub.
-- **Smart Category Sections**:
-  - **Dynamic Sorting**: Categories with active items (`count > 0` for current status and search query) sort automatically to the top; categories with `0` items sort to the bottom.
-  - **Full Visibility by Default**: Sections default to open/expanded (`isOpen = true`) so all operational queues and pending requests are immediately visible without being collapsed or hidden. Manual accordion toggles remain available per section and via the master toolbar toggle.
-  - **Header Actions**: Each category card includes an `"Open Tab ->"` action button that smoothly routes to that category's dedicated main tab.
-  - **Uncapped Full Queue Display**: Directly displays all matching requests per category without 5-item truncation, accompanied by a `"Showing all X requests"` footer and tab deep-link navigation.
-  - **Direct In-Line Actions**: Direct row action buttons are strictly standardized to **"Approve"** and **"Reject"** across all category tables and cards (eliminating category-specific suffixes like *Approve Deactivation*, *Approve Store*, *Approve Closure*), minimizing column width footprint and executing in-place using existing modular modal and mutation workflows with automatic invalidation of category queries and global badges.
+## 2. Headcount & New Store Requisition Routing (Option 1)
+- Requisitions submitted via headcount amendment that contain unlisted / new store doors (`hc_request_stores.is_new_store = true`) are automatically routed to the **New Stores** approval queue (`/approvals?tab=new_stores`).
+- Standard headcount and quota amendment requests remain in the **Headcount** approval queue (`/approvals?tab=headcount`).
+- New Stores approval and rejection handlers support both standalone `new_store_requests` rows and headcount roving door additions (`approve_headcount_request` fallback).
+
+---
+
+## 3. Account Group Transfer (Direct Admin Execution)
+- Transferred out of `/approvals` queues per operational policy.
+- Replaced with direct execution restricted strictly to Head Admin (`role_level >= 90`) and Super Admin (`role_level >= 100`).
+- Surface: Plantilla Directory Account Card 3-dot context menu (`Transfer Group`).
+- Modal: `TransferAccountGroupModal` with live impact simulation (`simulate_account_group_transfer`), destination group selection, and optional remarks.
+- Execution: RPC `transfer_account_group_direct(p_account_id, p_to_group_id, p_reason)` updating `accounts.group_id`, `stores.group_id`, and writing mandatory audit logs to `public.audit_logs`.
 
 ---
 

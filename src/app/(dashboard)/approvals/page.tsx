@@ -15,7 +15,6 @@ import { canViewApprovalsHub, getAllowedApprovalCategories, hasFullAccess } from
 import { DataState } from "@/components/shared/DataState";
 
 const VALID_CATEGORIES = new Set<string>([
-  "all_requests",
   "new_stores",
   "headcount",
   "account_requests",
@@ -24,7 +23,6 @@ const VALID_CATEGORIES = new Set<string>([
   "hr_emploc_deletions",
   "deactivations",
   "applicant_movements",
-  "account_group_transfers",
   "relievers",
   "account_archives",
   "rollbacks",
@@ -47,9 +45,7 @@ function ApprovalsPageContent() {
   );
 
   const defaultCategory: RequestCategoryKey =
-    allowedCategories.includes("all_requests")
-      ? "all_requests"
-      : allowedCategories[0] ?? "all_requests";
+    allowedCategories[0] ?? "new_stores";
 
   const paramTab = searchParams.get("tab") || searchParams.get("category");
   const urlCategory =
@@ -78,7 +74,6 @@ function ApprovalsPageContent() {
 
   const {
     data: counts = {
-      all_requests: 0,
       new_stores: 0,
       headcount: 0,
       account_requests: 0,
@@ -87,7 +82,6 @@ function ApprovalsPageContent() {
       hr_emploc_deletions: 0,
       deactivations: 0,
       applicant_movements: 0,
-      account_group_transfers: 0,
       relievers: 0,
       account_archives: 0,
       rollbacks: 0,

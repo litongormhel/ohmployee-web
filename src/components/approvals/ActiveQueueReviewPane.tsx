@@ -12,7 +12,6 @@ import {
 import { ApprovalsDataState } from "@/components/approvals/ApprovalsDataState";
 import { AccountArchiveDataTable } from "@/components/approvals/AccountArchiveDataTable";
 import { AccountRequestDataTable } from "@/components/approvals/AccountRequestDataTable";
-import { AccountTransferDataTable } from "@/components/approvals/AccountTransferDataTable";
 import { ApplicantMovementDataTable } from "@/components/approvals/ApplicantMovementDataTable";
 import { CoverageDataTable } from "@/components/approvals/CoverageDataTable";
 import { DeactivationDataTable } from "@/components/approvals/DeactivationDataTable";
@@ -22,7 +21,6 @@ import { NewStoreDataTable } from "@/components/approvals/NewStoreDataTable";
 import { RelieverDataTable } from "@/components/approvals/RelieverDataTable";
 import { VacancyClosureDataTable } from "@/components/approvals/VacancyClosureDataTable";
 import { RollbackDataTable } from "@/components/approvals/RollbackDataTable";
-import { AllRequestsUnifiedQueue } from "@/components/approvals/AllRequestsUnifiedQueue";
 import {
   REQUEST_CATEGORIES,
   useHeadcountRequests,
@@ -37,8 +35,6 @@ import {
   useDeactivationCounts,
   type DeactivationStatusTab,
   type ApprovalStatusTab,
-  useAccountGroupTransfers,
-  useAccountGroupTransferCounts,
   useRelieverEndorsements,
   useRelieverCounts,
   useCoverageRequests,
@@ -221,7 +217,6 @@ export function ActiveQueueReviewPane({
   selectedCategory,
   onSelectCategory,
   counts,
-  allowedCategories,
 }: ActiveQueueReviewPaneProps) {
   // Sub-tab selection state (pending | approved | rejected) for each queue
   const [newStoreTab, setNewStoreTab] = useState<ApprovalStatusTab>("pending");
@@ -231,7 +226,6 @@ export function ActiveQueueReviewPane({
   const [hrEmplocTab, setHrEmplocTab] = useState<ApprovalStatusTab>("pending");
   const [movementTab, setMovementTab] = useState<ApprovalStatusTab>("pending");
   const [deactivationTab, setDeactivationTab] = useState<DeactivationStatusTab>("pending");
-  const [transferTab, setTransferTab] = useState<ApprovalStatusTab>("pending");
   const [relieverTab, setRelieverTab] = useState<ApprovalStatusTab>("pending");
   const [accountTab, setAccountTab] = useState<AccountRequestStatus>("pending");
   const [archiveTab, setArchiveTab] = useState<ApprovalStatusTab>("pending");
@@ -244,7 +238,6 @@ export function ActiveQueueReviewPane({
   const [vacancyClosureSearchQuery, setVacancyClosureSearchQuery] = useState("");
   const [movementSearchQuery, setMovementSearchQuery] = useState("");
   const [deactivationSearchQuery, setDeactivationSearchQuery] = useState("");
-  const [transferSearchQuery, setTransferSearchQuery] = useState("");
   const [relieverSearchQuery, setRelieverSearchQuery] = useState("");
   const [rovingSearchQuery, setRovingSearchQuery] = useState("");
   const [accountSearchQuery, setAccountSearchQuery] = useState("");
@@ -351,22 +344,6 @@ export function ActiveQueueReviewPane({
     isError: isDeactCountsError,
     refetch: refetchDeactCounts,
   } = useDeactivationCounts();
-
-  // 7. Account Group Transfers
-  const {
-    data: transferRequests = [],
-    isLoading: isTransferLoading,
-    isError: isTransferError,
-    refetch: refetchTransfers,
-    isRefetching: isTransferRefetching,
-  } = useAccountGroupTransfers(transferTab);
-
-  const {
-    data: transferCounts,
-    isLoading: isTransferCountsLoading,
-    isError: isTransferCountsError,
-    refetch: refetchTransferCounts,
-  } = useAccountGroupTransferCounts();
 
   // 8. Relievers
   const {
@@ -582,24 +559,6 @@ export function ActiveQueueReviewPane({
     });
   }, [deactivationRequests, deactivationSearchQuery]);
 
-  const filteredTransferRequests = useMemo(() => {
-    if (!transferSearchQuery.trim()) return transferRequests;
-    const q = transferSearchQuery.toLowerCase();
-    return transferRequests.filter((req) => {
-      return (
-        req.accountName.toLowerCase().includes(q) ||
-        req.requestNumber.toLowerCase().includes(q) ||
-        req.fromGroupName.toLowerCase().includes(q) ||
-        req.fromGroupCode.toLowerCase().includes(q) ||
-        req.toGroupName.toLowerCase().includes(q) ||
-        req.toGroupCode.toLowerCase().includes(q) ||
-        req.requestedByName.toLowerCase().includes(q) ||
-        req.reason.toLowerCase().includes(q) ||
-        (req.rejectionReason?.toLowerCase().includes(q) ?? false)
-      );
-    });
-  }, [transferRequests, transferSearchQuery]);
-
   const filteredRelieverRequests = useMemo(() => {
     if (!relieverSearchQuery.trim()) return relieverRequests;
     const q = relieverSearchQuery.toLowerCase();
@@ -681,16 +640,6 @@ export function ActiveQueueReviewPane({
       );
     });
   }, [rollbackRequests, rollbackSearchQuery]);
-
-  // ── Unified All Requests Command Center ─────────────────────────────────
-  if (selectedCategory === "all_requests") {
-    return (
-      <AllRequestsUnifiedQueue
-        onSelectCategory={onSelectCategory}
-        allowedCategories={allowedCategories}
-      />
-    );
-  }
 
   // ── 0. Account Archives Queue (SA Only) ──────────────────────────────────
   if (selectedCategory === "account_archives") {
@@ -1444,91 +1393,6 @@ export function ActiveQueueReviewPane({
               page={page}
               pageSize={pageSize}
               totalCount={filteredDeactivationRequests.length}
-              onPageChange={setPage}
-              onPageSizeChange={(newSize) => {
-                setPageSize(newSize);
-                setPage(1);
-              }}
-            />
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── 7. Account Group Transfers Category ────────────────────────────────
-  if (selectedCategory === "account_group_transfers") {
-    const handleRefresh = () => {
-      refetchTransfers();
-      refetchTransferCounts();
-    };
-
-    return (
-      <div className="flex h-full flex-col">
-        <QueueToolbar
-          searchQuery={transferSearchQuery}
-          onSearchChange={(val) => {
-            setTransferSearchQuery(val);
-            setPage(1);
-          }}
-          searchPlaceholder="Search account, group, AGT-#, requester..."
-          currentTab={transferTab}
-          onTabChange={(tab) => {
-            setTransferTab(tab);
-            setPage(1);
-          }}
-          counts={transferCounts}
-          isCountsLoading={isTransferCountsLoading}
-          isCountsError={isTransferCountsError}
-          onRefresh={handleRefresh}
-          isRefreshing={isTransferRefetching}
-          isLoading={isTransferLoading}
-        />
-
-        {/* Requests List Area */}
-        <div className="mt-4 flex-1 min-h-0 flex flex-col">
-          {isTransferLoading ? (
-            <ApprovalsDataState
-              kind="loading"
-              title="Loading Account Group Transfers"
-              description="Fetching account group reassignments and simulation snapshots..."
-            />
-          ) : isTransferError ? (
-            <ApprovalsDataState
-              kind="error"
-              title="Failed to Load Queue"
-              description="An error occurred while fetching account group transfers."
-              onRetry={handleRefresh}
-            />
-          ) : filteredTransferRequests.length === 0 ? (
-            <ApprovalsDataState
-              kind="empty"
-              title={
-                transferSearchQuery
-                  ? "No Matching Account Group Transfers"
-                  : transferTab === "pending"
-                  ? "No Pending Account Group Transfers"
-                  : transferTab === "approved"
-                  ? "No Approved Account Transfers"
-                  : "No Rejected Account Transfers"
-              }
-              description={
-                transferSearchQuery
-                  ? `No requests match "${transferSearchQuery}". Clear your search query to see all items.`
-                  : transferTab === "pending"
-                  ? "All organizational account group reassignments have been processed."
-                  : transferTab === "approved"
-                  ? "No approved account group transfer requests found in this queue."
-                  : "No rejected account group transfer requests found in this queue."
-              }
-            />
-          ) : (
-            <AccountTransferDataTable
-              requests={filteredTransferRequests}
-              tab={transferTab}
-              page={page}
-              pageSize={pageSize}
-              totalCount={filteredTransferRequests.length}
               onPageChange={setPage}
               onPageSizeChange={(newSize) => {
                 setPageSize(newSize);

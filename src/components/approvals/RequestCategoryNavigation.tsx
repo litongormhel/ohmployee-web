@@ -2,8 +2,6 @@ import { useEffect, useRef, type ComponentType } from "react";
 import {
   Archive,
   ArrowLeftRight,
-  GitFork,
-  Layers,
   MapPin,
   RotateCcw,
   Store,
@@ -20,7 +18,6 @@ import {
 } from "@/lib/queries/requests";
 
 const CATEGORY_ICONS: Record<RequestCategoryKey, ComponentType<{ className?: string }>> = {
-  all_requests: Layers,
   account_archives: Archive,
   new_stores: Store,
   headcount: Users,
@@ -30,7 +27,6 @@ const CATEGORY_ICONS: Record<RequestCategoryKey, ComponentType<{ className?: str
   hr_emploc_deletions: UserX,
   deactivations: UserMinus,
   applicant_movements: ArrowLeftRight,
-  account_group_transfers: GitFork,
   relievers: UserCheck,
   rollbacks: RotateCcw,
 };

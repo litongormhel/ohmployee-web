@@ -10,7 +10,9 @@ import { AddAccountModal } from "@/components/plantilla/AddAccountModal";
 import { CreateCoverageGroupModal } from "@/components/modals/CreateCoverageGroupModal";
 import { ArchiveAccountModal } from "@/components/plantilla/ArchiveAccountModal";
 import { AbsorbEmployeesModal } from "@/components/plantilla/AbsorbEmployeesModal";
+import { TransferAccountGroupModal } from "@/components/plantilla/TransferAccountGroupModal";
 import { Toast, type ToastVariant } from "@/components/shared/Toast";
+import type { PlantillaScopedAccountItem } from "@/lib/queries/plantilla";
 import type {
   RelieverTargetEmployee,
   ReturnToActiveTarget,
@@ -84,6 +86,12 @@ export interface PlantillaModalsHubProps {
   onCloseAbsorbModal: () => void;
   onAbsorbSuccess: (result: { count: number; targetAccountName: string; direct: boolean }) => void;
 
+  // Direct Group Transfer
+  transferGroupModalAccount: PlantillaScopedAccountItem | null;
+  onCloseTransferGroupModal: () => void;
+  onTransferGroupSuccess: (accountName: string, targetGroupName: string) => void;
+  uniqueGroups: { id: string; name: string }[];
+
   // Toast
   toastMessage: string | null;
   toastVariant: ToastVariant;
@@ -129,6 +137,10 @@ export function PlantillaModalsHub({
   absorbModalAccount,
   onCloseAbsorbModal,
   onAbsorbSuccess,
+  transferGroupModalAccount,
+  onCloseTransferGroupModal,
+  onTransferGroupSuccess,
+  uniqueGroups,
   toastMessage,
   toastVariant,
   onCloseToast,
@@ -256,6 +268,17 @@ export function PlantillaModalsHub({
           onClose={onCloseAbsorbModal}
           sourceAccount={absorbModalAccount}
           onSuccess={onAbsorbSuccess}
+        />
+      )}
+
+      {/* Transfer Account Group Modal */}
+      {transferGroupModalAccount && (
+        <TransferAccountGroupModal
+          isOpen={Boolean(transferGroupModalAccount)}
+          onClose={onCloseTransferGroupModal}
+          account={transferGroupModalAccount}
+          uniqueGroups={uniqueGroups}
+          onSuccess={onTransferGroupSuccess}
         />
       )}
 

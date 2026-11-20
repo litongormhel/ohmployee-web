@@ -428,22 +428,23 @@ test("Sanity 6: Specialized vacancy, applicant, and quota RBAC functions", () =>
 });
 
 test("Sanity 7: getAllowedApprovalCategories strictly scopes review queues", () => {
-  // Super Admin: 13 categories
+  // Super Admin: 11 categories (all_requests & account_group_transfers removed)
   const saCats = getAllowedApprovalCategories("Super Admin");
-  assert.equal(saCats.length, 13);
-  assert.ok(saCats.includes("all_requests"));
+  assert.equal(saCats.length, 11);
+  assert.ok(!saCats.includes("all_requests"));
+  assert.ok(!saCats.includes("account_group_transfers"));
   assert.ok(saCats.includes("account_archives"));
 
-  // Head Admin: 11 categories (no account_archives)
+  // Head Admin: 9 categories (no account_archives, no all_requests, no account_group_transfers)
   const haCats = getAllowedApprovalCategories("Head Admin");
-  assert.equal(haCats.length, 11);
+  assert.equal(haCats.length, 9);
   assert.ok(!haCats.includes("account_archives"));
-  assert.ok(haCats.includes("all_requests"));
+  assert.ok(!haCats.includes("all_requests"));
+  assert.ok(!haCats.includes("account_group_transfers"));
 
   // Encoder: 6 operational categories
   const encCats = getAllowedApprovalCategories("Encoder");
   assert.deepEqual(encCats.sort(), [
-    "account_group_transfers",
     "applicant_movements",
     "coverage",
     "headcount",
@@ -453,9 +454,9 @@ test("Sanity 7: getAllowedApprovalCategories strictly scopes review queues", () 
   ].filter(c => encCats.includes(c)).sort());
   assert.equal(encCats.length, 6);
 
-  // Backoffice Personnel: 2 categories (all_requests, deactivations)
+  // Backoffice Personnel: 1 category (deactivations)
   const boCats = getAllowedApprovalCategories("Backoffice Personnel");
-  assert.deepEqual(boCats, ["all_requests", "deactivations"]);
+  assert.deepEqual(boCats, ["deactivations"]);
 
   // All other roles: 0 categories
   for (const r of ["Operations Manager", "HR Coordinator", "Assistant Team Leader", "Team Leader", "HR Personnel", "Recruitment Specialist", "Management Viewer"]) {

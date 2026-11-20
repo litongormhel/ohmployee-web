@@ -1,5 +1,48 @@
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Route Roving Requisitions with Unlisted Doors to New Stores Approval Queue (ohm#route-new-store-headcount-requisitions)
 
 **Status: COMPLETE & VERIFIED.**
@@ -3098,6 +3141,49 @@
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -3341,6 +3427,49 @@
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -3566,6 +3695,49 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -3794,6 +3966,49 @@
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -4019,6 +4234,49 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -4263,6 +4521,49 @@
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -4488,6 +4789,49 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -4729,6 +5073,49 @@
 
 ﻿# AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -4954,6 +5341,49 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -5198,6 +5628,49 @@
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -5423,6 +5896,49 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -5651,6 +6167,49 @@
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -5876,6 +6435,49 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -6120,6 +6722,49 @@
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -6345,6 +6990,49 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -11801,6 +12489,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -12026,6 +12757,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -12270,6 +13044,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -12495,6 +13312,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -12723,6 +13583,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -12948,6 +13851,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -13192,6 +14138,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -13417,6 +14406,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -14342,6 +15374,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -14567,6 +15642,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -14811,6 +15929,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -15036,6 +16197,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -15264,6 +16468,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -15489,6 +16736,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -15733,6 +17023,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -15958,6 +17291,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -16907,6 +18283,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -17132,6 +18551,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -17376,6 +18838,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -17601,6 +19106,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -17829,6 +19377,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -18054,6 +19645,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
@@ -18298,6 +19932,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 
 # AI Handoff
 
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 
 **Status: COMPLETE ACROSS WEB AND MOBILE. (1) SECURITY VULNERABILITY REMEDIATION: IDENTIFIED AND FIXED ACCOUNT TAKEOVER HOLE WHERE AN UNATTENDED SESSION COULD PERMIT AN UNAUTHORIZED THIRD PARTY TO OVERWRITE THE USER'S PASSWORD WITHOUT KNOWING THE EXISTING PASSWORD; (2) WEB IMPLEMENTATION (`src/components/settings/ChangePasswordModal.tsx`): ADDED CURRENT PASSWORD INPUT WITH REVEAL/OBSCURE TOGGLE; VALIDATES USER SESSION AND EXECUTES CREDENTIAL RE-AUTHENTICATION (`supabase.auth.signInWithPassword({ email/phone, password: currentPassword })`) PRIOR TO CALLING `updateUser({ password: newPassword })`; ENFORCES `newPassword !== currentPassword`; (3) MOBILE IMPLEMENTATION (`D:\Projects\OHMployee`): `AuthService.updatePassword` UPDATED WITH OPTIONAL `currentPassword` PARAMETER THAT PRE-AUTHENTICATES AGAINST SUPABASE AUTH BEFORE MUTATING THE USER CREDENTIALS; `_ChangePasswordSheetState` IN `more_screen.dart` ENHANCED WITH CURRENT PASSWORD TEXTFIELD, OBSCURITY CONTROLS, AND FRIENDLY ERROR SURFACE; (4) VERIFIED CLEAN: DART ANALYZE (0 ERRORS), FLUTTER TEST (173/173 PASSED), NPM TEST (226/226 PASSED), NPM RUN LINT (0 ERRORS), ZERO BREAKING CONTRACTS ACROSS BOTH PLATFORMS.**
@@ -18523,6 +20200,49 @@ Because Mobile git repo was in active rebase, the exact changes needed in mobile
 ---
 
 # AI Handoff
+
+## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals, Plantilla), `docs/state/approvals_web_state.md`, `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix `/approvals?tab=new_stores` crash and PostgREST schema errors.
+  2. Implement Option 1 routing: Roving headcount requests containing unlisted stores (`is_new_store = true`) must be routed to New Stores queue (`/approvals?tab=new_stores`), not Headcount queue.
+  3. Remove "All Requests" tab from Approvals.
+  4. Remove "Account Group Transfers" from Approvals.
+  5. Direct Account Group Transfer for Head Admin (HA $\ge 90$) and Super Admin (SA $\ge 100$) without SA approval queue, with mandatory audit logging to `audit_logs`.
+- **Key Changes Implemented**:
+  1. **Option 1 Routing for New Stores**:
+     - Updated `fetchNewStoreRequests` in `src/lib/queries/requests.ts` to query `new_store_requests` AND `headcount_requests` with unlisted doors (`hc_request_stores.is_new_store = true`).
+     - Updated `fetchHeadcountRequests` to exclude headcount requests where `hc_request_stores.some(s => s.is_new_store)`.
+     - Aligned count queries (`fetchNewStoreCounts` and `fetchHeadcountCounts`) and tab badge counters.
+     - Added Option 1 fallback handlers in `approveNewStoreRequest` and `rejectNewStoreRequest` to call `approve_headcount_request` / `reject_headcount_request` if `P0002` (not found in `new_store_requests`) is returned.
+  2. **Removal of "All Requests" and "Account Group Transfers" from Approvals**:
+     - Removed `all_requests` and `account_group_transfers` from `RequestCategoryKey` and `REQUEST_CATEGORIES` in `src/lib/queries/requests.ts`.
+     - Removed categories from `src/app/(dashboard)/approvals/page.tsx`, `src/components/approvals/RequestCategoryNavigation.tsx`, and `src/components/approvals/ActiveQueueReviewPane.tsx`.
+     - Deleted obsolete components `src/components/approvals/AllRequestsUnifiedQueue.tsx` and `src/components/approvals/AccountTransferDataTable.tsx`.
+     - Updated notification deep links (`src/lib/notifications/deep_links.ts`) so `/account-group-transfers/*` routes to `/plantilla`.
+     - Updated `src/lib/rbac.ts` (`getAllowedApprovalCategories`) and tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs`.
+  3. **Direct Admin Account Group Transfer with Audit Logs**:
+     - Generated and pushed migration `supabase/migrations/20262606000131_direct_account_group_transfer.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Implemented `public.transfer_account_group_direct(p_account_id, p_to_group_id, p_reason DEFAULT NULL)`:
+       - Strictly guarded for `role_level >= 90` (Head Admin & Super Admin).
+       - Atomically transfers `accounts.group_id` and all associated `stores.group_id`.
+       - Resolves pending legacy requests in `account_group_transfer_requests`.
+       - Writes mandatory audit record to `public.audit_logs (actor_id, module, action, record_id, old_data, new_data)`.
+     - Added `transferAccountGroupDirect` and `simulateAccountGroupTransfer` in `src/lib/queries/plantilla.ts`.
+     - Created `src/components/plantilla/TransferAccountGroupModal.tsx` with live TanStack Query simulation (affected doors, employees, vacancies, group conflict warnings), reason input, and execution.
+     - Added `Transfer Group` action in the 3-dot context menu of `PlantillaAccountSelection.tsx` and wired into `PlantillaModalsHub.tsx` and `src/app/(dashboard)/plantilla/page.tsx`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 657 migrations.
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Migration live check: Staging `20262606000131_direct_account_group_transfer.sql` applied.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
 
 ## Execution Report — Current Password Verification on Password Change (Account Takeover Prevention) Across Web & Mobile (ohm#sec-verify-current-password)
 

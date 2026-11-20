@@ -5,6 +5,7 @@ import {
   MoreVertical,
   ArrowRightLeft,
   Archive,
+  GitFork,
 } from "lucide-react";
 import { DataState } from "@/components/shared/DataState";
 import {
@@ -31,6 +32,8 @@ export interface PlantillaAccountSelectionProps {
   setActiveMenuAccountId: (id: string | null | ((prev: string | null) => string | null)) => void;
   onAbsorbClick: (account: { id: string; name: string }) => void;
   onArchiveClick: (account: ArchiveModalAccount) => void;
+  canTransferGroup?: boolean;
+  onTransferGroupClick?: (account: PlantillaScopedAccountItem) => void;
 }
 
 export function PlantillaAccountSelection({
@@ -50,6 +53,8 @@ export function PlantillaAccountSelection({
   setActiveMenuAccountId,
   onAbsorbClick,
   onArchiveClick,
+  canTransferGroup,
+  onTransferGroupClick,
 }: PlantillaAccountSelectionProps) {
   if (isLoading) {
     return (
@@ -307,6 +312,19 @@ export function PlantillaAccountSelection({
                                 <ArrowRightLeft className="h-3.5 w-3.5 text-brand-600 shrink-0" />
                                 <span>Absorb Employees</span>
                               </button>
+                              {canTransferGroup && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveMenuAccountId(null);
+                                    onTransferGroupClick?.(account);
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-hover transition cursor-pointer"
+                                >
+                                  <GitFork className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                                  <span>Transfer Group</span>
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => {

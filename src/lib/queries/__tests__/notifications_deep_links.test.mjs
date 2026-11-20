@@ -72,18 +72,18 @@ test("R2.5: /requests/applicant-movement/* maps to /approvals?tab=applicant_move
   assert.equal(result2?.route, "/approvals?tab=applicant_movements");
 });
 
-test("R2.6: /account-group-transfers/* maps to /approvals?tab=account_group_transfers", () => {
+test("R2.6: /account-group-transfers/* maps to /plantilla", () => {
   const result1 = sanitizeNotificationDeepLink({
     deep_link_route: "/account-group-transfers/uuid-1234",
   });
-  assert.equal(result1?.route, "/approvals?tab=account_group_transfers");
-  assert.equal(result1?.label, "View in Approvals →");
+  assert.equal(result1?.route, "/plantilla");
+  assert.equal(result1?.label, "View in Plantilla →");
 
   const result2 = sanitizeNotificationDeepLink({
     reference_type: "account_group_transfer_request",
     deep_link_route: "/account_transfer/123",
   });
-  assert.equal(result2?.route, "/approvals?tab=account_group_transfers");
+  assert.equal(result2?.route, "/plantilla");
 });
 
 test("R2.7: /workforce/requests/* and /workforce/pool-requests/* map to /approvals?tab=relievers", () => {

@@ -28,6 +28,7 @@ import {
   usePlantillaInactiveRemarks,
   type PlantillaEmployeeListItem,
   type ActiveCoverageItem,
+  type PlantillaScopedAccountItem,
 } from "@/lib/queries/plantilla";
 import {
   listVacancies,
@@ -217,6 +218,7 @@ function PlantillaPageContent() {
   const [isCreateCoverageGroupOpen, setIsCreateCoverageGroupOpen] = useState(false);
   const [archiveModalAccount, setArchiveModalAccount] = useState<ArchiveModalAccount | null>(null);
   const [absorbModalAccount, setAbsorbModalAccount] = useState<AbsorbModalAccount | null>(null);
+  const [transferGroupModalAccount, setTransferGroupModalAccount] = useState<PlantillaScopedAccountItem | null>(null);
 
   // Card context menu state
   const [activeMenuAccountId, setActiveMenuAccountId] = useState<string | null>(null);
@@ -1484,6 +1486,8 @@ function PlantillaPageContent() {
             setActiveMenuAccountId={setActiveMenuAccountId}
             onAbsorbClick={(acc) => setAbsorbModalAccount(acc)}
             onArchiveClick={(acc) => setArchiveModalAccount(acc)}
+            canTransferGroup={isHeadOrSuperAdmin(userRole)}
+            onTransferGroupClick={(acc) => setTransferGroupModalAccount(acc)}
           />
         </div>
       ) : !isAccountAuthorized ? (
@@ -2070,6 +2074,15 @@ function PlantillaPageContent() {
                 );
               }
             }}
+            transferGroupModalAccount={transferGroupModalAccount}
+            onCloseTransferGroupModal={() => setTransferGroupModalAccount(null)}
+            onTransferGroupSuccess={(accountName, targetGroupName) =>
+              showToast(
+                `Account "${accountName}" successfully transferred to ${targetGroupName}.`,
+                "success",
+              )
+            }
+            uniqueGroups={uniqueGroups}
             toastMessage={toastMessage}
             toastVariant={toastVariant}
             onCloseToast={() => setToastMessage(null)}

@@ -375,7 +375,7 @@ export default function HrEmplocPage() {
     retry: false,
   });
 
-  const rows = useMemo(() => listQuery.data?.data ?? [], [listQuery.data?.data]);
+  const rows = listQuery.data?.data ?? [];
   const totalCount = listQuery.data?.totalCount ?? 0;
 
   const listErrorKind = getErrorKind(listQuery.error);

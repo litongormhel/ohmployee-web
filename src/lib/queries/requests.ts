@@ -10,7 +10,6 @@ import {
 } from "@/lib/queries/dataControl";
 
 export type RequestCategoryKey =
-  | "all_requests"
   | "new_stores"
   | "headcount"
   | "account_requests"
@@ -19,7 +18,6 @@ export type RequestCategoryKey =
   | "hr_emploc_deletions"
   | "deactivations"
   | "applicant_movements"
-  | "account_group_transfers"
   | "relievers"
   | "account_archives"
   | "rollbacks";
@@ -33,22 +31,10 @@ export interface RequestCategoryConfig {
 
 export const REQUEST_CATEGORIES: RequestCategoryConfig[] = [
   {
-    key: "all_requests",
-    label: "All Requests",
-    description: "Unified cross-category approval command center and operational inbox",
-    tableName: "",
-  },
-  {
     key: "account_archives",
     label: "Account Archives",
     description: "Billing account retirement and archive approval queue",
     tableName: "notifications",
-  },
-  {
-    key: "account_group_transfers",
-    label: "Account Group Transfers",
-    description: "Account reassignments across operational management groups",
-    tableName: "account_group_transfer_requests",
   },
   {
     key: "account_requests",
@@ -195,7 +181,6 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
   const supabase = createClient();
 
   const results: RequestCategoryCounts = {
-    all_requests: 0,
     new_stores: 0,
     headcount: 0,
     account_requests: 0,
@@ -204,7 +189,6 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
     hr_emploc_deletions: 0,
     deactivations: 0,
     applicant_movements: 0,
-    account_group_transfers: 0,
     relievers: 0,
     account_archives: 0,
     rollbacks: 0,
@@ -299,16 +283,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .ilike("status", "pending")
     ),
 
-    // 10. Account Group Transfers
-    countItem(
-      "account_group_transfers",
-      supabase
-        .from("account_group_transfer_requests")
-        .select("id", { count: "exact", head: true })
-        .ilike("status", "pending")
-    ),
-
-    // 11. Account Archives
+    // 10. Account Archives
     countItem(
       "account_archives",
       supabase
@@ -318,7 +293,7 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
         .eq("is_archived", false)
     ),
 
-    // 12. Rollbacks
+    // 11. Rollbacks
     countItem(
       "rollbacks",
       (async () => {
@@ -342,12 +317,11 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
   ];
 
   const settled = await Promise.all(countPromises);
-  let totalPending = 0;
   for (const item of settled) {
     results[item.key] = item.count;
-    totalPending += item.count;
   }
-  results.all_requests = totalPending;
+
+  return results;
 
   return results;
 }
@@ -1378,17 +1352,16 @@ export async function fetchNewStoreRequests(
     .select(`
       id,
       request_type,
-      current_quota,
-      proposed_quota,
-      justification,
+      proposed_target,
+      headcount_needed,
+      reason,
       status,
       created_at,
       updated_at,
       reviewed_at,
-      reviewed_by,
       reviewed_by_name,
-      rejection_reason,
-      requested_by,
+      reviewer_remarks,
+      requested_by_name,
       account_id,
       store_id,
       position_id,
@@ -1396,28 +1369,10 @@ export async function fetchNewStoreRequests(
       account_name_snapshot,
       position_name_snapshot,
       group_name_snapshot,
-      requester_name,
-      approver_name,
       employment_type,
       created_vcode,
       created_vcodes,
       vacancy_created,
-      accounts:accounts!account_id (
-        id,
-        account_name,
-        group_id,
-        groups:groups!group_id (
-          id,
-          group_name
-        )
-      ),
-      users_profile:users_profile!requested_by (
-        id,
-        full_name,
-        first_name,
-        last_name,
-        email
-      ),
       hc_request_stores (
         id,
         is_new_store,
@@ -1517,53 +1472,26 @@ export async function fetchNewStoreRequests(
     const primaryLoc = newStores[0] || {};
     const province = primaryLoc.area_province || "—";
     const city = primaryLoc.area_city || "—";
-    const acct = (Array.isArray(row.accounts) ? row.accounts[0] : row.accounts) as {
-      id?: string;
-      account_name?: string | null;
-      group_id?: string | null;
-      groups?: { id?: string; group_name?: string | null } | Array<{ id?: string; group_name?: string | null }> | null;
-    } | null;
-    const acctGroup = (Array.isArray(acct?.groups) ? acct?.groups[0] : acct?.groups) as {
-      id?: string;
-      group_name?: string | null;
-    } | null;
-    const resolvedGroupId = acct?.group_id ?? null;
-    const resolvedGroupName =
-      row.group_name_snapshot ||
-      acctGroup?.group_name ||
-      null;
-
-    const requesterProfile = (Array.isArray(row.users_profile) ? row.users_profile[0] : row.users_profile) as {
-      id?: string;
-      full_name?: string | null;
-      first_name?: string | null;
-      last_name?: string | null;
-      email?: string | null;
-    } | null;
-
     hcItems.push({
       id: row.id,
       storeName: storeNames,
       province,
       city,
       accountId: row.account_id ?? "",
-      accountName: row.account_name_snapshot ?? acct?.account_name ?? "—",
-      groupId: resolvedGroupId,
-      groupName: resolvedGroupName,
+      accountName: row.account_name_snapshot ?? "—",
+      groupId: null,
+      groupName: row.group_name_snapshot ?? null,
       position: row.position_name_snapshot ?? "Roving",
-      requestedHc: row.proposed_quota ?? 1,
-      reason: row.justification || "New store addition",
+      requestedHc: row.headcount_needed ?? row.proposed_target ?? 1,
+      reason: row.reason || "New store addition",
       status: row.status,
-      requestedBy: row.requested_by,
-      requestedByName: resolveRequesterDisplayName(
-        row.requester_name,
-        requesterProfile
-      ),
+      requestedBy: row.requested_by_name || "Admin / Ops",
+      requestedByName: row.requested_by_name || "Admin / Ops",
       requestedAt: row.created_at,
-      reviewedBy: row.reviewed_by ?? null,
-      reviewedByName: row.reviewed_by_name || row.approver_name || null,
+      reviewedBy: null,
+      reviewedByName: row.reviewed_by_name || null,
       reviewedAt: row.reviewed_at ?? null,
-      reviewReason: row.rejection_reason ?? null,
+      reviewReason: row.reviewer_remarks ?? null,
       createdAt: row.created_at,
       isHeadcountRovingCluster: true,
       rovingStores: newStores.map((s) => ({
@@ -1655,6 +1583,15 @@ export async function approveNewStoreRequest({ requestId }: ApproveNewStoreParam
   });
 
   if (error) {
+    if (error.code === "P0002") {
+      // Option 1 fallback: check if this is a headcount requisition introducing new doors
+      const { data: hcData, error: hcError } = await supabase.rpc("approve_headcount_request", {
+        p_request_id: requestId,
+        p_remarks: "Approved via New Stores review queue",
+      });
+      if (!hcError) return hcData;
+      throw new RequestDataError("not_found", error.message || "New store request not found.");
+    }
     if (error.code === "42501") {
       throw new RequestDataError(
         "unauthorized",
@@ -1663,9 +1600,6 @@ export async function approveNewStoreRequest({ requestId }: ApproveNewStoreParam
     }
     if (error.code === "P0001" || error.code === "22023") {
       throw new RequestDataError("validation", error.message);
-    }
-    if (error.code === "P0002") {
-      throw new RequestDataError("not_found", error.message || "New store request not found.");
     }
     throw new RequestDataError("generic", error.message);
   }
@@ -1712,6 +1646,15 @@ export async function rejectNewStoreRequest({ requestId, reason }: RejectNewStor
   });
 
   if (error) {
+    if (error.code === "P0002") {
+      // Option 1 fallback: check if this is a headcount requisition introducing new doors
+      const { data: hcData, error: hcError } = await supabase.rpc("reject_headcount_request", {
+        p_request_id: requestId,
+        p_reason: trimmedReason,
+      });
+      if (!hcError) return hcData;
+      throw new RequestDataError("not_found", error.message || "New store request not found.");
+    }
     if (error.code === "42501") {
       throw new RequestDataError(
         "unauthorized",
@@ -1720,9 +1663,6 @@ export async function rejectNewStoreRequest({ requestId, reason }: RejectNewStor
     }
     if (error.code === "P0001" || error.code === "22023") {
       throw new RequestDataError("validation", error.message);
-    }
-    if (error.code === "P0002") {
-      throw new RequestDataError("not_found", error.message || "New store request not found.");
     }
     throw new RequestDataError("generic", error.message);
   }

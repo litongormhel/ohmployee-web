@@ -4509,6 +4509,72 @@ export async function absorbEmployees(params: AbsorbEmployeesParams) {
 }
 
 // ---------------------------------------------------------------------------
+// Direct Account Group Transfer (HA & SA only)
+// ---------------------------------------------------------------------------
+
+export interface DirectGroupTransferResult {
+  success: boolean;
+  account_id: string;
+  account_name: string;
+  from_group_id: string;
+  from_group_name: string;
+  to_group_id: string;
+  to_group_name: string;
+}
+
+export interface GroupTransferSimulationResult {
+  current_group_id?: string;
+  current_group_name?: string;
+  destination_group_id?: string;
+  destination_group_name?: string;
+  affected_stores?: number;
+  affected_plantilla_count?: number;
+  affected_vacancies_count?: number;
+  affected_hr_emploc_count?: number;
+  warnings?: string[];
+  warning_count?: number;
+}
+
+export async function transferAccountGroupDirect(params: {
+  accountId: string;
+  toGroupId: string;
+  reason?: string;
+}): Promise<DirectGroupTransferResult> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("transfer_account_group_direct", {
+    p_account_id: params.accountId,
+    p_to_group_id: params.toGroupId,
+    p_reason: params.reason?.trim() || null,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new Error("Unauthorized: Only Head Admin and Super Admin may transfer account groups.");
+    }
+    throw new Error(error.message || "Failed to transfer account group.");
+  }
+
+  return data as DirectGroupTransferResult;
+}
+
+export async function simulateAccountGroupTransfer(params: {
+  accountId: string;
+  toGroupId: string;
+}): Promise<GroupTransferSimulationResult> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("simulate_account_group_transfer", {
+    p_account_id: params.accountId,
+    p_to_group_id: params.toGroupId,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Failed to simulate group transfer impact.");
+  }
+
+  return (data as GroupTransferSimulationResult) ?? {};
+}
+
+// ---------------------------------------------------------------------------
 // Workforce Pool & Workforce Analytics Re-exports
 // ---------------------------------------------------------------------------
 export * from "./workforcePool";
