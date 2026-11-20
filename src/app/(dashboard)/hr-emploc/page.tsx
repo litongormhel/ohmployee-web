@@ -101,6 +101,8 @@ export default function HrEmplocPage() {
   // Modal target states
   const [assignTarget, setAssignTarget] = useState<HrEmplocListItem | null>(null);
   const [editTarget, setEditTarget] = useState<HrEmplocListItem | null>(null);
+  const [editModalInitialTab, setEditModalInitialTab] = useState<"edit" | "revert">("edit");
+  const [showAllDeployed, setShowAllDeployed] = useState(false);
   const [correctionTarget, setCorrectionTarget] = useState<HrEmplocListItem | null>(null);
   const [uploadTarget, setUploadTarget] = useState<HrEmplocListItem | null>(null);
   const [revertReviewTarget, setRevertReviewTarget] = useState<HrEmplocListItem | null>(null);
@@ -374,6 +376,19 @@ export default function HrEmplocPage() {
 
   const rows = listQuery.data?.data ?? [];
   const totalCount = listQuery.data?.totalCount ?? 0;
+
+  const displayedRows = useMemo(() => {
+    if (queue !== "deployed" || showAllDeployed) return rows;
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return rows.filter((r) => {
+      const dt = r.hiredDate
+        ? new Date(r.hiredDate).getTime()
+        : r.dateRequested
+        ? new Date(r.dateRequested).getTime()
+        : 0;
+      return !dt || dt >= thirtyDaysAgo;
+    });
+  }, [rows, queue, showAllDeployed]);
 
   const listErrorKind = getErrorKind(listQuery.error);
   const summaryErrorKind = getErrorKind(summaryQuery.error);
@@ -751,6 +766,26 @@ export default function HrEmplocPage() {
               <span>Clear All</span>
             </button>
           )}
+
+          {queue === "deployed" && (
+            <button
+              type="button"
+              onClick={() => setShowAllDeployed((prev) => !prev)}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors cursor-pointer border ${
+                showAllDeployed
+                  ? "bg-brand-button/10 border-brand-button/30 text-brand-button"
+                  : "bg-surface border-border-default text-text-muted hover:text-text-primary"
+              }`}
+              title={
+                showAllDeployed
+                  ? "Showing all deployed records. Click to filter to last 30 days."
+                  : "Showing records deployed within last 30 days. Click to show all."
+              }
+            >
+              <Clock className="h-3.5 w-3.5" />
+              <span>{showAllDeployed ? "All Deployed" : "Last 30 Days"}</span>
+            </button>
+          )}
         </div>
       </form>
 
@@ -767,12 +802,18 @@ export default function HrEmplocPage() {
         onRetry={retryQueryReads}
         onSelect={selectRow}
         onAddEmploc={(row) => setAssignTarget(row)}
-        onEditEmploc={(row) => setEditTarget(row)}
+        onEditEmploc={(row) => {
+          setEditModalInitialTab("edit");
+          setEditTarget(row);
+        }}
         onForCorrection={(row) => setCorrectionTarget(row)}
         onUploadDocs={(row) => setUploadTarget(row)}
         onApproveReview={(row) => setAssignTarget(row)}
         onRevertReview={(row) => setRevertReviewTarget(row)}
-        onRevertToPending={(row) => setEditTarget(row)}
+        onRevertToPending={(row) => {
+          setEditModalInitialTab("revert");
+          setEditTarget(row);
+        }}
         onViewDocs={(row) => {
           if (row.attachments && row.attachments.length > 0) {
             setPreviewTarget({ attachments: row.attachments, initialIndex: 0 });
@@ -780,11 +821,11 @@ export default function HrEmplocPage() {
         }}
         page={page}
         pageSize={pageSize}
-        rows={rows}
+        rows={displayedRows}
         selectedId={selectedId}
         queue={queue}
         queueLabel={activeQueueLabel}
-        totalCount={totalCount}
+        totalCount={queue === "deployed" && !showAllDeployed ? displayedRows.length : totalCount}
       />
 
       {/* Selected Details Aside Inspector */}
@@ -822,6 +863,8 @@ export default function HrEmplocPage() {
           accountName={editTarget.accountName}
           storeName={editTarget.storeName}
           currentEmployeeId={editTarget.employeeNo || ""}
+          initialTab={editModalInitialTab}
+          deployedDate={editTarget.hiredDate}
           onClose={() => setEditTarget(null)}
           onSuccess={(msg) => {
             setEditTarget(null);

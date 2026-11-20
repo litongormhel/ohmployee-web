@@ -826,20 +826,33 @@ export function HrEmplocTable({
                               </button>
                             )}
 
-                            {caps.can_revert_to_pending && onRevertToPending && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onRevertToPending(row);
-                                }}
-                                className="inline-flex items-center gap-1 rounded-md border border-status-danger/30 bg-surface hover:bg-status-danger/10 px-2 py-1 text-xs font-semibold text-status-danger shadow-2xs transition-colors cursor-pointer"
-                                title="Revert Deployed record to Pending (within 3-day window)"
-                              >
-                                <RotateCcw className="h-3.5 w-3.5" />
-                                <span>Revert</span>
-                              </button>
-                            )}
+                            {caps.can_revert_to_pending && onRevertToPending && (() => {
+                              const deployedAt = row.hiredDate ? new Date(row.hiredDate).getTime() : 0;
+                              const isWithin3Days = !deployedAt || (Date.now() - deployedAt) <= 3 * 24 * 60 * 60 * 1000;
+                              return (
+                                <button
+                                  type="button"
+                                  disabled={!isWithin3Days}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isWithin3Days) onRevertToPending(row);
+                                  }}
+                                  className={`inline-flex items-center gap-1 rounded-md border border-status-danger/30 bg-surface px-2 py-1 text-xs font-semibold text-status-danger shadow-2xs transition-colors ${
+                                    isWithin3Days
+                                      ? "hover:bg-status-danger/10 cursor-pointer"
+                                      : "opacity-40 cursor-not-allowed"
+                                  }`}
+                                  title={
+                                    isWithin3Days
+                                      ? "Revert Deployed record to Pending (within 3-day window)"
+                                      : "Revert window expired (3-day limit)"
+                                  }
+                                >
+                                  <RotateCcw className="h-3.5 w-3.5" />
+                                  <span>Revert</span>
+                                </button>
+                              );
+                            })()}
                           </>
                         )}
 

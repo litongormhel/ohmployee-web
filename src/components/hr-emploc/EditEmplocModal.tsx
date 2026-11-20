@@ -20,6 +20,8 @@ export type EditEmplocModalProps = {
   storeName?: string | null;
   currentEmployeeNo?: string | null;
   currentEmployeeId?: string | null;
+  initialTab?: "edit" | "revert";
+  deployedDate?: string | null;
   onClose: () => void;
   onSuccess: (message: string) => void;
 };
@@ -49,12 +51,20 @@ export function EditEmplocModal({
   storeName,
   currentEmployeeNo,
   currentEmployeeId,
+  initialTab = "edit",
+  deployedDate,
   onClose,
   onSuccess,
 }: EditEmplocModalProps) {
   const effectiveCandidateName = candidateName || applicantName || "Candidate";
   const effectiveEmployeeNo = currentEmployeeNo || currentEmployeeId || "";
-  const [activeTab, setActiveTab] = useState<"edit" | "revert">("edit");
+  const [activeTab, setActiveTab] = useState<"edit" | "revert">(initialTab);
+
+  const isWithin3Days = (() => {
+    if (!deployedDate) return true;
+    const dt = new Date(deployedDate).getTime();
+    return (Date.now() - dt) <= 3 * 24 * 60 * 60 * 1000;
+  })();
   const [newEmployeeNo, setNewEmployeeNo] = useState("");
   const [editReasonOption, setEditReasonOption] = useState(EDIT_REASONS[0]);
   const [editCustomReason, setEditCustomReason] = useState("");
@@ -313,6 +323,15 @@ export function EditEmplocModal({
         {/* Tab 2: Revert to Pending */}
         {activeTab === "revert" && (
           <form onSubmit={handleRevertSubmit} className="space-y-4">
+            {!isWithin3Days && (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 space-y-1 text-xs text-amber-700 dark:text-amber-300">
+                <span className="font-bold">Revert Grace Period Expired:</span>
+                <p className="leading-relaxed">
+                  This record was deployed more than 3 days ago. Uploaded requirement documents have been permanently purged per compliance TTL, and this record cannot be reverted.
+                </p>
+              </div>
+            )}
+
             <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 space-y-2 text-xs text-[var(--danger-text)]">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -336,10 +355,10 @@ export function EditEmplocModal({
               </label>
               <select
                 id="revertReasonSelect"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !isWithin3Days}
                 value={revertReasonOption}
                 onChange={(e) => setRevertReasonOption(e.target.value)}
-                className="w-full rounded-md border border-border-default bg-surface px-3 py-2 text-xs text-text-primary font-medium focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary"
+                className="w-full rounded-md border border-border-default bg-surface px-3 py-2 text-xs text-text-primary font-medium focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary disabled:opacity-50"
               >
                 {REVERT_REASONS.map((r) => (
                   <option key={r} value={r}>
@@ -352,11 +371,11 @@ export function EditEmplocModal({
                 <input
                   type="text"
                   required
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isWithin3Days}
                   value={revertCustomReason}
                   onChange={(e) => setRevertCustomReason(e.target.value)}
                   placeholder="Specify reason..."
-                  className="mt-2 w-full rounded-md border border-border-default bg-surface px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary"
+                  className="mt-2 w-full rounded-md border border-border-default bg-surface px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary disabled:opacity-50"
                 />
               )}
             </div>
@@ -372,7 +391,7 @@ export function EditEmplocModal({
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !isWithin3Days}
                 className="inline-flex items-center gap-1.5 rounded-md bg-[var(--danger-bg)] border border-[var(--danger-border)] text-[var(--danger-text)] hover:opacity-90 px-4 py-2 text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
