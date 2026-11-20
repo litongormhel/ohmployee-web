@@ -152,9 +152,9 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
 - **Overview**: Dedicated personal request tracker positioned directly below `Approvals` in the sidebar navigation, providing 100% parity with mobile OHMployee `my_requests_screen.dart`.
 - **Target Audience**: All authenticated roles (Operations Managers, HR Coordinators, Area Coordinators, Team Leaders, Encoders, Admins). Enables requesters who lack access to the admin `/approvals` clearinghouse to monitor their submitted requests.
 - **Unified Request Aggregation (`fetchMyRequests`)**:
-  - Pulls user-submitted requests across 6 operational tables: `headcount_requests`, `new_store_requests`, `vacancy_closure_requests`, `v_deactivation_requests`, `applicant_movement_requests`, and `coverage_requests`.
+  - Pulls user-submitted requests across 6 operational tables/views: `headcount_requests`, `new_store_requests`, `vacancy_closure_requests`, `v_deactivation_requests`, `vw_amr_list` (AMR joined view), and `coverage_requests` (with explicit `accounts!account_id` and `coverage_groups!target_coverage_group_id` disambiguation).
   - Normalizes payloads into `MyRequestItem` with unified status taxonomy (`pending`, `approved`, `rejected`, `cancelled`).
-  - Cross-references user identity via `authUserId` and `profileId` with PostgREST column error guards.
+  - Cross-references user identity via `authUserId` and `profileId` with PostgREST column error guards. Ensures 100% physical schema alignment for views without extraneous columns (e.g. `rejection_reason` on `v_deactivation_requests`) and uses canonical views for joins (`vw_amr_list`).
 - **UI Presentation (`MyRequestsPage`)**:
   - 4x KPI metric cards: Total Submitted, Pending Review, Approved, and Rejected/Closed.
   - Segmented status tabs (`All`, `Pending`, `Approved`, `Rejected`), category dropdown selector, and client search filter.

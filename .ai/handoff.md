@@ -1,5 +1,23 @@
 # AI Handoff
 
+## Execution Report — Align My Requests Query Layer with Physical PostgREST Schemas (ohm#fix-my-requests-postgrest-schema-errors)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals), `docs/state/approvals_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Root Cause & Fix Summary**:
+  Resolved 3 runtime PostgREST schema errors surfaced on the `/my-requests` route in `src/lib/queries/my_requests.ts`:
+  1. **Employee Deactivation Requests (`v_deactivation_requests`)**: Removed non-existent column `rejection_reason` from `.select(...)`. The view `public.v_deactivation_requests` only contains `id, plantilla_id, employee_name, employee_no, account_name, account_id, group_name, group_id, status, batch_id, resubmit_count, created_at, processed_at, is_archived, requestor_display_name, requestor_profile_id, processor_display_name, processed_by_profile_id`. Set `reviewerRemarks: null`.
+  2. **Applicant Movement Requests (`applicant_movement_requests`)**: Switched from querying the base table directly with non-existent columns (`source_applicant_name`, `stated_reason`, `requested_by_user_id`, `current_stage`, `reviewer_notes`) to querying the canonical joined view `public.vw_amr_list`, which includes `source_applicant_name`, `target_vacancy_vcode`, `reason`, `remarks`, `requested_by`, `requested_by_name`, `approval_stage`, `rejection_reason`, and `requested_at`. Filtered via `q.or(buildUserOrFilter("requested_by"))`.
+  3. **Roving Coverage Requests (`coverage_requests`)**: Resolved PostgREST ambiguous relationship error on `coverage_groups` (caused by multiple FKs: `target_coverage_group_id`, `source_coverage_group_id`, `destination_coverage_group_id`) by explicitly specifying `target_coverage_group:coverage_groups!target_coverage_group_id(coverage_code, area_name)` and `accounts:accounts!account_id(account_name)`. Aligned physical column names: `reason` (not `justification`), `requested_by` (not `requested_by_user_id`), and resolved review timestamp from `approved_at || rejected_at || cancelled_at` (not non-existent `reviewed_at`).
+  4. **PostgREST Column & Error Guard Hardening**: Updated `console.error` calls across all 6 request categories to log `error.message` and `error.details` so errors never print as empty `{}` objects, and added an early return guard `if (!authUserId && !profileId) return []`.
+- **Automated Verification**:
+  - `npm test`: 255/255 unit tests passing.
+  - `npm run lint`: 0 ESLint errors/warnings (`check:secrets` clean, `check:sql` clean across 653 migrations).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+
+---
+
 ## Execution Report — Official OHMployee App Launcher Icons & Version Bump `1.0.1+2` (ohm#mobile-app-launcher-icons)
 
 **Status: COMPLETE & VERIFIED ACROSS ANDROID & IOS.**

@@ -104,6 +104,8 @@ export async function fetchMyRequests(
   const supabase = createClient();
   const authUserId = user.authUserId;
   const profileId = user.profileId;
+  if (!authUserId && !profileId) return [];
+
   const items: MyRequestItem[] = [];
 
   // Helper filter string for OR matching
@@ -128,7 +130,12 @@ export async function fetchMyRequests(
 
     const { data, error } = await q;
     if (error) {
-      console.error("[PostgREST Schema Error] fetchMyRequests(headcount_requests):", error);
+      console.error(
+        "[PostgREST Schema Error] fetchMyRequests(headcount_requests):",
+        error.message || error,
+        error.details,
+        error
+      );
     } else if (data) {
       for (const row of data) {
         const normStatus = normalizeStatus(row.status);
@@ -182,7 +189,12 @@ export async function fetchMyRequests(
 
     const { data, error } = await q;
     if (error) {
-      console.error("[PostgREST Schema Error] fetchMyRequests(new_store_requests):", error);
+      console.error(
+        "[PostgREST Schema Error] fetchMyRequests(new_store_requests):",
+        error.message || error,
+        error.details,
+        error
+      );
     } else if (data) {
       for (const row of data) {
         const normStatus = normalizeStatus(row.status);
@@ -228,7 +240,12 @@ export async function fetchMyRequests(
 
     const { data, error } = await q;
     if (error) {
-      console.error("[PostgREST Schema Error] fetchMyRequests(vacancy_closure_requests):", error);
+      console.error(
+        "[PostgREST Schema Error] fetchMyRequests(vacancy_closure_requests):",
+        error.message || error,
+        error.details,
+        error
+      );
     } else if (data) {
       for (const row of data) {
         const normStatus = normalizeStatus(row.status);
@@ -268,7 +285,7 @@ export async function fetchMyRequests(
     let q = supabase
       .from("v_deactivation_requests")
       .select(
-        "id, plantilla_id, employee_name, employee_no, account_name, group_name, status, created_at, processed_at, processor_display_name, requestor_profile_id, requestor_display_name, rejection_reason"
+        "id, plantilla_id, employee_name, employee_no, account_name, group_name, status, created_at, processed_at, processor_display_name, requestor_profile_id, requestor_display_name"
       )
       .order("created_at", { ascending: false });
 
@@ -276,7 +293,12 @@ export async function fetchMyRequests(
 
     const { data, error } = await q;
     if (error) {
-      console.error("[PostgREST Schema Error] fetchMyRequests(v_deactivation_requests):", error);
+      console.error(
+        "[PostgREST Schema Error] fetchMyRequests(v_deactivation_requests):",
+        error.message || error,
+        error.details,
+        error
+      );
     } else if (data) {
       for (const row of data) {
         const normStatus = normalizeStatus(row.status);
@@ -300,7 +322,7 @@ export async function fetchMyRequests(
           createdAt: row.created_at,
           reviewedAt: row.processed_at,
           reviewedByName: row.processor_display_name,
-          reviewerRemarks: row.rejection_reason,
+          reviewerRemarks: null,
         });
       }
     }
@@ -308,20 +330,25 @@ export async function fetchMyRequests(
     console.error("[MyRequests] Unexpected exception querying v_deactivation_requests:", err);
   }
 
-  // 5. Applicant Movement Requests (AMR)
+  // 5. Applicant Movement Requests (AMR via vw_amr_list)
   try {
     let q = supabase
-      .from("applicant_movement_requests")
+      .from("vw_amr_list")
       .select(
-        "id, request_number, movement_type, status, source_applicant_name, target_vacancy_vcode, stated_reason, requested_by_user_id, requested_by_name, current_stage, reviewer_notes, created_at, updated_at"
+        "id, request_number, movement_type, status, source_applicant_name, target_vacancy_vcode, reason, remarks, requested_by, requested_by_name, approval_stage, rejection_reason, requested_at, created_at, updated_at"
       )
       .order("created_at", { ascending: false });
 
-    q = q.or(buildUserOrFilter("requested_by_user_id"));
+    q = q.or(buildUserOrFilter("requested_by"));
 
     const { data, error } = await q;
     if (error) {
-      console.error("[PostgREST Schema Error] fetchMyRequests(applicant_movement_requests):", error);
+      console.error(
+        "[PostgREST Schema Error] fetchMyRequests(applicant_movement_requests):",
+        error.message || error,
+        error.details,
+        error
+      );
     } else if (data) {
       for (const row of data) {
         const normStatus = normalizeStatus(row.status);
@@ -341,12 +368,12 @@ export async function fetchMyRequests(
             vcode: row.target_vacancy_vcode,
             movementType: row.movement_type,
             requestNumber: row.request_number,
-            reason: row.stated_reason,
+            reason: row.reason || row.remarks,
           },
-          createdAt: row.created_at,
+          createdAt: row.requested_at || row.created_at,
           reviewedAt: row.updated_at,
-          reviewedByName: row.current_stage ? `Stage: ${row.current_stage}` : null,
-          reviewerRemarks: row.reviewer_notes,
+          reviewedByName: row.approval_stage ? `Stage: ${row.approval_stage}` : null,
+          reviewerRemarks: row.rejection_reason || row.remarks,
         });
       }
     }
@@ -358,22 +385,47 @@ export async function fetchMyRequests(
   try {
     let q = supabase
       .from("coverage_requests")
-      .select(
-        "id, request_type, status, justification, created_at, reviewed_at, reviewer_remarks, rejection_reason, requested_by_user_id, coverage_groups(name, code), accounts(account_name)"
-      )
+      .select(`
+        id,
+        request_type,
+        status,
+        reason,
+        created_at,
+        approved_at,
+        rejected_at,
+        cancelled_at,
+        reviewer_remarks,
+        rejection_reason,
+        requested_by,
+        accounts:accounts!account_id (
+          account_name
+        ),
+        target_coverage_group:coverage_groups!target_coverage_group_id (
+          coverage_code,
+          area_name
+        )
+      `)
+      .is("archived_at", null)
       .order("created_at", { ascending: false });
 
-    q = q.or(buildUserOrFilter("requested_by_user_id"));
+    q = q.or(buildUserOrFilter("requested_by"));
 
     const { data, error } = await q;
     if (error) {
-      console.error("[PostgREST Schema Error] fetchMyRequests(coverage_requests):", error);
+      console.error(
+        "[PostgREST Schema Error] fetchMyRequests(coverage_requests):",
+        error.message || error,
+        error.details,
+        error
+      );
     } else if (data) {
       for (const row of data) {
         const normStatus = normalizeStatus(row.status);
-        const cg = row.coverage_groups as { name?: string | null; code?: string | null } | null;
+        const cg = row.target_coverage_group as { coverage_code?: string | null; area_name?: string | null } | null;
         const acc = row.accounts as { account_name?: string | null } | null;
-        const cgName = cg?.name || "Coverage Group";
+        const cgCode = cg?.coverage_code || "";
+        const cgArea = cg?.area_name ? ` · ${cg.area_name}` : "";
+        const cgTitle = cgCode ? `${cgCode}${cgArea}` : "Coverage Group";
 
         items.push({
           id: row.id,
@@ -381,15 +433,15 @@ export async function fetchMyRequests(
           categoryLabel: "Coverage Group",
           status: normStatus,
           statusLabel: getStatusLabel(normStatus),
-          title: `Coverage Request (${row.request_type || "Roving"}): ${cgName}`,
-          subtitle: acc?.account_name || cg?.code || "Roving Store Coverage",
+          title: `Coverage Request (${row.request_type || "Roving"}): ${cgTitle}`,
+          subtitle: acc?.account_name || cgCode || "Roving Store Coverage",
           details: {
-            groupName: cg?.name,
+            groupName: cgTitle,
             accountName: acc?.account_name,
-            reason: row.justification,
+            reason: row.reason,
           },
           createdAt: row.created_at,
-          reviewedAt: row.reviewed_at,
+          reviewedAt: row.approved_at || row.rejected_at || row.cancelled_at || null,
           reviewedByName: null,
           reviewerRemarks: row.rejection_reason || row.reviewer_remarks,
         });
