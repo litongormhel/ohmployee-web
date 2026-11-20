@@ -870,37 +870,31 @@ function PlantillaEmployeeDetailContent() {
                       </div>
                     </div>
 
-                    {/* Field 2: Permanent VCODE */}
+                    {/* Field 2: Stores */}
                     <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between min-h-[72px]">
                       <span className="text-text-secondary font-medium">
-                        Permanent VCODE
+                        Stores
                       </span>
                       <div className="flex items-center justify-between gap-1.5 mt-1">
-                        {data.vcode ? (
-                          <>
-                            <span
-                              className="font-bold text-text-primary text-sm font-mono truncate"
-                              title={data.vcode}
-                            >
-                              {data.vcode}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleCopy(data.vcode!, "vcode")}
-                              className="p-1 rounded hover:bg-surface text-text-muted hover:text-text-primary transition shrink-0 cursor-pointer"
-                              title="Copy Permanent VCODE"
-                            >
-                              {copiedField === "vcode" ? (
-                                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                          </>
-                        ) : (
-                          <span className="text-xs text-text-muted italic font-medium">
-                            Unassigned
-                          </span>
+                        <span
+                          className="font-bold text-text-primary text-sm font-mono truncate"
+                          title={data.vcode ? `VCODE: ${data.vcode}` : undefined}
+                        >
+                          {displayStores.length} {displayStores.length === 1 ? "Store" : "Stores"}
+                        </span>
+                        {data.vcode && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(data.vcode!, "vcode")}
+                            className="p-1 rounded hover:bg-surface text-text-muted hover:text-text-primary transition shrink-0 cursor-pointer"
+                            title={`Copy VCODE (${data.vcode})`}
+                          >
+                            {copiedField === "vcode" ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
                         )}
                       </div>
                     </div>
@@ -975,94 +969,6 @@ function PlantillaEmployeeDetailContent() {
                         {data.tenureDescription ||
                           computeTenure(data.dateDeployed || data.dateHired)}
                       </p>
-                    </div>
-                  </div>
-
-                  {/* Assigned Store Allocations (Full Width Section - Numbers Only) */}
-                  <div className="mt-5 pt-5 border-t border-border-subtle">
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <div className="flex items-center gap-2">
-                        <Store className="w-4 h-4 text-brand-primary" />
-                        <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
-                          {hasMultiStores
-                            ? "Assigned Store Allocations"
-                            : "Assigned Primary Store"}
-                        </span>
-                        {isRoving && (
-                          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-brand-50 text-brand-700 dark:bg-brand-950/40 dark:text-brand-300 border border-brand-200 dark:border-brand-800 shrink-0">
-                            Roving{hasMultiStores ? ` • ${coveredStores.length} Stores` : ""}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-                        HC
-                      </span>
-                    </div>
-
-                    {/* Store Allocation List (Numbers Only) */}
-                    <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface">
-                      {displayStores.map((store, idx) => {
-                        const isPrimary = Boolean(store.isPrimary || idx === 0);
-                        const hcShare =
-                          store.allocationPercent != null
-                            ? (store.allocationPercent / 100).toFixed(2)
-                            : (1 / displayStores.length).toFixed(2);
-                        return (
-                          <div
-                            key={store.stableKey || `store-alloc-${idx}`}
-                            className="flex items-center justify-between gap-4 px-4 py-3 bg-surface hover:bg-surface-muted/30 transition text-xs"
-                          >
-                            <div className="min-w-0 flex items-center gap-3">
-                              <span
-                                className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                                  isPrimary
-                                    ? "bg-emerald-500 ring-2 ring-emerald-500/20"
-                                    : "bg-text-muted"
-                                }`}
-                                title={isPrimary ? "Primary Store" : "Assigned Store"}
-                              />
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span
-                                    className="font-bold text-text-primary text-xs truncate uppercase tracking-tight"
-                                    title={store.storeName}
-                                  >
-                                    {store.storeName}
-                                  </span>
-                                  {isPrimary && (
-                                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
-                                      Primary
-                                    </span>
-                                  )}
-                                </div>
-                                {(store.vcode || data.vcode) && (
-                                  <span className="font-mono text-[10px] text-text-muted block mt-0.5">
-                                    {store.vcode || data.vcode}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <span className="font-mono font-bold text-sm text-text-primary tabular-nums">
-                                {hcShare}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {/* Total Allocation Row for multi-store records */}
-                      {hasMultiStores && (
-                        <div className="flex items-center justify-between gap-4 px-4 py-2.5 bg-surface-muted/60 text-xs font-bold text-text-primary border-t border-border-subtle">
-                          <span className="flex items-center gap-1.5 text-text-secondary">
-                            <span>Σ</span>
-                            <span>Total Allocated</span>
-                          </span>
-                          <span className="font-mono tabular-nums text-text-primary font-bold text-sm text-right">
-                            {totalAllocation}
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -1168,7 +1074,7 @@ function PlantillaEmployeeDetailContent() {
                       <div className="flex items-center gap-2 bg-surface-muted px-3 py-1.5 rounded-lg border border-border-default shrink-0">
                         <span className="text-xs text-text-secondary font-medium">Total Allocation:</span>
                         <span className="font-mono font-bold text-xs text-brand-primary">
-                          {totalAllocation} / 1.00 HC
+                          {displayStores.length} {displayStores.length === 1 ? "Store" : "Stores"} / {Math.round(Number(totalAllocation)) || 1} HC
                         </span>
                       </div>
 
@@ -1177,17 +1083,17 @@ function PlantillaEmployeeDetailContent() {
                           type="button"
                           onClick={() => setIsScheduleModalOpen(true)}
                           disabled={isDeactivated || isInactive}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-brand-primary hover:bg-brand-secondary text-white transition shadow-xs cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border disabled:border-border-default"
+                          className="p-2 rounded-lg bg-brand-primary hover:bg-brand-secondary text-white transition shadow-xs cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border disabled:border-border-default"
                           title={
                             isDeactivated
                               ? "Cannot edit schedule for a deactivated employee."
                               : isInactive
                               ? "Cannot edit schedule for an inactive employee."
-                              : undefined
+                              : "Edit Schedule & Allocations"
                           }
+                          aria-label="Edit Schedule & Allocations"
                         >
-                          <Pencil className="w-3.5 h-3.5" />
-                          <span>Edit Schedule & Allocations</span>
+                          <Pencil className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -1232,13 +1138,6 @@ function PlantillaEmployeeDetailContent() {
                                   {store.vcode}
                                 </span>
                               )}
-                              {/* External visibility presence badge */}
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-surface-muted border border-border-default text-text-secondary">
-                                <Clock className="w-3 h-3 text-text-muted" />
-                                <span>
-                                  {storeDays} • {hcShare} HC
-                                </span>
-                              </span>
                             </div>
                             {locationStr && (
                               <p className="text-xs text-text-secondary pl-5">
@@ -1295,15 +1194,31 @@ function PlantillaEmployeeDetailContent() {
                         Statutory contribution accounts and disbursement metadata.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsMasked(!isMasked)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-border-default bg-surface-muted hover:bg-surface-base text-text-secondary hover:text-text-primary transition cursor-pointer"
-                      title={isMasked ? "Reveal benefit numbers" : "Mask benefit numbers"}
-                    >
-                      {isMasked ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                      <span>{isMasked ? "Reveal Numbers" : "Mask Numbers"}</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => syncMutation.mutate()}
+                        disabled={syncMutation.isPending || isDeactivated}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-border-default bg-surface-muted hover:bg-surface-base text-brand-primary transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted"
+                        title={
+                          isDeactivated
+                            ? "Cannot sync a deactivated employee from external HRIS."
+                            : undefined
+                        }
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+                        <span>{syncMutation.isPending ? "Syncing with MIKA…" : "Sync from MIKA"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsMasked(!isMasked)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-border-default bg-surface-muted hover:bg-surface-base text-text-secondary hover:text-text-primary transition cursor-pointer"
+                        title={isMasked ? "Reveal benefit numbers" : "Mask benefit numbers"}
+                      >
+                        {isMasked ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                        <span>{isMasked ? "Reveal Numbers" : "Mask Numbers"}</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1387,35 +1302,6 @@ function PlantillaEmployeeDetailContent() {
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {/* MIKA Synchronization Card */}
-                <div className="bg-surface rounded-2xl border border-border-default p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h4 className="text-xs font-bold text-text-primary flex items-center gap-2">
-                      <RefreshCw className="w-4 h-4 text-brand-primary" />
-                      <span>MIKA HRIS Master Record Link</span>
-                    </h4>
-                    <p className="text-xs text-text-secondary mt-1">
-                      {data.lastMikaSyncedAt
-                        ? `Last synchronized: ${formatEventDate(data.lastMikaSyncedAt)}`
-                        : "Never synchronized with external HRIS."}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => syncMutation.mutate()}
-                    disabled={syncMutation.isPending || isDeactivated}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-default bg-surface hover:bg-surface-muted text-brand-primary text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted"
-                    title={
-                      isDeactivated
-                        ? "Cannot sync a deactivated employee from external HRIS."
-                        : undefined
-                    }
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-                    <span>{syncMutation.isPending ? "Syncing with MIKA…" : "Sync from MIKA"}</span>
-                  </button>
                 </div>
               </div>
             )}
