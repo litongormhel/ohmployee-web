@@ -3234,8 +3234,16 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
               storeId: a.storeId || null,
               storeName: a.storeName || null,
               vcode: a.vcode || null,
-              scheduleDays: a.scheduleDays || params.scheduleDays || null,
-              scheduleTime: a.scheduleTime || params.scheduleTime || null,
+              scheduleDays:
+                a.scheduleDays && a.scheduleDays.trim()
+                  ? a.scheduleDays.trim()
+                  : params.storeAllocations!.length === 1
+                  ? params.scheduleDays || null
+                  : null,
+              scheduleTime:
+                a.scheduleTime && a.scheduleTime.trim()
+                  ? a.scheduleTime.trim()
+                  : params.scheduleTime || "08:00 AM - 05:00 PM",
               allocationPercent: a.allocationPercent,
             }))
           : null,

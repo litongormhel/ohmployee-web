@@ -1200,9 +1200,14 @@ function PlantillaEmployeeDetailContent() {
                         store.allocationPercent != null
                           ? (store.allocationPercent / 100).toFixed(2)
                           : (1 / (displayStores.length || 1)).toFixed(2);
-                      const storeDays = store.scheduleDays || data.scheduleDays || "Mon - Sat";
+                      const storeDays =
+                        store.scheduleDays ||
+                        (displayStores.length === 1 ? data.scheduleDays : null) ||
+                        "—";
                       const storeTime =
-                        store.scheduleTime || data.scheduleTime || "08:00 AM - 05:00 PM";
+                        store.scheduleTime ||
+                        (displayStores.length === 1 ? data.scheduleTime : null) ||
+                        "08:00 AM - 05:00 PM";
                       const locationStr = [
                         store.area || data.area,
                         store.province || data.province,
@@ -1600,8 +1605,14 @@ function PlantillaEmployeeDetailContent() {
                   storeId: st.storeId,
                   storeName: st.storeName,
                   vcode: st.vcode || data.vcode || "",
-                  scheduleDays: st.scheduleDays || data.scheduleDays || "MON-SAT",
-                  scheduleTime: st.scheduleTime || data.scheduleTime || "08:00 AM - 05:00 PM",
+                  scheduleDays:
+                    st.scheduleDays ||
+                    (data.coveredStores.length === 1 ? data.scheduleDays : "") ||
+                    "",
+                  scheduleTime:
+                    st.scheduleTime ||
+                    (data.coveredStores.length === 1 ? data.scheduleTime : "") ||
+                    "08:00 AM - 05:00 PM",
                   allocationPercent:
                     st.allocationPercent ??
                     (data.coveredStores.length > 1

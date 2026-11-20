@@ -1,5 +1,53 @@
 # AI Handoff
 
+## Execution Report — Roving Schedule Persistence & Disjoint Duty Days Across Stores (ohm#project-store-schedule-in-plantilla-detail)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Plantilla), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, Rule #6 Store-Level Schedule & HC Allocation Matrix).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  - Fix bug: "BUG: Tried to edit schedule but ung unang store lang ang na save sa lahat ng stores."
+  - When editing a multi-store roving employee's schedule in `UpdateScheduleModal` (e.g. Puregold Tanza = `MON, TUE`, Emilus Rosario = `WED, THU`, Waltermart Gen Trias = `FRI, SAT`), all stores previously displayed the first store's duty days on the profile view and in the modal on re-open.
+- **Root Cause Analysis**:
+  1. **Projection Omission in `public.get_web_plantilla_detail` RPC**:
+     - `get_web_plantilla_detail` RPC constructed `v_cov_stores` with `stable_key, store_name, vcode, is_primary, allocation_percent`, but **OMITTED** `store_id`, `schedule_days`, `schedule_time`, and `filled_hc`.
+     - Consequently, `normalizeCoveredStore` received `scheduleDays: undefined` and `scheduleTime: undefined` for every store.
+  2. **Frontend Fallback Cascade Loop**:
+     - In `src/app/(dashboard)/plantilla/[id]/page.tsx`, `const storeDays = store.scheduleDays || data.scheduleDays || "Mon - Sat";` evaluated to `data.scheduleDays` (which comes from `plantilla.schedule_days`, set to Store 1's schedule by `update_plantilla_schedule`).
+     - In `initialStoreAllocations`, `st.scheduleDays || data.scheduleDays || "MON-SAT"` also evaluated to `data.scheduleDays`.
+     - When re-opening the modal, all stores took Store 1's schedule, creating the appearance that only the first store saved.
+  3. **RPC Mutation Resilience in `update_plantilla_schedule`**:
+     - `update_plantilla_schedule` only updated `employee_store_allocations WHERE is_active = true`. If allocation rows were previously inactive, zero rows updated and only `plantilla` was modified.
+- **Key Changes Implemented**:
+  1. **Database Migration (`20262606000133_project_store_schedule_in_plantilla_detail.sql`)**:
+     - Updated `public.get_web_plantilla_detail(p_employee_id uuid)` to project `store_id`, `schedule_days`, `schedule_time`, and `filled_hc` into `v_cov_stores` / `roving_stores`.
+     - Hardened `public.update_plantilla_schedule`:
+       - Step 2a: Updates active allocation rows with each store's `schedule_days`, `schedule_time`, `filled_hc`, `vcode`, and `store_id`.
+       - Step 2b: If no active row exists for that store, automatically reactivates the latest inactive row (`is_active = true, effective_end = NULL`).
+       - Step 2c: If no row exists at all, atomically inserts a fresh active allocation row.
+     - Pushed live to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging` with clean pre-push dry run and verified live `pg_get_functiondef`.
+  2. **Decoupled Frontend Fallbacks**:
+     - `src/components/plantilla/UpdateScheduleModal.tsx`:
+       - Updated `defaultAllocations`: Only falls back to `initialScheduleDays` for single-store stationary personnel (`initialStoreAllocations.length === 1`). For multi-store roving, unassigned stores default to `""` instead of inheriting Store 1's schedule.
+     - `src/app/(dashboard)/plantilla/[id]/page.tsx`:
+       - Updated Tab 2 store card: `const storeDays = store.scheduleDays || (displayStores.length === 1 ? data.scheduleDays : null) || "—";`
+       - Updated `initialStoreAllocations`: Passes distinct per-store schedules without roving fallback pollution.
+     - `src/components/plantilla/PlantillaDetailDrawer.tsx`:
+       - Added `store.scheduleDays` display in the covered stores list.
+       - Wired `initialStoreAllocations` into `UpdateScheduleModal` launcher.
+     - `src/lib/queries/plantilla.ts`:
+       - In `updatePlantillaSchedule`, preserved distinct per-store `scheduleDays` and `scheduleTime` in payload without collapsing to `params.scheduleDays` when multiple stores are present.
+- **Verification**:
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Live Staging SQL test: verified `get_web_plantilla_detail('1a5453b4-0361-4698-8aad-dd4c17e554a6')` returns distinct `schedule_days` (`MON, TUE` for Puregold Tanza, `WED, THU` for Emilus Rosario, `FRI, SAT` for Waltermart Gen Trias).
+- **Migration Delta**:
+  - `prod: 626 migrations`
+  - `staging: 627 migrations`
+  - `1 migrations are not on prod:`
+    `- 20262606000133_project_store_schedule_in_plantilla_detail.sql`
+
 ## Execution Report — Employee Profile Roving HC Share (0.33) & Schedule Button Relocation (ohm#plantilla-detail-hc-share-and-schedule-button)
 
 **Status: COMPLETE & VERIFIED.**

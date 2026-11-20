@@ -810,10 +810,13 @@ export function PlantillaDetailDrawer({
                               {store.storeName}
                             </h3>
                             <p className="text-xs text-brand-primary font-mono mt-0.5">
-                              {data.vcode || "—"}
+                              {store.vcode || data.vcode || "—"}
                             </p>
                             <p className="text-xs text-text-secondary mt-1">
-                              Area: {data.area || data.province || "—"}
+                              Area: {store.area || data.area || data.province || "—"}
+                            </p>
+                            <p className="text-xs text-text-secondary mt-0.5">
+                              Schedule: {store.scheduleDays || (data.coveredStores.length === 1 ? data.scheduleDays : "—")} ({store.scheduleTime || data.scheduleTime || "08:00 AM - 05:00 PM"})
                             </p>
                             <p className="text-xs text-text-secondary mt-0.5">
                               HC Share:{" "}
@@ -987,6 +990,28 @@ export function PlantillaDetailDrawer({
           initialScheduleDays={data.scheduleDays}
           initialScheduleTime={data.scheduleTime}
           initialDayoff={data.dayoff}
+          initialStoreAllocations={
+            data.coveredStores && data.coveredStores.length > 0
+              ? data.coveredStores.map((st) => ({
+                  storeId: st.storeId,
+                  storeName: st.storeName,
+                  vcode: st.vcode || data.vcode || "",
+                  scheduleDays:
+                    st.scheduleDays ||
+                    (data.coveredStores.length === 1 ? data.scheduleDays : "") ||
+                    "",
+                  scheduleTime:
+                    st.scheduleTime ||
+                    (data.coveredStores.length === 1 ? data.scheduleTime : "") ||
+                    "08:00 AM - 05:00 PM",
+                  allocationPercent:
+                    st.allocationPercent ??
+                    (data.coveredStores.length > 1
+                      ? Math.round(100 / data.coveredStores.length)
+                      : 100),
+                }))
+              : undefined
+          }
           onSuccess={() => {
             detailQuery.refetch();
           }}

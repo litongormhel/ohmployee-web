@@ -364,8 +364,15 @@ export function UpdateScheduleModal({
         storeId: a.storeId ?? "",
         storeName: a.storeName || "Primary Store",
         vcode: a.vcode ?? "",
-        scheduleDays: (a.scheduleDays && a.scheduleDays.trim()) || (initialScheduleDays && initialScheduleDays.trim()) || "MON-SAT",
-        scheduleTime: (a.scheduleTime && a.scheduleTime.trim()) || (initialScheduleTime && initialScheduleTime.trim()) || "08:00 AM - 05:00 PM",
+        scheduleDays:
+          (a.scheduleDays && a.scheduleDays.trim()) ||
+          (initialStoreAllocations.length === 1
+            ? (initialScheduleDays && initialScheduleDays.trim()) || "MON-SAT"
+            : ""),
+        scheduleTime:
+          (a.scheduleTime && a.scheduleTime.trim()) ||
+          (initialScheduleTime && initialScheduleTime.trim()) ||
+          "08:00 AM - 05:00 PM",
         allocationPercent:
           a.allocationPercent ??
           (initialStoreAllocations.length > 1
