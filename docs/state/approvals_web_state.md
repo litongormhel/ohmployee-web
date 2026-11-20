@@ -169,10 +169,15 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
   - `submit_headcount_request`: polymorphic store array ingestion (`stores` / `store_ids`), mandatory Operational Justification ($\ge 20$ chars) enforced across all request types, and hard-block Island Group span guard across registered and proposed stores. Migration `20262606000128` resolved an island group resolution regression by deriving island groups for proposed new stores using the canonical database function `public.fn_derive_island_group(p_province)` rather than querying `ref_locations` (which does not carry `island_group`).
   - `create_plantilla_slot_from_request`: Phase 1 atomic store provisioning inserts unlisted stores into `public.stores` upon approval and binds them to `created_store_id`, followed by Phase 2 Coverage Group (`CGCODE`), per-store VCodes, Vacancies, and Plantilla Slots.
   - `get_hc_request_stores`: returns `is_new_store`, `store_name`, `province`, `city`, `island_group`, and `created_store_id`.
-- **UI Components**:
+- **UI Components & Option 1 Queue Routing**:
   - `RequestHeadcountModal.tsx`: multi-city roving store search, quick-add unlisted store sub-form with province/city selectors and synchronous `deriveIslandGroup(unlistedProvince)` resolution, selected chips with `(New Store)` badges, and live character counter enforcing $\ge 20$-char justification.
   - `locations.ts`: `fetchRefLocations` queries physical columns `province, city` from `ref_locations` and derives `island_group` in memory via `deriveIslandGroup`, adhering to the PostgREST column guard.
-  - `HeadcountStandardApprovalCard.tsx`: dynamic roving cluster breakdown displaying new stores with `New Store — Will be created on approval` badges and atomic provisioning notice in the approval confirmation modal.
+  - **New Stores Queue Routing (`Option 1`)**:
+    - When a headcount requisition introduces proposed new stores (`hc_request_stores.some(s => s.is_new_store)`), it routes out of the standard `Headcount` approval queue and into the **`New Stores`** tab (`/approvals?tab=new_stores`) and `/my-requests` New Store category.
+    - `fetchHeadcountRequests` & `fetchHeadcountCounts`: filter out requisitions containing proposed new stores, preventing ambiguous `Store: —` displays in the headcount table.
+    - `fetchNewStoreRequests` & `fetchNewStoreCounts`: merge unlisted roving cluster requisitions, showing all proposed doors (`Store 1, Store 2, Store 3`), primary location, and a `✨ New Roving Doors (N)` badge with position details.
+    - `NewStoreDataTable.tsx`: integrates dual action dispatching—delegating standard new store requests to `approveNewStoreRequest` and roving headcount requests with new doors to `approveHeadcountRequest` (which seamlessly triggers Step 1.5 atomic store provisioning in `create_plantilla_slot_from_request`) and `rejectHeadcountRequest`.
+    - `fetchMyRequests` (`/my-requests`): categorizes headcount requests with new stores under `category: "new_stores"` with clear title `New Store (Position): Store Names` and subtitle `Account · N New Door(s) Proposed`.
 
 
 

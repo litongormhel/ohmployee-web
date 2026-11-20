@@ -1,5 +1,35 @@
 # AI Handoff
 
+## Execution Report — Route Roving Requisitions with Unlisted Doors to New Stores Approval Queue (ohm#route-new-store-headcount-requisitions)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals), `docs/state/approvals_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Selection**:
+  The user requested Option 1 ("This should be in New Store because hindi pa existing ang mga doors na to") for headcount requests containing unlisted stores (`is_new_store = true` in `hc_request_stores`, e.g. test request `0ea67bd5-5a3b-476e-9355-2c760f3c441f` with `Store 1`, `Store 2`, `Store 3`).
+- **Key Changes Implemented**:
+  1. **Approvals Tab Routing (`src/lib/queries/requests.ts`)**:
+     - `fetchHeadcountRequests`: selects `hc_request_stores`, filters out requests where `hc_request_stores.some(s => s.is_new_store)`, eliminating ambiguous `Store: —` displays in the headcount queue. Populates `storeName` with existing roving store names when available.
+     - `fetchHeadcountCounts`: excludes requests carrying new doors from the Headcount count.
+     - `fetchNewStoreRequests`: queries both `new_store_requests` and `headcount_requests` containing proposed new doors (`is_new_store = true` in `hc_request_stores`), merges them, and sorts by requested date descending. Maps roving doors to `storeName: "Store 1, Store 2, Store 3"`, sets `isHeadcountRovingCluster: true`, and extracts primary location and position snapshot.
+     - `fetchNewStoreCounts`: aggregates pending, approved, and rejected counts from both `new_store_requests` and `headcount_requests` with new doors.
+     - `fetchRequestCategoryCounts`: wires `new_stores` to `fetchNewStoreCounts().pending` and `headcount` to `fetchHeadcountCounts().pending` so top-level tab badge counters reflect the routed items immediately.
+  2. **Approval UI & Action Dispatching (`src/components/approvals/NewStoreDataTable.tsx`)**:
+     - In the Store Name column: renders all proposed store names with a `✨ New Roving Doors ({count})` badge and displays the requisitioned position.
+     - In the Actions column: renders direct Reject and Approve buttons for `isHeadcountRovingCluster`.
+     - In Single Approve Modal: shows proposed doors list and explicit notice that approving will automatically provision these doors into the store registry and activate roving coverage.
+     - In Action Handlers (Single Approve, Single Reject, Bulk Approve, Bulk Reject): delegates to `approveHeadcountMutation` and `rejectHeadcountMutation` when `req.isHeadcountRovingCluster` is true, otherwise uses `approveMutation` and `rejectMutation`. Cross-invalidates `new-store-requests`, `new-store-counts`, `headcount-requests`, `headcount-counts`, `request-category-counts`, `vacancies`, `plantilla`, and `stores`.
+  3. **My Requests Tracking Feed (`src/lib/queries/my_requests.ts`)**:
+     - In `fetchMyRequests`: selects `hc_request_stores` on `headcount_requests`. If `newStores.length > 0`, routes the card to `category: "new_stores"`, with title `New Store ({position}): {storeNames}` and subtitle `{account} · {count} New Door(s) Proposed` instead of `Cashier at —`.
+- **Verification**:
+  - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 653 migrations.
+  - `npm test`: 255/255 unit tests passed with 0 failures.
+  - `npm run lint`: 0 ESLint errors/warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+- **Local Commit**: Committed locally on `main` staging only explicit files touched.
+
+---
+
 ## Execution Report — Align My Requests Query Layer with Physical PostgREST Schemas (ohm#fix-my-requests-postgrest-schema-errors)
 
 **Status: COMPLETE & VERIFIED.**

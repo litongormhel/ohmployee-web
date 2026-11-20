@@ -121,7 +121,7 @@ export async function fetchMyRequests(
     let q = supabase
       .from("headcount_requests")
       .select(
-        "id, status, created_at, updated_at, store_name_snapshot, position_name_snapshot, account_name_snapshot, group_name_snapshot, headcount_needed, proposed_target, previous_target, reason, urgency, requested_by_user_id, requested_by_name, reviewed_by_name, reviewed_at, reviewer_remarks, request_type"
+        "id, status, created_at, updated_at, store_name_snapshot, position_name_snapshot, account_name_snapshot, group_name_snapshot, headcount_needed, proposed_target, previous_target, reason, urgency, requested_by_user_id, requested_by_name, reviewed_by_name, reviewed_at, reviewer_remarks, request_type, hc_request_stores ( id, is_new_store, store_name, store_name_snapshot, area_province, area_city )"
       )
       .eq("is_archived", false)
       .order("created_at", { ascending: false });
@@ -139,36 +139,86 @@ export async function fetchMyRequests(
     } else if (data) {
       for (const row of data) {
         const normStatus = normalizeStatus(row.status);
-        const store = row.store_name_snapshot || "—";
         const pos = row.position_name_snapshot || "Position";
         const account = row.account_name_snapshot || "";
         const isQuota = Boolean(row.proposed_target !== null && row.previous_target !== null);
         const reqType = row.request_type || (isQuota ? "Quota Amendment" : "Additional Headcount");
 
-        items.push({
-          id: row.id,
-          category: "headcount",
-          categoryLabel: reqType,
-          status: normStatus,
-          statusLabel: getStatusLabel(normStatus),
-          title: `${pos} at ${store}`,
-          subtitle: account ? `${account} · ${reqType}` : reqType,
-          details: {
-            storeName: row.store_name_snapshot,
-            accountName: row.account_name_snapshot,
-            positionName: row.position_name_snapshot,
-            groupName: row.group_name_snapshot,
-            headcountNeeded: row.headcount_needed,
-            proposedTarget: row.proposed_target,
-            previousTarget: row.previous_target,
-            reason: row.reason,
-            urgency: row.urgency,
-          },
-          createdAt: row.created_at,
-          reviewedAt: row.reviewed_at,
-          reviewedByName: row.reviewed_by_name,
-          reviewerRemarks: row.reviewer_remarks,
-        });
+        const stores = (row.hc_request_stores || []) as Array<{
+          id: string;
+          is_new_store?: boolean;
+          store_name?: string | null;
+          store_name_snapshot?: string | null;
+          area_province?: string | null;
+          area_city?: string | null;
+        }>;
+        const newStores = stores.filter((s) => s.is_new_store);
+        const existingStores = stores
+          .filter((s) => !s.is_new_store)
+          .map((s) => s.store_name || s.store_name_snapshot)
+          .filter(Boolean)
+          .join(", ");
+
+        if (newStores.length > 0) {
+          // Option 1: Route to New Stores category when requisition introduces new/unlisted doors
+          const storeNames = newStores
+            .map((s) => s.store_name || s.store_name_snapshot)
+            .filter(Boolean)
+            .join(", ");
+          const location = [newStores[0]?.area_city, newStores[0]?.area_province]
+            .filter(Boolean)
+            .join(", ");
+
+          items.push({
+            id: row.id,
+            category: "new_stores",
+            categoryLabel: "New Store",
+            status: normStatus,
+            statusLabel: getStatusLabel(normStatus),
+            title: `New Store (${pos}): ${storeNames}`,
+            subtitle: account
+              ? `${account} · ${newStores.length} New Door(s) Proposed`
+              : `${newStores.length} New Door(s) Proposed`,
+            details: {
+              storeName: storeNames,
+              accountName: account,
+              positionName: pos,
+              headcountNeeded: row.headcount_needed,
+              reason: row.reason,
+              location: location || null,
+            },
+            createdAt: row.created_at,
+            reviewedAt: row.reviewed_at,
+            reviewedByName: row.reviewed_by_name,
+            reviewerRemarks: row.reviewer_remarks,
+          });
+        } else {
+          const store = row.store_name_snapshot || existingStores || "—";
+          items.push({
+            id: row.id,
+            category: "headcount",
+            categoryLabel: reqType,
+            status: normStatus,
+            statusLabel: getStatusLabel(normStatus),
+            title: `${pos} at ${store}`,
+            subtitle: account ? `${account} · ${reqType}` : reqType,
+            details: {
+              storeName: store,
+              accountName: row.account_name_snapshot,
+              positionName: row.position_name_snapshot,
+              groupName: row.group_name_snapshot,
+              headcountNeeded: row.headcount_needed,
+              proposedTarget: row.proposed_target,
+              previousTarget: row.previous_target,
+              reason: row.reason,
+              urgency: row.urgency,
+            },
+            createdAt: row.created_at,
+            reviewedAt: row.reviewed_at,
+            reviewedByName: row.reviewed_by_name,
+            reviewerRemarks: row.reviewer_remarks,
+          });
+        }
       }
     }
   } catch (err) {

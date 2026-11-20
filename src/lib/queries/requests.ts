@@ -223,24 +223,16 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
   };
 
   const countPromises = [
-    // 1. New Stores
+    // 1. New Stores (Option 1: includes roving requisitions with new doors)
     countItem(
       "new_stores",
-      supabase
-        .from("new_store_requests")
-        .select("id", { count: "exact", head: true })
-        .ilike("status", "pending")
-        .eq("is_archived", false)
+      fetchNewStoreCounts().then((c) => ({ count: c.pending }))
     ),
 
-    // 2. Headcount
+    // 2. Headcount (Option 1: standard headcount requests excluding new door clusters)
     countItem(
       "headcount",
-      supabase
-        .from("headcount_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("is_archived", false)
-        .or("status.ilike.pending,status.ilike.under_review")
+      fetchHeadcountCounts().then((c) => ({ count: c.pending }))
     ),
 
     // 3. Account Sign-Up Requests (Preserved across QA Reset)
@@ -401,7 +393,13 @@ export async function fetchHeadcountRequests(
       employment_type,
       created_vcode,
       created_vcodes,
-      vacancy_created
+      vacancy_created,
+      hc_request_stores (
+        id,
+        is_new_store,
+        store_name,
+        store_name_snapshot
+      )
     `)
     .eq("is_archived", false);
 
@@ -413,12 +411,9 @@ export async function fetchHeadcountRequests(
     query = query.or("status.ilike.rejected,status.ilike.cancelled");
   }
 
-  const { data, error } = await applyPagination(
-    query
-      .eq("is_archived", false)
-      .order("created_at", { ascending: false }),
-    pagination
-  );
+  const { data, error } = await query
+    .eq("is_archived", false)
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("[fetchHeadcountRequests] query failed:", error);
@@ -428,7 +423,20 @@ export async function fetchHeadcountRequests(
     throw new RequestDataError("generic", error.message);
   }
 
-  return (data ?? []).map((row) => {
+  // Filter out requests that carry new doors (routed to New Stores queue under Option 1)
+  const filteredRows = (data ?? []).filter((row) => {
+    const stores = (row.hc_request_stores || []) as Array<{ is_new_store?: boolean }>;
+    return !stores.some((s) => s.is_new_store);
+  });
+
+  const pagedRows = pagination
+    ? filteredRows.slice(
+        ((pagination.page ?? 1) - 1) * (pagination.limit ?? 10),
+        ((pagination.page ?? 1) - 1) * (pagination.limit ?? 10) + (pagination.limit ?? 10)
+      )
+    : filteredRows;
+
+  return pagedRows.map((row) => {
     const rawType = (row.request_type ?? "").trim();
     const isQuotaAmendment =
       rawType.toLowerCase().includes("quota") ||
@@ -455,6 +463,17 @@ export async function fetchHeadcountRequests(
       isReduction = delta < 0;
     }
 
+    const rovingStores = (row.hc_request_stores || []) as Array<{
+      id: string;
+      store_name?: string | null;
+      store_name_snapshot?: string | null;
+      is_new_store?: boolean;
+    }>;
+    const existingStores = rovingStores
+      .map((s) => s.store_name || s.store_name_snapshot)
+      .filter(Boolean)
+      .join(", ");
+
     return {
       id: row.id,
       requestType: rawType || (isQuotaAmendment ? "Quota Amendment" : "Additional Headcount"),
@@ -472,7 +491,7 @@ export async function fetchHeadcountRequests(
       accountId: row.account_id ?? null,
       storeId: row.store_id ?? null,
       positionId: row.position_id ?? null,
-      storeName: row.store_name_snapshot ?? null,
+      storeName: row.store_name_snapshot || existingStores || null,
       accountName: row.account_name_snapshot ?? null,
       positionName: row.position_name_snapshot ?? null,
       groupName: row.group_name_snapshot ?? null,
@@ -488,6 +507,11 @@ export async function fetchHeadcountRequests(
       createdVcode: row.created_vcode ?? null,
       createdVcodes: Array.isArray(row.created_vcodes) ? row.created_vcodes : null,
       vacancyCreated: Boolean(row.vacancy_created),
+      rovingStores: rovingStores.map((s) => ({
+        id: s.id,
+        store_name: s.store_name || s.store_name_snapshot || null,
+        is_new_store: Boolean(s.is_new_store),
+      })),
     };
   });
 }
@@ -498,7 +522,7 @@ export async function fetchHeadcountCounts(): Promise<RequestStatusCounts> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("headcount_requests")
-    .select("status")
+    .select("status, hc_request_stores(id, is_new_store)")
     .eq("is_archived", false);
   if (error) {
     console.error("[fetchHeadcountCounts] query failed:", error.code, error.message);
@@ -512,6 +536,10 @@ export async function fetchHeadcountCounts(): Promise<RequestStatusCounts> {
   let approved = 0;
   let rejected = 0;
   for (const row of data) {
+    // Exclude requests that carry new doors (routed to New Stores queue under Option 1)
+    const stores = (row.hc_request_stores || []) as Array<{ is_new_store?: boolean }>;
+    if (stores.some((s) => s.is_new_store)) continue;
+
     const s = (row.status || "").toLowerCase();
     if (s === "pending" || s === "under_review") pending++;
     else if (s === "approved" || s === "completed" || s === "approved_pending_vcode") approved++;
@@ -722,6 +750,9 @@ export function useApproveHeadcountRequest() {
       queryClient.invalidateQueries({ queryKey: ["pending-headcount-requests"] });
       queryClient.invalidateQueries({ queryKey: ["headcount-requests"] });
       queryClient.invalidateQueries({ queryKey: ["headcount-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancies"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-counts"] });
       queryClient.invalidateQueries({ queryKey: ["vacancy-list"] });
@@ -730,6 +761,7 @@ export function useApproveHeadcountRequest() {
       queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["quota-details"] });
       queryClient.invalidateQueries({ queryKey: ["store-vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
     },
   });
 }
@@ -766,6 +798,9 @@ export function useRejectHeadcountRequest() {
       queryClient.invalidateQueries({ queryKey: ["pending-headcount-requests"] });
       queryClient.invalidateQueries({ queryKey: ["headcount-requests"] });
       queryClient.invalidateQueries({ queryKey: ["headcount-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-counts"] });
       queryClient.invalidateQueries({ queryKey: ["quota-details"] });
     },
   });
@@ -1166,6 +1201,13 @@ export type NewStoreRequestItem = {
   reviewedAt: string | null;
   reviewReason: string | null;
   createdAt: string;
+  isHeadcountRovingCluster?: boolean;
+  rovingStores?: Array<{
+    store_name: string;
+    area_province?: string;
+    area_city?: string;
+    island_group?: string;
+  }>;
 };
 
 export type ApproveNewStoreParams = {
@@ -1319,7 +1361,8 @@ export async function fetchNewStoreRequests(
         last_name,
         email
       )
-    `);
+    `)
+    .eq("is_archived", false);
 
   if (tab === "pending") {
     query = query.or("status.ilike.pending,status.ilike.pending_super_admin");
@@ -1329,22 +1372,97 @@ export async function fetchNewStoreRequests(
     query = query.or("status.ilike.rejected,status.ilike.cancelled");
   }
 
-  const { data, error } = await applyPagination(
-    query
-      .eq("is_archived", false)
-      .order("requested_at", { ascending: false }),
-    pagination
-  );
+  // Also query headcount_requests that contain newly proposed doors in hc_request_stores
+  let hcQuery = supabase
+    .from("headcount_requests")
+    .select(`
+      id,
+      request_type,
+      current_quota,
+      proposed_quota,
+      justification,
+      status,
+      created_at,
+      updated_at,
+      reviewed_at,
+      reviewed_by,
+      reviewed_by_name,
+      rejection_reason,
+      requested_by,
+      account_id,
+      store_id,
+      position_id,
+      store_name_snapshot,
+      account_name_snapshot,
+      position_name_snapshot,
+      group_name_snapshot,
+      requester_name,
+      approver_name,
+      employment_type,
+      created_vcode,
+      created_vcodes,
+      vacancy_created,
+      accounts:accounts!account_id (
+        id,
+        account_name,
+        group_id,
+        groups:groups!group_id (
+          id,
+          group_name
+        )
+      ),
+      users_profile:users_profile!requested_by (
+        id,
+        full_name,
+        first_name,
+        last_name,
+        email
+      ),
+      hc_request_stores (
+        id,
+        is_new_store,
+        store_name,
+        store_name_snapshot,
+        area_province,
+        area_city,
+        island_group
+      )
+    `)
+    .eq("is_archived", false);
 
-  if (error) {
-    console.error("[fetchNewStoreRequests] query failed:", error);
-    if (error.code === "42501") {
-      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
-    }
-    throw new RequestDataError("generic", error.message);
+  if (tab === "pending") {
+    hcQuery = hcQuery.or("status.ilike.pending,status.ilike.under_review");
+  } else if (tab === "approved") {
+    hcQuery = hcQuery.or("status.ilike.approved,status.ilike.completed,status.ilike.approved_pending_vcode");
+  } else if (tab === "rejected") {
+    hcQuery = hcQuery.or("status.ilike.rejected,status.ilike.cancelled");
   }
 
-  return ((data as unknown as NewStoreDbRow[]) ?? []).map((row: NewStoreDbRow) => {
+  const [
+    { data: nsrData, error: nsrError },
+    { data: hcData, error: hcError },
+  ] = await Promise.all([
+    query.order("requested_at", { ascending: false }),
+    hcQuery.order("created_at", { ascending: false }),
+  ]);
+
+  if (nsrError) {
+    console.error("[fetchNewStoreRequests] nsrQuery failed:", nsrError);
+    if (nsrError.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", nsrError.message);
+  }
+
+  if (hcError) {
+    console.error("[fetchNewStoreRequests] hcQuery failed:", hcError);
+    if (hcError.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", hcError.message);
+  }
+
+  const nsrItems: NewStoreRequestItem[] = ((nsrData as unknown as NewStoreDbRow[]) ?? []).map((row: NewStoreDbRow) => {
     const resolvedGroupId = row.group_id ?? row.accounts?.group_id ?? null;
     const resolvedGroupName =
       row.groups?.group_name ||
@@ -1377,34 +1495,156 @@ export async function fetchNewStoreRequests(
       createdAt: row.created_at,
     };
   });
+
+  const hcItems: NewStoreRequestItem[] = [];
+  for (const row of (hcData ?? [])) {
+    const stores = (row.hc_request_stores || []) as Array<{
+      id: string;
+      is_new_store?: boolean;
+      store_name?: string | null;
+      store_name_snapshot?: string | null;
+      area_province?: string | null;
+      area_city?: string | null;
+      island_group?: string | null;
+    }>;
+    const newStores = stores.filter((s) => s.is_new_store);
+    if (newStores.length === 0) continue;
+
+    const storeNames = newStores
+      .map((s) => s.store_name || s.store_name_snapshot)
+      .filter(Boolean)
+      .join(", ") || "New Store";
+    const primaryLoc = newStores[0] || {};
+    const province = primaryLoc.area_province || "—";
+    const city = primaryLoc.area_city || "—";
+    const acct = (Array.isArray(row.accounts) ? row.accounts[0] : row.accounts) as {
+      id?: string;
+      account_name?: string | null;
+      group_id?: string | null;
+      groups?: { id?: string; group_name?: string | null } | Array<{ id?: string; group_name?: string | null }> | null;
+    } | null;
+    const acctGroup = (Array.isArray(acct?.groups) ? acct?.groups[0] : acct?.groups) as {
+      id?: string;
+      group_name?: string | null;
+    } | null;
+    const resolvedGroupId = acct?.group_id ?? null;
+    const resolvedGroupName =
+      row.group_name_snapshot ||
+      acctGroup?.group_name ||
+      null;
+
+    const requesterProfile = (Array.isArray(row.users_profile) ? row.users_profile[0] : row.users_profile) as {
+      id?: string;
+      full_name?: string | null;
+      first_name?: string | null;
+      last_name?: string | null;
+      email?: string | null;
+    } | null;
+
+    hcItems.push({
+      id: row.id,
+      storeName: storeNames,
+      province,
+      city,
+      accountId: row.account_id ?? "",
+      accountName: row.account_name_snapshot ?? acct?.account_name ?? "—",
+      groupId: resolvedGroupId,
+      groupName: resolvedGroupName,
+      position: row.position_name_snapshot ?? "Roving",
+      requestedHc: row.proposed_quota ?? 1,
+      reason: row.justification || "New store addition",
+      status: row.status,
+      requestedBy: row.requested_by,
+      requestedByName: resolveRequesterDisplayName(
+        row.requester_name,
+        requesterProfile
+      ),
+      requestedAt: row.created_at,
+      reviewedBy: row.reviewed_by ?? null,
+      reviewedByName: row.reviewed_by_name || row.approver_name || null,
+      reviewedAt: row.reviewed_at ?? null,
+      reviewReason: row.rejection_reason ?? null,
+      createdAt: row.created_at,
+      isHeadcountRovingCluster: true,
+      rovingStores: newStores.map((s) => ({
+        store_name: s.store_name || s.store_name_snapshot || "New Store",
+        area_province: s.area_province || undefined,
+        area_city: s.area_city || undefined,
+        island_group: s.island_group || undefined,
+      })),
+    });
+  }
+
+  const allItems = [...nsrItems, ...hcItems].sort((a, b) => {
+    const timeA = new Date(a.requestedAt || a.createdAt).getTime();
+    const timeB = new Date(b.requestedAt || b.createdAt).getTime();
+    return timeB - timeA;
+  });
+
+  if (pagination) {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 10;
+    return allItems.slice((page - 1) * limit, page * limit);
+  }
+
+  return allItems;
 }
 
 export const fetchPendingNewStoreRequests = () => fetchNewStoreRequests("pending");
 
 export async function fetchNewStoreCounts(): Promise<RequestStatusCounts> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("new_store_requests")
-    .select("status")
-    .eq("is_archived", false);
+  const [
+    { data: nsrData, error: nsrError },
+    { data: hcData, error: hcError },
+  ] = await Promise.all([
+    supabase
+      .from("new_store_requests")
+      .select("status")
+      .eq("is_archived", false),
+    supabase
+      .from("headcount_requests")
+      .select("status, hc_request_stores(id, is_new_store)")
+      .eq("is_archived", false),
+  ]);
 
-  if (error) {
-    console.error("[fetchNewStoreCounts] query failed:", error.code, error.message);
-    if (error.code === "42501") {
+  if (nsrError) {
+    console.error("[fetchNewStoreCounts] nsr query failed:", nsrError.code, nsrError.message);
+    if (nsrError.code === "42501") {
       throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
     }
-    throw new RequestDataError("generic", error.message);
+    throw new RequestDataError("generic", nsrError.message);
   }
-  if (!data) return { pending: 0, approved: 0, rejected: 0 };
+
+  if (hcError) {
+    console.error("[fetchNewStoreCounts] hc query failed:", hcError.code, hcError.message);
+    if (hcError.code === "42501") {
+      throw new RequestDataError("unauthorized", "Unauthorized: Scoped access restricted.");
+    }
+    throw new RequestDataError("generic", hcError.message);
+  }
+
   let pending = 0;
   let approved = 0;
   let rejected = 0;
-  for (const row of data) {
+
+  for (const row of (nsrData || [])) {
     const s = (row.status || "").toLowerCase();
     if (s === "pending" || s === "pending_super_admin") pending++;
     else if (s === "approved" || s === "completed") approved++;
     else if (s === "rejected" || s === "cancelled") rejected++;
   }
+
+  for (const row of (hcData || [])) {
+    const stores = (row.hc_request_stores || []) as Array<{ is_new_store?: boolean }>;
+    if (!stores.some((s) => s.is_new_store)) continue;
+
+    const s = (row.status || "").toLowerCase();
+    if (s === "pending" || s === "under_review") pending++;
+    else if (s === "approved" || s === "completed" || s === "approved_pending_vcode") approved++;
+    else if (s === "rejected" || s === "cancelled") rejected++;
+  }
+
   return { pending, approved, rejected };
 }
 
@@ -1520,6 +1760,11 @@ export function useApproveNewStoreRequest() {
       queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
       queryClient.invalidateQueries({ queryKey: ["new-store-requests"] });
       queryClient.invalidateQueries({ queryKey: ["new-store-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["headcount-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
     },
   });
@@ -1549,6 +1794,9 @@ export function useRejectNewStoreRequest() {
       queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
       queryClient.invalidateQueries({ queryKey: ["new-store-requests"] });
       queryClient.invalidateQueries({ queryKey: ["new-store-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["headcount-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["headcount-counts"] });
     },
   });
 }

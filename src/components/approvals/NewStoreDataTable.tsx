@@ -18,6 +18,8 @@ import {
   useApproveNewStoreRequest,
   useForwardNewStoreRequest,
   useRejectNewStoreRequest,
+  useApproveHeadcountRequest,
+  useRejectHeadcountRequest,
   type NewStoreRequestItem,
   type ApprovalStatusTab,
 } from "@/lib/queries/requests";
@@ -93,6 +95,8 @@ export function NewStoreDataTable({
   const approveMutation = useApproveNewStoreRequest();
   const rejectMutation = useRejectNewStoreRequest();
   const forwardMutation = useForwardNewStoreRequest();
+  const approveHcMutation = useApproveHeadcountRequest();
+  const rejectHcMutation = useRejectHeadcountRequest();
 
   const currentUser = useCurrentUser();
   const roleKey = currentUser?.roleKey?.toLowerCase() ?? "";
@@ -149,9 +153,15 @@ export function NewStoreDataTable({
     if (!selectedApproveRequest) return;
     setActionError(null);
     try {
-      await approveMutation.mutateAsync({
-        requestId: selectedApproveRequest.id,
-      });
+      if (selectedApproveRequest.isHeadcountRovingCluster) {
+        await approveHcMutation.mutateAsync({
+          requestId: selectedApproveRequest.id,
+        });
+      } else {
+        await approveMutation.mutateAsync({
+          requestId: selectedApproveRequest.id,
+        });
+      }
       setSelectedApproveRequest(null);
     } catch (err: unknown) {
       setActionError(
@@ -170,10 +180,17 @@ export function NewStoreDataTable({
       return;
     }
     try {
-      await rejectMutation.mutateAsync({
-        requestId: selectedRejectRequest.id,
-        reason: rejectionReason.trim(),
-      });
+      if (selectedRejectRequest.isHeadcountRovingCluster) {
+        await rejectHcMutation.mutateAsync({
+          requestId: selectedRejectRequest.id,
+          remarks: rejectionReason.trim(),
+        });
+      } else {
+        await rejectMutation.mutateAsync({
+          requestId: selectedRejectRequest.id,
+          reason: rejectionReason.trim(),
+        });
+      }
       setSelectedRejectRequest(null);
     } catch (err: unknown) {
       setActionError(
@@ -234,9 +251,15 @@ export function NewStoreDataTable({
 
     for (const req of targetRequests) {
       try {
-        await approveMutation.mutateAsync({
-          requestId: req.id,
-        });
+        if (req.isHeadcountRovingCluster) {
+          await approveHcMutation.mutateAsync({
+            requestId: req.id,
+          });
+        } else {
+          await approveMutation.mutateAsync({
+            requestId: req.id,
+          });
+        }
         successCount++;
       } catch (err: unknown) {
         errors.push(err instanceof Error ? err.message : `Failed on store ${req.storeName}`);
@@ -273,10 +296,17 @@ export function NewStoreDataTable({
 
     for (const req of targetRequests) {
       try {
-        await rejectMutation.mutateAsync({
-          requestId: req.id,
-          reason: bulkRejectionReason.trim(),
-        });
+        if (req.isHeadcountRovingCluster) {
+          await rejectHcMutation.mutateAsync({
+            requestId: req.id,
+            remarks: bulkRejectionReason.trim(),
+          });
+        } else {
+          await rejectMutation.mutateAsync({
+            requestId: req.id,
+            reason: bulkRejectionReason.trim(),
+          });
+        }
         successCount++;
       } catch (err: unknown) {
         errors.push(err instanceof Error ? err.message : `Failed on store ${req.storeName}`);
@@ -300,7 +330,13 @@ export function NewStoreDataTable({
     }
   };
 
-  const isBusy = approveMutation.isPending || rejectMutation.isPending || forwardMutation.isPending || isBulkProcessing;
+  const isBusy =
+    approveMutation.isPending ||
+    rejectMutation.isPending ||
+    forwardMutation.isPending ||
+    approveHcMutation.isPending ||
+    rejectHcMutation.isPending ||
+    isBulkProcessing;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -482,7 +518,19 @@ export function NewStoreDataTable({
                     {/* STORE NAME */}
                     <td className="px-4 py-2.5 font-medium text-text-primary text-sm whitespace-nowrap align-middle">
                       <div className="flex flex-col">
-                        <span>{request.storeName}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{request.storeName}</span>
+                          {request.isHeadcountRovingCluster && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold">
+                              ✨ New Roving Doors ({request.rovingStores?.length ?? 1})
+                            </span>
+                          )}
+                        </div>
+                        {request.isHeadcountRovingCluster && (
+                          <span className="text-[11px] text-text-secondary mt-0.5">
+                            Position: <strong className="text-text-primary">{request.position || "Staff"}</strong>
+                          </span>
+                        )}
                         {request.status === "pending_super_admin" ? (
                           <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-semibold text-purple-700">
                             <span className="h-1.5 w-1.5 rounded-full bg-purple-600" />
@@ -491,7 +539,7 @@ export function NewStoreDataTable({
                         ) : request.status === "pending" ? (
                           <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-semibold text-amber-700">
                             <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
-                            Pending Data Team Review
+                            Pending Review
                           </span>
                         ) : null}
                       </div>
@@ -537,7 +585,26 @@ export function NewStoreDataTable({
                         </div>
                       ) : isPending ? (
                         <div className="inline-flex items-center justify-end gap-1.5">
-                          {request.status === "pending_super_admin" ? (
+                          {request.isHeadcountRovingCluster ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenReject(request)}
+                                disabled={isBusy}
+                                className="inline-flex h-7 items-center justify-center rounded-lg border border-border-danger bg-transparent px-2 text-xs font-medium text-text-danger hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
+                              >
+                                <span>Reject</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenApprove(request)}
+                                disabled={isBusy}
+                                className="inline-flex h-7 items-center justify-center rounded-lg border border-border-brand bg-brand-500 hover:bg-brand-600 px-3 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
+                              >
+                                <span>Approve</span>
+                              </button>
+                            </>
+                          ) : request.status === "pending_super_admin" ? (
                             isSuperOrHeadAdmin ? (
                               <>
                                 <button
@@ -634,18 +701,20 @@ export function NewStoreDataTable({
         <Modal
           isOpen={Boolean(selectedApproveRequest)}
           onClose={() => setSelectedApproveRequest(null)}
-          title="Approve New Store Request"
+          title={selectedApproveRequest.isHeadcountRovingCluster ? "Approve New Store Headcount Request" : "Approve New Store Request"}
           subtitle="Create store record and activate initial plantilla quota"
           icon={CheckCircle2}
-          isSubmitting={approveMutation.isPending}
-          disableBackdropClick={approveMutation.isPending}
+          isSubmitting={approveMutation.isPending || approveHcMutation.isPending}
+          disableBackdropClick={approveMutation.isPending || approveHcMutation.isPending}
           maxWidthClass="max-w-md"
         >
           <div className="space-y-4">
             <div className="rounded-lg border border-border-default bg-surface-subtle p-3 text-xs space-y-1.5">
               <div className="flex justify-between">
-                <span className="text-text-secondary">Store Name:</span>
-                <span className="font-bold text-text-primary">
+                <span className="text-text-secondary">
+                  {selectedApproveRequest.isHeadcountRovingCluster ? "Proposed Doors:" : "Store Name:"}
+                </span>
+                <span className="font-bold text-text-primary text-right max-w-[240px]">
                   {selectedApproveRequest.storeName}
                 </span>
               </div>
@@ -655,12 +724,25 @@ export function NewStoreDataTable({
                   {selectedApproveRequest.accountName}
                 </span>
               </div>
+              {selectedApproveRequest.position && (
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">Position:</span>
+                  <span className="font-medium text-text-primary">
+                    {selectedApproveRequest.position}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-text-secondary">Initial Quota:</span>
                 <span className="font-bold font-mono text-text-primary">
                   {selectedApproveRequest.requestedHc ?? 1} Headcount
                 </span>
               </div>
+              {selectedApproveRequest.isHeadcountRovingCluster && (
+                <div className="mt-2 pt-2 border-t border-border-default text-[11px] text-text-muted">
+                  Approving will automatically provision these {selectedApproveRequest.rovingStores?.length ?? 1} unlisted door(s) into the store registry and activate roving plantilla coverage.
+                </div>
+              )}
             </div>
 
             {actionError && (
@@ -706,8 +788,8 @@ export function NewStoreDataTable({
           title="Reject New Store Request"
           subtitle="Provide reason for rejecting this store addition"
           icon={XCircle}
-          isSubmitting={rejectMutation.isPending}
-          disableBackdropClick={rejectMutation.isPending}
+          isSubmitting={rejectMutation.isPending || rejectHcMutation.isPending}
+          disableBackdropClick={rejectMutation.isPending || rejectHcMutation.isPending}
           isDirty={Boolean(rejectionReason.trim())}
           maxWidthClass="max-w-md"
         >
