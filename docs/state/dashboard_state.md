@@ -151,3 +151,9 @@ Rendered in a 4-column responsive grid consuming shared `KpiCard` (`@/components
 - **Plantilla as Authoritative Source of Truth**:
   - In `src/lib/queries/cencom.ts`, `fetchCencomGroupAllocationKpi` and `fetchCencomAllocationKpi` query `plantilla` (active headcount) and `plantilla_slots` (non-closed slots), mapped by account to CENCOM group.
   - The Dashboard Group Matrix (`displayedGroupRows`), which derives from `useCencomGroupKpi()`, automatically reflects these authoritative Plantilla-derived figures.
+
+---
+
+## 9. Ecosystem Dashboard View Parity & Cascade Recovery (`ohm#fix-migration-127-dashboard-views` — 2026-11-20)
+- **Context**: When migration `20262606000096` executed `DROP VIEW IF EXISTS public.v_plantilla_safe CASCADE;`, PostgreSQL automatically cascaded the drop to all dependent views (`v_dashboard_account_breakdown`, `v_dashboard_account_mfr_breakdown`, and `v_dashboard_hrco_breakdown`).
+- **Remediation**: In `supabase/migrations/20262606000127_security_hardening_rls_rpcs_views.sql`, Section 4 now explicitly recreates all 3 dashboard views `WITH (security_invoker = true)` before altering view parameters. This permanently prevents relation missing errors (`SQLSTATE 42P01`) on remote production deployments and guarantees full mobile/web operational telemetry continuity.

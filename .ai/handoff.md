@@ -1,5 +1,24 @@
 # AI Handoff
 
+## Execution Report — Fix Migration 127 Missing Dashboard Views & Production Push Unblock (ohm#fix-migration-127-dashboard-views)
+
+**Status: COMPLETE (MIGRATION HARDENED, ZERO LINT/CONTRACT ERRORS, SYNCED TO MOBILE REPO).**
+- **Incident Summary**: `npx supabase db push --remote=rwxelulyapjgaarlwkus --include-all` failed at statement 15 of `supabase/migrations/20262606000127_security_hardening_rls_rpcs_views.sql` with error: `relation "public.v_dashboard_hrco_breakdown" does not exist (SQLSTATE 42P01)`.
+- **Root Cause**: In upstream migration `20262606000096_user_management_as_hrco_source_of_truth.sql:353`, `DROP VIEW IF EXISTS public.v_plantilla_safe CASCADE;` was executed to update the base view. Because PostgreSQL automatically drops all dependent views during a `CASCADE` drop, views `v_dashboard_account_breakdown`, `v_dashboard_account_mfr_breakdown`, and `v_dashboard_hrco_breakdown` were silently removed. While these views were restored directly on Staging via direct SQL in task `ohm#dashblank02`, they were never recreated on remote Production.
+- **Remediation**:
+  - Updated Section 4 of `supabase/migrations/20262606000127_security_hardening_rls_rpcs_views.sql` to explicitly recreate `v_dashboard_account_breakdown`, `v_dashboard_account_mfr_breakdown`, and `v_dashboard_hrco_breakdown` `WITH (security_invoker = true)` before applying `ALTER VIEW IF EXISTS ... SET (security_invoker = true);`.
+  - Synced migrations `20262606000126` and `20262606000127` into sibling mobile repo `D:\Projects\OHMployee\supabase\migrations\`.
+- **Verification**:
+  - `npm run check:adr`: FRESH (ADR-001 `b0d03cf`, ADR-002 `49d7a40`).
+  - `npm run check:sql`: SQL_CONTRACTS_OK (28 core tables & 19 cross-module RPC contracts passed across 652 migrations).
+  - `npx supabase db push --dry-run --linked`: Remote database (`qqiiznmqxfoamqytjica`) is up to date (0 errors).
+  - `node scripts/sync-migrations.mjs check`: FRESH (621 migrations in Web repo, 31 historical prefix collisions safely isolated).
+  - `npm run lint`: 0 errors / 0 warnings.
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index), `docs/state/dashboard_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, § Dashboard & CENCOM).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+
+---
+
 ## Execution Report — Cross-Repo Security Audit Run-2: Remediation Verification & Delta Audit (`ohmployee-web` & `OHMployee`) (ohm#sec-audit-run2-verification-delta)
 
 **Status: COMPLETE (READ-ONLY SOURCE AUDIT, `quick` PROFILE, `run-2`, ZERO APPLICATION CODE MODIFIED).**
