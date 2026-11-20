@@ -1,5 +1,21 @@
 # AI Handoff
 
+## Execution Report — Official OHMployee App Launcher Icons & Version Bump `1.0.1+2` (ohm#mobile-app-launcher-icons)
+
+**Status: COMPLETE & VERIFIED ACROSS ANDROID & IOS.**
+- **Official Brand Icon Assets Added**: Extracted the official 514x514 Navy OHM logo (`ohm_logo_transparent.png`) from web `public/images/`, generated master high-res adaptive foreground and legacy icon assets with white background and centered safe padding (`assets/images/ohm_logo.png`, `assets/images/app_icon_legacy.png`).
+- **Android Adaptive & Legacy Icons Configured**: Configured `flutter_launcher_icons: ^0.14.4` to generate Android 8.0+ adaptive icons (`android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`, `drawable-*/ic_launcher_foreground.png`, `values/colors.xml`) and legacy mipmaps (mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi) plus iOS app icon set.
+- **Version Bumped to `1.0.1+2`**: Incremented `version` in `D:\Projects\OHMployee\pubspec.yaml` from `1.0.0+1` to `1.0.1+2` for Play Store release readiness.
+- **Verification**:
+  - `flutter test`: 176/176 tests passing.
+  - `flutter build apk --release`: 100% clean (`√ Built build\app\outputs\flutter-apk\app-release.apk (102.8MB)`).
+  - `flutter build appbundle --release`: 100% clean (`√ Built build\app\outputs\bundle\release\app-release.aab (85.5MB)`).
+  - Committed locally in `OHMployee`: `0ef6ce2` on `main`.
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index), `docs/state/web_auth_rbac_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+
+---
+
 ## Execution Report — Android Signed Release APK Compilation & AGP/R8 Build Resolution (ohm#android-release-apk-build-pass)
 
 **Status: COMPLETE & VERIFIED.**
