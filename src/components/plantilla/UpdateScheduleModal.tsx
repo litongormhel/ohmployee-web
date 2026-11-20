@@ -107,6 +107,34 @@ export function parseShiftToHours(scheduleTime?: string | null): { start: number
   return { start, end };
 }
 
+export function calculateShiftDuration(start: number, end: number): {
+  durationHours: number;
+  isOvernight: boolean;
+  error: string | null;
+} {
+  if (start === end) {
+    return {
+      durationHours: 0,
+      isOvernight: false,
+      error: "Time-in and time-out cannot be identical.",
+    };
+  }
+  const isOvernight = end < start;
+  const durationHours = isOvernight ? 24 - start + end : end - start;
+  if (durationHours > 16) {
+    return {
+      durationHours,
+      isOvernight,
+      error: "Shift duration cannot exceed 16 hours.",
+    };
+  }
+  return {
+    durationHours,
+    isOvernight,
+    error: null,
+  };
+}
+
 function parseDayoffString(raw?: string | null): DayCode[] {
   if (!raw || !raw.trim()) return ["SUN"];
   const dayMap: Record<string, DayCode> = {
@@ -283,7 +311,7 @@ export function UpdateScheduleModal({
     });
   };
 
-  // Adjust shift time by delta (e.g. +0.5 or -0.5 hours)
+  // Adjust shift time by delta (e.g. +0.5 or -0.5 hours) with 24h wrap-around
   const adjustShift = (storeIdx: number, key: "start" | "end", delta: number) => {
     dismissNotice();
     setAllocations((prev) =>
@@ -293,9 +321,9 @@ export function UpdateScheduleModal({
         let newStart = start;
         let newEnd = end;
         if (key === "start") {
-          newStart = Math.min(23, Math.max(0, start + delta));
+          newStart = (start + delta + 24) % 24;
         } else {
-          newEnd = Math.min(23.5, Math.max(0.5, end + delta));
+          newEnd = (end + delta + 24) % 24;
         }
         return {
           ...a,
@@ -324,12 +352,12 @@ export function UpdateScheduleModal({
 
   allocations.forEach((a, idx) => {
     const { start, end } = parseShiftToHours(a.scheduleTime);
-    const bad = end <= start;
-    if (bad) {
+    const { durationHours, error } = calculateShiftDuration(start, end);
+    if (error) {
       timeErrorsCount++;
     } else {
       const daysCount = parseDaysToSet(a.scheduleDays).size;
-      totalWeeklyHours += (end - start) * daysCount;
+      totalWeeklyHours += durationHours * daysCount;
     }
 
     const set = parseDaysToSet(a.scheduleDays);
@@ -575,14 +603,16 @@ export function UpdateScheduleModal({
               const isExpanded = expandedStoreIdx === idx;
               const currentDaySet = parseDaysToSet(alloc.scheduleDays);
               const { start, end } = parseShiftToHours(alloc.scheduleTime);
-              const isBadTime = end <= start;
-              const dailyDurHours = isBadTime ? 0 : end - start;
+              const { durationHours, isOvernight, error: timeError } = calculateShiftDuration(start, end);
+              const isBadTime = timeError !== null;
               const hcFraction = (alloc.allocationPercent / 100).toFixed(2);
 
               const dayNames = DAYS_OF_WEEK.filter((d) => currentDaySet.has(d))
                 .map((d) => DAY_SHORT_NAMES[d])
                 .join(", ") || "No duty days";
-              const shiftSummary = isBadTime ? "Invalid shift" : `${fmtShort(start)} – ${fmtShort(end)}`;
+              const shiftSummary = isBadTime
+                ? "Invalid shift"
+                : `${fmtShort(start)} – ${fmtShort(end)}${isOvernight ? " (Overnight)" : ""}`;
               const summaryText = `${dayNames} · ${shiftSummary}`;
 
               return (
@@ -794,15 +824,15 @@ export function UpdateScheduleModal({
                               isBadTime ? "text-[#a3141f]" : "text-[#3f4757] dark:text-slate-300"
                             }`}
                           >
-                            {isBadTime ? "Invalid" : `${fmtH(dailyDurHours)}/day`}
+                            {isBadTime ? "Invalid" : `${fmtH(durationHours)}/day${isOvernight ? " (Overnight)" : ""}`}
                           </span>
                         </div>
 
                         {/* ERROR NOTICE */}
-                        {isBadTime && (
+                        {timeError && (
                           <div className="text-[12.5px] text-[#a3141f] font-semibold flex items-center gap-1.5">
                             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                            <span>Time-out must be later than time-in.</span>
+                            <span>{timeError}</span>
                           </div>
                         )}
 
