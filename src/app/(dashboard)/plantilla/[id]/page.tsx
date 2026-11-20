@@ -10,7 +10,6 @@ import {
   Briefcase,
   Calendar,
   CalendarClock,
-  Clock,
   CreditCard,
   Eye,
   EyeOff,
@@ -742,7 +741,6 @@ function PlantillaEmployeeDetailContent() {
                     : "border-transparent text-text-secondary hover:text-text-primary"
                 }`}
               >
-                <Clock className="w-4 h-4" />
                 <span>Schedule & Store Coverage</span>
               </button>
 
@@ -1016,7 +1014,6 @@ function PlantillaEmployeeDetailContent() {
                 <div className="bg-surface rounded-2xl border border-border-default p-5 shadow-xs">
                   <div className="mb-4 pb-4 border-b border-border-subtle">
                     <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-brand-primary" />
                       <span>Global Work Terms & Rate</span>
                     </h3>
                     <p className="text-xs text-text-secondary mt-0.5">
@@ -1102,18 +1099,6 @@ function PlantillaEmployeeDetailContent() {
                   {/* Store Allocation Cards / Table */}
                   <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface">
                     {displayStores.map((store) => {
-                      const hcShare =
-                        store.allocationPercent != null
-                          ? (store.allocationPercent / 100).toFixed(2)
-                          : (1 / (displayStores.length || 1)).toFixed(2);
-                      const storeDays =
-                        store.scheduleDays ||
-                        (displayStores.length === 1 ? data.scheduleDays : null) ||
-                        "—";
-                      const storeTime =
-                        store.scheduleTime ||
-                        (displayStores.length === 1 ? data.scheduleTime : null) ||
-                        "08:00 AM - 05:00 PM";
                       const locationStr = [
                         store.area || data.area,
                         store.province || data.province,
@@ -1146,33 +1131,7 @@ function PlantillaEmployeeDetailContent() {
                             )}
                           </div>
 
-                          {/* Schedule & HC Details */}
-                          <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-2 md:pt-0 border-t md:border-t-0 border-border-subtle shrink-0 text-xs">
-                            <div className="space-y-0.5">
-                              <span className="text-[11px] font-medium text-text-muted block">
-                                Duty Days
-                              </span>
-                              <span className="font-semibold text-text-primary">
-                                {storeDays}
-                              </span>
-                            </div>
-                            <div className="space-y-0.5">
-                              <span className="text-[11px] font-medium text-text-muted block">
-                                Shift Window
-                              </span>
-                              <span className="font-mono font-semibold text-text-primary">
-                                {storeTime}
-                              </span>
-                            </div>
-                            <div className="text-right pl-3 border-l border-border-subtle">
-                              <span className="text-[11px] font-semibold text-text-muted block">
-                                HC Share
-                              </span>
-                              <p className="font-mono font-extrabold text-brand-primary text-base leading-none mt-0.5">
-                                {hcShare}
-                              </p>
-                            </div>
-                          </div>
+
                         </div>
                       );
                     })}
