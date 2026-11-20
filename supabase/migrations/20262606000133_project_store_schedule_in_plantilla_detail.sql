@@ -5,6 +5,7 @@
 -- -----------------------------------------------------------------------------
 -- 1. RPC: get_web_plantilla_detail (Project store-level schedule & allocations)
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_web_plantilla_detail(uuid);
 CREATE OR REPLACE FUNCTION public.get_web_plantilla_detail(p_employee_id uuid)
 RETURNS TABLE (
   plantilla_id                uuid,
@@ -293,6 +294,7 @@ GRANT EXECUTE ON FUNCTION public.get_web_plantilla_detail(uuid) TO authenticated
 -- -----------------------------------------------------------------------------
 -- 2. RPC: update_plantilla_schedule (Support active, inactive reactivation & insert)
 -- -----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.update_plantilla_schedule(uuid, text, text, text, jsonb);
 CREATE OR REPLACE FUNCTION public.update_plantilla_schedule(
   p_plantilla_id uuid,
   p_schedule_days text,

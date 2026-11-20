@@ -3,6 +3,7 @@
 -- Aggregates operational lifecycle mutations from audit_logs, employee_transfers,
 -- employee_deactivation_requests, plantilla, and employee_activity_log.
 
+DROP FUNCTION IF EXISTS public.get_plantilla_timeline(uuid);
 CREATE OR REPLACE FUNCTION public.get_plantilla_timeline(p_plantilla_id uuid)
 RETURNS TABLE (
   id text,
