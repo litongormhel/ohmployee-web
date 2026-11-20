@@ -28,6 +28,7 @@ import {
   type SubmitHeadcountRequestResult,
 } from "@/lib/queries/requests";
 import { useRefCities, useRefProvinces, useRefLocations } from "@/lib/queries/locations";
+import { deriveIslandGroup } from "@/lib/queries/plantilla";
 import { NewStoreRequestModal } from "@/components/modals/NewStoreRequestModal";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
@@ -241,6 +242,8 @@ function RequestHeadcountModalDialog({
 
   const unlistedIslandGroup = useMemo(() => {
     if (!unlistedProvince) return null;
+    const derived = deriveIslandGroup(unlistedProvince);
+    if (derived) return derived;
     if (unlistedCity) {
       const match = allRefLocations.find(
         (l) =>

@@ -1,5 +1,48 @@
 # AI Handoff
 
+## Execution Report — Fix Roving Headcount Requisition Island Group Resolution & PostgREST Column Guard (ohm#fix-headcount-request-island-group-resolution)
+
+**Status: COMPLETE (DATABASE MIGRATION 128 PUSHED TO STAGING, FRONTEND QUERIES HARDENED, 255/255 TESTS PASSING, 0 LINT ERRORS).**
+- **Incident Summary**: When submitting a Roving Headcount Requisition containing proposed unlisted stores (e.g. Guagua, Obando, Malolos in Bulacan) in `RequestHeadcountModal.tsx`, the submission failed at Step 2 of 2 with red error banner: `column "island_group" does not exist`.
+- **Root Cause Analysis**:
+  1. **Database Layer (`submit_headcount_request`)**: In `20262606000126_roving_hc_new_stores_and_mandatory_justification.sql:198-212`, when an unlisted proposed store did not supply `island_group`, the RPC executed:
+     ```sql
+     SELECT island_group INTO v_new_ig FROM public.ref_locations
+     WHERE lower(province) = lower(v_new_province) AND (city IS NULL OR lower(city) = lower(v_new_city)) AND is_active = true LIMIT 1;
+     IF v_new_ig IS NULL THEN
+       SELECT island_group INTO v_new_ig FROM public.ref_provinces WHERE lower(province_name) = lower(v_new_province) LIMIT 1;
+     END IF;
+     ```
+     Physical table `public.ref_locations` only possesses columns `(id, province, city, is_active, created_at)` and does not have an `island_group` column. Furthermore, `public.ref_provinces` does not exist as a physical table. Attempting to query `ref_locations.island_group` triggered PostgreSQL error `42703: column "island_group" does not exist`.
+  2. **Web Query Layer (`fetchRefLocations` in `locations.ts`)**: `src/lib/queries/locations.ts:98` was querying `.from("ref_locations").select("province, city, island_group")`, violating the PostgREST column guard and throwing schema errors on client mount, causing `useRefLocations` to fail and return an empty array.
+  3. **Web Modal Layer (`RequestHeadcountModal.tsx`)**: `unlistedIslandGroup` depended on `allRefLocations` finding a match for `island_group`, which remained `null` because `allRefLocations` was empty and lacked `island_group`.
+- **Remediation**:
+  1. **Database Migration (`supabase/migrations/20262606000128_fix_submit_headcount_request_island_group_resolution.sql`)**: Generated via `npm run db:new`. Surgically updated `submit_headcount_request` to derive `v_new_ig` using the canonical, immutable database function:
+     ```sql
+     v_new_ig := COALESCE(public.fn_derive_island_group(v_new_province), v_new_ig);
+     ```
+     This completely eliminates invalid table and column lookups and uses the authoritative province-to-island-group mapping.
+  2. **Staging Push & Parity**:
+     - Pre-push dry-run passed cleanly (`npx supabase db push --dry-run --linked`).
+     - Applied live to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging`.
+     - Verified live `pg_get_functiondef` against staging.
+     - Mirrored migration file to sibling mobile repo (`D:\Projects\OHMployee\supabase\migrations\20262606000128_fix_submit_headcount_request_island_group_resolution.sql`).
+  3. **Web Query Hardening (`src/lib/queries/locations.ts`)**:
+     - Removed non-existent `island_group` column from `.select("province, city")`.
+     - Derived `island_group` in memory for returned records using `deriveIslandGroup(row.province)` from `@/lib/queries/plantilla`.
+  4. **Web UI Modal (`src/components/modals/RequestHeadcountModal.tsx`)**:
+     - Updated `unlistedIslandGroup` calculation to resolve synchronously via `deriveIslandGroup(unlistedProvince)` with fallback to `allRefLocations`.
+- **Automated Verification**:
+  - `npm run check:adr`: FRESH (ADR-001 `b0d03cf`, ADR-002 `49d7a40`).
+  - `npm run check:sql`: SQL_CONTRACTS_OK (28 core tables & 19 cross-module RPC contracts passed across 653 migrations).
+  - `npm test`: 255/255 passing tests.
+  - `npm run lint`: 0 errors / 0 warnings.
+  - `npm run build`: Clean Next.js 16.2.4 Turbopack production build (22/22 routes generated).
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index), `docs/state/approvals_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, § HC Request & Coverage Semantics).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+
+---
+
 ## Execution Report — Fix Migration 127 Missing Dashboard Views & Production Push Unblock (ohm#fix-migration-127-dashboard-views)
 
 **Status: COMPLETE (MIGRATION HARDENED, ZERO LINT/CONTRACT ERRORS, SYNCED TO MOBILE REPO).**

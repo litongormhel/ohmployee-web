@@ -164,13 +164,14 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
 
 ## 11. ADR-003: Unified Roving Headcount Requisition with Atomic Store Provisioning
 - **Overview**: Solves multi-store opening bottlenecks for Roving Headcount requisitions (`submit_headcount_request`). Allows unlisted/opening stores to be requested alongside existing stores in a single submission, with zero database pollution in `public.stores` until formal approval.
-- **Database Architecture (Migration `20262606000126`)**:
+- **Database Architecture (Migrations `20262606000126` & `20262606000128`)**:
   - `public.hc_request_stores`: `store_id` nullable, added `is_new_store`, `store_name`, `area_province`, `area_city`, `island_group`, and `created_store_id REFERENCES public.stores(id)` with check constraint `chk_hc_request_stores_target`.
-  - `submit_headcount_request`: polymorphic store array ingestion (`stores` / `store_ids`), mandatory Operational Justification ($\ge 20$ chars) enforced across all request types, and hard-block Island Group span guard across registered and proposed stores.
+  - `submit_headcount_request`: polymorphic store array ingestion (`stores` / `store_ids`), mandatory Operational Justification ($\ge 20$ chars) enforced across all request types, and hard-block Island Group span guard across registered and proposed stores. Migration `20262606000128` resolved an island group resolution regression by deriving island groups for proposed new stores using the canonical database function `public.fn_derive_island_group(p_province)` rather than querying `ref_locations` (which does not carry `island_group`).
   - `create_plantilla_slot_from_request`: Phase 1 atomic store provisioning inserts unlisted stores into `public.stores` upon approval and binds them to `created_store_id`, followed by Phase 2 Coverage Group (`CGCODE`), per-store VCodes, Vacancies, and Plantilla Slots.
   - `get_hc_request_stores`: returns `is_new_store`, `store_name`, `province`, `city`, `island_group`, and `created_store_id`.
 - **UI Components**:
-  - `RequestHeadcountModal.tsx`: multi-city roving store search, quick-add unlisted store sub-form with province/city selectors and auto-derived Island Group badge, selected chips with `(New Store)` badges, and live character counter enforcing $\ge 20$-char justification.
+  - `RequestHeadcountModal.tsx`: multi-city roving store search, quick-add unlisted store sub-form with province/city selectors and synchronous `deriveIslandGroup(unlistedProvince)` resolution, selected chips with `(New Store)` badges, and live character counter enforcing $\ge 20$-char justification.
+  - `locations.ts`: `fetchRefLocations` queries physical columns `province, city` from `ref_locations` and derives `island_group` in memory via `deriveIslandGroup`, adhering to the PostgREST column guard.
   - `HeadcountStandardApprovalCard.tsx`: dynamic roving cluster breakdown displaying new stores with `New Store — Will be created on approval` badges and atomic provisioning notice in the approval confirmation modal.
 
 

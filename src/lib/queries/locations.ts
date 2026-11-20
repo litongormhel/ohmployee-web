@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { deriveIslandGroup } from "@/lib/queries/plantilla";
 
 export interface RefLocationItem {
   province: string;
@@ -95,7 +96,7 @@ export async function fetchRefLocations(): Promise<RefLocationItem[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("ref_locations")
-    .select("province, city, island_group")
+    .select("province, city")
     .eq("is_active", true)
     .order("province", { ascending: true });
 
@@ -107,7 +108,7 @@ export async function fetchRefLocations(): Promise<RefLocationItem[]> {
   return (data ?? []).map((row) => ({
     province: row.province?.trim() || "",
     city: row.city?.trim() || "",
-    island_group: row.island_group || null,
+    island_group: deriveIslandGroup(row.province),
   }));
 }
 
