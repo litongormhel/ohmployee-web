@@ -347,8 +347,9 @@ export default function HrEmplocPage() {
       search: search.trim() || undefined,
       page,
       pageSize,
+      deployedWindowDays: queue === "deployed" && !showAllDeployed ? 30 : null,
     }),
-    [queue, accountId, groupId, search, page, pageSize]
+    [queue, accountId, groupId, search, page, pageSize, showAllDeployed]
   );
 
   // Summary query parameters across all tabs
@@ -374,21 +375,8 @@ export default function HrEmplocPage() {
     retry: false,
   });
 
-  const rows = listQuery.data?.data ?? [];
+  const rows = useMemo(() => listQuery.data?.data ?? [], [listQuery.data?.data]);
   const totalCount = listQuery.data?.totalCount ?? 0;
-
-  const displayedRows = useMemo(() => {
-    if (queue !== "deployed" || showAllDeployed) return rows;
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    return rows.filter((r) => {
-      const dt = r.hiredDate
-        ? new Date(r.hiredDate).getTime()
-        : r.dateRequested
-        ? new Date(r.dateRequested).getTime()
-        : 0;
-      return !dt || dt >= thirtyDaysAgo;
-    });
-  }, [rows, queue, showAllDeployed]);
 
   const listErrorKind = getErrorKind(listQuery.error);
   const summaryErrorKind = getErrorKind(summaryQuery.error);
@@ -821,11 +809,11 @@ export default function HrEmplocPage() {
         }}
         page={page}
         pageSize={pageSize}
-        rows={displayedRows}
+        rows={rows}
         selectedId={selectedId}
         queue={queue}
         queueLabel={activeQueueLabel}
-        totalCount={queue === "deployed" && !showAllDeployed ? displayedRows.length : totalCount}
+        totalCount={totalCount}
       />
 
       {/* Selected Details Aside Inspector */}

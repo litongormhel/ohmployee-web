@@ -1,7 +1,7 @@
 // components/hr-emploc/EditEmplocModal.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AlertCircle, Edit3, Loader2, RotateCcw, AlertTriangle } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import {
@@ -60,11 +60,12 @@ export function EditEmplocModal({
   const effectiveEmployeeNo = currentEmployeeNo || currentEmployeeId || "";
   const [activeTab, setActiveTab] = useState<"edit" | "revert">(initialTab);
 
-  const isWithin3Days = (() => {
+  const [nowTimestamp] = useState(() => Date.now());
+  const isWithin3Days = useMemo(() => {
     if (!deployedDate) return true;
     const dt = new Date(deployedDate).getTime();
-    return (Date.now() - dt) <= 3 * 24 * 60 * 60 * 1000;
-  })();
+    return (nowTimestamp - dt) <= 3 * 24 * 60 * 60 * 1000;
+  }, [deployedDate, nowTimestamp]);
   const [newEmployeeNo, setNewEmployeeNo] = useState("");
   const [editReasonOption, setEditReasonOption] = useState(EDIT_REASONS[0]);
   const [editCustomReason, setEditCustomReason] = useState("");

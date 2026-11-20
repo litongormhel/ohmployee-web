@@ -186,6 +186,7 @@ export type HrEmplocListParams = {
   pageSize: number;
   sortBy?: string;
   sortDir?: "asc" | "desc";
+  deployedWindowDays?: number | null;
 };
 
 export type HrEmplocSummary = {
@@ -746,6 +747,7 @@ export async function listWebHrEmplocs(params: HrEmplocListParams) {
     p_offset: offset,
     p_sort_by: params.sortBy || "created_at",
     p_sort_dir: params.sortDir || "desc",
+    p_deployed_window_days: params.deployedWindowDays ?? null,
   });
 
   if (error) {
@@ -2244,6 +2246,7 @@ export async function fetchHrEmplocsForExport(
       p_offset: offset,
       p_sort_by: "created_at",
       p_sort_dir: "desc",
+      p_deployed_window_days: null,
     });
 
     if (error) {
