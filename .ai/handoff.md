@@ -1,5 +1,16 @@
 # AI Handoff
 
+## Execution Report — Android Release Keystore Signing, R8 Minification & `com.ohmployee.com` Application ID (ohm#android-release-signing-config)
+
+**Status: COMPLETE IN `OHMployee` (`android/`).**
+- Configured `D:\Projects\OHMployee\android\app\build.gradle.kts` to load release signing credentials from gitignored `android/key.properties` (`upload-keystore.jks`), replaced placeholder `com.example.flutter_application_1` with `com.ohmployee.com`, and enabled R8 minification & resource shrinking (`isMinifyEnabled = true`, `isShrinkResources = true`) with `android/app/proguard-rules.pro`.
+- Moved `MainActivity.kt` to `android/app/src/main/kotlin/com/ohmployee/com/MainActivity.kt` (`package com.ohmployee.com`) and updated `android:label="OHMployee"` in `AndroidManifest.xml`.
+- Verified `Configure project :app` clean under Android Studio JBR; confirmed `android/key.properties` and `android/app/upload-keystore.jks` are gitignored and untracked.
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index), `docs/state/web_auth_rbac_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+
+---
+
 ## Execution Report — Migrate `xlsx@0.18.5` → `exceljs@^4.4.0` & Remove Legacy Edge Functions (ohm#sec-cleanup-xlsx-and-legacy-edge-fns)
 
 **Status: COMPLETE ACROSS BOTH REPOS.**
