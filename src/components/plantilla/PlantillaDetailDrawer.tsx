@@ -819,7 +819,7 @@ export function PlantillaDetailDrawer({
                               HC Share:{" "}
                               {store.allocationPercent != null
                                 ? (store.allocationPercent / 100).toFixed(2)
-                                : "1.00"}
+                                : (1 / (data.coveredStores.length || 1)).toFixed(2)}
                             </p>
                           </div>
                         </div>

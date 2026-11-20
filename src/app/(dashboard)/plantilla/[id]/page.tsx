@@ -424,9 +424,23 @@ function PlantillaEmployeeDetailContent() {
         vcode: data?.vcode || null,
         allocationPercent: 100,
         isPrimary: true,
+        scheduleDays: data?.scheduleDays || "MON-SAT",
+        scheduleTime: data?.scheduleTime || "08:00 AM - 05:00 PM",
+        area: data?.area,
+        province: data?.province,
       },
     ];
-  }, [coveredStores, data?.id, data?.storeId, data?.primaryStoreName, data?.vcode]);
+  }, [
+    coveredStores,
+    data?.id,
+    data?.storeId,
+    data?.primaryStoreName,
+    data?.vcode,
+    data?.scheduleDays,
+    data?.scheduleTime,
+    data?.area,
+    data?.province,
+  ]);
 
   const totalAllocation = useMemo(() => {
     return displayStores
@@ -1094,34 +1108,14 @@ function PlantillaEmployeeDetailContent() {
               <div className="space-y-6">
                 {/* Top Summary Bar: Global Employee Terms */}
                 <div className="bg-surface rounded-2xl border border-border-default p-5 shadow-xs">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-border-subtle">
-                    <div>
-                      <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-brand-primary" />
-                        <span>Global Work Terms & Rate</span>
-                      </h3>
-                      <p className="text-xs text-text-secondary mt-0.5">
-                        Base remuneration rate, designated mandatory weekly rest day, and HR management assignment.
-                      </p>
-                    </div>
-                    {isAuthorized && (
-                      <button
-                        type="button"
-                        onClick={() => setIsScheduleModalOpen(true)}
-                        disabled={isDeactivated || isInactive}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-brand-primary hover:bg-brand-secondary text-white transition shadow-xs cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border disabled:border-border-default"
-                        title={
-                          isDeactivated
-                            ? "Cannot edit schedule for a deactivated employee."
-                            : isInactive
-                            ? "Cannot edit schedule for an inactive employee."
-                            : undefined
-                        }
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                        <span>Edit Schedule & Allocations</span>
-                      </button>
-                    )}
+                  <div className="mb-4 pb-4 border-b border-border-subtle">
+                    <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-brand-primary" />
+                      <span>Global Work Terms & Rate</span>
+                    </h3>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      Base remuneration rate, designated mandatory weekly rest day, and HR management assignment.
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
@@ -1169,42 +1163,43 @@ function PlantillaEmployeeDetailContent() {
                       </p>
                     </div>
 
-                    {/* Total HC Meter */}
-                    <div className="flex items-center gap-2 bg-surface-muted px-3 py-1.5 rounded-lg border border-border-default self-start sm:self-auto shrink-0">
-                      <span className="text-xs text-text-secondary font-medium">Total Allocation:</span>
-                      <span className="font-mono font-bold text-xs text-brand-primary">
-                        {(
-                          (data.coveredStores && data.coveredStores.length > 0
-                            ? data.coveredStores.reduce((sum, s) => sum + (s.allocationPercent ?? 0), 0)
-                            : 100) / 100
-                        ).toFixed(2)}{" "}
-                        / 1.00 HC
-                      </span>
+                    <div className="flex items-center gap-3 self-start sm:self-auto shrink-0">
+                      {/* Total HC Meter */}
+                      <div className="flex items-center gap-2 bg-surface-muted px-3 py-1.5 rounded-lg border border-border-default shrink-0">
+                        <span className="text-xs text-text-secondary font-medium">Total Allocation:</span>
+                        <span className="font-mono font-bold text-xs text-brand-primary">
+                          {totalAllocation} / 1.00 HC
+                        </span>
+                      </div>
+
+                      {isAuthorized && (
+                        <button
+                          type="button"
+                          onClick={() => setIsScheduleModalOpen(true)}
+                          disabled={isDeactivated || isInactive}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-brand-primary hover:bg-brand-secondary text-white transition shadow-xs cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted disabled:border disabled:border-border-default"
+                          title={
+                            isDeactivated
+                              ? "Cannot edit schedule for a deactivated employee."
+                              : isInactive
+                              ? "Cannot edit schedule for an inactive employee."
+                              : undefined
+                          }
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span>Edit Schedule & Allocations</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
                   {/* Store Allocation Cards / Table */}
                   <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface">
-                    {(data.coveredStores && data.coveredStores.length > 0
-                      ? data.coveredStores
-                      : [
-                          {
-                            storeId: data.storeId || "primary",
-                            storeName: data.primaryStoreName || "Primary Store Assignment",
-                            vcode: data.vcode || "—",
-                            scheduleDays: data.scheduleDays || "Mon - Sat",
-                            scheduleTime: data.scheduleTime || "08:00 AM - 05:00 PM",
-                            allocationPercent: 100,
-                            area: data.area,
-                            province: data.province,
-                            stableKey: "fallback-primary",
-                          },
-                        ]
-                    ).map((store) => {
+                    {displayStores.map((store) => {
                       const hcShare =
                         store.allocationPercent != null
                           ? (store.allocationPercent / 100).toFixed(2)
-                          : "1.00";
+                          : (1 / (displayStores.length || 1)).toFixed(2);
                       const storeDays = store.scheduleDays || data.scheduleDays || "Mon - Sat";
                       const storeTime =
                         store.scheduleTime || data.scheduleTime || "08:00 AM - 05:00 PM";

@@ -587,17 +587,26 @@ function normalizeCoveredStore(item: unknown, index: number): PlantillaCoveredSt
   const obj = asObject(item);
   const storeId = asString(obj.store_id ?? obj.storeId) ?? "";
   const storeName = asString(obj.store_name ?? obj.storeName) ?? "Unknown Store";
+  const rawAlloc = asNumber(
+    obj.allocation_percent ??
+      obj.allocationPercent ??
+      obj.allocation_percentage ??
+      obj.allocationPercentage,
+  );
+  const rawFilledHc = asNumber(obj.filled_hc ?? obj.filledHc);
+  const allocationPercent =
+    rawAlloc ?? (rawFilledHc != null ? Math.round(rawFilledHc * 100) : null);
   return {
     stableKey: [
       "covered-store",
       storeId || "missing-id",
       storeName,
-      asNumber(obj.allocation_percent ?? obj.allocationPercent) ?? "na",
+      allocationPercent ?? "na",
       index,
     ].join(":"),
     storeId,
     storeName,
-    allocationPercent: asNumber(obj.allocation_percent ?? obj.allocationPercent),
+    allocationPercent,
     isPrimary: asBoolean(obj.is_primary ?? obj.isPrimary),
     vcode: asString(obj.vcode ?? obj.store_code ?? obj.storeCode),
     scheduleDays: asString(obj.schedule_days ?? obj.scheduleDays ?? obj.schedule),
@@ -781,7 +790,17 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
   if (!id) return null;
 
   const rawMasked = asObject(row.masked_fields);
-  const coveredStores = asArray(row.covered_stores ?? row.roving_stores).map(normalizeCoveredStore);
+  const rawCoveredList = asArray(row.covered_stores ?? row.roving_stores);
+  const coveredStores = rawCoveredList.map((item, idx) => {
+    const store = normalizeCoveredStore(item, idx);
+    if (store.allocationPercent == null && rawCoveredList.length > 0) {
+      store.allocationPercent =
+        rawCoveredList.length > 1
+          ? Math.round(100 / rawCoveredList.length)
+          : 100;
+    }
+    return store;
+  });
   const clearanceChecklist = asArray(row.clearance_checklist).map(
     normalizeClearanceChecklistItem,
   );
@@ -2262,8 +2281,9 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
 
     let allocQuery = supabase
       .from("employee_store_allocations")
-      .select("id, store_id, store_name, vcode, filled_hc, schedule_days, schedule_time")
-      .eq("is_active", true);
+      .select("id, store_id, store_name, vcode, filled_hc, schedule_days, schedule_time, is_active")
+      .order("is_active", { ascending: false })
+      .order("created_at", { ascending: false });
 
     if (hasForbiddenChars) {
       if (normalized.id && !/[,()"\\]/.test(normalized.id)) {
@@ -2280,14 +2300,19 @@ export async function getWebPlantillaDetail(plantillaId: string): Promise<Planti
     }
 
     const { data: allocRows } = await allocQuery;
+    const activeAllocRows = allocRows?.filter((r) => r.is_active) ?? [];
+    const effectiveAllocRows = activeAllocRows.length > 0 ? activeAllocRows : (allocRows ?? []);
 
-    if (allocRows && allocRows.length > 0) {
-      normalized.coveredStores = allocRows.map((al, idx) => ({
+    if (effectiveAllocRows && effectiveAllocRows.length > 0) {
+      normalized.coveredStores = effectiveAllocRows.map((al, idx) => ({
         stableKey: `alloc-${al.id || idx}`,
         storeId: al.store_id || "",
         storeName: al.store_name || "Assigned Store",
         vcode: al.vcode || normalized?.vcode,
-        allocationPercent: al.filled_hc != null ? Math.round(Number(al.filled_hc) * 100) : Math.round(100 / allocRows.length),
+        allocationPercent:
+          al.filled_hc != null
+            ? Math.round(Number(al.filled_hc) * 100)
+            : Math.round(100 / effectiveAllocRows.length),
         isPrimary: idx === 0,
         scheduleDays: al.schedule_days || normalized?.scheduleDays || "MON-SAT",
         scheduleTime: al.schedule_time || normalized?.scheduleTime || "08:00 AM - 05:00 PM",

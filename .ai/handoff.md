@@ -1,5 +1,46 @@
 # AI Handoff
 
+## Execution Report — Employee Profile Roving HC Share (0.33) & Schedule Button Relocation (ohm#plantilla-detail-hc-share-and-schedule-button)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Plantilla), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, Rule #6 Store-Level Schedule & HC Allocation Matrix).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  1. Fix Headcount (HC) Share in the Store Schedule & Headcount Allocation Matrix: Roving employee with 3 stores (e.g. Delfina, Juaphel Dolar) should show `0.33` HC share per store instead of `1.00`, and the Total Allocation balance meter should correctly calculate `1.00 / 1.00 HC` instead of `0.00 / 1.00 HC`.
+  2. Relocate `Edit Schedule & Allocations` action button: Move out of the top `Global Work Terms & Rate` card header and position it directly below, inside the `Store Schedule & Headcount Allocation Matrix` header alongside the Total Allocation balance meter.
+- **Root Cause Analysis**:
+  1. **HC Share 1.00 & Total Allocation 0.00**:
+     - In `src/app/(dashboard)/plantilla/[id]/page.tsx`, Tab 2 hardcoded `const hcShare = store.allocationPercent != null ? (store.allocationPercent / 100).toFixed(2) : "1.00";` rather than dynamically falling back to `(1 / count).toFixed(2)` (which was already correctly implemented in Tab 1 `displayStores`).
+     - The Total Allocation meter in Tab 2 performed a buggy standalone reduction `data.coveredStores.reduce((sum, s) => sum + (s.allocationPercent ?? 0), 0)` which evaluated to `0.00` whenever `allocationPercent` was undefined.
+     - In `src/lib/queries/plantilla.ts`, `normalizeCoveredStore` did not ingest `allocation_percentage` or `filled_hc`, and `normalizeDetailRow` did not auto-derive fractional allocations `Math.round(100 / count)` when roving store arrays omit explicit percentages.
+     - In Staging, historical `employee_store_allocations` for this employee had `is_active = false` (causing `get_web_plantilla_detail` to fall back to `roving_stores` without percentage fields).
+  2. **Button Misplacement**:
+     - `Edit Schedule & Allocations` was placed on the top-right header of `Global Work Terms & Rate`, which only governs daily wage, designated rest days, and assigned coordinator. The button belongs with the store allocation matrix that it configures.
+- **Key Changes Implemented**:
+  1. **Authoritative Fractional HC Share & Total Allocation Meter**:
+     - `src/lib/queries/plantilla.ts`:
+       - Enhanced `normalizeCoveredStore` to support `allocation_percentage`, `allocationPercentage`, and `filled_hc` (converting fractional `0.3333` to 33%).
+       - Updated `normalizeDetailRow` so that when `coveredStores` is populated from `roving_stores` without explicit percentages, multi-store roving records automatically derive fractional allocations (`Math.round(100 / count)`, e.g. `33%` / `0.33 HC`).
+       - Enhanced `getWebPlantillaDetail` `allocQuery` to scan all allocations ordered by `is_active DESC, created_at DESC`, gracefully rescuing recorded `filled_hc` values.
+     - `src/app/(dashboard)/plantilla/[id]/page.tsx`:
+       - Updated `displayStores` to preserve `scheduleDays`, `scheduleTime`, `area`, and `province`.
+       - Updated Store Matrix cards to map over `displayStores` with dynamic fallback:
+         `const hcShare = store.allocationPercent != null ? (store.allocationPercent / 100).toFixed(2) : (1 / (displayStores.length || 1)).toFixed(2);`
+       - Replaced buggy reduction with `{totalAllocation} / 1.00 HC` (`1.00 / 1.00 HC`).
+     - `src/components/plantilla/PlantillaDetailDrawer.tsx`:
+       - Aligned drawer fallback to `(1 / (data.coveredStores.length || 1)).toFixed(2)`.
+  2. **Relocated "Edit Schedule & Allocations" Action Button**:
+     - Removed the button from `Global Work Terms & Rate` card header in `src/app/(dashboard)/plantilla/[id]/page.tsx`.
+     - Placed the button cleanly inside the `Store Schedule & Headcount Allocation Matrix` header flex container directly alongside the Total Allocation badge.
+  3. **Staging Database Hygiene**:
+     - Re-activated active allocations (`is_active = true, effective_end = NULL`) for employee `2019-08946` in `public.employee_store_allocations`.
+- **Verification**:
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+- **Local Commit**:
+  - Committed modified files locally on `main` without pushing: `src/app/(dashboard)/plantilla/[id]/page.tsx`, `src/components/plantilla/PlantillaDetailDrawer.tsx`, `src/lib/queries/plantilla.ts`, `docs/state/plantilla_web_state.md`, `.ai/current_state.md`, `.ai/handoff.md`.
+
 ## Execution Report — Option 1 New Stores Requisition Routing, Clean Approvals Categories & Direct Admin Group Transfer (ohm#approvals-new-stores-direct-group-transfer)
 
 **Status: COMPLETE & VERIFIED.**
