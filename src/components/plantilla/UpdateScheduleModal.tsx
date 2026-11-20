@@ -41,7 +41,21 @@ export interface UpdateScheduleModalProps extends BaseModalProps {
 const DAYS_OF_WEEK = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
 type DayCode = (typeof DAYS_OF_WEEK)[number];
 
-const CIRCLED_NUMBERS = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"];
+// Palette derived directly from HTML mockup template (COL)
+export const STORE_COLORS = [
+  { solid: "#1d4ed8", tint: "#e6edff", ink: "#12338f" }, // Store 1: Blue
+  { solid: "#a14d00", tint: "#fff0d9", ink: "#6b3300" }, // Store 2: Amber
+  { solid: "#0b6b5f", tint: "#dcf5f0", ink: "#08493f" }, // Store 3: Teal
+  { solid: "#7a22b8", tint: "#f2e6fb", ink: "#521579" }, // Store 4: Purple
+  { solid: "#c026d3", tint: "#fae8ff", ink: "#701a75" }, // Store 5: Fuchsia
+  { solid: "#0284c7", tint: "#e0f2fe", ink: "#0369a1" }, // Store 6: Sky
+  { solid: "#ea580c", tint: "#ffedd5", ink: "#9a3412" }, // Store 7: Orange
+  { solid: "#4b5563", tint: "#f3f4f6", ink: "#1f2937" }, // Store 8: Slate
+];
+
+export function getStoreColor(index: number) {
+  return STORE_COLORS[index % STORE_COLORS.length];
+}
 
 function parseDayoffString(raw?: string | null): DayCode[] {
   if (!raw || !raw.trim()) return ["SUN"];
@@ -903,34 +917,50 @@ export function UpdateScheduleModal({
                   return (
                     <div
                       key={day}
-                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-800/60 p-2.5 text-center flex flex-col items-center justify-between min-h-[82px]"
+                      className="rounded-xl border border-[#d5d9e0] dark:border-slate-700 bg-[#eceef2] dark:bg-slate-800 p-2.5 text-center flex flex-col items-center justify-between min-h-[96px] shadow-2xs"
                     >
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{day}</span>
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 shadow-2xs">
-                        Rest
+                      <span className="text-[11px] font-bold tracking-wider text-[#3a4150] dark:text-slate-300 select-none">
+                        {day}
                       </span>
-                      <div className="h-2" />
+                      <div className="w-[26px] h-[26px] rounded-full bg-[#5f6675] text-white text-xs font-bold flex items-center justify-center shadow-xs shrink-0 select-none">
+                        R
+                      </div>
+                      <p className="font-mono text-[10.5px] font-bold text-slate-800 dark:text-slate-200 select-none">
+                        Rest
+                      </p>
+                      <p className="text-[11px] text-[#4a5262] dark:text-slate-400 font-medium select-none">
+                        Day off
+                      </p>
                     </div>
                   );
                 }
 
                 if (assignedStore) {
-                  const circled = CIRCLED_NUMBERS[assignedStoreIdx] || String(assignedStoreIdx + 1);
+                  const color = getStoreColor(assignedStoreIdx);
                   const timeFormatted = formatShortTime(assignedStore.scheduleTime);
                   return (
                     <div
                       key={day}
-                      className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 p-2.5 text-center flex flex-col items-center justify-between min-h-[82px] shadow-2xs"
+                      className="rounded-xl p-2.5 text-center flex flex-col items-center justify-between min-h-[96px] shadow-2xs transition"
+                      style={{
+                        backgroundColor: color.tint,
+                        border: `1px solid ${color.solid}`,
+                      }}
                       title={`${day}: ${assignedStore.storeName} (${assignedStore.vcode || "No VCode"}) · ${assignedStore.scheduleTime}`}
                     >
-                      <div className="flex items-center gap-1 justify-center w-full">
-                        <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300">{day}</span>
-                        <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400">{circled}</span>
+                      <span className="text-[11px] font-bold tracking-wider text-[#3a4150] select-none">
+                        {day}
+                      </span>
+                      <div
+                        className="w-[26px] h-[26px] rounded-full text-white text-xs font-bold flex items-center justify-center shadow-xs shrink-0 select-none"
+                        style={{ backgroundColor: color.solid }}
+                      >
+                        {assignedStoreIdx + 1}
                       </div>
-                      <p className="font-mono text-[10.5px] font-bold text-slate-900 dark:text-slate-100 tracking-tight whitespace-nowrap w-full px-0.5">
+                      <p className="font-mono text-[10.5px] font-bold text-[#1a1f2b] tracking-tight whitespace-nowrap w-full px-0.5 select-none">
                         {assignedStore.vcode || assignedStore.storeName}
                       </p>
-                      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate w-full">
+                      <p className="text-[11px] text-[#4a5262] font-semibold truncate w-full select-none">
                         {timeFormatted || "8 AM – 5 PM"}
                       </p>
                     </div>
@@ -941,15 +971,21 @@ export function UpdateScheduleModal({
                 return (
                   <div
                     key={day}
-                    className="rounded-xl border border-dashed border-amber-300 dark:border-amber-700/60 bg-amber-50/40 dark:bg-amber-950/20 p-2.5 text-center flex flex-col items-center justify-between min-h-[82px]"
+                    className="rounded-xl border border-dashed border-[#a14d00] bg-[#fff7e6] p-2.5 text-center flex flex-col items-center justify-between min-h-[96px] shadow-2xs"
                     title={`${day}: No store assigned`}
                   >
-                    <span className="text-xs font-bold text-amber-800 dark:text-amber-400">{day}</span>
-                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3 shrink-0" />
-                      <span>No store</span>
+                    <span className="text-[11px] font-bold tracking-wider text-[#a14d00] select-none">
+                      {day}
                     </span>
-                    <span className="text-[9px] text-amber-600/80 dark:text-amber-400/80">Unassigned</span>
+                    <div className="w-[26px] h-[26px] rounded-full bg-white text-[#a14d00] border border-[#a14d00] text-xs font-bold flex items-center justify-center shadow-xs shrink-0 select-none">
+                      !
+                    </div>
+                    <p className="font-mono text-[10.5px] font-bold text-[#a14d00] select-none">
+                      No store
+                    </p>
+                    <p className="text-[11px] text-[#a14d00]/80 font-medium select-none">
+                      Unassigned
+                    </p>
                   </div>
                 );
               })}
@@ -989,8 +1025,8 @@ export function UpdateScheduleModal({
 
           <div className="space-y-2.5">
             {allocations.map((alloc, idx) => {
+              const color = getStoreColor(idx);
               const isExpanded = expandedStoreIdx === idx;
-              const circled = CIRCLED_NUMBERS[idx] || String(idx + 1);
               const currentDaySet = parseDaysToSet(alloc.scheduleDays);
               const formattedDays = formatDaysFromSet(currentDaySet) || "No duty days";
               const timeFormatted = formatShortTime(alloc.scheduleTime) || "08:00 AM - 05:00 PM";
@@ -1002,11 +1038,11 @@ export function UpdateScheduleModal({
               return (
                 <div
                   key={idx}
-                  className={`rounded-2xl border transition overflow-hidden bg-white dark:bg-slate-900 ${
-                    isExpanded
-                      ? "border-brand-primary/60 shadow-xs ring-1 ring-brand-primary/20"
-                      : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs"
-                  }`}
+                  className="rounded-2xl border transition overflow-hidden bg-white dark:bg-slate-900 shadow-2xs"
+                  style={{
+                    borderColor: isExpanded ? color.solid : undefined,
+                    boxShadow: isExpanded ? `0 0 0 1px ${color.solid}33` : undefined,
+                  }}
                 >
                   {/* Card Header (Accordion Toggle) */}
                   <button
@@ -1018,18 +1054,26 @@ export function UpdateScheduleModal({
                     className="w-full text-left p-3.5 flex items-center justify-between gap-3 cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition"
                   >
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300 min-w-0">
-                      <span className="font-bold text-sm text-brand-primary shrink-0">
-                        {circled}
+                      <span
+                        className="w-[26px] h-[26px] rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-xs select-none"
+                        style={{ backgroundColor: color.solid }}
+                      >
+                        {idx + 1}
                       </span>
                       <span className="font-bold text-slate-900 dark:text-slate-100 truncate max-w-[200px] uppercase">
                         {alloc.storeName}
                       </span>
                       {alloc.vcode && (
-                        <>
-                          <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-50/70 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0">
-                            {alloc.vcode}
-                          </span>
-                        </>
+                        <span
+                          className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md border shrink-0"
+                          style={{
+                            color: color.solid,
+                            borderColor: color.solid + "66",
+                            backgroundColor: color.tint,
+                          }}
+                        >
+                          {alloc.vcode}
+                        </span>
                       )}
                       <span className="text-slate-300 dark:text-slate-700">·</span>
                       <span className="font-semibold text-slate-700 dark:text-slate-300 shrink-0">
@@ -1090,11 +1134,11 @@ export function UpdateScheduleModal({
                                   key={d}
                                   type="button"
                                   disabled
-                                  className="h-13 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-800/40 text-slate-400 cursor-not-allowed text-center flex flex-col items-center justify-center gap-0.5 select-none"
+                                  className="h-13 rounded-xl border border-[#e3e6eb] bg-[#f1f2f5] text-[#5f6675] cursor-not-allowed text-center flex flex-col items-center justify-center gap-0.5 select-none opacity-60"
                                   title={`${d} is marked as rest day`}
                                 >
-                                  <span className="text-xs font-semibold">{d}</span>
-                                  <span className="text-[10px] text-slate-400 font-medium">Rest</span>
+                                  <span className="text-xs font-bold">{d}</span>
+                                  <span className="text-[10px] font-semibold text-[#5f6675]">Rest</span>
                                 </button>
                               );
                             }
@@ -1105,26 +1149,35 @@ export function UpdateScheduleModal({
                                   key={d}
                                   type="button"
                                   onClick={() => handleDayChipClick(idx, d)}
-                                  className="h-13 rounded-xl border border-brand-primary bg-brand-primary text-white shadow-xs hover:bg-brand-secondary transition cursor-pointer text-center flex flex-col items-center justify-center gap-0.5 select-none"
+                                  className="h-13 rounded-xl border shadow-xs transition cursor-pointer text-center flex flex-col items-center justify-center gap-0.5 select-none"
+                                  style={{
+                                    backgroundColor: color.tint,
+                                    borderColor: color.solid,
+                                    color: color.ink,
+                                  }}
                                   title={`Assigned to ${alloc.storeName}. Click to remove.`}
                                 >
                                   <span className="text-xs font-bold">{d}</span>
-                                  <span className="text-[10px] text-white/90 font-medium">Active</span>
+                                  <span className="text-[10px] font-bold">✓ Active</span>
                                 </button>
                               );
                             }
 
                             if (otherStoreIdx !== -1) {
+                              const otherColor = getStoreColor(otherStoreIdx);
                               return (
                                 <button
                                   key={d}
                                   type="button"
                                   onClick={() => handleDayChipClick(idx, d)}
-                                  className="h-13 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:border-brand-primary hover:bg-blue-50/50 dark:hover:bg-blue-950/40 transition cursor-pointer text-center flex flex-col items-center justify-center gap-0.5 select-none"
+                                  className="h-13 rounded-xl border border-[#e3e6eb] bg-[#f1f2f5] text-[#5f6675] hover:border-slate-400 transition cursor-pointer text-center flex flex-col items-center justify-center gap-0.5 select-none"
                                   title={`Currently assigned to Store ${otherStoreIdx + 1} (${allocations[otherStoreIdx].storeName}). Tap to move here.`}
                                 >
-                                  <span className="text-xs font-bold">{d}</span>
-                                  <span className="text-[10px] text-brand-primary font-bold">
+                                  <span className="text-xs font-bold text-slate-700">{d}</span>
+                                  <span
+                                    className="text-[10px] font-bold"
+                                    style={{ color: otherColor.solid }}
+                                  >
                                     In {otherStoreIdx + 1}
                                   </span>
                                 </button>
@@ -1137,11 +1190,11 @@ export function UpdateScheduleModal({
                                 key={d}
                                 type="button"
                                 onClick={() => handleDayChipClick(idx, d)}
-                                className="h-13 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer text-center flex flex-col items-center justify-center gap-0.5 select-none"
+                                className="h-13 rounded-xl border border-[#cfd4dc] bg-white text-[#3a4150] hover:bg-slate-50 hover:border-slate-400 transition cursor-pointer text-center flex flex-col items-center justify-center gap-0.5 select-none"
                                 title={`Unassigned. Tap to assign to ${alloc.storeName}.`}
                               >
                                 <span className="text-xs font-semibold">{d}</span>
-                                <span className="text-[10px] text-slate-300 dark:text-slate-600">—</span>
+                                <span className="text-[10px] text-slate-300">—</span>
                               </button>
                             );
                           })}
