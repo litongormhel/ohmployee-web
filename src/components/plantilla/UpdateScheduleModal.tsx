@@ -408,8 +408,8 @@ export function UpdateScheduleModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Schedule & Work Terms"
-      description="Configuring rest days, per-store duty days, and shift time windows"
-      size="2xl"
+      subtitle="Configuring rest days, per-store duty days, and shift time windows"
+      maxWidthClass="max-w-4xl"
     >
       <form onSubmit={handleSave} className="space-y-4">
         {/* Banner Notice (if rest day conflict or notice) */}
@@ -530,7 +530,7 @@ export function UpdateScheduleModal({
                       {storeAlloc.vcode || `Store ${ownerIdx + 1}`}
                     </span>
                     <span
-                      className="text-[10px] font-medium leading-none"
+                      className="text-[10px] font-medium leading-none whitespace-nowrap"
                       style={{ color: storeColor.ink }}
                     >
                       {shiftTimeStr}
