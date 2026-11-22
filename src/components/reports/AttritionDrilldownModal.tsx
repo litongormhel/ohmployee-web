@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Download, FileSpreadsheet, Loader2, Store, Users } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import { useAttritionDetails } from "@/lib/queries/reports";
 import { exportMultiSheetXlsx, exportToCsv } from "@/lib/utils/reports_export";
+import { TablePagination } from "@/components/shared/TablePagination";
 
 interface AttritionDrilldownModalProps {
   accountId: string;
@@ -23,6 +24,8 @@ export function AttritionDrilldownModal({
 }: AttritionDrilldownModalProps) {
   const [activeTab, setActiveTab] = useState<"employees" | "stores">("employees");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data, isLoading, error } = useAttritionDetails(
     accountId,
@@ -30,23 +33,41 @@ export function AttritionDrilldownModal({
     endDate
   );
 
-  const employees = data?.employees ?? [];
-  const stores = data?.stores ?? [];
+  const employees = useMemo(() => data?.employees ?? [], [data?.employees]);
+  const stores = useMemo(() => data?.stores ?? [], [data?.stores]);
 
-  const filteredEmployees = employees.filter(
-    (e) =>
-      e.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (e.employeeNo && e.employeeNo.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      e.storeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.reason.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredEmployees = useMemo(() => {
+    return employees.filter(
+      (e) =>
+        e.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (e.employeeNo && e.employeeNo.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        e.storeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.reason.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [employees, searchQuery]);
 
-  const filteredStores = stores.filter(
-    (s) =>
-      s.storeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.location.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredStores = useMemo(() => {
+    return stores.filter(
+      (s) =>
+        s.storeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.location.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [stores, searchQuery]);
+
+  const activeTotalCount = activeTab === "employees" ? filteredEmployees.length : filteredStores.length;
+  const pageCount = Math.max(1, Math.ceil(activeTotalCount / pageSize));
+  const safePage = Math.min(page, pageCount);
+
+  const paginatedEmployees = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredEmployees.slice(start, start + pageSize);
+  }, [filteredEmployees, safePage, pageSize]);
+
+  const paginatedStores = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredStores.slice(start, start + pageSize);
+  }, [filteredStores, safePage, pageSize]);
 
   const handleExportXlsx = () => {
     exportMultiSheetXlsx(
@@ -141,7 +162,10 @@ export function AttritionDrilldownModal({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setActiveTab("employees")}
+              onClick={() => {
+                setActiveTab("employees");
+                setPage(1);
+              }}
               className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
                 activeTab === "employees"
                   ? "bg-brand-50 text-brand-700 border border-brand-200 shadow-2xs"
@@ -153,7 +177,10 @@ export function AttritionDrilldownModal({
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("stores")}
+              onClick={() => {
+                setActiveTab("stores");
+                setPage(1);
+              }}
               className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
                 activeTab === "stores"
                   ? "bg-brand-50 text-brand-700 border border-brand-200 shadow-2xs"
@@ -170,7 +197,10 @@ export function AttritionDrilldownModal({
               type="text"
               placeholder={`Search ${activeTab}...`}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="h-8 px-3 text-xs bg-surface border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 w-48 sm:w-64"
             />
             <button
@@ -226,7 +256,7 @@ export function AttritionDrilldownModal({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-subtle font-medium">
-                    {filteredEmployees.map((emp) => (
+                    {paginatedEmployees.map((emp) => (
                       <tr key={emp.id || `${emp.employeeName}-${emp.storeName}`} className="hover:bg-surface-hover/50 transition">
                         <td className="py-2.5 px-3">
                           <div className="font-semibold text-text-primary">{emp.employeeName}</div>
@@ -268,7 +298,7 @@ export function AttritionDrilldownModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle font-medium">
-                  {filteredStores.map((store) => (
+                  {paginatedStores.map((store) => (
                     <tr key={store.storeName} className="hover:bg-surface-hover/50 transition">
                       <td className="py-2.5 px-3 font-semibold text-text-primary flex items-center gap-2">
                         <Store className="w-3.5 h-3.5 text-text-muted shrink-0" />
@@ -287,6 +317,23 @@ export function AttritionDrilldownModal({
             </div>
           )}
         </div>
+
+        {/* Modal Pagination Controls */}
+        {activeTotalCount > 0 && (
+          <div className="border border-border-subtle rounded-lg overflow-hidden bg-surface-muted/20">
+            <TablePagination
+              page={safePage}
+              pageSize={pageSize}
+              totalCount={activeTotalCount}
+              pageSizeOptions={[10, 20, 50]}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
+          </div>
+        )}
       </div>
     </Modal>
   );

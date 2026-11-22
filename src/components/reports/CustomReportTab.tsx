@@ -19,6 +19,7 @@ import {
   useReportFilterOptions,
 } from "@/lib/queries/reports";
 import { exportToCsv, exportToXlsx } from "@/lib/utils/reports_export";
+import { TablePagination } from "@/components/shared/TablePagination";
 
 type CustomReportSource =
   | "vacancy"
@@ -166,6 +167,8 @@ export function CustomReportTab() {
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
 
   const activeConfig = SOURCES[selectedSource];
 
@@ -179,6 +182,7 @@ export function CustomReportTab() {
     setSelectedColumns(SOURCES[newSource].columns.map((c) => c.key));
     setHasGenerated(false);
     setResults([]);
+    setPage(1);
   };
 
   const toggleColumn = (key: string) => {
@@ -314,6 +318,7 @@ export function CustomReportTab() {
 
       setResults(rows);
       setHasGenerated(true);
+      setPage(1);
     } catch (e) {
       console.error("[CustomReport] error generating:", e);
       setGenError(String(e));
@@ -330,6 +335,15 @@ export function CustomReportTab() {
       Object.values(r).some((val) => String(val ?? "").toLowerCase().includes(q))
     );
   }, [results, searchQuery]);
+
+  const totalCount = filteredResults.length;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(page, pageCount);
+
+  const paginatedResults = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredResults.slice(start, start + pageSize);
+  }, [filteredResults, safePage, pageSize]);
 
   // Export handlers
   const handleExportXlsx = () => {
@@ -719,7 +733,10 @@ export function CustomReportTab() {
                 type="text"
                 placeholder="Search across all columns..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className="h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 w-52 sm:w-64"
               />
             </div>
@@ -744,7 +761,7 @@ export function CustomReportTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle font-medium">
-                  {filteredResults.map((r, idx) => (
+                  {paginatedResults.map((r, idx) => (
                     <tr key={idx} className="hover:bg-surface-hover/50 transition">
                       {activeConfig.columns
                         .filter((c) => selectedColumns.includes(c.key))
@@ -766,10 +783,26 @@ export function CustomReportTab() {
             </div>
           )}
 
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border-subtle bg-surface-muted/30 text-xs text-text-muted">
-            <span>
-              Showing {filteredResults.length} records • Ready for XLSX / CSV export
-            </span>
+          {/* Table Footer & Pagination */}
+          <div className="flex flex-col border-t border-border-subtle bg-surface-muted/30">
+            <div className="flex items-center justify-between px-4 py-2.5 text-xs text-text-muted border-b border-border-subtle/50">
+              <span>
+                Generated {filteredResults.length} records • Ready for XLSX / CSV export
+              </span>
+            </div>
+            {filteredResults.length > 0 && (
+              <TablePagination
+                page={safePage}
+                pageSize={pageSize}
+                totalCount={totalCount}
+                pageSizeOptions={[15, 25, 50, 100]}
+                onPageChange={(newPage) => setPage(newPage)}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+              />
+            )}
           </div>
         </div>
       )}

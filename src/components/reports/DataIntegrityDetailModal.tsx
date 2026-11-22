@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Download, FileSpreadsheet, Loader2, ShieldAlert } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import { useDataIntegrityDetail } from "@/lib/queries/reports";
 import { exportToCsv, exportToXlsx } from "@/lib/utils/reports_export";
+import { TablePagination } from "@/components/shared/TablePagination";
 
 interface DataIntegrityDetailModalProps {
   sectionKey: "late_hr" | "vacancy_delay" | "ghost_occupancy" | "pipeline_no_vacancy";
@@ -22,26 +23,39 @@ export function DataIntegrityDetailModal({
   onClose,
 }: DataIntegrityDetailModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data: rows = [], isLoading, error } = useDataIntegrityDetail(
     sectionKey,
     { groupId, accountId, slaDays: 7 }
   );
 
-  const filteredRows = rows.filter((r) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      r.storeName.toLowerCase().includes(q) ||
-      r.accountName.toLowerCase().includes(q) ||
-      r.groupName.toLowerCase().includes(q) ||
-      r.issueType.toLowerCase().includes(q) ||
-      (r.employeeName && r.employeeName.toLowerCase().includes(q)) ||
-      (r.applicantName && r.applicantName.toLowerCase().includes(q)) ||
-      (r.position && r.position.toLowerCase().includes(q)) ||
-      (r.vcode && r.vcode.toLowerCase().includes(q))
-    );
-  });
+  const filteredRows = useMemo(() => {
+    return rows.filter((r) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        r.storeName.toLowerCase().includes(q) ||
+        r.accountName.toLowerCase().includes(q) ||
+        r.groupName.toLowerCase().includes(q) ||
+        r.issueType.toLowerCase().includes(q) ||
+        (r.employeeName && r.employeeName.toLowerCase().includes(q)) ||
+        (r.applicantName && r.applicantName.toLowerCase().includes(q)) ||
+        (r.position && r.position.toLowerCase().includes(q)) ||
+        (r.vcode && r.vcode.toLowerCase().includes(q))
+      );
+    });
+  }, [rows, searchQuery]);
+
+  const totalCount = filteredRows.length;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(page, pageCount);
+
+  const paginatedRows = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, safePage, pageSize]);
 
   const handleExportXlsx = () => {
     exportToXlsx(
@@ -118,7 +132,10 @@ export function DataIntegrityDetailModal({
               type="text"
               placeholder="Filter findings by store, employee, account..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="h-8 px-3 text-xs bg-surface border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 w-52 sm:w-72"
             />
             <button
@@ -173,7 +190,7 @@ export function DataIntegrityDetailModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle font-medium">
-                  {filteredRows.map((r, idx) => (
+                  {paginatedRows.map((r, idx) => (
                     <tr key={idx} className="hover:bg-surface-hover/50 transition">
                       <td className="py-2.5 px-3 font-semibold text-text-primary">
                         {r.storeName}
@@ -217,6 +234,23 @@ export function DataIntegrityDetailModal({
             </div>
           )}
         </div>
+
+        {/* Modal Pagination Controls */}
+        {totalCount > 0 && (
+          <div className="border border-border-subtle rounded-lg overflow-hidden bg-surface-muted/20">
+            <TablePagination
+              page={safePage}
+              pageSize={pageSize}
+              totalCount={totalCount}
+              pageSizeOptions={[10, 20, 50]}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
+          </div>
+        )}
       </div>
     </Modal>
   );
