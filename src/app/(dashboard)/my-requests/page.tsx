@@ -20,6 +20,7 @@ import {
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { DataState } from "@/components/shared/DataState";
+import { TablePagination } from "@/components/shared/TablePagination";
 import { useCurrentUser } from "@/lib/auth";
 import {
   calculateMyRequestsCounts,
@@ -131,6 +132,8 @@ function MyRequestsContent() {
   const [activeTab, setActiveTab] = useState<StatusTab>("all");
   const [selectedCategory, setSelectedCategory] = useState<MyRequestCategoryType>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const counts = useMemo(() => calculateMyRequestsCounts(requests), [requests]);
 
@@ -173,6 +176,15 @@ function MyRequestsContent() {
       return true;
     });
   }, [requests, activeTab, selectedCategory, searchQuery]);
+
+  const totalCount = filteredRequests.length;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(page, pageCount);
+
+  const paginatedRequests = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredRequests.slice(start, start + pageSize);
+  }, [filteredRequests, safePage, pageSize]);
 
   return (
     <div className="space-y-6">
@@ -232,7 +244,10 @@ function MyRequestsContent() {
         <div className="flex items-center gap-1 bg-[var(--soft)] p-1 rounded-lg border border-[var(--line)]">
           <button
             type="button"
-            onClick={() => setActiveTab("all")}
+            onClick={() => {
+              setActiveTab("all");
+              setPage(1);
+            }}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
               activeTab === "all"
                 ? "bg-[var(--card)] text-[var(--text)] font-semibold shadow-xs"
@@ -243,7 +258,10 @@ function MyRequestsContent() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("pending")}
+            onClick={() => {
+              setActiveTab("pending");
+              setPage(1);
+            }}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
               activeTab === "pending"
                 ? "bg-[var(--card)] text-amber-600 dark:text-amber-400 font-semibold shadow-xs"
@@ -254,7 +272,10 @@ function MyRequestsContent() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("approved")}
+            onClick={() => {
+              setActiveTab("approved");
+              setPage(1);
+            }}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
               activeTab === "approved"
                 ? "bg-[var(--card)] text-emerald-600 dark:text-emerald-400 font-semibold shadow-xs"
@@ -265,7 +286,10 @@ function MyRequestsContent() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("rejected")}
+            onClick={() => {
+              setActiveTab("rejected");
+              setPage(1);
+            }}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
               activeTab === "rejected"
                 ? "bg-[var(--card)] text-rose-600 dark:text-rose-400 font-semibold shadow-xs"
@@ -282,7 +306,10 @@ function MyRequestsContent() {
           <div className="relative">
             <select
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value as MyRequestCategoryType)}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value as MyRequestCategoryType);
+                setPage(1);
+              }}
               className="w-full sm:w-auto appearance-none bg-[var(--soft)] border border-[var(--line)] rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-[var(--text)] focus:outline-hidden focus:ring-2 focus:ring-brand-500 cursor-pointer"
             >
               <option value="all">All Request Types</option>
@@ -302,7 +329,10 @@ function MyRequestsContent() {
               type="text"
               placeholder="Search my requests…"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="w-full bg-[var(--soft)] border border-[var(--line)] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-hidden focus:ring-2 focus:ring-brand-500"
             />
             <Search size={13} className="absolute left-2.5 top-2.5 text-[var(--muted)]" />
@@ -340,15 +370,17 @@ function MyRequestsContent() {
             setActiveTab("all");
             setSelectedCategory("all");
             setSearchQuery("");
+            setPage(1);
           } : undefined}
         />
       ) : (
-        <div className="space-y-3">
-          {filteredRequests.map((item) => (
-            <div
-              key={item.id}
-              className="p-5 rounded-xl border border-[var(--line)] bg-[var(--card)] hover:border-[var(--line-strong)] transition shadow-2xs space-y-3.5"
-            >
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {paginatedRequests.map((item) => (
+              <div
+                key={item.id}
+                className="p-5 rounded-xl border border-[var(--line)] bg-[var(--card)] hover:border-[var(--line-strong)] transition shadow-2xs space-y-3.5"
+              >
               {/* Card Header */}
               <div className="flex flex-wrap items-center justify-between gap-2.5">
                 <div className="flex items-center gap-2">
@@ -484,6 +516,24 @@ function MyRequestsContent() {
               )}
             </div>
           ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalCount > 0 && (
+            <div className="rounded-xl border border-[var(--line)] bg-[var(--card)] overflow-hidden shadow-2xs">
+              <TablePagination
+                page={safePage}
+                pageSize={pageSize}
+                totalCount={totalCount}
+                pageSizeOptions={[10, 20, 50]}
+                onPageChange={(newPage) => setPage(newPage)}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
