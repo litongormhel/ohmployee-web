@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Clock,
@@ -15,6 +15,7 @@ import {
 import { useSecurityEvents } from "@/lib/queries/governance";
 import { createClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/shared/Modal";
+import { TablePagination } from "@/components/shared/TablePagination";
 
 export interface SecurityEventsModalProps {
   isOpen: boolean;
@@ -29,6 +30,8 @@ export function SecurityEventsModal({
   const [severityFilter, setSeverityFilter] = useState<string>("all");
   const [dateRangeDays, setDateRangeDays] = useState<number>(7);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
   const [expandedEvents, setExpandedEvents] = useState<Record<string, boolean>>({});
   const [isLiveActive, setIsLiveActive] = useState(false);
 
@@ -69,19 +72,31 @@ export function SecurityEventsModal({
     setExpandedEvents((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const filteredEvents = events.filter((ev) => {
-    if (!searchQuery.trim()) return true;
+  const filteredEvents = useMemo(() => {
+    if (!searchQuery.trim()) return events;
     const q = searchQuery.toLowerCase();
-    const detailsStr = ev.details ? JSON.stringify(ev.details).toLowerCase() : "";
-    return (
-      ev.action.toLowerCase().includes(q) ||
-      ev.eventType.toLowerCase().includes(q) ||
-      (ev.actorName ?? "").toLowerCase().includes(q) ||
-      (ev.actorId ?? "").toLowerCase().includes(q) ||
-      (ev.targetId ?? "").toLowerCase().includes(q) ||
-      detailsStr.includes(q)
-    );
-  });
+    return events.filter((ev) => {
+      const detailsStr = ev.details ? JSON.stringify(ev.details).toLowerCase() : "";
+      return (
+        ev.action.toLowerCase().includes(q) ||
+        ev.eventType.toLowerCase().includes(q) ||
+        (ev.actorName ?? "").toLowerCase().includes(q) ||
+        (ev.actorId ?? "").toLowerCase().includes(q) ||
+        (ev.targetId ?? "").toLowerCase().includes(q) ||
+        detailsStr.includes(q)
+      );
+    });
+  }, [events, searchQuery]);
+
+  const totalFilteredEvents = filteredEvents.length;
+  const safePage = Math.min(
+    Math.max(1, page),
+    Math.ceil(totalFilteredEvents / pageSize) || 1
+  );
+  const paginatedEvents = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredEvents.slice(start, start + pageSize);
+  }, [filteredEvents, safePage, pageSize]);
 
   const criticalCount = events.filter((e) => e.severity === "critical").length;
   const highCount = events.filter((e) => e.severity === "high").length;
@@ -159,7 +174,10 @@ export function SecurityEventsModal({
                 type="text"
                 placeholder="Search event, actor, details..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className="h-8.5 w-full rounded-lg border border-border-default bg-surface-base pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default"
               />
             </div>
@@ -169,7 +187,10 @@ export function SecurityEventsModal({
                 <button
                   key={sev}
                   type="button"
-                  onClick={() => setSeverityFilter(sev)}
+                  onClick={() => {
+                    setSeverityFilter(sev);
+                    setPage(1);
+                  }}
                   className={`rounded-lg px-2.5 py-1 text-xs font-bold  transition cursor-pointer ${
                     severityFilter === sev
                       ? "bg-brand-primary text-text-inverse"
@@ -183,7 +204,10 @@ export function SecurityEventsModal({
 
             <select
               value={dateRangeDays}
-              onChange={(e) => setDateRangeDays(Number(e.target.value))}
+              onChange={(e) => {
+                setDateRangeDays(Number(e.target.value));
+                setPage(1);
+              }}
               className="h-8.5 rounded-lg border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default cursor-pointer"
             >
               <option value={1}>Last 24 Hours</option>
@@ -195,7 +219,7 @@ export function SecurityEventsModal({
 
           <div className="flex items-center gap-3">
             <span className="text-xs text-text-muted font-mono">
-              Showing {filteredEvents.length} events
+              Showing {paginatedEvents.length} of {totalFilteredEvents} events
             </span>
             <button
               type="button"
@@ -229,7 +253,7 @@ export function SecurityEventsModal({
               </p>
             </div>
           ) : (
-            filteredEvents.map((ev) => {
+            paginatedEvents.map((ev) => {
               const isCrit = ev.severity.toLowerCase() === "critical";
               const isExpanded = expandedEvents[ev.id];
 
@@ -297,6 +321,23 @@ export function SecurityEventsModal({
             })
           )}
         </div>
+
+        {/* Pagination Bar */}
+        {totalFilteredEvents > 0 && (
+          <div className="border-t border-border-subtle bg-surface-base px-2">
+            <TablePagination
+              page={safePage}
+              totalCount={totalFilteredEvents}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              pageSizeOptions={[10, 15, 25, 50]}
+            />
+          </div>
+        )}
 
         {/* Modal Footer */}
         <div className="flex items-center justify-between border-t border-border-subtle bg-surface-base px-2 py-3 pt-4">

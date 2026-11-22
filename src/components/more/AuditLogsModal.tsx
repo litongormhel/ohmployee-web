@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ChevronDown,
   Clock,
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useSystemAuditLogs } from "@/lib/queries/governance";
 import { Modal } from "@/components/shared/Modal";
+import { TablePagination } from "@/components/shared/TablePagination";
 import {
   normalizeModuleName,
   formatActionBadge,
@@ -64,6 +65,8 @@ export function AuditLogsModal({
   const [selectedAction, setSelectedAction] = useState("all");
   const [datePreset, setDatePreset] = useState<"today" | "7d" | "30d" | "all">("30d");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -77,8 +80,18 @@ export function AuditLogsModal({
     action: selectedAction,
     search: searchQuery,
     datePreset,
-    limit: 100,
+    limit: 500,
   });
+
+  const totalLogs = logs.length;
+  const safePage = Math.min(
+    Math.max(1, page),
+    Math.ceil(totalLogs / pageSize) || 1
+  );
+  const paginatedLogs = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return logs.slice(start, start + pageSize);
+  }, [logs, safePage, pageSize]);
 
   const toggleExpand = (id: string) => {
     setExpandedLogId((prev) => (prev === id ? null : id));
@@ -124,14 +137,20 @@ export function AuditLogsModal({
                 type="text"
                 placeholder="Search actor, record, action..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className="h-8.5 w-full rounded-lg border border-border-default bg-surface-base pl-8 pr-3 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default"
               />
             </div>
 
             <select
               value={selectedModule}
-              onChange={(e) => setSelectedModule(e.target.value)}
+              onChange={(e) => {
+                setSelectedModule(e.target.value);
+                setPage(1);
+              }}
               className="h-8.5 rounded-lg border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default cursor-pointer"
             >
               {MODULE_OPTIONS.map((m) => (
@@ -143,7 +162,10 @@ export function AuditLogsModal({
 
             <select
               value={selectedAction}
-              onChange={(e) => setSelectedAction(e.target.value)}
+              onChange={(e) => {
+                setSelectedAction(e.target.value);
+                setPage(1);
+              }}
               className="h-8.5 rounded-lg border border-border-default bg-surface-base px-2.5 text-xs font-medium text-text-primary focus:border-brand-default focus:outline-hidden focus:ring-1 focus:ring-brand-default cursor-pointer"
             >
               {ACTION_OPTIONS.map((a) => (
@@ -163,7 +185,10 @@ export function AuditLogsModal({
                 <button
                   key={p.key}
                   type="button"
-                  onClick={() => setDatePreset(p.key as "today" | "7d" | "30d" | "all")}
+                  onClick={() => {
+                    setDatePreset(p.key as "today" | "7d" | "30d" | "all");
+                    setPage(1);
+                  }}
                   className={`rounded-lg px-2.5 py-1 text-xs font-bold transition cursor-pointer ${
                     datePreset === p.key
                       ? "bg-brand-primary text-text-inverse"
@@ -178,7 +203,7 @@ export function AuditLogsModal({
 
           <div className="flex items-center gap-3">
             <span className="text-xs text-text-muted font-mono">
-              Showing {logs.length} audit entries
+              Showing {paginatedLogs.length} of {totalLogs} audit entries
             </span>
             <button
               type="button"
@@ -213,7 +238,7 @@ export function AuditLogsModal({
             </div>
           ) : (
             <div className="space-y-3">
-              {logs.map((log) => {
+              {paginatedLogs.map((log) => {
                 const isExpanded = expandedLogId === log.id;
                 const hasDiff = Boolean(log.oldData || log.newData);
                 const badgeInfo = formatActionBadge(log.action);
@@ -373,6 +398,23 @@ export function AuditLogsModal({
             </div>
           )}
         </div>
+
+        {/* Pagination Bar */}
+        {totalLogs > 0 && (
+          <div className="border-t border-border-subtle bg-surface-base px-2">
+            <TablePagination
+              page={safePage}
+              totalCount={totalLogs}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              pageSizeOptions={[10, 20, 50, 100]}
+            />
+          </div>
+        )}
 
         {/* Modal Footer */}
         <div className="flex items-center justify-between border-t border-border-subtle bg-surface-base px-2 py-3 pt-4">

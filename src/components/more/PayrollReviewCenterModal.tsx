@@ -22,6 +22,7 @@ import {
   usePayrollReviewSessions,
 } from "@/lib/queries/dataControl";
 import { Modal } from "@/components/shared/Modal";
+import { TablePagination } from "@/components/shared/TablePagination";
 
 export interface PayrollReviewCenterModalProps {
   isOpen: boolean;
@@ -42,6 +43,8 @@ export function PayrollReviewCenterModal({
   const [sessionItems, setSessionItems] = useState<PayrollReviewDetailItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [itemStatusFilter, setItemStatusFilter] = useState<string>("All");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Comment & Resolution Drawer
   const [activeItem, setActiveItem] = useState<PayrollReviewDetailItem | null>(null);
@@ -68,6 +71,7 @@ export function PayrollReviewCenterModal({
 
   const handleOpenSession = async (session: PayrollReviewSessionItem) => {
     setSelectedSession(session);
+    setPage(1);
     setIsLoadingItems(true);
     setActionError(null);
     try {
@@ -159,6 +163,16 @@ export function PayrollReviewCenterModal({
       setIsLoadingItems(false);
     }
   };
+
+  const totalSessionItems = sessionItems.length;
+  const safeSessionPage = Math.min(
+    Math.max(1, page),
+    Math.ceil(totalSessionItems / pageSize) || 1
+  );
+  const paginatedSessionItems = useMemo(() => {
+    const start = (safeSessionPage - 1) * pageSize;
+    return sessionItems.slice(start, start + pageSize);
+  }, [sessionItems, safeSessionPage, pageSize]);
 
   return (
     <Modal
@@ -325,6 +339,7 @@ export function PayrollReviewCenterModal({
                   key={s}
                   onClick={() => {
                     setItemStatusFilter(s);
+                    setPage(1);
                     handleRefreshSessionItems(s);
                   }}
                   className={`py-1.5 px-3 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
@@ -362,7 +377,7 @@ export function PayrollReviewCenterModal({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-subtle bg-surface-primary">
-                    {sessionItems.map((item) => (
+                    {paginatedSessionItems.map((item) => (
                       <tr key={item.id} className="hover:bg-surface-hover/50">
                         <td className="py-2.5 px-3.5 font-mono font-semibold text-text-primary">
                           {item.employeeNumber}
@@ -423,6 +438,20 @@ export function PayrollReviewCenterModal({
                 </table>
               )}
             </div>
+
+            {totalSessionItems > 0 && (
+              <TablePagination
+                page={safeSessionPage}
+                totalCount={totalSessionItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+                pageSizeOptions={[10, 25, 50]}
+              />
+            )}
 
             {/* Ops Response Modal / Drawer */}
             {activeItem && (
