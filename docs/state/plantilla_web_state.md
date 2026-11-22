@@ -401,7 +401,7 @@ Per **Rule #5 (Employee Detail Navigation & State Preservation Contract)**, clic
 - **Always-Visible Personnel Actions Bar**:
   - `Update Employment Status` (Primary brand button) → Opens `UpdateEmploymentStatusModal` (disabled when Inactive or Deactivated).
   - `Transfer Employee` → Opens `TransferPersonnelModal` (disabled when Inactive or Deactivated).
-  - `Reassign HRCO` → Submits HR coordinator assignment review (disabled when Inactive or Deactivated).
+  - `Reassign HRCO` → Governed by the **2+ HRCO Visibility Rule**: only visible if 2 or more HR Coordinators are scoped to the employee's account/group; hidden if 0 or 1 HRCO. Opens `ReassignHrcoModal` allowing selection from available account/group HRCOs, displays currently assigned HRCO, and invokes `assign_hrco_to_plantilla` RPC with live cache invalidation (disabled when Inactive or Deactivated).
   - `Request Deactivation` → Opens `RequestDeactivationModal` (disabled for Active/On-Leave; disabled with "Deactivated" label when already deactivated; shows `"Deactivation Pending"` if pending).
   - `Request Deletion` → Routes deletion request to operations queue (disabled when Deactivated).
 - **Deactivated State Action Lock**:

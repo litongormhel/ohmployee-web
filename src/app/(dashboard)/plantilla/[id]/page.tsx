@@ -51,6 +51,8 @@ import { UpdateEmploymentStatusModal } from "@/components/plantilla/UpdateEmploy
 import { RequestDeactivationModal } from "@/components/plantilla/RequestDeactivationModal";
 import { TransferPersonnelModal } from "@/components/plantilla/TransferPersonnelModal";
 import { UpdateScheduleModal } from "@/components/plantilla/UpdateScheduleModal";
+import { ReassignHrcoModal } from "@/components/plantilla/ReassignHrcoModal";
+import { useInheritedHrcoMap } from "@/components/hr-emploc/useInheritedHrco";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -330,6 +332,7 @@ function PlantillaEmployeeDetailContent() {
   const [isDeactivationModalOpen, setIsDeactivationModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
 
   // Return query preservation: pass back current context
   const returnHref = useMemo(() => {
@@ -406,6 +409,15 @@ function PlantillaEmployeeDetailContent() {
     status === "awol" ||
     isDeactivated;
   const isDeactivationEligible = (isInactive || status === "floating") && !isDeactivated;
+
+  const { getHrcoUsersForRecord } = useInheritedHrcoMap();
+  const availableHrcos = useMemo(() => {
+    const targetAccountId = data?.accountId || searchParams.get("accountId");
+    const targetGroupId = data?.groupId;
+    return getHrcoUsersForRecord({ accountId: targetAccountId, groupId: targetGroupId });
+  }, [getHrcoUsersForRecord, data?.accountId, data?.groupId, searchParams]);
+
+  const canReassignHrco = availableHrcos.length >= 2;
 
   const coveredStores = useMemo(() => data?.coveredStores ?? [], [data?.coveredStores]);
   const hasMultiStores = coveredStores.length > 1;
@@ -624,28 +636,25 @@ function PlantillaEmployeeDetailContent() {
                       <span>Transfer</span>
                     </button>
 
-                    {/* Secondary: Reassign HRCO */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActionFeedback({
-                          type: "info",
-                          message: "HR Coordinator assignment request submitted for review.",
-                        });
-                      }}
-                      disabled={!isAuthorized || isInactive || isDeactivated}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
-                      title={
-                        isDeactivated
-                          ? "Cannot reassign HRCO for a deactivated employee."
-                          : isInactive
-                          ? "Cannot reassign HRCO for an inactive employee."
-                          : undefined
-                      }
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" />
-                      <span>Reassign HRCO</span>
-                    </button>
+                    {/* Secondary: Reassign HRCO (Visible only if 2 or more HRCOs available) */}
+                    {canReassignHrco && (
+                      <button
+                        type="button"
+                        onClick={() => setIsReassignModalOpen(true)}
+                        disabled={!isAuthorized || isInactive || isDeactivated}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
+                        title={
+                          isDeactivated
+                            ? "Cannot reassign HRCO for a deactivated employee."
+                            : isInactive
+                            ? "Cannot reassign HRCO for an inactive employee."
+                            : undefined
+                        }
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" />
+                        <span>Reassign HRCO</span>
+                      </button>
+                    )}
                   </div>
 
                   {/* Destructive / Separation Actions (Right-aligned / Last) */}
@@ -1517,6 +1526,25 @@ function PlantillaEmployeeDetailContent() {
                 ]
           }
           onSuccess={() => {
+            detailQuery.refetch();
+          }}
+        />
+      )}
+
+      {data && isReassignModalOpen && (
+        <ReassignHrcoModal
+          isOpen={isReassignModalOpen}
+          onClose={() => setIsReassignModalOpen(false)}
+          plantillaId={data.id}
+          employeeName={displayName}
+          employeeNo={data.employeeNo}
+          currentHrcoName={data.coordinator || data.hrcoName}
+          availableHrcos={availableHrcos}
+          onSuccess={(newHrcoName) => {
+            setActionFeedback({
+              type: "success",
+              message: `Successfully reassigned HR Coordinator to ${newHrcoName}.`,
+            });
             detailQuery.refetch();
           }}
         />

@@ -111,9 +111,39 @@ export function useInheritedHrcoMap() {
     };
   }, [hrcoUsers]);
 
+  const getHrcoUsersForRecord = useMemo(() => {
+    return (record: { accountId?: string | null; groupId?: string | null }): HrcoScopeInfo[] => {
+      const { accountId, groupId } = record;
+      const seen = new Set<string>();
+      const matched: HrcoScopeInfo[] = [];
+
+      for (const hrco of hrcoUsers) {
+        if (seen.has(hrco.profileId)) continue;
+        if (hrco.isGlobal) {
+          seen.add(hrco.profileId);
+          matched.push(hrco);
+          continue;
+        }
+        if (accountId && hrco.accountIds.includes(accountId)) {
+          seen.add(hrco.profileId);
+          matched.push(hrco);
+          continue;
+        }
+        if (groupId && hrco.groupIds.includes(groupId)) {
+          seen.add(hrco.profileId);
+          matched.push(hrco);
+          continue;
+        }
+      }
+
+      return matched;
+    };
+  }, [hrcoUsers]);
+
   return {
     hrcoUsers,
     getHrcosForRecord,
+    getHrcoUsersForRecord,
     isLoading: query.isLoading,
   };
 }

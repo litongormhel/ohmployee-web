@@ -1,5 +1,48 @@
 # AI Handoff
 
+## Execution Report — Fix Reassign HRCO: 2+ HRCO Visibility Rule & Functional Reassignment Flow (ohm#fix-reassign-hrco-multi-hrco-rule-and-workflow)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Plantilla), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, Rule #5 Employee Detail Navigation).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  - "fix reassign HRCO. Rule. if 2 or more HRCO then show it else hide. Make sure na working sya kasi as of now hindi sya gumagana"
+  - Enforce rule: Show "Reassign HRCO" button ONLY if there are 2 or more HR Coordinators available for the employee's account/group; otherwise hide it.
+  - Implement full functional reassignment flow replacing previous dummy banner alert.
+- **Root Cause Analysis**:
+  1. **Dummy Frontend Implementation**:
+     - Clicking "Reassign HRCO" previously executed `setActionFeedback({ type: "info", message: "HR Coordinator assignment request submitted for review." })` without opening any modal or triggering any mutation.
+  2. **Database View Priority Bug**:
+     - In `v_plantilla_safe` (`20262606000096_user_management_as_hrco_source_of_truth.sql`), `COALESCE((SELECT up_sc.full_name FROM user_scopes ... LIMIT 1), ..., pha.hrco_name_snapshot)` evaluated the first account HRCO ahead of `plantilla_hrco_assignments` (`pha`). On multi-HRCO accounts, this caused employee-specific reassignment to be shadowed by whichever HRCO was created first in `user_scopes`.
+  3. **ID Resolution & Role Authorization Gate**:
+     - `fn_is_valid_hrco_for_account` and `assign_hrco_to_plantilla` only matched against `up.auth_user_id`, failing if a client passed `users_profile.id`. In addition, `fn_can_assign_hrco` omitted Operations Manager (role level 70).
+- **Key Changes Implemented**:
+  1. **Database Migrations (`20262606000135_reassign_hrco_fix_and_visibility.sql` & `20262606000136_restore_dependent_views.sql`)**:
+     - `fn_can_assign_hrco`: Expanded to authorize Operations Manager (`OM`) and any role with `role_level >= 70` alongside Super Admin, Head Admin, and Encoder.
+     - `fn_is_valid_hrco_for_account`: Supported matching by `auth_user_id` or profile `id`, and recognized `hrco_global_visibility`.
+     - `assign_hrco_to_plantilla`: Deactivates old assignment in `plantilla_hrco_assignments`, inserts new active assignment, synchronizes `plantilla.coordinator` and `plantilla.hrco_name`, and logs audit event safely.
+     - `fn_transfer_employee_hrco`: Cleanly delegates each employee in array to `assign_hrco_to_plantilla`.
+     - `v_plantilla_safe`: Prioritizes specific active assignment (`pha.hrco_name_snapshot` / `pha.hrco_user_id`) over fallback `user_scopes LIMIT 1`, ensuring employee-specific reassignment is immediately visible on multi-HRCO accounts. Re-created dependent views `vw_plantilla_inactive`, `v_dashboard_account_breakdown`, `v_dashboard_account_mfr_breakdown`, `v_dashboard_hrco_breakdown` with `security_invoker = true`.
+     - Pushed live to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging`.
+  2. **Query Layer & Inherited HRCO Map**:
+     - `src/components/hr-emploc/useInheritedHrco.tsx`: Added `getHrcoUsersForRecord` returning structured `HrcoScopeInfo[]` matching account/group scope.
+     - `src/lib/queries/plantilla.ts`: Added `PlantillaDetailItem.groupId`, updated `normalizeDetailRow` to project `groupId`, and added `reassignPlantillaHrco` / `useReassignHrco` mutation hooks with PostgREST column logging and query cache invalidations.
+  3. **UI Standard & Modal Components**:
+     - `src/components/plantilla/ReassignHrcoModal.tsx`: Built enterprise modal with Current HR Coordinator display, radio selection of available HRCOs with "(Currently Assigned)" badges, optional operational justification, error alerts, and submission states.
+     - `src/app/(dashboard)/plantilla/[id]/page.tsx` & `src/components/plantilla/PlantillaDetailDrawer.tsx`: Enforced 2+ HRCO visibility rule (`canReassignHrco = availableHrcos.length >= 2`). If fewer than 2 HRCOs are available, the button is completely hidden. Clicking button opens `ReassignHrcoModal` and updates live view on success.
+- **Verification**:
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded with 22/22 static/dynamic routes.
+  - Database verification: Live push to Staging (`qqiiznmqxfoamqytjica`) completed with 0 errors.
+- **Migration Delta**:
+  - `prod: 626 migrations`
+  - `staging: 629 migrations`
+  - `3 migrations are not on prod:`
+    `- 20262606000133_project_store_schedule_in_plantilla_detail.sql`
+    `- 20262606000135_reassign_hrco_fix_and_visibility.sql`
+    `- 20262606000136_restore_dependent_views.sql`
+
 ## Execution Report — Roving Schedule Persistence & Disjoint Duty Days Across Stores (ohm#project-store-schedule-in-plantilla-detail)
 
 **Status: COMPLETE & VERIFIED.**
