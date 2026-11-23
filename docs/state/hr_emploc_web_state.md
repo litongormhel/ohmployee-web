@@ -528,6 +528,19 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
 - **Docs Column Removal**: Removed the "Docs" column header and cells from `pending`, `for_emploc`, `correction`, and `default` queues. Attachment preview is preserved exclusively on the `review` queue.
 - **Dynamic SLA Badge Color Coding**: Implemented `getSlaBadgeClass(days, isBreached)` across all table rows: emerald (`border-emerald-200 bg-emerald-50 text-emerald-700`) for $\le 1$ day, amber (`border-amber-200 bg-amber-50 text-amber-700`) for $2$ days warning, and red (`border-red-200 bg-red-50 text-red-700 font-semibold`) for $\ge 3$ days or breached. Updated the detail drawer SLA breach badge to `variant="danger"`.
 
+## RPC Overload Conflict Resolution & Live PostgREST Recovery — Migration 20262606000155 (ohm#fix-web-hr-emploc-summary-duplicate-overload)
+- **Forensic Diagnosis**: `public.get_web_hr_emploc_summary` threw HTTP 300 `PGRST203` (Multiple Choices) on Web queries due to two conflicting function signatures coexisting in the Staging schema cache:
+  1. `get_web_hr_emploc_summary(text, text, text, uuid, uuid, text, text)` from migration 130 (with `p_queue` at the end).
+  2. `get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text)` from migration 104/120 (with `p_queue` as parameter 1).
+- **Impact**: PostgREST could not resolve which function to invoke, failing RPC requests with error 300 and causing all inactive HR Emploc tab badges to fall back to `0`, creating apparent data disparity with Mobile (which queries `v_hr_emploc_sla_flags` directly).
+- **Database Migration (`supabase/migrations/20262606000155_fix_web_hr_emploc_summary_duplicate_overload.sql`)**:
+  - Explicitly dropped both conflicting overloads:
+    - `DROP FUNCTION IF EXISTS public.get_web_hr_emploc_summary(text, text, text, uuid, uuid, text, text);`
+    - `DROP FUNCTION IF EXISTS public.get_web_hr_emploc_summary(text, text, text, text, uuid, uuid, text);`
+  - Recreated the canonical, unified function `public.get_web_hr_emploc_summary(p_queue text DEFAULT NULL, p_status text DEFAULT NULL, p_deficiency text DEFAULT NULL, p_sla_filter text DEFAULT NULL, p_account_id uuid DEFAULT NULL, p_group_id uuid DEFAULT NULL, p_search text DEFAULT NULL)`.
+  - Pushed live to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging`.
+- **Verification**: Verified via `pg_proc` that exactly 1 function definition exists. Verified live PostgREST RPC call returns HTTP 200 with accurate counts (`pending_count: 7, for_emploc_count: 2, correction_count: 2, review_count: 3, ready_count: 10, sla_breached_count: 13`).
+
 
 
 

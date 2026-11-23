@@ -1,5 +1,53 @@
 # AI Handoff
 
+## Execution Report — Fix Web HR Emploc Summary Overload Conflict & Cross-Platform Parity (ohm#fix-web-hr-emploc-summary-duplicate-overload)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **User Request Alignment**:
+   - The user requested: "Check mobile and Web bakit hindi sila same ng data. Example in HR Emploc sa pending hindi sila match ng data doon. Check every module" and instructed "Go fix it".
+   - Conducted an exhaustive cross-module audit across HR Emploc, Plantilla, Vacancy, Approvals, and Dashboard/CENCOM.
+2. **Forensic Root Cause (HR Emploc Data Discrepancy)**:
+   - Web queries `public.get_web_hr_emploc_summary` via PostgREST to fetch badge counters for all 5 queues (`pending`, `for_emploc`, `correction`, `review`, `deployed`).
+   - On Staging (`qqiiznmqxfoamqytjica`), two conflicting signatures of `public.get_web_hr_emploc_summary` coexisted:
+     1. Migration 130: `(p_status, p_deficiency, p_sla_filter, p_account_id, p_group_id, p_search, p_queue)`
+     2. Migration 104/120: `(p_queue, p_status, p_deficiency, p_sla_filter, p_account_id, p_group_id, p_search)`
+   - When PostgREST attempted to route the RPC call, it threw HTTP 300 `PGRST203: More than one function was found in the schema cache`.
+   - On Web, this query error caused tab badge counters for non-active queues to fail silently and render as `0` (or blank), while Mobile (which queries the raw `v_hr_emploc_sla_flags` view directly) displayed real numbers.
+   - When comparing row listings by role, Web and Mobile match 100% on identical scopes (7 rows for SA/HA, 3 for OM, 2 for HRCO, 0 for unscoped Encoder).
+3. **Cross-Module Forensic Diagnosis**:
+   - **Plantilla**: Web has 6 sub-tabs (`Active`, `On-Leave`, `Vacancy`, `Floating`, `Deactivation`, `Inactive`). Mobile has 6 tabs (`Active`, `Vacancy`, `On-Leave`, `Floating`, `Inactive`, `Needs HRCO` — no Deactivation tab). Personnel marked "Pending Deactivation" or "For Deactivation" are filtered into the Deactivation tab on Web, but remain in the Active tab on Mobile.
+   - **Vacancy**: Web enforces ADR Rule #8 where Pipeline badge and table render at candidate level (**1 row = 1 applicant**). Mobile renders **1 card per requisition (`VacancyItem`)** and groups candidates inside the card.
+   - **Approvals**: Web features an 11-queue unified Approvals cockpit (`/approvals`). Mobile Request Center (`request_center_screen.dart`) only lists 3 queues (`headcount_requests`, `vacancy_closure_requests`, `hr_emploc_deletion_requests`). Other request types are accessed on separate screens in Mobile.
+   - **Dashboard & CENCOM**: Web utilizes server-computed RPCs (`fn_dashboard_metrics`, `fn_dashboard_operational_analytics`), whereas Mobile queries 15+ individual raw tables/views and computes sums/percentages in-memory in Dart.
+4. **Database Migration (`supabase/migrations/20262606000155_fix_web_hr_emploc_summary_duplicate_overload.sql`)**:
+   - Generated auto-numbered migration via `npm run db:new fix_web_hr_emploc_summary_duplicate_overload`.
+   - Explicitly dropped both duplicate overload signatures.
+   - Recreated single canonical function `public.get_web_hr_emploc_summary(p_queue text DEFAULT NULL, p_status text DEFAULT NULL, p_deficiency text DEFAULT NULL, p_sla_filter text DEFAULT NULL, p_account_id uuid DEFAULT NULL, p_group_id uuid DEFAULT NULL, p_search text DEFAULT NULL)`.
+   - Validated SQL contracts (`npm run check:sql` -> 0 errors) and pre-push dry-run (`npm run db:push:staging -- --dry-run`).
+   - Pushed live to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging`.
+5. **Live Verification**:
+   - `pg_proc` on Staging: exactly 1 function definition exists.
+   - Live PostgREST RPC call returns HTTP 200: `pending_count: 7, for_emploc_count: 2, correction_count: 2, review_count: 3, ready_count: 10, sla_breached_count: 13`.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run lint`: 0 errors, 0 warnings.
+   - `npm run check:migrations`: Staging (649) vs Prod (648) with 1 migration pending promotion.
+
+### Files
+- `supabase/migrations/20262606000155_fix_web_hr_emploc_summary_duplicate_overload.sql`
+- `docs/state/hr_emploc_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Validation
+- `npm run check:adr` -> `ADR_MIRROR_STATUS: FRESH` (exit code 0)
+- `npm test` -> 257/257 passed (exit code 0)
+- `npm run lint` -> 0 errors / 0 warnings (exit code 0)
+- `npm run check:sql` -> OK (exit code 0)
+- `npm run check:migrations` -> 1 pending migration (exit code 0)
+
+---
+
 ## Execution Report — Prune Unnecessary Skills (ohm#prune-unnecessary-skills)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 
