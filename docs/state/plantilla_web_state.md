@@ -882,6 +882,20 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Table Column Header Renaming**:
     - Renamed Vacancy table column header from `"Status"` to `"Stage"` in `StoreVacancyTable`.
 
+- **Plantilla Deactivation Check Constraint & Scope Parity Fix (`ohm#fix-plantilla-deactivation-status-check` — 2026-11-23)**:
+  - **Check Constraint Harmonization (`plantilla_status_check`)**:
+    - Expanded `plantilla_status_check` constraint in migration `20262606000138_fix_plantilla_deactivation_status_and_rpcs.sql` to include `'For Deactivation'` alongside `'Pending Deactivation'` (`CHECK (status = ANY (ARRAY['Active', 'Inactive', 'Pending Deactivation', 'For Deactivation', 'Rejected Deactivation', 'Deactivated', 'On Leave']))`).
+    - Eliminates PostgreSQL constraint violation `new row for relation "plantilla" violates check constraint "plantilla_status_check"` when deactivation requests are triggered across web, mobile, or legacy RPC fallbacks.
+  - **Caller Scope & Parameter Alignment (`create_deactivation_request`)**:
+    - Fixed scope check in `public.create_deactivation_request` where `v_row.account_id::text` was compared against `get_my_allowed_accounts()` (which returns account names `TEXT[]`), causing all non-superadmin Ops users (HRCO, TL, ATL, OM) to fail with `Account not in caller scope` and prematurely fall back to legacy RPCs.
+    - Added optional `p_reason text DEFAULT NULL` parameter to `create_deactivation_request` (with 1-arg backward-compatible wrapper overload for Mobile callers), properly setting `deactivation_reason`, `remarks`, `for_deactivation_at`, and `for_deactivation_by` on `public.plantilla`.
+  - **Legacy RPC Parity & Approvals Synchronization (`plantilla_request_deactivation` & `complete_employee_deactivation`)**:
+    - Updated `public.plantilla_request_deactivation` to transition status to `'Pending Deactivation'` (instead of obsolete `'For Deactivation'`) and ensure a pending record is created in `public.employee_deactivation_requests` so the deactivation request surfaces in Approvals queue (`v_deactivation_requests`).
+    - Updated `public.complete_employee_deactivation` to accept both `'For Deactivation'` and `'Pending Deactivation'` and mark pending `employee_deactivation_requests` as `'Approved'`.
+    - Aligned `public.get_plantilla_employees` filters to recognize both `'For Deactivation'` and `'Pending Deactivation'`.
+  - **Client Query Hardening (`src/lib/queries/plantilla.ts`)**:
+    - Updated `createDeactivationRequest` to forward `p_reason` to `create_deactivation_request` and added explicit PostgREST schema error logging (`console.error('[PostgREST Schema Error] ...')`).
+
 - **Plantilla Floating Routing, Deactivation Optional Remarks & NSR Data Team Workflow (`Branch2` — 2026-11-05)**:
   - **Fixed 42703 `column "is_roving" does not exist` on Status Changes**:
     - Created & applied migration `20262606000085_fix_plantilla_separation_is_roving_and_nsr_data_team_workflow.sql`.

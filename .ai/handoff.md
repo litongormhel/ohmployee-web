@@ -1,5 +1,51 @@
 # AI Handoff
 
+## Execution Report — Fix Plantilla Deactivation Check Constraint & Scope Parity (ohm#fix-plantilla-deactivation-status-check)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Plantilla), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, Plantilla).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  - Image uploaded: Request Personnel Deactivation modal for Reid, James Delos Reyes (`2026-112326`, Status: Inactive).
+  - Error: `new row for relation "plantilla" violates check constraint "plantilla_status_check"`.
+  - User prompt: "Check and fix".
+- **Root Cause Analysis**:
+  1. **Check Constraint Disparity (`plantilla_status_check`)**: In `public.plantilla`, `plantilla_status_check` permitted `ARRAY['Active', 'Inactive', 'Pending Deactivation', 'Rejected Deactivation', 'Deactivated', 'On Leave']`. It did NOT permit `'For Deactivation'`.
+  2. **Caller Scope Bug in `create_deactivation_request`**: In `public.create_deactivation_request`, the scope check compared `v_row.account_id::text = ANY(public.get_my_allowed_accounts())`. Because `get_my_allowed_accounts()` returns account names (`TEXT[]`, e.g. `'ACTISERVE'`) and NOT UUIDs, this condition failed for ALL Ops-level users (HRCO, TL, ATL, OM with role_level < 90), raising `'Account not in caller scope'`.
+  3. **Silent Fallback to Legacy RPC with Obsolete Status**: When `create_deactivation_request` failed, `src/lib/queries/plantilla.ts` fell back to `plantilla_request_deactivation`. In `plantilla_request_deactivation`, the SQL body executed `UPDATE public.plantilla SET status = 'For Deactivation'`, immediately triggering the PostgreSQL check constraint violation `plantilla_status_check`.
+- **Key Changes Implemented**:
+  1. **Database Migration (`supabase/migrations/20262606000138_fix_plantilla_deactivation_status_and_rpcs.sql`)**:
+     - Expanded `plantilla_status_check` constraint on `public.plantilla` to permit both `'Pending Deactivation'` and `'For Deactivation'` (`status = ANY (ARRAY['Active', 'Inactive', 'Pending Deactivation', 'For Deactivation', 'Rejected Deactivation', 'Deactivated', 'On Leave']))`).
+     - Fixed `create_deactivation_request` caller scope check to compare `(v_row.account = ANY(get_my_allowed_accounts()) OR v_row.account_id::text = ANY(get_my_allowed_accounts()))`.
+     - Added `p_reason text DEFAULT NULL` parameter with backward-compatible 1-arg wrapper overload for Mobile callers, properly updating `plantilla.deactivation_reason`, `plantilla.remarks`, `for_deactivation_at`, and `for_deactivation_by`.
+     - Updated `plantilla_request_deactivation` to transition status to `'Pending Deactivation'` (instead of `'For Deactivation'`) and ensure a pending record exists in `public.employee_deactivation_requests` for the Approvals queue.
+     - Updated `complete_employee_deactivation` to accept both `'For Deactivation'` and `'Pending Deactivation'`.
+     - Aligned `get_plantilla_employees` status filter predicates for both status conventions.
+  2. **Client Query Layer (`src/lib/queries/plantilla.ts`)**:
+     - Forwarded `p_reason` to `create_deactivation_request`.
+     - Added explicit PostgREST schema error logging (`console.error('[PostgREST Schema Error] ...')`).
+  3. **Live Staging Application & Live Verification**:
+     - Pre-push error gates and dry-run validated (`npm run db:push:staging`).
+     - Applied migration `20262606000138_fix_plantilla_deactivation_status_and_rpcs.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Verified live `pg_get_functiondef` for all 4 touched functions.
+     - Verified live `pg_get_constraintdef` for `plantilla_status_check`.
+     - Verified live execution of `create_deactivation_request` and `plantilla_request_deactivation` with mock Ops/Admin auth inside a rollback transaction.
+  4. **Documentation & State**:
+     - Updated `docs/state/plantilla_web_state.md`, `.ai/current_state.md`, and `.ai/handoff.md`.
+- **Verification Summary**:
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run build`: Turbopack build succeeded cleanly with 22/22 routes.
+  - Staging Migration Auto-Push: Cleanly applied to `qqiiznmqxfoamqytjica`.
+- **Migration Counter**:
+  ```text
+  prod: 631 migrations
+  staging: 632 migrations
+
+  1 migrations are not on prod:
+  - 20262606000138_fix_plantilla_deactivation_status_and_rpcs.sql
+  ```
+
 ## Execution Report — Remove Request Subject Redundancy & Streamline Table Actions (ohm#my-requests-clean-subject-and-actions)
 
 **Status: COMPLETE & VERIFIED.**

@@ -1150,6 +1150,8 @@ export async function fetchAccountStores(accountId: string): Promise<AccountStor
     .select("id, store_name, store_branch, area_city")
     .eq("account_id", accountId)
     .eq("is_active", true)
+    .neq("status", "archived")
+    .or("is_archived.is.null,is_archived.eq.false")
     .order("store_name");
 
   if (error) {
@@ -3347,26 +3349,29 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
 export async function createDeactivationRequest(params: CreateDeactivationRequestParams) {
   const supabase = createClient();
 
+  const combinedRemarks = [
+    params.reason ? `Reason: ${params.reason}` : null,
+    params.remarks?.trim() ? `Justification: ${params.remarks.trim()}` : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
   // Try authoritative create_deactivation_request
   const { data, error } = await supabase.rpc("create_deactivation_request", {
     p_plantilla_id: params.plantillaId,
+    p_reason: combinedRemarks || null,
   });
 
   if (error) {
+    console.error("[PostgREST Schema Error] create_deactivation_request error, falling back:", error);
     // Fallback: plantilla_request_deactivation
-    const combinedRemarks = [
-      params.reason ? `Reason: ${params.reason}` : null,
-      params.remarks?.trim() ? `Justification: ${params.remarks.trim()}` : null,
-    ]
-      .filter(Boolean)
-      .join(" | ");
-
     const { data: fallbackData, error: fallbackError } = await supabase.rpc("plantilla_request_deactivation", {
       p_plantilla_id: params.plantillaId,
       p_reason: combinedRemarks || null,
     });
 
     if (fallbackError) {
+      console.error("[PostgREST Schema Error] plantilla_request_deactivation fallback error:", fallbackError);
       throwPlantillaError(fallbackError);
     }
 
@@ -3445,7 +3450,8 @@ export async function fetchDestinationStores(accountId?: string | null): Promise
       )
     `)
     .eq("is_active", true)
-    .neq("status", "archived");
+    .neq("status", "archived")
+    .or("is_archived.is.null,is_archived.eq.false");
 
   if (accountId) {
     query = query.eq("account_id", accountId);
