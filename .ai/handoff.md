@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Execution Report — Architecture Historical Archive & Superseded Reorganization (ohm#archive-superseded-architecture-docs)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **User Request Alignment**:
+   - The user asked whether old/superseded ADR files and rules can be deleted and requested our architectural recommendation.
+   - Recommended Option A (Historical Archival to `docs/architecture/archive/` with catalog `README.md`) instead of hard deletion to preserve database schema lineage/archaeology while completely preventing AI agent and developer context confusion.
+   - The user confirmed: "Option A".
+2. **Mobile Repository Reorganization (`D:\Projects\OHMployee`)**:
+   - Created `docs/architecture/archive/`.
+   - Moved 24 historical design plans, early phase specifications (Phases A–G and RA–RE), and superseded slot RFCs into `docs/architecture/archive/` using `git mv`:
+     - `plantilla_slot_architecture.md`, `vcode_slot_bridge_redesign.md`, `coverage_group_roving_architecture_plan.md`, `coverage_slot_lifecycle_plan.md`, `hrco_scope_isolation_design_draft.md`, `applicant_pipeline_model_design.md`
+     - `coverage_group_data_model_plan.md`, `coverage_group_phase_ra_schema_plan.md` to `phase_re`
+     - `vcode_slot_phase_a_schema_plan.md` to `phase_g`
+     - `slot_derived_vacancy_read_model.md`, `slot_lifecycle_automation_plan.md`, `vacancy_slot_backfill_plan.md`
+     - `Coverage_Architecture_v2_Smoke_Test_Checklist.xlsx`
+   - Authored `docs/architecture/archive/README.md` cataloging each archived file, explaining its historical context, and explicitly routing readers to active canonical locks.
+   - Preserved only 9 active operational/architecture documents in root `docs/architecture/`:
+     - Canonical ADR-002 (`adr002_plantilla_import_store_identity_and_governance.md`)
+     - Operational guides: `code_review_rubric.md`, `freeze_enforcement_rollout.md`, `permission_drift_detection.md`, `rbac_drift_scanner_engine.md`, `rbac_permission_matrix.md`, `rbac.md`, `system.md`, `workflow.md`.
+     - Canonical ADR-001 remains the sole lock in `.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md`.
+   - Committed reorganization on `main` in mobile repository (`87e1d8a`).
+3. **Web Repository Verification**:
+   - Ran `npm run check:adr` — confirmed `ADR_MIRROR_STATUS: FRESH` for both ADR-001 (`227a315`) and ADR-002 (`5ce4032`).
+   - Ran full test suite (`npm test`) — 257/257 passing with 0 contract violations.
+   - Ran lint suite (`npm run lint`) — 0 errors/warnings.
+
+### Files
+- Mobile (`D:\Projects\OHMployee`):
+  - `docs/architecture/archive/README.md` (created)
+  - 24 files moved from `docs/architecture/*` to `docs/architecture/archive/*`
+- Web (`D:\Projects\ohmployee-web`):
+  - `.ai/current_state.md`
+  - `.ai/handoff.md`
+
+### Validation
+- `npm run check:adr` -> `ADR_MIRROR_STATUS: FRESH` (exit code 0)
+- `npm test` -> 257/257 passed
+- `npm run lint` -> 0 errors / 0 warnings
+
+---
+
 ## Execution Report — Data Team (Head Admin 90 & Encoder 30) RBAC Parity Alignment (ohm#data-team-rbac-alignment)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 
