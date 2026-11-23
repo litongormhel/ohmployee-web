@@ -1176,13 +1176,19 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Free stores render with enabled checkboxes and `Anchor` / `Set Anchor` controls.
     - Staging test cleanup: Archived empty test groups `CG-FG1-0002` and `CG-FG1-0003` to unlock 5 stores for Forever Office.
 
-- **Coverage Group UUID Empty String Cast Fix & Null-Safe Position Resolution (`ohm#n7v3k9m2` — 2026-11-14)**:
-  - **Root Cause**: In `src/lib/queries/more.ts`, direct execution fallback `params.positionId || ""` passed an empty string `""` to PostgreSQL RPC parameter `p_position_id uuid`, triggering error `22P02: invalid input syntax for type uuid: ""` when creating a group.
-  - **Client Fix**: Sanitized `params.positionId || null` in both `createDirectCoverageGroup` and `executeCoverageOperation`, and defaulted `employmentType` to `'Regular'`.
-  - **Database Migration (`20262606000112_coverage_group_null_safe_position.sql`)**:
-    - Upgraded `public.create_coverage_group` to declare `p_position_id uuid DEFAULT NULL`, `p_employment_type text DEFAULT 'Regular'`, and `p_area_name text DEFAULT NULL`.
-    - Auto-resolves `position_id` when omitted/null from any active employee in member stores (`public.plantilla`) or `public.v_account_position_options`, with safe fallback to `NULL`.
-    - Applied and validated against remote Staging (`qqiiznmqxfoamqytjica`) with live `pg_get_functiondef` parity.
+- **Cross-Account Store Resolution & Headcount Request Parity (`ohm#fix-hc-request-cross-account-store-resolution` — 2026-11-23)**:
+  - **Issue Remediated**: When an operator initiated a headcount request (e.g. for `Super 8 Dau` under `ACTISERVE`), but that store was originally registered in the master store catalog under another account (e.g. `ACTIVESTYLE`), the previous RPC rejected the submission with `invalid_reference (store_id)`.
+  - **Database Migration (`20262606000145_fix_hc_request_cross_account_store_resolution.sql`)**:
+    - Surgically enhanced `public.submit_headcount_request` to support cross-account store resolution for both Stationary and Roving requests.
+    - When `store_id` is supplied but not present under `v_account_id`, the function searches active master stores. If found, it checks if `v_account_id` already has a store with the same name. If not, it auto-provisions an active store record for `v_account_id` and adopts that ID, preserving all foreign keys (`headcount_requests.store_id`, `vacancies.store_id`, `plantilla_slots.store_id`).
+    - If `store_id` is null but `store_name` is provided, it similarly matches or provisions the store for `v_account_id`.
+    - Added human-readable `message` fields across all validation error paths.
+  - **Web & Mobile Parity**:
+    - In Web `src/lib/queries/requests.ts`, surfaced `data?.message` and clear formatting for `invalid_reference`.
+    - In Mobile `lib/features/plantilla/plantilla_screen.dart`, ensured `_selectedStore` is populated even when the initial store is unmapped or cross-account, enabling form submission.
+    - In Mobile `lib/data/services/plantilla_scope_service.dart`, surfaced user-friendly error messages from RPC `result['message']`.
+    - Applied and validated on Staging DB (`qqiiznmqxfoamqytjica`) with 0 errors across 255 Web tests and 27 Mobile tests.
+
 
 
 

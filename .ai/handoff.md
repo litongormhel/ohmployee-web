@@ -1,5 +1,49 @@
 # AI Handoff
 
+## Execution Report — Cross-Account Store Resolution & Headcount Request Parity (ohm#fix-hc-request-cross-account-store-resolution)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **Root Cause Resolved**:
+   - In `submit_headcount_request`, Stationary validation previously enforced `WHERE id = v_store_id AND account_id = v_account_id`.
+   - When an operator submitted a headcount request for a store that was registered in master records under another account (e.g. `Super 8 Dau` under `ACTIVESTYLE` instead of `ACTISERVE`), or an unmapped store, the RPC rejected the call with technical error `invalid_reference (store_id)`.
+2. **Cross-Account Store Resolution & Provisioning Migration (`20262606000145_fix_hc_request_cross_account_store_resolution.sql`)**:
+   - Surgically upgraded `public.submit_headcount_request(p_input jsonb)`.
+   - **Stationary Resolution**: When `store_id` is passed but does not exist under `v_account_id`, it checks across active master stores. If found, it checks if a store with that name already exists for `v_account_id`. If so, uses it; if not, auto-provisions an active store record for `v_account_id` and uses that new store ID. Foreign key constraints on `headcount_requests.store_id`, `vacancies.store_id`, and `plantilla_slots.store_id` remain 100% valid and bound to the operational account.
+   - **Name-Based Matching**: When `store_id` is null but `store_name` is provided, it resolves by store name or adopts metadata from the master store catalog and provisions an active store for `v_account_id`.
+   - **Roving Resolution**: Similarly, roving store array elements from master records are resolved or provisioned for `v_account_id`.
+   - **Human-Readable Error Messages**: Added descriptive `message` fields across all validation and authorization paths.
+   - Pushed and verified live on Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging`.
+3. **Web Query & Error Display Refinement (`src/lib/queries/requests.ts`)**:
+   - Enhanced `submitHeadcountRequest` to surface `data?.message` directly or format `invalid_reference` with field context.
+4. **Mobile Cross-Repo Parity (`D:/Projects/OHMployee`)**:
+   - `lib/features/plantilla/plantilla_screen.dart`: Updated `_applyInitialStoreContext` so `_selectedStore` is populated even when an unmapped or cross-account store is passed via `widget.initialStoreName`, enabling `_canSubmit` and submitting cleanly.
+   - `lib/data/services/plantilla_scope_service.dart`: Updated `_jsonResult` to surface user-friendly `result['message']` from RPC responses in `PlantillaScopeException`.
+   - Mirrored migration `20262606000145_fix_hc_request_cross_account_store_resolution.sql` into Mobile `supabase/migrations/`.
+
+### Files
+- Web:
+  - `supabase/migrations/20262606000145_fix_hc_request_cross_account_store_resolution.sql`
+  - `src/lib/queries/requests.ts`
+  - `docs/state/plantilla_web_state.md`
+  - `.ai/handoff.md`
+- Mobile:
+  - `D:/Projects/OHMployee/supabase/migrations/20262606000145_fix_hc_request_cross_account_store_resolution.sql`
+  - `D:/Projects/OHMployee/lib/features/plantilla/plantilla_screen.dart`
+  - `D:/Projects/OHMployee/lib/data/services/plantilla_scope_service.dart`
+
+### Validation
+- `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+- `npm run check:sql`: `SQL_CONTRACTS_OK` (28 core tables & 19 cross-module RPC contracts across 670 migrations).
+- `npm run lint`: `0` errors, `0` warnings.
+- `npm test`: `255/255` passed.
+- `npm run build`: verified Next.js production build (`22/22` static pages).
+- Mobile `flutter analyze`: `0` errors, `0` warnings on modified files.
+- Mobile `flutter test`: `27/27` passed.
+- Remote Staging verification (`qqiiznmqxfoamqytjica`): migration `20262606000145` applied with 100% `pg_get_functiondef` parity.
+
+---
+
 ## Execution Report — Request Headcount Modal Layout Polish & Scope Optimization (ohm#polish-request-headcount-modal)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 

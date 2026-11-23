@@ -859,10 +859,13 @@ export async function submitHeadcountRequest(
   }
 
   if (!data?.ok) {
-    throw new RequestDataError(
-      "validation",
-      data?.message || data?.error || "Submission rejected."
-    );
+    const errorMsg =
+      data?.message ||
+      (data?.error === "invalid_reference" && data?.field
+        ? `Invalid reference: ${data.field}`
+        : data?.error) ||
+      "Submission rejected.";
+    throw new RequestDataError("validation", errorMsg);
   }
 
   return data as SubmitHeadcountRequestResult;
