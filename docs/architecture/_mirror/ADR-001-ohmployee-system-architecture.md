@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: a48fe82 2026-11-23T18:11:18+08:00
-source_sha256: 46031ac09c49f52099890988d162cda062bebe38b646319ba378e74fefb861d3
-synced_at: 2026-11-23T10:11:27.741Z
+source_commit: c2b71bc 2026-11-23T18:40:24+08:00
+source_sha256: 24fdf93347156de3b900fc9bde660cf7756948a8eb720ab2e313f1c9a76233b1
+synced_at: 2026-11-23T10:40:30.951Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -310,6 +310,40 @@ Vacancy represents the open demand surface for a Plantilla Slot. When HR Emploc 
 
 Closure still takes unconditional priority over both — a vacancy with a closed slot or pending closure request never shows in Open or Pipeline.
 
+#### Operational Capacity Contract (Single-Slot vs. Multi-Slot Behavioral Matrix)
+To eliminate operational ambiguity between Open and Pipeline queues across Web and Mobile:
+
+1. **Single-Slot Vacancies (`required_headcount = 1`)**:
+   - **Unassigned (`0/1`)**: Appears in the **Open Tab** (`remaining_open = 1`).
+   - **Applicant Endorsed / Undergoing Screening (`1/1 in Pipeline`)**: The moment an applicant is added or enters screening (`For Interview / Intro`, `For Medical`, etc.), that single slot is under active processing. It **leaves the Open Tab** (`remaining_open = 1 - 1 = 0`) and moves to the **Pipeline Tab**.
+2. **Multi-Slot Vacancies (`required_headcount > 1`, e.g. `3` Headcount)**:
+   - **Partially Sourced (`1/3` or `2/3`)**: As long as unallocated capacity remains (`remaining_open > 0`), the requisition **MUST REMAIN in the Open Tab** displaying the remaining open slots (e.g. `1 Available` when 2 of 3 slots are in pipeline or hired). Simultaneously, the active applicants appear in the **Pipeline Tab**.
+   - **Fully Allocated (`3/3`)**: Once all slots are occupied by active pipeline candidates, confirmed onboards, or active hires (`hired_count + pipeline_count + hr_processing_count >= hc_needed`), the requisition has zero unallocated demand (`remaining_open = 0`) and **completely leaves the Open Tab**.
+
+### Standard Five Status Tabs Architecture & Candidate-Level Pipeline Expansion
+
+**Status: ACCEPTED.** Codifies the standard queue surfaces and row granularity for the Vacancy module across Web and Mobile:
+
+1. **Tab 1: Open** (`p_status = 'Open'`): Active store requisitions with remaining unallocated capacity (`(hc_needed - hired_count - pipeline_count - hr_processing_count) > 0`), displaying remaining unfilled slots.
+2. **Tab 2: Pipeline** (`p_status = 'Pipeline'`): Active candidates undergoing recruitment screening.
+   - **Candidate-Level Expansion Invariant (`ohm#p6k2v9q4`)**: In the Pipeline tab, requisitions expand into **1 Row per Candidate** (**per tao ang bilang**). A 3-headcount requisition with 2 active applicants renders as 2 distinct actionable rows displaying each candidate's full name, contact details, stage, and aging. The tab badge strictly reflects total active candidates, guaranteeing 1:1 parity with the rendered roster.
+3. **Tab 3: Hired** (`p_status = 'Hired'`): Requisitions where candidates reached confirmed onboard status (`confirmed_onboard_count >= required_headcount`) or active Plantilla deployment.
+4. **Tab 4: Closure** (`p_status = 'Closure'`): Requisitions with pending store closure or headcount reduction requests awaiting administrative approval (`has_pending_closure = true`).
+5. **Tab 5: Failed / Backout** (`p_status = 'Failed'`): Historical roster of candidates who dropped out, backed out, failed medical/ops evaluation, or did not report.
+
+### Strict Applicant Closure Lock Invariant (`ohm#c3m8v1k4` — 2026-11-12)
+
+**Status: ACCEPTED.** Database trigger / assertion `public.fn_assert_vacancy_closeable(p_vcode)` enforces that:
+- Requesting vacancy closure or approving closure is **HARD BLOCKED for all roles** (including Super Admin, Ops, and Recruitment) whenever active, non-terminal applicants exist in the pipeline.
+- Requesters must first formally advance candidates to confirmed placement (`Mark Hired`) or record terminal dropouts (`Backout`, `Failed`, `Rejected`, `Did Not Report`) with mandatory reason capture before closure can be initiated.
+
+### Six Canonical Pipeline Stages & One-Time Profile Edit Policy (`ohm#p8r4m2k9`, `ohm#p9v2k4m7`)
+
+1. **Six Progressive Pipeline Stages**: Candidate progression strictly standardizes on 6 sequential stages:
+   `1. For Interview / Intro` $\rightarrow$ `2. For Requirements` $\rightarrow$ `3. For Medical` $\rightarrow$ `4. Pending Approval` $\rightarrow$ `5. For Deployment` $\rightarrow$ `6. For Onboard`.
+2. **Terminal Dropouts**: Terminal exits are categorized into `Backout`, `Failed / Rejected by Ops`, `Rejected`, or `Did Not Report` with mandatory audit reason logging.
+3. **One-Time Profile Edit Policy (`fn_update_applicant_profile_once`)**: Non-admin users are restricted to exactly one profile identity edit (`profile_edit_count = 0`) with uppercase name normalization, contact number verification, and mandatory edit audit justification. Super Admin and Head Admin maintain administrative bypass.
+
 **7th revision (`ohm#w8r4n2yj`, 2026-08-04):** added `hr_processing_count` as a third subtraction term. Rationale: a Confirmed-Onboard/HIRED applicant sitting in `plantilla_slots.slot_status = 'hr_processing'` (awaiting Employee Number, before reaching `Plantilla.status = 'Active'`) was previously counted in NEITHER `hired_count` NOR `pipeline_count` — a real population, already exposed as `hr_processing_count` in `vw_slot_derived_vacancy_shadow`, that business confirms is effectively already hired and not truly vacant. No SQL change required — the column already existed in the view; only `VacancyItem.remainingOpenCount` (`models.dart`) and Dashboard's parallel raw-map formula (`dashboard_screen.dart`) were updated.
 
 **Status: SHIPPED, live-verified (commit `622fa4f`; 7th revision commit pending).** The DB's raw `open_count`/`derivedOpenCount` field (`hc_needed - hired_count`, no pipeline or hr_processing subtraction) is a distinct, still-valid field used by 9+ other call sites for org-wide capacity totals — it is not itself wrong, it simply is not the Open-tab membership/display formula.
@@ -578,3 +612,4 @@ Historical record, chronological. Full rule substance now lives in the module se
 - **2026-08-04 — `ohm#c8x1r6np`** — Rule 5 drift fix + correctness fix in Dashboard, site 4 (`omStoreAging`; `v_dashboard_store_aging` view, `GROUP BY account_name` over `vw_slot_derived_vacancy_shadow`, migration `20262606000030`). Confirmed the field was fully broken (always empty) — prior Dart loop read `status`/`account`/`vacant_date` fields absent from its source query's select. New view uses the same Rule-4-consistent open formula as `agingList` but without the 30-day floor (that floor is specific to the aging-alert-list use case and would wrongly hide low-aging stores). 2 of 6 Dashboard sort sites remain open (`accountMfrBreakdown`, `omHrcoBreakdown`). → "Dashboard & CENCOM" above.
 - **2026-08-05 — `ohm#d4w7k2ml`** — Rule 5 drift fix + correctness fix in Dashboard, sites 3 & 5 (FINAL, closes Dashboard Rule 5 6 of 6): `accountMfrBreakdown` (`v_dashboard_account_mfr_breakdown`, migration `20262606000032`) and `omHrcoBreakdown` (`v_dashboard_hrco_breakdown`, migration `20262606000033`) — both new `security_invoker` 3-way aggregates of `v_plantilla_safe`/`hr_emploc`/`vw_slot_derived_vacancy_shadow`, vacancy component gated on the Rule 4 formula, kept as two separate views (not one parameterized artifact) due to genuinely different blank-dimension-value semantics between `account` and `hrco_name`. Confirmed the same dead-vacancy-loop bug as sites 1/4: `v['status']`/`v['account']` don't exist in `vacQ`'s select, so the vacancy component of both breakdowns was always 0 — the `'Unassigned'` HRCO bucket, only ever creatable by that dead loop, had never once appeared despite its pinned-last sort logic already existing. Dashboard Rule 5 now fully compliant (6 of 6 sites); only CENCOM remains open. → "Dashboard & CENCOM" above.
 - **2026-11-23 — `ohm#plantilla-subtabs-arch`** — Codified Plantilla Dual Views, Six Status Sub-Tabs, DOLE Article 301 Floating Governance (180-day statutory ceiling + slot-restricted reassignment), and On-Leave EDR SLA Escalation with Moses HQ Reliever Auto-Release. → "Plantilla" above.
+- **2026-11-23 — `ohm#vacancy-capacity-governance`** — Codified Vacancy Rule 4 Single-Slot vs. Multi-Slot Capacity Behavioral Matrix (1/1 moves to Pipeline, multi-slot 1/3 and 2/3 remain in Open until 3/3 filled), Five Status Tabs, Candidate-Level Pipeline Expansion (1 Row = 1 Candidate), Strict Applicant Closure Lock, 6-Stage Pipeline Lifecycle, and 1-Time Profile Edit Policy. → "Vacancy" above.
