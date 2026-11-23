@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — MARIZ Orphan Stores Archival & Database-Wide Store Alignment (ohm#archive-mariz-orphan-stores-and-sync-all)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Plantilla), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, Plantilla).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  - User prompt: "same sa Mariz. Check it".
+- **Root Cause Analysis**:
+  1. **Template Proliferation & Store Duplication**: MARIZ had 16 active `Super 8` stores created by template test import `import_plantilla_template (6).xlsx` (`2e797b40-dd91-4caf-9ce3-c4c86f658ac5` on June 8, 2026), generating 7 duplicates of "Super 8 Cabanatuan", 2 duplicates of "Super 8 Meycauayan", and 2 duplicates of "Super 8 San Fernando".
+  2. **Abandoned QA Headcount Request Stores**: 2 stores (`SM KALINGA`, `SM CALOOCAN`) had been created via test headcount requests in June 2026 whose requests were already archived during QA reset (`qa_archive_batch_id: '30bc0938-140e-42a4-8688-8c14e89c67aa'`), leaving the stores active with 0 employees.
+  3. **Ghost Template Employees with Zero Slots**: 12 active employees in `plantilla` under MARIZ were template placeholders (`TORRES, TERESA ESTRADA`, `CRUZ, PEDRO ALVAREZ`, etc.) with 0 active slots.
+  4. **Database-Wide De-Synced Stores**: 212 historical stores under MARIZ and 3,348 stores under TWO had `status = 'archived'` or `is_active = false` but `is_archived = false`, leaving them vulnerable to resurfacing in loose queries.
+- **Key Changes Implemented**:
+  1. **Database Migration (`supabase/migrations/20262606000141_archive_mariz_orphan_stores_and_sync_all_archived_stores.sql`)**:
+     - Archived all 18 orphan test stores under MARIZ (`is_active = false, status = 'archived', is_archived = true, archived_at = now()`).
+     - Archived the 12 template employees and deactivated 16 allocations under batch `2e797b40...`.
+     - Marked all MARIZ template batches (`2e797b40...`, `31d2258e...`, `3b833d95...`, `d0a94f74...`) as `status = 'rolled_back'`.
+     - Executed database-wide synchronization ensuring that all stores with `status = 'archived'` or `is_active = false` have `is_archived = true` and `archived_at` populated.
+     - Archived all plantilla slots on archived stores.
+  2. **Live Verification in Staging**:
+     - Confirmed MARIZ active store count is now **`0`** (all 343 stores are archived).
+     - Confirmed MARIZ active plantilla count is now **`0`** (all 92 rows are archived).
+     - Confirmed total de-synced stores across the entire database is now **`0`**.
+- **Verification Summary**:
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run check:sql`: SQL_CONTRACTS_OK across 666 migrations.
+  - Staging Migration Auto-Push: Cleanly applied to `qqiiznmqxfoamqytjica`.
+- **Migration Counter**:
+  prod: 633 migrations
+  staging: 635 migrations
+
+  2 migrations are not on prod:
+  - 20262606000140_archive_zebra_and_template_orphan_stores.sql
+  - 20262606000141_archive_mariz_orphan_stores_and_sync_all_archived_stores.sql
+
 ## Execution Report — ZEBRA Orphan Stores Archival & 3-Way Store Synchronization (ohm#archive-zebra-and-template-orphan-stores)
 
 **Status: COMPLETE & VERIFIED.**
