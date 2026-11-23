@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: 5ce4032 2026-11-23T17:29:18+08:00
-source_sha256: 16b8537c94bc5c2a2db710657d8c21916d413bd8f6e8240149902c46dc90a63b
-synced_at: 2026-11-23T09:29:28.386Z
+source_commit: a48fe82 2026-11-23T18:11:18+08:00
+source_sha256: 46031ac09c49f52099890988d162cda062bebe38b646319ba378e74fefb861d3
+synced_at: 2026-11-23T10:11:27.741Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -431,6 +431,46 @@ Full schema/RLS/RPC/Flutter design: `docs/architecture/hrco_scope_isolation_desi
 
 **Non-Goals.** Does not introduce role-based visibility variants beyond HRCO. Does not add account-level defaults or bulk-enable tooling. Does not change Vacancy or HR Emploc read paths.
 
+### Dual Views & Six Status Sub-Tabs Architecture (`ohm#plantilla-subtabs-arch` — 2026-11-23)
+
+**Status: ACCEPTED.** Codifies the standard interface and lifecycle organization for Plantilla across Web and Mobile.
+
+The Plantilla module operates under **Dual Views** driven by a segmented view toggle:
+1. **Store View (`Store Capacity Table`)**: Audits contracted store plantilla headcount compliance. Displays stores with active personnel or vacancies, computing fractional capacity for roving personnel ($1/N$). Stores without active personnel or vacancies are filtered out.
+2. **Employee View (Directory Roster)**: Organizes workforce members across **Six Status Sub-Tabs**:
+   - **Tab 1: Active** — Deployed personnel with `status = 'Active'`.
+   - **Tab 2: On-Leave** — Personnel on approved leave, tracking Expected Date of Return (EDR) and reliever coverage.
+   - **Tab 3: Vacancy** — All unfilled required slots (`1 Row = 1 Individual Slot`) and candidate onboarding pipeline (`Vacancy - Open`, `Vacancy - Pipeline`, `HR Emploc - *`).
+   - **Tab 4: Floating** — Active personnel temporarily unassigned, subject to DOLE Article 301 monitoring.
+   - **Tab 5: Deactivation** — Action queue for pending deactivation/separation approval requests.
+   - **Tab 6: Inactive** — Persistent historical roster of separated personnel (`Resigned`, `AWOL`, `Terminated`, `Deactivated`), ordered via `vw_plantilla_inactive`.
+
+**Universal View Modes**: Both Table and Responsive Cards views are universally supported across all 6 tabs.
+
+### Floating Employee Governance & DOLE Article 301 Statutory Ceiling (`ohm#floating-dole-governance` — 2026-11-23)
+
+**Status: ACCEPTED.** Enforces statutory compliance and slot integrity for unassigned personnel.
+
+1. **DOLE Article 301 Compliance Monitoring**: Under Philippine Labor Code (Article 301), floating (temporary layoff) duration must not exceed **180 calendar days**. Every floating record tracks days elapsed since the effective floating date with reactive status badges:
+   - `< 30d`: Fresh
+   - `30–60d`: Active aging
+   - `60–120d`: Elevated risk
+   - `> 120d`: Critical risk
+   - `≥ 180d`: DOLE Statutory Breach
+2. **Slot-Restricted Store Assignment**: Floating employees can only be assigned to stores with open, unfilled slots (`hc_filled < hc_total` or open vacancy count > 0). Fully occupied stores are strictly hidden in the store assignment interface to prevent over-allocation.
+3. **Deployment State Transition**: Assigning a store to a floating employee automatically transitions their status to `'Active'`, binds their `vcode` to the target store, sets deployment type to `'Stationary'`, transitions the target slot to `'occupied'`, and nullifies all prior separation/floating timestamps and remarks.
+
+### On-Leave EDR SLA Governance & Reliever Lifecycle (`ohm#onleave-edr-sla` — 2026-11-23)
+
+**Status: ACCEPTED.** Governs leave monitoring, escalation thresholds, and temporary reliever assignments.
+
+1. **Expected Date of Return (EDR) SLA Escalation**:
+   - Every on-leave record tracks `expected_date_of_return`.
+   - **Days 1–2 Past EDR (Lapsed)**: Renders amber badge (`Lapsed ({d}d) • HRCO Notified`) and dispatches notification to the assigned HR Coordinator to verify status or execute return.
+   - **Day 3+ Past EDR (Breached)**: Renders critical red badge (`Breached ({d}d) • OM Escalated`) and escalates to the Operations Manager as an operational SLA breach.
+2. **Moses HQ Reliever Integration**: Temporary store coverage is fulfilled by assigning available pool employees (`availability_status = 'Available'`) via `workforce_assignments` linking `covered_plantilla_id`.
+3. **Reliever Auto-Release**: When the regular employee returns to duty (`Return to Active`), the database trigger / mutation automatically terminates the temporary reliever assignment, returning the reliever to available pool status without leaving orphaned assignments.
+
 ---
 
 ## Dashboard & CENCOM
@@ -537,3 +577,4 @@ Historical record, chronological. Full rule substance now lives in the module se
 - **2026-08-04 — `ohm#a5t3g8ny`** (this entry) — Rule 5 drift fix in Dashboard, `accountBreakdown` site (site 2 of the 5 remaining after `ohm#d7m2q8vx`; lowest-risk — single-table aggregate, no cross-table join, no known bug). New `v_dashboard_account_breakdown` view (migration `20262606000028`, security_invoker `GROUP BY account` over `v_plantilla_safe`) enforces `ORDER BY active DESC` in-DB. `dashboard_screen.dart` drops the client-side `accountMap` aggregation + `.sort()`, queries the new view via a 6th parallel Wave 1 call. 4 of 6 Dashboard sort sites remain open. → "Dashboard & CENCOM" above.
 - **2026-08-04 — `ohm#c8x1r6np`** — Rule 5 drift fix + correctness fix in Dashboard, site 4 (`omStoreAging`; `v_dashboard_store_aging` view, `GROUP BY account_name` over `vw_slot_derived_vacancy_shadow`, migration `20262606000030`). Confirmed the field was fully broken (always empty) — prior Dart loop read `status`/`account`/`vacant_date` fields absent from its source query's select. New view uses the same Rule-4-consistent open formula as `agingList` but without the 30-day floor (that floor is specific to the aging-alert-list use case and would wrongly hide low-aging stores). 2 of 6 Dashboard sort sites remain open (`accountMfrBreakdown`, `omHrcoBreakdown`). → "Dashboard & CENCOM" above.
 - **2026-08-05 — `ohm#d4w7k2ml`** — Rule 5 drift fix + correctness fix in Dashboard, sites 3 & 5 (FINAL, closes Dashboard Rule 5 6 of 6): `accountMfrBreakdown` (`v_dashboard_account_mfr_breakdown`, migration `20262606000032`) and `omHrcoBreakdown` (`v_dashboard_hrco_breakdown`, migration `20262606000033`) — both new `security_invoker` 3-way aggregates of `v_plantilla_safe`/`hr_emploc`/`vw_slot_derived_vacancy_shadow`, vacancy component gated on the Rule 4 formula, kept as two separate views (not one parameterized artifact) due to genuinely different blank-dimension-value semantics between `account` and `hrco_name`. Confirmed the same dead-vacancy-loop bug as sites 1/4: `v['status']`/`v['account']` don't exist in `vacQ`'s select, so the vacancy component of both breakdowns was always 0 — the `'Unassigned'` HRCO bucket, only ever creatable by that dead loop, had never once appeared despite its pinned-last sort logic already existing. Dashboard Rule 5 now fully compliant (6 of 6 sites); only CENCOM remains open. → "Dashboard & CENCOM" above.
+- **2026-11-23 — `ohm#plantilla-subtabs-arch`** — Codified Plantilla Dual Views, Six Status Sub-Tabs, DOLE Article 301 Floating Governance (180-day statutory ceiling + slot-restricted reassignment), and On-Leave EDR SLA Escalation with Moses HQ Reliever Auto-Release. → "Plantilla" above.
