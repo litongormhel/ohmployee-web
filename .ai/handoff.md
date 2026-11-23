@@ -1,5 +1,46 @@
 # AI Handoff
 
+## Execution Report — Phase 2: Shared Supabase Migration for Mixed Stationary + Roving Store Capacity & NSR Initial Vacancy (ohm#phase2-mixed-roving-hc)
+
+**Status: COMPLETE & VERIFIED ON STAGING (`qqiiznmqxfoamqytjica`).**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index), `docs/state/plantilla_web_state.md`, `docs/state/approvals_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, § HC Request & Coverage Semantics), `docs/architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md`.
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `c831b4e`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Migrations Applied to Staging (`qqiiznmqxfoamqytjica`)**:
+  1. `supabase/migrations/20262606000142_mixed_stationary_roving_hc_and_nsr_vacancy.sql`
+  2. `supabase/migrations/20262606000143_fix_nsr_vacancy_source_and_remove_store_integrity.sql`
+  3. `supabase/migrations/20262606000144_fix_coverage_remove_merge_group_id_join.sql`
+- **Database Changes**:
+  1. `public.create_plantilla_slot_from_request(p_request_id uuid)` (Roving Store-Array path):
+     - Tracks `v_max_ordinal` on `legacy_vcode` prior to `vacancies` upsert and sets `is_roving = true`, `employment_type = 'Roving'`, and `source_hc_request_id = p_request_id` only on newly created slots (`slot_ordinal > v_max_ordinal`) or via `fn_create_slots_from_hc_request(p_request_id, 1, v_vcode)` fallback — preserving existing Stationary slots (`slot_ordinal <= v_max_ordinal`) untouched.
+  2. `public._execute_approved_coverage_request(p_request, p_actor_id, p_actor_name, p_actor_role)`:
+     - Syncs `employee_store_allocations` and recalculates `1/N` `filled_hc` (`round(1.0 / v_active_allocs, 4)`) for BOTH imported and live Vacancy/HR Emploc roving employees across `create_coverage_group`, `add_store`, and `remove_store / convert_roving_to_stationary`, while preserving `plantilla_store_links` sync for live employees.
+     - Updated `remove_store` Employee Integrity Lock to check active `employee_store_allocations` first, then `plantilla_store_links`, then `v_remaining_count`.
+     - Joined `public.accounts a ON a.id = pl.account_id` in `remove_store` Branch B and `merge_coverage_groups` loops so `v_pl.group_id` resolves cleanly.
+  3. `public.approve_new_store_request(p_request_id uuid)`:
+     - When `COALESCE(v_req.requested_hc, 0) >= 1` and `position` is provided, generates a `vcode` (`generate_vcode_for_account`), updates `stores.vcode`, and inserts an `'Open'` Stationary vacancy (`source = 'hc_request'`, auto-creating `plantilla_slots` via `fn_trg_auto_create_vacancy_slot`), returning `vcode` and `vacancy_id` alongside `store_id`.
+- **Verification Results**:
+  - `npm run check:sql`: `SQL_CONTRACTS_OK — verified 28 core tables & 19 cross-module RPC contracts across 669 migrations.`
+  - `npm test`: `255/255` tests passed (`0` failures).
+  - `npm run lint`: `0` ESLint errors/warnings, `0` secret leaks.
+  - Live `pg_get_functiondef` verified on Staging (`has_merge_join: true`, `has_remove_join: true`, `has_integrity_fallback: true`, `has_hc_request_source: true`, `has_slot_ordinal_guard: true`).
+  - Full transactional rollback probe on Staging (`qqiiznmqxfoamqytjica`):
+    - `slot_res_ok: true`, `s1_stationary_slot1_still_stationary: true`, `s1_roving_slots_created: 1`, `s2_roving_slots_created: 1`
+    - `after_add_store3_allocs: 3`, `after_add_store3_filled_hc: 0.3333`
+    - `after_remove_store3_allocs: 2`, `after_remove_store3_filled_hc: 0.5`, `rem_err: null`
+    - `nsr_success: true`, `nsr_vcode: "VCFG1_0011"`, `nsr_vac_status: "Open"`, `nsr_vac_req_hc: 2`, `nsr_open_stationary_slots: 2`
+  - `fn_adr001_smoke()` on Staging: `A3`, `A4`, `A5`, `A6-synthetic` passed (`true`); `A1` & `A2` returned `false` strictly on pre-existing historical rows (`2026-09-30` to `2026-11-23 01:24 UTC`, untouched by Phase 2).
+- **Migration Counter**:
+  ```text
+  prod: 635 migrations
+  staging: 638 migrations
+
+  3 migrations are not on prod:
+  - 20262606000142_mixed_stationary_roving_hc_and_nsr_vacancy.sql
+  - 20262606000143_fix_nsr_vacancy_source_and_remove_store_integrity.sql
+  - 20262606000144_fix_coverage_remove_merge_group_id_join.sql
+  ```
+- **Next Phase Readiness**: Ready for **Phase 3 (Web UI)** — separating `+ Request New Store` / `+ Request Roving HC` in Plantilla header, adding `Request HC` row action to `StoreCapacityTable` (`Store View`), fractional open-vacancy capacity math (`1 / cgStoreCount`) in Store View, and standalone `NewStoreRequestModal`.
+
 ## Execution Report — Phase 1: ADR-001 Mixed Stationary + Roving Store Capacity & Request HC Separation (ohm#phase1-mixed-roving-hc-adr)
 
 **Status: COMPLETE & VERIFIED (Docs-Only Phase 1).**
