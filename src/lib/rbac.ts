@@ -532,8 +532,8 @@ export const DRAWER_ACTION_RULES: Record<DrawerActionItem, number[]> = {
   "Export Full Vacancy Dataset": [100, 90, 30],
 
   // HR Emploc
-  "Approve Deficiency Correction Review": [100, 70, 45, 42, 41, 25],
-  "Revert / Reject Deficiency Correction Review": [100, 70, 45, 42, 41, 25],
+  "Approve Deficiency Correction Review": [100, 25],
+  "Revert / Reject Deficiency Correction Review": [100, 25],
   "Rollback / Reject Import Batch": [100, 90],
 
   // Plantilla

@@ -290,8 +290,6 @@ test("Sanity 4: Authoritative Drawer Actions (canPerformDrawerAction) for all 33
     "Edit Hired Date",
     "Reopen Vacancy Slot",
     "Request Applicant Movement",
-    "Approve Deficiency Correction Review",
-    "Revert / Reject Deficiency Correction Review",
     "Update Employment Lifecycle Status",
     "Update Work Schedule & Day-Off",
     "Request Pool to Regular Slot Conversion",

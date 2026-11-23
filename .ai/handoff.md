@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Execution Report — Restrict HR Emploc Deficiency Reviews to SA & HR Personnel (ohm#restrict-deficiency-review-to-hr-personnel)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **User Request Alignment**:
+   - The user explicitly instructed: "Approve Deficiency correction review is only for SA + HR Personnel" and "Revert / Reject Deficiency Correction Review is only for SA and HR Personnel".
+   - Removed Operations Team roles (OM 70, HRCO 45, ATL 42, TL 41) from both actions, ensuring compliance reviews are governed solely by HR Personnel (25) and Super Admin (100).
+2. **Web RBAC Action Matrix (`src/lib/rbac.ts`)**:
+   - `DRAWER_ACTION_RULES["Approve Deficiency Correction Review"]`: updated to `[100, 25]`.
+   - `DRAWER_ACTION_RULES["Revert / Reject Deficiency Correction Review"]`: updated to `[100, 25]`.
+3. **Database Migration (`supabase/migrations/20262606000154_restrict_deficiency_review_to_hr_personnel.sql`)**:
+   - Synchronized `role_permission_definitions_compat` and base matrix `role_permission_matrix` on Staging (`qqiiznmqxfoamqytjica`) to deny OM, HRCO, ATL, and TL while keeping SA and HR Personnel allowed.
+   - Pushed live to Staging via `npm run db:push:staging` with zero errors.
+4. **Unit Tests (`src/lib/utils/__tests__/rbac_sanity.test.mjs`)**:
+   - Removed deficiency review actions from `opsAllowed` array.
+   - Verified all 257 unit tests passed cleanly (`npm test`).
+
+### Files
+- Web:
+  - `src/lib/rbac.ts`
+  - `src/lib/utils/__tests__/rbac_sanity.test.mjs`
+  - `supabase/migrations/20262606000154_restrict_deficiency_review_to_hr_personnel.sql`
+  - `.ai/briefing.md`
+  - `.ai/handoff.md`
+  - `docs/state/web_auth_rbac_state.md`
+
+### Validation
+- `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+- `npm run check:sql`: `SQL_CONTRACTS_OK` (28 core tables & 19 cross-module RPC contracts across 679 migrations).
+- `npm test`: `257/257` unit tests passed cleanly.
+- `npm run lint`: `0` errors, `0` warnings, `0` secret leaks.
+- `npm run build`: verified Next.js 16.2.4 Turbopack production build (`22/22` static pages generated).
+- Remote Staging verification (`qqiiznmqxfoamqytjica`): applied migration `20262606000154` via `npm run db:push:staging`.
+- `npm run check:migrations`: `prod: 642 migrations, staging: 648 migrations` (6 migrations pending Prod deployment).
+
+---
+
 ## Execution Report — Architecture Historical Archive & Superseded Reorganization (ohm#archive-superseded-architecture-docs)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 

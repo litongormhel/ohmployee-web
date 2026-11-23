@@ -413,7 +413,19 @@ Resolved bug causing 100% of sub-action toggle switches across all operational r
 
 ---
 
-## Data Team (Head Admin 90 & Encoder 30) RBAC Parity Alignment (`ohm#data-team-rbac-alignment`)
+---
+
+## Data Team & HR Personnel Deficiency Review RBAC Alignment (`ohm#restrict-deficiency-review-to-hr-personnel`)
+
+Refined HR Emploc Deficiency Review actions to be strictly restricted to **Super Admin (100)** and **HR Personnel (25)** only:
+1. **Approve Deficiency Correction Review**: Restricted strictly to Super Admin (100) and HR Personnel (25). Denied for all Ops team members (OM 70, HRCO 45, ATL 42, TL 41) and Data Team (Head Admin 90, Encoder 30).
+2. **Revert / Reject Deficiency Correction Review**: Restricted strictly to Super Admin (100) and HR Personnel (25). Denied for all Ops team members and Data Team.
+3. **Web Authoritative Matrix (`src/lib/rbac.ts`)**:
+   - Updated `DRAWER_ACTION_RULES["Approve Deficiency Correction Review"]` to `[100, 25]`.
+   - Updated `DRAWER_ACTION_RULES["Revert / Reject Deficiency Correction Review"]` to `[100, 25]`.
+4. **Database Migration (`supabase/migrations/20262606000154_restrict_deficiency_review_to_hr_personnel.sql`)**:
+   - Synchronized `role_permission_definitions_compat` and base matrix table `role_permission_matrix` on Staging (`qqiiznmqxfoamqytjica`) to deny OM, HRCO, ATL, and TL while preserving allowances for Super Admin and HR Personnel.
+
 
 Enforced strict role-level alignment for the Data Team (Head Admin L90 and Encoder L30) across drawer actions, mutations, approval queues, and database permission catalogs:
 1. **HR Emploc Deficiency Reviews**:
