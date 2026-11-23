@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: ad19c33 2026-11-23T18:55:27+08:00
-source_sha256: 9bb104eab380789f35911182b9ec7ae5232997bab2fdb67e4b1bcd8cbb29a1ad
-synced_at: 2026-11-23T10:55:35.447Z
+source_commit: 389f1c2 2026-11-23T19:15:48+08:00
+source_sha256: a96be6d2eca960094b322e2fea997b645bd36ff809a190f3b554aca2b2707e2d
+synced_at: 2026-11-23T11:15:51.193Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -224,9 +224,17 @@ Hard architecture lock enforced across all Coverage Change actions and all other
 
 ---
 
-## HR Emploc Import
+## HR Emploc (Onboarding Compliance & Import Lifecycle)
 
-### Core Lifecycle
+### Core Pipeline & Lifecycle
+
+The HR Emploc module bridges candidate onboarding confirmation and official deployment as an active employee:
+
+```
+Vacancy (Confirmed Onboard) → HR Emploc (Onboarding Compliance) → Plantilla (Official Active Employee)
+```
+
+For batch spreadsheet uploads, the lifecycle strictly follows:
 
 ```
 HC Request approved
@@ -295,6 +303,80 @@ Vacancy represents the open demand surface for a Plantilla Slot. When HR Emploc 
 | Applicant enters pipeline | Vacancy → `Pipeline` |
 | HR Emploc Import approved (slot occupied) | Vacancy → `Filled` |
 | Import rolled back | Vacancy re-opened if slot is unoccupied |
+
+### Five Operational Queues (Status Tabs Architecture)
+
+**Status: ACCEPTED.** Codifies the standard onboarding queues in HR Emploc across Web and Mobile:
+
+1. **Tab 1: Pending** (`status = 'Pending Emploc'` AND `hr_status = 'Pending'`): Operational requirements intake. Field Ops coordinators in scope (OM, TL, ATL, HRCO) and Super Admin upload candidate compliance documents to private storage bucket `hr-corrections`. Advancing to `For Emploc` via `submit_hr_emploc_requirements` strictly requires at least 1 uploaded document.
+2. **Tab 2: For Emploc** (`status = 'Pending Emploc'` AND `hr_status = 'For Emploc'`): Deployment readiness queue. Requirements are verified and the record is ready for Emploc ID assignment.
+   - Primary Actions: `+ Add Emploc` (assigns employee number and auto-deploys to Plantilla) and `! Tag Deficiency` (returns record to `For Correction`).
+   - Document upload/removal is strictly disabled on this tab.
+3. **Tab 3: Correction** (`hr_status = 'For Correction'`): Deficiency queue. Displays deficient documents returned to field coordinators. In-scope Ops coordinators re-upload corrected compliance files and resubmit to review (`submit_hrco_correction_update`), transitioning the record to `For Review`.
+4. **Tab 4: Review** (`hr_status = 'For Review'`): Review queue for corrected resubmissions. Authorized reviewers evaluate the resubmission to either `Approve` (assigns Emploc ID and auto-deploys to Plantilla in same transaction) or `Return to Correction`.
+5. **Tab 5: Deployed** (`status = 'Moved to Plantilla'` OR `hr_status = 'Transferred'` with `deleted_at IS NULL`): Historical and audit queue for records assigned an Employee ID and deployed to Plantilla.
+   - Actions: `Edit Emploc` and `Revert to Pending` (Data Team & Super Admin only).
+   - SLA timer freezes displaying `Completed in X days`.
+
+### Emploc Number Assignment Ownership (HR Personnel Primary, Data Team Backup)
+
+**Status: ACCEPTED.** Governs operational roles and responsibilities for assigning Employee Numbers (`employee_no` / `emploc_no`):
+
+1. **Primary Operational Owner — HR Personnel**:
+   - **HR Personnel** is the primary, dedicated authority responsible for verifying candidate compliance documents and assigning Employee Numbers in the `For Emploc` and `Review` queues.
+2. **Operational Backup — Data Team (Head Admin & Encoder)**:
+   - **Data Team** (Encoder and Head Admin) serves as operational backup. They are fully authorized to step in and assign Employee Numbers (`+ Add Emploc`) when candidate volume is high or when HR Personnel is heavily loaded, ensuring onboarding throughput is never throttled.
+   - Head Admin and Encoder remain strictly BLOCKED from tagging deficiencies (`Tag Deficiency`) or reviewing corrected documents (`Review Return`), preserving HR compliance integrity.
+3. **Super Admin**: Retains full administrative override capability across all queues and workflows.
+
+### Atomic Deployment to Plantilla & Permanent Employee Number Registry (Rules a–d)
+
+**Status: ACCEPTED.** Enforces transaction safety and 1:1 lifetime identity governance:
+
+1. **Atomic Deployment (`_assign_and_deploy_emploc_core`)**:
+   Assigning an Employee Number (via `assign_hr_emploc_number` on Pending/For Emploc or via `review_web_hr_emploc_correction` on Review) executes atomically in the **exact same database transaction**:
+   - Validates `/^[A-Za-z0-9._-]+$/` employee number format.
+   - Asserts permanent 1:1 ownership in `public.employee_number_registry` under the four registry lock rules below.
+   - Transitions the linked `plantilla_slots` row to `slot_status = 'occupied'` (`current_occupant_plantilla_id = plantilla.id`).
+   - Inserts the new active `public.plantilla` employee record (`status = 'Active'`).
+   - Updates `public.hr_emploc` to `status = 'Moved to Plantilla'` and `hr_status = 'Transferred'`, recording `moved_to_plantilla_at = now()`.
+   - Closes the corresponding vacancy slot and generates a unified audit trail entry.
+2. **Permanent Employee Number Registry Lock Rules (under `SELECT FOR UPDATE`)**:
+   - **Rule a (Hard Block)**: If the number is already assigned to a different person (evaluated via normalized full name) $\rightarrow$ raises `EMPLOYEE_NO_ALREADY_ASSIGNED` (`23505`).
+   - **Rule b (Hard Block)**: If the same person already has an active placement or active Plantilla record with that number $\rightarrow$ raises `EMPLOYEE_ALREADY_ACTIVE` (`23505`).
+   - **Rule c (Rehire Confirmation)**: If the same person was previously assigned that number but all prior records are inactive/resigned $\rightarrow$ raises `REHIRE_CONFIRM_REQUIRED` (`23505`) until `p_confirm_reuse = true` with a mandatory rehire justification is supplied.
+   - **Rule d (Duplicate Warning)**: If the same person already owns a different number in the registry $\rightarrow$ raises `POSSIBLE_DUPLICATE_PERSON` (`23505`) until confirmed with reason.
+3. **Strict Missing Required Fields Assertions (No Silent Defaults)**:
+   - Moving to Plantilla strictly requires non-null `hired_date`, `position`, `account`/`account_id`, `store_name`/`store_id`, and applicant structured name. Silent fallbacks (`CURRENT_DATE` defaults, synthetic name splitting) are prohibited and raise `FIELD_REQUIRED_MISSING` (`23502`).
+
+### Canonical Onboarding Compliance Requirements & 3-Day Storage Purge Queue
+
+**Status: ACCEPTED.** Establishes required compliance artifacts and storage lifecycle:
+
+1. **Canonical Statutory Requirements (4 items)**:
+   Only four standard statutory and documentation items are recognized for onboarding compliance:
+   - `INVALID_SSS`: SSS Card / ID Document (Remarks optional).
+   - `INVALID_PAGIBIG`: Pag-IBIG Member ID (Remarks optional).
+   - `INVALID_PHILHEALTH`: PhilHealth ID / MDF (Remarks optional).
+   - `INCOMPLETE_REQUIREMENT`: Incomplete Documentation (Remarks strictly mandatory).
+   *(Legacy NBI Clearance and PSA Birth Certificate are deprecated and removed from required onboarding checklists).*
+2. **Three-Day Storage Purge Queue (`run_at = now() + interval '3 days'`)**:
+   - Upon deployment to Plantilla, all uploaded compliance and correction documents in bucket `hr-corrections` are automatically enqueued into `storage_cleanup_queue` with a **3-day TTL**.
+   - When the cleanup queue executes, physical storage objects are permanently deleted via Storage API and metadata records tagged `is_deleted = true, deleted_reason = 'deployed_3day_ttl'` for storage hygiene and PII protection.
+3. **Three-Day Revert Grace Window**:
+   - Data Team or Super Admin may execute `Revert to Pending` (`revert_hr_emploc_to_pending`) within the **3-day window**:
+     - *Within 3 Days (Before Purge)*: The pending purge is cancelled, uploaded documents are preserved, and status is restored to `'For Emploc'`.
+     - *After 3 Days (Post-Purge)*: Documents have been purged; status is restored to `'Pending'` requiring Ops to re-upload compliance documents.
+   - Reverting to Pending soft-deletes the `plantilla` row, reopens the `plantilla_slots` row to `open`, and clears `employee_no = NULL`.
+
+### Three-Day Operational Compliance SLA Clock
+
+**Status: ACCEPTED.** Enforces onboarding velocity and managerial escalation:
+
+1. **SLA Calculation**: Baseline is `coalesce(date_requested, created_at)`. Threshold is **3 calendar days** (72 hours).
+2. **Escalation Ladder**:
+   - **SLA Tier 1 (3 Days)**: If a record has no `employee_no` assigned after 3 days, `sla_breached` evaluates to `true`. Renders prominent red alert badge in UI and dispatches notification to `Head Admin`.
+   - **SLA Tier 2 (5 Days)**: Critical escalation. High-priority notification dispatched directly to `Super Admin`.
 
 ---
 
@@ -638,3 +720,4 @@ Historical record, chronological. Full rule substance now lives in the module se
 - **2026-11-23 — `ohm#plantilla-subtabs-arch`** — Codified Plantilla Dual Views, Six Status Sub-Tabs, DOLE Article 301 Floating Governance (180-day statutory ceiling + slot-restricted reassignment), and On-Leave EDR SLA Escalation with Moses HQ Reliever Auto-Release. → "Plantilla" above.
 - **2026-11-23 — `ohm#vacancy-capacity-governance`** — Codified Vacancy Rule 4 Single-Slot vs. Multi-Slot Capacity Behavioral Matrix (1/1 moves to Pipeline, multi-slot 1/3 and 2/3 remain in Open until 3/3 filled), Five Status Tabs, Candidate-Level Pipeline Expansion (1 Row = 1 Candidate), Strict Applicant Closure Lock, 6-Stage Pipeline Lifecycle, and 1-Time Profile Edit Policy. → "Vacancy" above.
 - **2026-11-23 — `ohm#vacancy-lifecycle-transitions`** — Codified Applicant Backout & Slot Reopening (moves applicant to Failed/Backout, restores store to Open), In-Flight Closure Request Routing (moves out of Open/Pipeline into Closure Tab), 30-Day Hired Retention & Auto-Archival Window (`INTERVAL '30 days'`), and Slot-Based Vacancy Authority (demand strictly measured in physical slots, never store count). → "Vacancy" above.
+- **2026-11-23 — `ohm#hr-emploc-compliance-arch`** — Codified HR Emploc Five Operational Queues (Pending, For Emploc, Correction, Review, Deployed), Emploc Number Ownership (HR Personnel Primary, Data Team Backup), Atomic Plantilla Deployment & Registry Rules a–d, Canonical Statutory Requirements (4 items), 3-Day Storage Purge Queue & Revert Grace Window, and 3-Day Compliance SLA. → "HR Emploc" above.
