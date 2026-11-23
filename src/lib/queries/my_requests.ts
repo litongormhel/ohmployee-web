@@ -175,10 +175,8 @@ export async function fetchMyRequests(
             categoryLabel: "New Store",
             status: normStatus,
             statusLabel: getStatusLabel(normStatus),
-            title: `New Store (${pos}): ${storeNames}`,
-            subtitle: account
-              ? `${account} · ${newStores.length} New Door(s) Proposed`
-              : `${newStores.length} New Door(s) Proposed`,
+            title: pos,
+            subtitle: `${newStores.length} New Door(s) Proposed`,
             details: {
               storeName: storeNames,
               accountName: account,
@@ -200,8 +198,10 @@ export async function fetchMyRequests(
             categoryLabel: reqType,
             status: normStatus,
             statusLabel: getStatusLabel(normStatus),
-            title: `${pos} at ${store}`,
-            subtitle: account ? `${account} · ${reqType}` : reqType,
+            title: pos,
+            subtitle: isQuota
+              ? `Target Quota: ${row.previous_target ?? "—"} → ${row.proposed_target}`
+              : reqType,
             details: {
               storeName: store,
               accountName: row.account_name_snapshot,
@@ -256,8 +256,8 @@ export async function fetchMyRequests(
           categoryLabel: "New Store",
           status: normStatus,
           statusLabel: getStatusLabel(normStatus),
-          title: `New Store: ${row.store_name}`,
-          subtitle: row.account_name ? `${row.account_name}${location ? ` · ${location}` : ""}` : (location || "New Store Opening"),
+          title: row.position || "New Store Opening",
+          subtitle: location || (row.requested_hc ? `${row.requested_hc} pax requested` : "Opening Requisition"),
           details: {
             storeName: row.store_name,
             accountName: row.account_name,
@@ -301,7 +301,6 @@ export async function fetchMyRequests(
         const normStatus = normalizeStatus(row.status);
         const vac = row.vacancies as { store_name?: string | null; position?: string | null; account?: string | null } | null;
         const vcode = row.vacancy_vcode || "—";
-        const store = vac?.store_name || "—";
         const pos = vac?.position || "";
 
         items.push({
@@ -310,8 +309,8 @@ export async function fetchMyRequests(
           categoryLabel: "Vacancy Closure",
           status: normStatus,
           statusLabel: getStatusLabel(normStatus),
-          title: `Close Vacancy: ${vcode}`,
-          subtitle: `${store}${pos ? ` · ${pos}` : ""}`,
+          title: pos || "Vacancy Closure",
+          subtitle: vcode !== "—" ? `#${vcode}` : "Closure Requisition",
           details: {
             vcode,
             storeName: vac?.store_name,
@@ -353,7 +352,6 @@ export async function fetchMyRequests(
       for (const row of data) {
         const normStatus = normalizeStatus(row.status);
         const empName = row.employee_name || "Employee";
-        const empNo = row.employee_no ? ` (${row.employee_no})` : "";
 
         items.push({
           id: row.id,
@@ -361,8 +359,8 @@ export async function fetchMyRequests(
           categoryLabel: "Deactivation",
           status: normStatus,
           statusLabel: getStatusLabel(normStatus),
-          title: `Deactivation: ${empName}${empNo}`,
-          subtitle: [row.account_name, row.group_name].filter(Boolean).join(" · ") || "Employee Separation",
+          title: empName,
+          subtitle: row.employee_no ? `ID: ${row.employee_no}` : (row.group_name || "Separation Request"),
           details: {
             employeeName: row.employee_name,
             employeeNo: row.employee_no,
@@ -411,8 +409,8 @@ export async function fetchMyRequests(
           categoryLabel: movType,
           status: normStatus,
           statusLabel: getStatusLabel(normStatus),
-          title: `${movType}: ${applicant}`,
-          subtitle: `Target VCODE: ${row.target_vacancy_vcode || "—"}${row.request_number ? ` · #${row.request_number}` : ""}`,
+          title: applicant,
+          subtitle: `${movType}${row.target_vacancy_vcode ? ` · ${row.target_vacancy_vcode}` : ""}`,
           details: {
             employeeName: row.source_applicant_name,
             vcode: row.target_vacancy_vcode,
@@ -476,6 +474,7 @@ export async function fetchMyRequests(
         const cgCode = cg?.coverage_code || "";
         const cgArea = cg?.area_name ? ` · ${cg.area_name}` : "";
         const cgTitle = cgCode ? `${cgCode}${cgArea}` : "Coverage Group";
+        const formattedType = (row.request_type || "Roving").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
 
         items.push({
           id: row.id,
@@ -483,8 +482,8 @@ export async function fetchMyRequests(
           categoryLabel: "Coverage Group",
           status: normStatus,
           statusLabel: getStatusLabel(normStatus),
-          title: `Coverage Request (${row.request_type || "Roving"}): ${cgTitle}`,
-          subtitle: acc?.account_name || cgCode || "Roving Store Coverage",
+          title: cgCode ? `CG: ${cgCode}` : "Coverage Group",
+          subtitle: formattedType,
           details: {
             groupName: cgTitle,
             accountName: acc?.account_name,

@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — Remove Request Subject Redundancy & Streamline Table Actions (ohm#my-requests-clean-subject-and-actions)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals / My Requests), `docs/state/approvals_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  - "remove redunduncy in Request Subject. Also remove action or maybe a follow-up button? your thoughts?"
+  - Eliminate repetitive text inside `Request Subject` (which duplicated Type, Store, and Account) and streamline the action column / follow-up workflow.
+- **Root Cause & Visual Redundancy**:
+  - In `MyRequestsDataTable`, `Request Subject` was displaying titles originally formulated for standalone cards:
+    - Vacancy Closures repeated "Close Vacancy" (already in Type), repeated the store name (already in Account & Store), and rendered duplicate `#VCODE` micro-tags.
+    - New Store requisitions repeated "New Store", listed all store doors, and repeated the account name.
+    - Deactivations repeated "Deactivation:", repeated the account name, and rendered duplicate employee name tags.
+    - The Action column repeated a single `View` button across every single row when the entire row was already interactive and clickable.
+- **Key Changes Implemented**:
+  1. **De-duplicated Query & Model Layer (`src/lib/queries/my_requests.ts`)**:
+     - Vacancy Closures: Title is strictly the position (e.g. `Merchandiser`), subtitle is `#VCODE`.
+     - New Stores: Title is the position (e.g. `Cashier`), subtitle is `N New Door(s) Proposed`.
+     - Deactivations: Title is employee name (e.g. `BANICO, ALBERT BARAQUIO`), subtitle is `ID: <number>`.
+     - Headcount: Title is position, subtitle is `Target Quota: X → Y` or `Additional Headcount`.
+     - Coverage: Title is `CG: <code`, subtitle is formatted action type.
+     - Applicant Movements: Title is candidate name, subtitle is movement type.
+  2. **Streamlined Table Layout (`src/components/my-requests/MyRequestsDataTable.tsx`)**:
+     - Stripped out duplicate micro-tags from `Request Subject`.
+     - Removed the redundant `Action` column (`View` button). Entire table rows retain hover states and keyboard/click interactions to open details.
+     - Reduced minimum table width from `980px` to `880px`, fitting standard desktop viewports without horizontal clipping.
+  3. **Interactive Follow-Up in Modal (`src/components/my-requests/MyRequestDetailModal.tsx`)**:
+     - Added a dedicated "Copy Follow-Up Note" button inside the pending review banner of `MyRequestDetailModal`. Copies a pre-formatted operational follow-up citation to clipboard with live visual confirmation.
+  4. **Documentation & State**:
+     - Updated `.ai/briefing.md`, `.ai/handoff.md`, and `docs/state/approvals_web_state.md`.
+- **Verification**:
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run build`: Turbopack build succeeded cleanly with 22/22 routes.
+  - No database migrations created or touched.
+
 ## Execution Report — Remove Top KPI Summary Cards from My Requests (ohm#my-requests-remove-top-cards-summary)
 
 **Status: COMPLETE & VERIFIED.**

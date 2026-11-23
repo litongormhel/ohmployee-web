@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import {
   AlertCircle,
   Building2,
   Calendar,
+  Check,
   CheckCircle2,
   Clock,
+  Copy,
   FileText,
   Layers,
   MapPin,
@@ -98,7 +101,19 @@ export function MyRequestDetailModal({
   onClose,
   request,
 }: MyRequestDetailModalProps) {
+  const [isCopied, setIsCopied] = useState(false);
+
   if (!request) return null;
+
+  const handleCopyFollowUp = () => {
+    const store = request.details.storeName || request.details.accountName || "Assigned Unit";
+    const text = `[OHMployee Request Follow-Up] ${request.categoryLabel}: ${request.title} (${store}) — Submitted on ${formatFullDate(
+      request.createdAt
+    )}. Reference ID: ${request.id}`;
+    navigator.clipboard.writeText(text);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2500);
+  };
 
   return (
     <Modal
@@ -290,13 +305,29 @@ export function MyRequestDetailModal({
           </span>
 
           {request.status === "pending" && (
-            <div className="p-3.5 rounded-xl border border-amber-200/70 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900/40 flex items-start gap-3 text-xs text-amber-800 dark:text-amber-300">
-              <Clock size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 animate-spin" />
-              <div>
-                <div className="font-semibold">Awaiting Administrative Review</div>
-                <p className="text-[11px] text-amber-700/90 dark:text-amber-400/90 mt-0.5">
-                  Your request has been submitted and is queued for evaluation by designated operations administrators.
-                </p>
+            <div className="p-3.5 rounded-xl border border-amber-200/70 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900/40 space-y-2.5 text-xs text-amber-800 dark:text-amber-300">
+              <div className="flex items-start gap-3">
+                <Clock size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 animate-spin" />
+                <div className="flex-1">
+                  <div className="font-semibold">Awaiting Administrative Review</div>
+                  <p className="text-[11px] text-amber-700/90 dark:text-amber-400/90 mt-0.5">
+                    Your request has been submitted and is queued for evaluation by designated operations administrators.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-amber-200/60 dark:border-amber-900/40 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-2xs text-amber-700/80 dark:text-amber-400/80">
+                  Need an expedited update from your approver?
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyFollowUp}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:text-slate-950 transition shadow-2xs cursor-pointer"
+                >
+                  {isCopied ? <Check size={12} className="stroke-[2.5]" /> : <Copy size={12} />}
+                  <span>{isCopied ? "Follow-Up Copied!" : "Copy Follow-Up Note"}</span>
+                </button>
               </div>
             </div>
           )}

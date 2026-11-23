@@ -160,8 +160,8 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
 - **UI Presentation (`MyRequestsPage`)**:
   - Streamlined header layout maximizing vertical space for table reading (top KPI metric cards removed in favor of status tab badge counters).
   - Segmented status tabs with integrated counters (`All (N)`, `Pending (N)`, `Approved (N)`, `Rejected (N)`), category dropdown selector, client search filter, and responsive View Switcher (`Table` default vs `Cards`).
-  - High-readability enterprise data table (`MyRequestsDataTable`): Displays compact, scannable columns (`Type` with category badge and relative time, `Request Subject` with title, subtitle, and micro-tags like VCode/Personnel/Headcount, `Account & Store`, `Stated Justification` italicized snippet, `Submitted` date and time, `Status & Milestone` with review subtext, and `Action` button).
-  - Interactive Request Details Modal (`MyRequestDetailModal`): Opened by clicking any table row or "View" button, displaying complete operational scope grid, stated justification, review status banners (Pending review notice, Cleared by Approver with remarks, or Rejection feedback with audit timestamps).
+  - High-readability enterprise data table (`MyRequestsDataTable`): Displays compact, non-redundant columns (`Type` with category badge and relative time, `Request Subject` focused strictly on the role, personnel identity, or target VCode without repeating account/store or category prefixes, `Account & Store`, `Stated Justification` italicized snippet, `Submitted` date and time, and `Status & Milestone` with review subtext; redundant Action column removed in favor of whole-row interaction).
+  - Interactive Request Details Modal (`MyRequestDetailModal`): Opened by clicking any table row, displaying complete operational scope grid, stated justification, review status banners (Pending review notice with 1-click Follow-Up copy shortcut, Cleared by Approver with remarks, or Rejection feedback with audit timestamps).
   - Client-side pagination powered by `TablePagination` (`10, 20, 50` rows per page).
 
 ---

@@ -6,11 +6,6 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  Eye,
-  FileText,
-  Layers,
-  User,
-  Users,
   XCircle,
 } from "lucide-react";
 import type { MyRequestItem, MyRequestStatus } from "@/lib/queries/my_requests";
@@ -122,13 +117,13 @@ export function MyRequestsDataTable({
   return (
     <div className="w-full overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--card)] shadow-xs">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] border-collapse text-left text-xs">
+        <table className="w-full min-w-[880px] border-collapse text-left text-xs">
           <thead>
             <tr className="border-b border-[var(--line)] bg-[var(--soft)]/75 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-              <th scope="col" className="px-4 py-3 whitespace-nowrap w-[140px]">
+              <th scope="col" className="px-4 py-3 whitespace-nowrap w-[130px]">
                 Type
               </th>
-              <th scope="col" className="px-4 py-3 whitespace-nowrap min-w-[260px]">
+              <th scope="col" className="px-4 py-3 whitespace-nowrap min-w-[240px]">
                 Request Subject
               </th>
               <th scope="col" className="px-4 py-3 whitespace-nowrap min-w-[200px]">
@@ -142,9 +137,6 @@ export function MyRequestsDataTable({
               </th>
               <th scope="col" className="px-4 py-3 whitespace-nowrap min-w-[180px]">
                 Status & Milestone
-              </th>
-              <th scope="col" className="px-3 py-3 text-right whitespace-nowrap w-[90px]">
-                Action
               </th>
             </tr>
           </thead>
@@ -182,53 +174,28 @@ export function MyRequestsDataTable({
                     </div>
                   </td>
 
-                  {/* Column 2: Subject / Title / Context */}
+                  {/* Column 2: Subject / Title / Context (Clean & Non-Redundant) */}
                   <td className="px-4 py-3 align-top">
                     <div className="space-y-1">
                       <div className="font-semibold text-[13px] text-[var(--text)] group-hover:text-brand-500 transition-colors leading-snug">
                         {item.title}
                       </div>
                       {item.subtitle && (
-                        <div className="text-xs text-[var(--muted)] line-clamp-1">
+                        <div className="text-xs text-[var(--muted)] font-mono">
                           {item.subtitle}
                         </div>
                       )}
-
-                      {/* Micro Tags */}
-                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                        {item.details.vcode && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--soft)] border border-[var(--line)] font-mono text-[10px] text-[var(--muted)]">
-                            <FileText size={10} className="text-amber-500" />
-                            {item.details.vcode}
-                          </span>
-                        )}
-                        {item.details.employeeName && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--soft)] border border-[var(--line)] text-[10px] text-[var(--muted)]">
-                            <User size={10} className="text-blue-500" />
-                            {item.details.employeeName}
-                          </span>
-                        )}
-                        {item.details.headcountNeeded && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--soft)] border border-[var(--line)] text-[10px] text-[var(--muted)]">
-                            <Users size={10} className="text-emerald-500" />
-                            {item.details.headcountNeeded} pax
-                          </span>
-                        )}
-                      </div>
                     </div>
                   </td>
 
                   {/* Column 3: Account & Store */}
                   <td className="px-4 py-3 align-top">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--text)]">
-                        <Layers size={13} className="text-purple-500 shrink-0" />
-                        <span className="line-clamp-1">
-                          {item.details.accountName || "—"}
-                        </span>
+                      <div className="text-xs font-semibold text-[var(--text)] line-clamp-1">
+                        {item.details.accountName || "—"}
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-                        <Building2 size={13} className="text-brand-500 shrink-0" />
+                        <Building2 size={12} className="text-brand-500 shrink-0" />
                         <span className="line-clamp-1">
                           {item.details.storeName || "—"}
                         </span>
@@ -292,22 +259,6 @@ export function MyRequestsDataTable({
                         </div>
                       )}
                     </div>
-                  </td>
-
-                  {/* Column 7: Action */}
-                  <td className="px-3 py-3 align-top text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onViewDetails(item);
-                      }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-[var(--line)] bg-[var(--soft)] hover:bg-[var(--card)] hover:border-brand-500/50 text-[var(--text)] transition cursor-pointer shadow-2xs"
-                      title="View full request details"
-                    >
-                      <Eye size={12} className="text-brand-500" />
-                      <span>View</span>
-                    </button>
                   </td>
                 </tr>
               );
