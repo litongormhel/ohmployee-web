@@ -158,8 +158,8 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
   - Normalizes payloads into `MyRequestItem` with unified status taxonomy (`pending`, `approved`, `rejected`, `cancelled`).
   - Cross-references user identity via `authUserId` and `profileId` with PostgREST column error guards. Ensures 100% physical schema alignment for views without extraneous columns (e.g. `rejection_reason` on `v_deactivation_requests`) and uses canonical views for joins (`vw_amr_list`).
 - **UI Presentation (`MyRequestsPage`)**:
-  - 4x KPI metric cards: Total Submitted, Pending Review, Approved, and Rejected/Closed.
-  - Segmented status tabs (`All`, `Pending`, `Approved`, `Rejected`), category dropdown selector, client search filter, and responsive View Switcher (`Table` default vs `Cards`).
+  - Streamlined header layout maximizing vertical space for table reading (top KPI metric cards removed in favor of status tab badge counters).
+  - Segmented status tabs with integrated counters (`All (N)`, `Pending (N)`, `Approved (N)`, `Rejected (N)`), category dropdown selector, client search filter, and responsive View Switcher (`Table` default vs `Cards`).
   - High-readability enterprise data table (`MyRequestsDataTable`): Displays compact, scannable columns (`Type` with category badge and relative time, `Request Subject` with title, subtitle, and micro-tags like VCode/Personnel/Headcount, `Account & Store`, `Stated Justification` italicized snippet, `Submitted` date and time, `Status & Milestone` with review subtext, and `Action` button).
   - Interactive Request Details Modal (`MyRequestDetailModal`): Opened by clicking any table row or "View" button, displaying complete operational scope grid, stated justification, review status banners (Pending review notice, Cleared by Approver with remarks, or Rejection feedback with audit timestamps).
   - Client-side pagination powered by `TablePagination` (`10, 20, 50` rows per page).

@@ -1,5 +1,26 @@
 # AI Handoff
 
+## Execution Report — Remove Top KPI Summary Cards from My Requests (ohm#my-requests-remove-top-cards-summary)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Approvals / My Requests), `docs/state/approvals_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  - "remove top cards summary"
+  - Remove the 4x top KPI metric cards grid from `/my-requests` to eliminate visual clutter and maximize vertical table reading space.
+- **Key Changes Implemented**:
+  1. **UI Clean-up (`src/app/(dashboard)/my-requests/page.tsx`)**:
+     - Removed the top 4x `MetricCard` block (`Total Submitted`, `Pending Review`, `Approved`, `Rejected / Closed`).
+     - Removed unused `Send` and `MetricCard` imports.
+     - Preserved full real-time count visibility directly on the segmented status tab buttons (`All (N)`, `Pending (N)`, `Approved (N)`, `Rejected (N)`).
+  2. **Documentation & State**:
+     - Updated `.ai/briefing.md`, `.ai/handoff.md`, and `docs/state/approvals_web_state.md`.
+- **Verification**:
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run build`: Turbopack build succeeded cleanly with 22/22 routes.
+  - No database migrations created or touched.
+
 ## Execution Report — Redesign My Requests Personal Tracking Module to High-Readability Table Format (ohm#my-requests-table-format-redesign)
 
 **Status: COMPLETE & VERIFIED.**

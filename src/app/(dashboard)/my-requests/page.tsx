@@ -15,13 +15,11 @@ import {
   List,
   RefreshCw,
   Search,
-  Send,
   User,
   Users,
   XCircle,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
-import { MetricCard } from "@/components/shared/MetricCard";
 import { DataState } from "@/components/shared/DataState";
 import { TablePagination } from "@/components/shared/TablePagination";
 import { useCurrentUser } from "@/lib/auth";
@@ -222,37 +220,6 @@ function MyRequestsContent() {
           </button>
         }
       />
-
-      {/* KPI Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard
-          label="Total Submitted"
-          value={counts.total}
-          helperText="Lifetime requests"
-          icon={Send}
-        />
-        <MetricCard
-          label="Pending Review"
-          value={counts.pending}
-          helperText="Awaiting approvers"
-          icon={Clock}
-          variant="warning"
-        />
-        <MetricCard
-          label="Approved"
-          value={counts.approved}
-          helperText="Successfully cleared"
-          icon={CheckCircle2}
-          variant="positive"
-        />
-        <MetricCard
-          label="Rejected / Closed"
-          value={counts.rejected}
-          helperText="Declined or cancelled"
-          icon={XCircle}
-          variant="danger"
-        />
-      </div>
 
       {/* Filter Toolbar & View Switcher */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-xl border border-[var(--line)] bg-[var(--card)]">
