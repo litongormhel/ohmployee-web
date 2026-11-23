@@ -7,9 +7,12 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  Eye,
   FileText,
   Filter,
   Layers,
+  LayoutGrid,
+  List,
   RefreshCw,
   Search,
   Send,
@@ -29,8 +32,11 @@ import {
   MyRequestStatus,
   useMyRequests,
 } from "@/lib/queries/my_requests";
+import { MyRequestsDataTable } from "@/components/my-requests/MyRequestsDataTable";
+import { MyRequestDetailModal } from "@/components/my-requests/MyRequestDetailModal";
 
 type StatusTab = "all" | "pending" | "approved" | "rejected";
+type DisplayView = "table" | "cards";
 
 function formatRelativeTime(dateString: string): string {
   try {
@@ -129,11 +135,16 @@ function MyRequestsContent() {
   const currentUser = useCurrentUser();
   const { data: requests = [], isLoading, isRefetching, refetch, error } = useMyRequests(currentUser);
 
+  const [displayView, setDisplayView] = useState<DisplayView>("table");
   const [activeTab, setActiveTab] = useState<StatusTab>("all");
   const [selectedCategory, setSelectedCategory] = useState<MyRequestCategoryType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Detail Modal State
+  const [selectedDetailRequest, setSelectedDetailRequest] = useState<MyRequestItem | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const counts = useMemo(() => calculateMyRequestsCounts(requests), [requests]);
 
@@ -185,6 +196,11 @@ function MyRequestsContent() {
     const start = (safePage - 1) * pageSize;
     return filteredRequests.slice(start, start + pageSize);
   }, [filteredRequests, safePage, pageSize]);
+
+  const handleOpenDetails = (item: MyRequestItem) => {
+    setSelectedDetailRequest(item);
+    setIsDetailModalOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -238,17 +254,17 @@ function MyRequestsContent() {
         />
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border border-[var(--line)] bg-[var(--card)]">
+      {/* Filter Toolbar & View Switcher */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-xl border border-[var(--line)] bg-[var(--card)]">
         {/* Status Segmented Tabs */}
-        <div className="flex items-center gap-1 bg-[var(--soft)] p-1 rounded-lg border border-[var(--line)]">
+        <div className="flex items-center gap-1 bg-[var(--soft)] p-1 rounded-lg border border-[var(--line)] overflow-x-auto">
           <button
             type="button"
             onClick={() => {
               setActiveTab("all");
               setPage(1);
             }}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition whitespace-nowrap cursor-pointer ${
               activeTab === "all"
                 ? "bg-[var(--card)] text-[var(--text)] font-semibold shadow-xs"
                 : "text-[var(--muted)] hover:text-[var(--text)]"
@@ -262,7 +278,7 @@ function MyRequestsContent() {
               setActiveTab("pending");
               setPage(1);
             }}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition whitespace-nowrap cursor-pointer ${
               activeTab === "pending"
                 ? "bg-[var(--card)] text-amber-600 dark:text-amber-400 font-semibold shadow-xs"
                 : "text-[var(--muted)] hover:text-[var(--text)]"
@@ -276,7 +292,7 @@ function MyRequestsContent() {
               setActiveTab("approved");
               setPage(1);
             }}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition whitespace-nowrap cursor-pointer ${
               activeTab === "approved"
                 ? "bg-[var(--card)] text-emerald-600 dark:text-emerald-400 font-semibold shadow-xs"
                 : "text-[var(--muted)] hover:text-[var(--text)]"
@@ -290,7 +306,7 @@ function MyRequestsContent() {
               setActiveTab("rejected");
               setPage(1);
             }}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition whitespace-nowrap cursor-pointer ${
               activeTab === "rejected"
                 ? "bg-[var(--card)] text-rose-600 dark:text-rose-400 font-semibold shadow-xs"
                 : "text-[var(--muted)] hover:text-[var(--text)]"
@@ -300,8 +316,40 @@ function MyRequestsContent() {
           </button>
         </div>
 
-        {/* Right Search & Category Dropdown */}
+        {/* Right Search, Category Dropdown & View Mode Switcher */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          {/* View Mode Switcher (Table default vs Cards) */}
+          <div className="inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-[var(--soft)] p-0.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setDisplayView("table")}
+              aria-label="Table View"
+              title="Table View (Easy Read)"
+              className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
+                displayView === "table"
+                  ? "bg-[var(--card)] text-[var(--text)] shadow-xs"
+                  : "text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              <List className="h-3.5 w-3.5 text-brand-500" />
+              <span className="inline">Table</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDisplayView("cards")}
+              aria-label="Cards View"
+              title="Cards View"
+              className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors cursor-pointer ${
+                displayView === "cards"
+                  ? "bg-[var(--card)] text-[var(--text)] shadow-xs"
+                  : "text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span className="inline">Cards</span>
+            </button>
+          </div>
+
           {/* Category Dropdown */}
           <div className="relative">
             <select
@@ -324,7 +372,7 @@ function MyRequestsContent() {
           </div>
 
           {/* Search Input */}
-          <div className="relative min-w-[220px]">
+          <div className="relative min-w-[200px]">
             <input
               type="text"
               placeholder="Search my requests…"
@@ -340,13 +388,13 @@ function MyRequestsContent() {
         </div>
       </div>
 
-      {/* Request List Feed */}
+      {/* Main Request Content */}
       {isLoading ? (
         <div className="space-y-3">
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2, 3, 4, 5].map((i) => (
             <div
               key={i}
-              className="h-28 rounded-xl border border-[var(--line)] bg-[var(--card)] animate-pulse"
+              className="h-14 rounded-xl border border-[var(--line)] bg-[var(--card)] animate-pulse"
             />
           ))}
         </div>
@@ -375,148 +423,171 @@ function MyRequestsContent() {
         />
       ) : (
         <div className="space-y-4">
-          <div className="space-y-3">
-            {paginatedRequests.map((item) => (
-              <div
-                key={item.id}
-                className="p-5 rounded-xl border border-[var(--line)] bg-[var(--card)] hover:border-[var(--line-strong)] transition shadow-2xs space-y-3.5"
-              >
-              {/* Card Header */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border ${getCategoryBadgeColor(
-                      item.category
-                    )}`}
-                  >
-                    {item.categoryLabel}
-                  </span>
-                  <span className="text-xs text-[var(--muted)]">·</span>
-                  <span className="text-xs font-mono text-[var(--muted)]">
-                    {formatRelativeTime(item.createdAt)}
-                  </span>
-                </div>
-                <div>{getStatusBadge(item.status)}</div>
-              </div>
+          {/* Table View (Default & High Readability) */}
+          {displayView === "table" ? (
+            <MyRequestsDataTable
+              requests={paginatedRequests}
+              onViewDetails={handleOpenDetails}
+            />
+          ) : (
+            /* Cards View (Alternative) */
+            <div className="space-y-3">
+              {paginatedRequests.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => handleOpenDetails(item)}
+                  className="p-5 rounded-xl border border-[var(--line)] bg-[var(--card)] hover:border-[var(--line-strong)] transition shadow-2xs space-y-3.5 cursor-pointer"
+                >
+                  {/* Card Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border ${getCategoryBadgeColor(
+                          item.category
+                        )}`}
+                      >
+                        {item.categoryLabel}
+                      </span>
+                      <span className="text-xs text-[var(--muted)]">·</span>
+                      <span className="text-xs font-mono text-[var(--muted)]">
+                        {formatRelativeTime(item.createdAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(item.status)}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDetails(item);
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-2xs font-medium rounded-md border border-[var(--line)] bg-[var(--soft)] hover:bg-[var(--card)] text-[var(--text)] transition cursor-pointer"
+                      >
+                        <Eye size={11} className="text-brand-500" />
+                        <span>Details</span>
+                      </button>
+                    </div>
+                  </div>
 
-              {/* Title & Subtitle */}
-              <div>
-                <h3 className="text-sm font-semibold text-[var(--text)] leading-snug">
-                  {item.title}
-                </h3>
-                <p className="text-xs text-[var(--muted)] mt-0.5">
-                  {item.subtitle}
-                </p>
-              </div>
+                  {/* Title & Subtitle */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-[var(--text)] leading-snug">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-[var(--muted)] mt-0.5">
+                      {item.subtitle}
+                    </p>
+                  </div>
 
-              {/* Key Details Pill Strip */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[var(--muted)] bg-[var(--soft)]/50 p-2.5 rounded-lg border border-[var(--line)]">
-                {item.details.storeName && (
-                  <span className="flex items-center gap-1.5">
-                    <Building2 size={12} className="text-brand-500" />
-                    <span>Store: <strong className="text-[var(--text)] font-medium">{item.details.storeName}</strong></span>
-                  </span>
-                )}
-                {item.details.accountName && (
-                  <span className="flex items-center gap-1.5">
-                    <Layers size={12} className="text-purple-500" />
-                    <span>Account: <strong className="text-[var(--text)] font-medium">{item.details.accountName}</strong></span>
-                  </span>
-                )}
-                {item.details.vcode && (
-                  <span className="flex items-center gap-1.5">
-                    <FileText size={12} className="text-amber-500" />
-                    <span>VCODE: <strong className="text-[var(--text)] font-mono font-medium">{item.details.vcode}</strong></span>
-                  </span>
-                )}
-                {item.details.employeeName && (
-                  <span className="flex items-center gap-1.5">
-                    <User size={12} className="text-blue-500" />
-                    <span>Personnel: <strong className="text-[var(--text)] font-medium">{item.details.employeeName}</strong></span>
-                  </span>
-                )}
-                {item.details.headcountNeeded && (
-                  <span className="flex items-center gap-1.5">
-                    <Users size={12} className="text-emerald-500" />
-                    <span>Headcount: <strong className="text-[var(--text)] font-medium">{item.details.headcountNeeded}</strong></span>
-                  </span>
-                )}
-                {item.details.proposedTarget !== undefined && item.details.proposedTarget !== null && (
-                  <span className="flex items-center gap-1.5">
-                    <span>Target Quota: <strong className="text-[var(--text)] font-medium">{item.details.previousTarget ?? "—"} → {item.details.proposedTarget}</strong></span>
-                  </span>
-                )}
-                <span className="flex items-center gap-1.5 ml-auto text-[11px] text-[var(--muted)]">
-                  <Calendar size={11} />
-                  <span>Submitted {formatFullDate(item.createdAt)}</span>
-                </span>
-              </div>
+                  {/* Key Details Pill Strip */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[var(--muted)] bg-[var(--soft)]/50 p-2.5 rounded-lg border border-[var(--line)]">
+                    {item.details.storeName && (
+                      <span className="flex items-center gap-1.5">
+                        <Building2 size={12} className="text-brand-500" />
+                        <span>Store: <strong className="text-[var(--text)] font-medium">{item.details.storeName}</strong></span>
+                      </span>
+                    )}
+                    {item.details.accountName && (
+                      <span className="flex items-center gap-1.5">
+                        <Layers size={12} className="text-purple-500" />
+                        <span>Account: <strong className="text-[var(--text)] font-medium">{item.details.accountName}</strong></span>
+                      </span>
+                    )}
+                    {item.details.vcode && (
+                      <span className="flex items-center gap-1.5">
+                        <FileText size={12} className="text-amber-500" />
+                        <span>VCODE: <strong className="text-[var(--text)] font-mono font-medium">{item.details.vcode}</strong></span>
+                      </span>
+                    )}
+                    {item.details.employeeName && (
+                      <span className="flex items-center gap-1.5">
+                        <User size={12} className="text-blue-500" />
+                        <span>Personnel: <strong className="text-[var(--text)] font-medium">{item.details.employeeName}</strong></span>
+                      </span>
+                    )}
+                    {item.details.headcountNeeded && (
+                      <span className="flex items-center gap-1.5">
+                        <Users size={12} className="text-emerald-500" />
+                        <span>Headcount: <strong className="text-[var(--text)] font-medium">{item.details.headcountNeeded}</strong></span>
+                      </span>
+                    )}
+                    {item.details.proposedTarget !== undefined && item.details.proposedTarget !== null && (
+                      <span className="flex items-center gap-1.5">
+                        <span>Target Quota: <strong className="text-[var(--text)] font-medium">{item.details.previousTarget ?? "—"} → {item.details.proposedTarget}</strong></span>
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1.5 ml-auto text-[11px] text-[var(--muted)]">
+                      <Calendar size={11} />
+                      <span>Submitted {formatFullDate(item.createdAt)}</span>
+                    </span>
+                  </div>
 
-              {/* Justification / Reason */}
-              {item.details.reason && (
-                <div className="text-xs text-[var(--text)] bg-[var(--soft)]/30 px-3 py-2 rounded-lg border border-[var(--line)]">
-                  <span className="font-semibold text-[var(--muted)] uppercase text-[10px] tracking-wider block mb-0.5">
-                    Stated Justification
-                  </span>
-                  <p className="italic text-[var(--text)] leading-relaxed">
-                    &ldquo;{item.details.reason}&rdquo;
-                  </p>
-                </div>
-              )}
+                  {/* Justification / Reason */}
+                  {item.details.reason && (
+                    <div className="text-xs text-[var(--text)] bg-[var(--soft)]/30 px-3 py-2 rounded-lg border border-[var(--line)]">
+                      <span className="font-semibold text-[var(--muted)] uppercase text-[10px] tracking-wider block mb-0.5">
+                        Stated Justification
+                      </span>
+                      <p className="italic text-[var(--text)] leading-relaxed line-clamp-2">
+                        &ldquo;{item.details.reason}&rdquo;
+                      </p>
+                    </div>
+                  )}
 
-              {/* Reviewer Section / Rejection Alert */}
-              {item.status === "rejected" && (
-                <div className="p-3 rounded-lg border border-rose-200 bg-rose-50/70 dark:bg-rose-950/30 dark:border-rose-900/50 flex items-start gap-2.5">
-                  <XCircle size={15} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-                  <div className="text-xs text-rose-800 dark:text-rose-300 space-y-1">
-                    <div className="font-semibold flex items-center gap-2">
-                      <span>Rejected by Approver</span>
-                      {item.reviewedByName && (
-                        <span className="text-[11px] font-normal text-rose-700 dark:text-rose-400">
-                          ({item.reviewedByName})
+                  {/* Reviewer Section / Alerts */}
+                  {item.status === "rejected" && (
+                    <div className="p-3 rounded-lg border border-rose-200 bg-rose-50/70 dark:bg-rose-950/30 dark:border-rose-900/50 flex items-start gap-2.5">
+                      <XCircle size={15} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                      <div className="text-xs text-rose-800 dark:text-rose-300 space-y-1">
+                        <div className="font-semibold flex items-center gap-2">
+                          <span>Rejected by Approver</span>
+                          {item.reviewedByName && (
+                            <span className="text-[11px] font-normal text-rose-700 dark:text-rose-400">
+                              ({item.reviewedByName})
+                            </span>
+                          )}
+                        </div>
+                        {item.reviewerRemarks ? (
+                          <p className="leading-relaxed font-mono text-[11px]">
+                            Feedback: {item.reviewerRemarks}
+                          </p>
+                        ) : (
+                          <p className="italic text-[11px] text-rose-700/80">
+                            No specific rejection reason provided.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {item.status === "approved" && (
+                    <div className="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/70 dark:bg-emerald-950/30 dark:border-emerald-900/50 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span>
+                          Cleared & Approved
+                          {item.reviewedByName ? ` by ${item.reviewedByName}` : ""}
+                          {item.reviewerRemarks ? `: "${item.reviewerRemarks}"` : ""}
+                        </span>
+                      </div>
+                      {item.reviewedAt && (
+                        <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono">
+                          {formatRelativeTime(item.reviewedAt)}
                         </span>
                       )}
                     </div>
-                    {item.reviewerRemarks ? (
-                      <p className="leading-relaxed font-mono text-[11px]">
-                        Feedback: {item.reviewerRemarks}
-                      </p>
-                    ) : (
-                      <p className="italic text-[11px] text-rose-700/80">
-                        No specific rejection reason provided.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
+                  )}
 
-              {item.status === "approved" && (
-                <div className="p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/70 dark:bg-emerald-950/30 dark:border-emerald-900/50 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>
-                      Cleared & Approved
-                      {item.reviewedByName ? ` by ${item.reviewedByName}` : ""}
-                      {item.reviewerRemarks ? `: "${item.reviewerRemarks}"` : ""}
-                    </span>
-                  </div>
-                  {item.reviewedAt && (
-                    <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono">
-                      {formatRelativeTime(item.reviewedAt)}
-                    </span>
+                  {item.status === "pending" && (
+                    <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-1.5 rounded-md border border-amber-200/60 dark:border-amber-900/40">
+                      <Clock size={12} className="animate-spin shrink-0" />
+                      <span>Your request is queued and currently awaiting review from authorized administrators.</span>
+                    </div>
                   )}
                 </div>
-              )}
-
-              {item.status === "pending" && (
-                <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-1.5 rounded-md border border-amber-200/60 dark:border-amber-900/40">
-                  <Clock size={12} className="animate-spin shrink-0" />
-                  <span>Your request is queued and currently awaiting review from authorized administrators.</span>
-                </div>
-              )}
+              ))}
             </div>
-          ))}
-          </div>
+          )}
 
           {/* Pagination Controls */}
           {totalCount > 0 && (
@@ -536,6 +607,13 @@ function MyRequestsContent() {
           )}
         </div>
       )}
+
+      {/* Request Detail Modal */}
+      <MyRequestDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        request={selectedDetailRequest}
+      />
     </div>
   );
 }
