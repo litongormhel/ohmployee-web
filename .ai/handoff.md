@@ -1,5 +1,43 @@
 # AI Handoff
 
+## Execution Report — ZEBRA Orphan Stores Archival & 3-Way Store Synchronization (ohm#archive-zebra-and-template-orphan-stores)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Plantilla), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, Plantilla).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  - Screenshot uploaded: ZEBRA account (`/plantilla?account=...`) with 0 active plantilla employees (`Active 0`), but opening `+ Request Headcount` shows 4 duplicate dummy stores: `BULACAN AREA`, `BULACAN AREA`, `MANILA AREA`, `MANILA AREA`.
+  - User prompt: "THIS IS ZEBRA pero may mga stores pa din".
+- **Root Cause Analysis**:
+  1. **Template Import Test Leftovers**: ZEBRA had 4 stores created by template test imports (`import_plantilla_template.xlsx`, batch IDs `b8312324-a939-4373-bda2-5639fdfb6469` and `2c6e2cc3-9e21-4781-9c55-1de0a4851e15` on May 29, 2026).
+  2. **Incomplete QA Reset**: When QA reset was executed (`qa_archive_batch_id = '440e58da-10f5-4a1b-903b-fd171a8d23a3'` on June 8, 2026), it closed the slots with `slot_status = 'closed'` and deactivated the employee allocations (`is_active = false`), but the `stores` table records were NEVER archived (`is_active` remained `true`, `status` remained `'active'`).
+  3. **De-synced Store Columns**: Legacy triggers `fn_stores_sync_legacy_upd` and `fn_stores_sync_legacy_ins` synchronized `is_active` and `status`, but never touched `is_archived` or `archived_at`.
+- **Key Changes Implemented**:
+  1. **Trigger-Level 3-Way Store Synchronization (`supabase/migrations/20262606000140_archive_zebra_and_template_orphan_stores.sql`)**:
+     - Upgraded `public.fn_stores_sync_legacy_ins` and `public.fn_stores_sync_legacy_upd` to enforce strict 3-way synchronization across `status = 'archived'`, `is_active = false`, and `is_archived = true` (with `archived_at = now()`).
+     - Any operation modifying any of the three fields automatically keeps the other two in exact alignment.
+  2. **ZEBRA Orphan Store Archival & Batch Rollback**:
+     - Specifically archived the 4 ZEBRA orphan stores: `e1932464-376f-4031-a9cd-10a6b6997046`, `c8675271-2fc1-43fe-930e-c3946857ca82`, `be6a5411-d5f8-4429-9dab-0c4a4deaaff0`, `ea67e2dd-811e-41a6-8b9b-cc9f801d870b`.
+     - Marked batches `b8312324-a939-4373-bda2-5639fdfb6469` and `2c6e2cc3-9e21-4781-9c55-1de0a4851e15` as `status = 'rolled_back'`.
+     - Verified ZEBRA now has 0 active stores (all 261 stores are archived).
+  3. **Global Template Orphan Stores Archival**:
+     - Safely archived 184 template and rolled-back test orphan stores across Staging that have 0 active allocations, 0 active slots, 0 open vacancies, and 0 active headcount requests.
+     - Archived all closed slots linked to those archived stores.
+  4. **Staging Database Application & Live Verification**:
+     - Pushed migration `20262606000140_archive_zebra_and_template_orphan_stores.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Confirmed via direct SQL that active stores for ZEBRA = 0 and remaining test orphan stores across Staging = 0.
+- **Verification Summary**:
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - `npm run check:sql`: SQL_CONTRACTS_OK across 665 migrations.
+  - Staging Migration Auto-Push: Cleanly applied to `qqiiznmqxfoamqytjica`.
+- **Migration Counter**:
+  prod: 633 migrations
+  staging: 634 migrations
+
+  1 migration is not on prod:
+  - 20262606000140_archive_zebra_and_template_orphan_stores.sql
+
 ## Execution Report — Account Archival Cascade Trigger & Orphan Store Guard (ohm#account-archive-cascade-and-orphan-cleanup)
 
 **Status: COMPLETE & VERIFIED.**
