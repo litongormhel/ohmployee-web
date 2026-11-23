@@ -7,7 +7,6 @@ import {
   UsersRound,
   Building2,
   Layers,
-  ArrowRight,
   ShieldCheck,
   AlertCircle,
   Mail,
@@ -21,6 +20,7 @@ import {
   usePlantillaSlotDetail,
   useSlotHistory,
 } from "@/lib/queries/plantilla";
+import { formatStoreName } from "@/lib/utils/displayText";
 
 export interface SlotDetailDrawerProps {
   slotId: string | null;
@@ -93,31 +93,142 @@ function formatTimelineDate(isoStr: string | null | undefined): string {
   }
 }
 
-function getActionLabel(action: string): string {
-  switch (action.toLowerCase().trim()) {
-    case "created":
-      return "Slot Created";
-    case "pipeline":
-      return "Applicant Sourced";
-    case "hr_processing":
-      return "HR Onboarding Processing";
+function humanizeActionType(action: string): { label: string; variant: BadgeVariant } {
+  const a = (action || "").toLowerCase().trim();
+  switch (a) {
     case "occupied":
-      return "Slot Filled / Deployed";
+    case "slot_occupied":
+      return { label: "Slot Filled / Deployed", variant: "success" };
+    case "deployed":
+    case "employee_deployed":
+      return { label: "Personnel Deployed", variant: "success" };
+    case "hr_processing":
+    case "hr processing":
+      return { label: "HR Processing", variant: "warning" };
+    case "pipeline":
+      return { label: "Applicant Sourced", variant: "info" };
+    case "confirmed onboard":
+    case "confirmed_onboard":
+      return { label: "Confirmed Onboard", variant: "success" };
+    case "created":
+    case "slot_created":
+      return { label: "Slot Created", variant: "neutral" };
     case "reopened":
-      return "Slot Reopened";
+    case "slot_reopened":
+      return { label: "Slot Reopened", variant: "neutral" };
     case "resigned":
-      return "Occupant Resigned";
+    case "occupant_resigned":
+      return { label: "Occupant Resigned", variant: "warning" };
+    case "deactivated":
+    case "deactivation":
+      return { label: "Slot Deactivated", variant: "danger" };
+    case "separated":
+      return { label: "Personnel Separated", variant: "danger" };
     case "transfer_out":
-      return "Occupant Transferred Out";
+      return { label: "Occupant Transferred Out", variant: "info" };
     case "transfer_in":
-      return "Occupant Transferred In";
+      return { label: "Occupant Transferred In", variant: "info" };
     case "closed":
-      return "Slot Closed / Headcount Reduced";
+      return { label: "Slot Closed / Headcount Reduced", variant: "danger" };
+    case "quota_revised":
+      return { label: "Quota Updated", variant: "info" };
     case "status_change":
-      return "Status Transition";
+      return { label: "Status Transition", variant: "neutral" };
     default:
-      return action.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      return {
+        label: action.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        variant: "neutral",
+      };
   }
+}
+
+function humanizeStatus(status: string | null | undefined): string {
+  if (!status) return "";
+  const s = status.toLowerCase().trim();
+  switch (s) {
+    case "hr_processing":
+    case "hr processing":
+      return "HR Processing";
+    case "occupied":
+    case "filled":
+      return "Occupied";
+    case "pipeline":
+      return "Pipeline";
+    case "open":
+    case "vacancy":
+      return "Open";
+    case "closed":
+      return "Closed";
+    case "none":
+      return "None";
+    default:
+      return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
+function humanizeRemarks(
+  remarks: string | null | undefined,
+  actionType?: string,
+  reasonCode?: string
+): string {
+  if (!remarks) return "";
+  let text = remarks.trim();
+
+  // 1. Separation / Resignation / AWOL / Termination patterns
+  if (
+    /plantilla_update_separation/i.test(text) ||
+    /reason=RESIGNED/i.test(text) ||
+    actionType?.toLowerCase() === "resigned" ||
+    reasonCode?.toUpperCase() === "RESIGNED"
+  ) {
+    const reasonMatch = text.match(/reason=([A-Z_]+)/i);
+    const rawReason = reasonMatch ? reasonMatch[1].toUpperCase() : reasonCode?.toUpperCase() || "RESIGNED";
+    const formattedReason =
+      rawReason === "RESIGNED"
+        ? "Resigned"
+        : rawReason === "AWOL"
+        ? "AWOL"
+        : rawReason === "TERMINATED"
+        ? "Terminated"
+        : rawReason;
+    return `Occupant separated (${formattedReason}). Workforce slot vacated and returned to open pool.`;
+  }
+
+  // 2. Deployment / Onboard patterns
+  if (/auto_move_to_plantilla/i.test(text) || /slot occupied by plantilla/i.test(text)) {
+    return "Slot occupied and assigned to deployed plantilla staff.";
+  }
+
+  if (/confirm_applicant_onboard/i.test(text)) {
+    return "Applicant confirmed onboard and transitioned to HR Emploc for deployment.";
+  }
+
+  // 3. Clean out internal RPC signatures, parameter dumps, and UUIDs
+  text = text.replace(/auto_move_to_plantilla:\s*/gi, "");
+  text = text.replace(/Phase\s*[\d.]+\s*(\([^)]*\))?\s*\/?\s*/gi, "");
+  text = text.replace(/confirm_applicant_onboard\s*\/?\s*/gi, "");
+  text = text.replace(/\/?[a-z_]+_id=[0-9a-f-]+/gi, "");
+  text = text.replace(/\/?[a-z_]+=[A-Z0-9_-]+/gi, "");
+  text = text.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "");
+
+  // Clean up internal syntax residues
+  text = text.replace(/\s*\/\s*\/\s*/g, " / ").replace(/\s*\/\s*$/g, "").replace(/^\s*\/\s*/g, "");
+  text = text.replace(/by plantilla\s*$/i, "by deployed personnel.");
+  text = text.replace(/slot occupied by plantilla/i, "Slot occupied and assigned to plantilla staff.");
+  text = text.replace(/applicant confirmed onboard and moved to hr emploc for/i, "Applicant confirmed onboard and transitioned to HR Emploc for");
+
+  text = text.trim();
+  if (!text || text.length < 3) {
+    const a = (actionType || "").toLowerCase();
+    if (a.includes("occupied")) return "Workforce slot successfully occupied by deployed staff.";
+    if (a.includes("hr_processing")) return "Candidate transitioned to HR processing pipeline.";
+    if (a.includes("pipeline")) return "Candidate assigned and undergoing applicant pipeline review.";
+    if (a.includes("deployed")) return "Staff member successfully deployed to store branch.";
+    if (a.includes("resigned") || a.includes("separated")) return "Occupant separated. Slot vacated and returned to open pool.";
+    return "Event successfully processed and logged.";
+  }
+
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 // ---------------------------------------------------------------------------
@@ -150,6 +261,30 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
 
   if (!isOpen) return null;
 
+  const isRoving = Boolean(slot?.isRoving);
+  const vcodeColorClass = slot?.legacyVcode
+    ? isRoving
+      ? "border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/60 dark:text-purple-300"
+      : "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
+    : isRoving
+    ? "border-dashed border-purple-300 bg-purple-50/50 text-purple-600 dark:border-purple-800/60 dark:bg-purple-950/30 dark:text-purple-400"
+    : "border-dashed border-blue-300 bg-blue-50/50 text-blue-600 dark:border-blue-800/60 dark:bg-blue-950/30 dark:text-blue-400";
+
+  const vcodeTooltip = slot?.legacyVcode
+    ? `${isRoving ? "Roving" : "Stationary"} VCode: ${slot.legacyVcode}`
+    : `${isRoving ? "Roving" : "Stationary"} Slot (No VCode assigned yet)`;
+
+  const resolvedPositionType = (() => {
+    if (!slot) return "Stationary";
+    const raw = (slot.employmentType || "").trim();
+    const rawLower = raw.toLowerCase();
+    const rovingLabel = slot.isRoving ? "Roving" : "Stationary";
+    if (!raw || rawLower === "stationary" || rawLower === "roving") {
+      return rovingLabel;
+    }
+    return `${raw.charAt(0).toUpperCase() + raw.slice(1)} • ${rovingLabel}`;
+  })();
+
   return (
     <DetailDrawer
       isOpen={isOpen}
@@ -157,11 +292,14 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
       widthClass="w-[var(--drawer-width-lg)] max-w-full"
       badge={
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge className="font-mono text-xs font-semibold bg-surface border border-border-default text-text-primary py-1 px-2.5">
-            {slot?.legacyVcode || "SLOT"}
-          </Badge>
+          <span
+            className={`inline-flex items-center rounded border px-2.5 py-1 font-mono text-xs font-semibold ${vcodeColorClass}`}
+            title={vcodeTooltip}
+          >
+            {slot?.legacyVcode || "No VCode"}
+          </span>
           {slot && (
-            <Badge className="font-mono text-xs text-text-muted bg-surface-muted border-border-default">
+            <Badge className="font-mono text-xs text-text-secondary bg-surface-muted border-border-default py-1 px-2.5">
               Slot #{slot.slotOrdinal}
             </Badge>
           )}
@@ -173,7 +311,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
           <div className="flex items-center gap-1.5 truncate">
             <Building2 className="h-3.5 w-3.5 shrink-0 text-text-muted" />
             <span className="truncate">
-              {[slot.storeName || slot.storeCode, slot.accountName].filter(Boolean).join(" • ") ||
+              {[formatStoreName(slot.storeName || slot.storeCode), slot.accountName].filter(Boolean).join(" • ") ||
                 "Store Staffing Slot"}
             </span>
           </div>
@@ -236,7 +374,7 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
                   Position Type
                 </div>
                 <div className="text-xs font-medium text-text-primary">
-                  {slot.employmentType} {slot.isRoving ? "• Roving" : "• Stationary"}
+                  {resolvedPositionType}
                 </div>
               </div>
               <div>
@@ -410,47 +548,53 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
               </div>
             ) : (
               <ol className="relative border-l border-border-default ml-2.5 space-y-4 pt-1">
-                {sortedHistory.map((event) => (
-                  <li key={event.id} className="ml-4">
-                    <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border-2 border-surface-base bg-brand-600 shadow-xs" />
-                    <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-1.5 shadow-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
-                          <span>{getActionLabel(event.actionType)}</span>
-                          {event.reasonCode && (
-                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-text-secondary border border-border-subtle">
-                              {event.reasonCode}
-                            </span>
-                          )}
+                {sortedHistory.map((event) => {
+                  const actionMeta = humanizeActionType(event.actionType);
+                  const cleanRemarks = humanizeRemarks(event.remarks, event.actionType, event.reasonCode);
+                  const performer = event.performerName && !event.performerName.includes("-")
+                    ? event.performerName
+                    : "System Automated";
+
+                  return (
+                    <li key={event.id} className="ml-4">
+                      <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border-2 border-surface-base bg-brand-600 shadow-xs" />
+                      <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-1.5 shadow-xs">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <StatusBadge variant={actionMeta.variant} text={actionMeta.label} />
+                            {event.reasonCode && (
+                              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-text-secondary border border-border-subtle">
+                                {event.reasonCode}
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-mono text-[10px] text-text-muted">
+                            {formatTimelineDate(event.createdAt)}
+                          </span>
                         </div>
-                        <span className="font-mono text-[10px] text-text-muted">
-                          {formatTimelineDate(event.createdAt)}
-                        </span>
-                      </div>
 
-                      {(event.oldValue || event.newValue) && (
-                        <div className="flex items-center gap-1.5 text-[11px] text-text-muted font-mono">
-                          <span>{event.oldValue || "none"}</span>
-                          <ArrowRight className="h-3 w-3 shrink-0 text-text-muted" />
-                          <span className="font-semibold text-text-primary">{event.newValue || "none"}</span>
-                        </div>
-                      )}
+                        {(event.oldValue || event.newValue) && (
+                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-text-muted bg-surface-muted rounded px-2 py-0.5 w-fit">
+                            {event.oldValue && <span className="line-through">{humanizeStatus(event.oldValue)}</span>}
+                            {event.oldValue && event.newValue && <span>→</span>}
+                            {event.newValue && <span className="text-text-primary font-semibold">{humanizeStatus(event.newValue)}</span>}
+                          </div>
+                        )}
 
-                      {event.remarks && (
-                        <p className="text-xs text-text-secondary">
-                          {event.remarks}
-                        </p>
-                      )}
+                        {cleanRemarks && (
+                          <p className="text-xs text-text-secondary leading-relaxed">
+                            {cleanRemarks}
+                          </p>
+                        )}
 
-                      {event.performerName && (
-                        <div className="text-[10px] text-text-muted flex items-center gap-1">
+                        <div className="text-[10px] text-text-muted flex items-center gap-1 pt-0.5">
                           <ShieldCheck className="h-3 w-3 text-brand-600" />
-                          <span>Performed by {event.performerName}</span>
+                          <span>Performed by {performer}</span>
                         </div>
-                      )}
-                    </div>
-                  </li>
-                ))}
+                      </div>
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </div>

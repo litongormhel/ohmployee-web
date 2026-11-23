@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Execution Report — Plantilla Slot Detail Drawer & Store View Audit Polish (ohm#slot-drawer-and-store-vcode-audit-polish)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **`SlotDetailDrawer.tsx` VCode Badge Alignment**:
+   - Replaced neutral generic VCode badge with the semantic deployment color scheme matching `StoreCapacityTable` and `StoreDetailsModal`:
+     - **Stationary VCode**: Crisp Blue badge (`border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300`).
+     - **Roving VCode**: Violet / Purple badge (`border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/60 dark:text-purple-300`).
+     - **No VCode**: Dashed border badge with contextual tooltip.
+   - Cleaned store name in drawer subtitle via `formatStoreName(slot.storeName || slot.storeCode)`.
+2. **Clean Position Type Resolution**:
+   - Resolved redundant raw casing in the Lifecycle State card (e.g. `stationary • Stationary` -> clean `Stationary`; `roving • Roving` -> clean `Roving`).
+3. **Enterprise Humanized Remarks & Status Transitions in Slot Audit Trail**:
+   - Rewrote raw technical remarks in `SlotDetailDrawer.tsx` and `StoreDetailsModal.tsx` into clean operational descriptions:
+     - `Phase 6.4 / plantilla_update_separation / ... / reason=RESIGNED`: Translated to `"Occupant separated (Resigned). Workforce slot vacated and returned to open pool."` (with adaptive support for `AWOL`, `Terminated`, etc.).
+     - `auto_move_to_plantilla: slot occupied by plantilla ...`: Translated to `"Slot occupied and assigned to deployed plantilla staff."`
+     - `confirm_applicant_onboard`: Translated to `"Applicant confirmed onboard and transitioned to HR Emploc for deployment."`
+     - Stripped raw RPC parameter dumps, `plantilla_id=...`, `employee_no=...`, and internal UUID strings.
+   - Upgraded timeline action headers with semantic `StatusBadge` variants (`Slot Filled / Deployed`, `Occupant Resigned`, `HR Processing`, `Applicant Sourced`).
+   - Replaced raw text transitions (`occupied -> open`) with styled inline status badges (`Occupied → Open`).
+   - Cleaned performer attribution (`Logged by {performer}`), showing `"System Automated"` when raw UUIDs appear instead of names.
+
+### Files
+- `src/components/plantilla/SlotDetailDrawer.tsx`
+- `src/components/modals/StoreDetailsModal.tsx`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Validation
+- `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+- `npm test`: `255/255` passed (`ADR_MIRROR_STATUS: FRESH`, `SQL_CONTRACTS_OK`, zero leaks).
+- `npm run lint`: `0` errors, `0` warnings.
+- `npm run build`: verified production build compilation (`22/22` static pages).
+
+---
+
 ## Execution Report — Plantilla Store View VCode Colors, Clean Store Names, Deployment History Modal & Universal Type Filter (ohm#store-view-vcode-deployment-history)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 

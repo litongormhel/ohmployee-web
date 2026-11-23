@@ -85,14 +85,47 @@ function humanizeActionType(action: string): { label: string; variant: BadgeVari
   }
 }
 
-function humanizeRemarks(remarks: string | null | undefined, actionType?: string): string {
+function humanizeRemarks(
+  remarks: string | null | undefined,
+  actionType?: string,
+  reasonCode?: string
+): string {
   if (!remarks) return "";
-  let text = remarks;
+  let text = remarks.trim();
 
-  // Clean out internal RPC signatures, parameter dumps, and UUIDs
+  // 1. Separation / Resignation / AWOL / Termination patterns
+  if (
+    /plantilla_update_separation/i.test(text) ||
+    /reason=RESIGNED/i.test(text) ||
+    actionType?.toLowerCase() === "resigned" ||
+    reasonCode?.toUpperCase() === "RESIGNED"
+  ) {
+    const reasonMatch = text.match(/reason=([A-Z_]+)/i);
+    const rawReason = reasonMatch ? reasonMatch[1].toUpperCase() : reasonCode?.toUpperCase() || "RESIGNED";
+    const formattedReason =
+      rawReason === "RESIGNED"
+        ? "Resigned"
+        : rawReason === "AWOL"
+        ? "AWOL"
+        : rawReason === "TERMINATED"
+        ? "Terminated"
+        : rawReason;
+    return `Occupant separated (${formattedReason}). Workforce slot vacated and returned to open pool.`;
+  }
+
+  // 2. Deployment / Onboard patterns
+  if (/auto_move_to_plantilla/i.test(text) || /slot occupied by plantilla/i.test(text)) {
+    return "Slot occupied and assigned to deployed plantilla staff.";
+  }
+
+  if (/confirm_applicant_onboard/i.test(text)) {
+    return "Applicant confirmed onboard and transitioned to HR Emploc for deployment.";
+  }
+
+  // 3. Clean out internal RPC signatures, parameter dumps, and UUIDs
   text = text.replace(/auto_move_to_plantilla:\s*/gi, "");
-  text = text.replace(/Phase\s*[\d.]+\s*\([^)]*\)\s*\/\s*/gi, "");
-  text = text.replace(/confirm_applicant_onboard\s*\/\s*/gi, "");
+  text = text.replace(/Phase\s*[\d.]+\s*(\([^)]*\))?\s*\/?\s*/gi, "");
+  text = text.replace(/confirm_applicant_onboard\s*\/?\s*/gi, "");
   text = text.replace(/\/?[a-z_]+_id=[0-9a-f-]+/gi, "");
   text = text.replace(/\/?[a-z_]+=[A-Z0-9_-]+/gi, "");
   text = text.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "");
@@ -110,6 +143,7 @@ function humanizeRemarks(remarks: string | null | undefined, actionType?: string
     if (a.includes("hr_processing")) return "Candidate transitioned to HR processing pipeline.";
     if (a.includes("pipeline")) return "Candidate assigned and undergoing applicant pipeline review.";
     if (a.includes("deployed")) return "Staff member successfully deployed to store branch.";
+    if (a.includes("resigned") || a.includes("separated")) return "Occupant separated. Slot vacated and returned to open pool.";
     return "Event successfully processed and logged.";
   }
 

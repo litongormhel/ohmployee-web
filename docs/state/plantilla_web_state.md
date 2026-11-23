@@ -182,6 +182,11 @@ When `Store View` is active, the 5 Employee Status Sub-Tabs are hidden and repla
   7. `Fulfillment Status`: `100% Fulfilled` green badge (`active >= required`) or `Understaffed` amber/red badge.
   8. `Actions`: Per-row `Request HC` button (gated by `canRequestHeadcount`) opening `RequestHeadcountModal` pre-locked to that existing store (`lockedStore=true`, `lockedWorkforceType="stationary"`).
 - **Deployment & History Detail**: Selecting a Store Branch opens `StoreDetailsModal`, featuring three dedicated tabs: `Deployed Personnel` (listing all active/on-leave employees assigned to that store with positions, schedules, and roving fractional shares), `Store History` (chronological timeline of slot modifications and activity logs via `useStoreHistory`), and `Plantilla Slots` (with `Inspect Slot` navigation to `SlotDetailDrawer`).
+- **Slot Detail Drawer (`SlotDetailDrawer.tsx`)**: Inspecting any plantilla slot opens the dedicated right-side drawer:
+  1. **Header VCode Badge**: Color-coded to match the slot's deployment type (Blue for Stationary, Violet for Roving, dashed for unassigned), accompanied by `Slot #ordinal`.
+  2. **Clean Store Branch Subtitle**: Uses `formatStoreName` to strip obsolete `[roving]` naming suffixes.
+  3. **Position Type Casing & Deduplication**: Intelligently resolves redundant raw casing (`stationary • Stationary` -> clean `Stationary`; `roving • Roving` -> clean `Roving`).
+  4. **Slot Audit Trail**: Formats raw database remarks into clear enterprise audit entries (parsing `plantilla_update_separation`, `reason=RESIGNED/AWOL/TERMINATED`, and `auto_move_to_plantilla` into clear explanations and stripping internal RPC signatures, parameter dumps, and UUIDs), with old -> new status badges and resolved performer names.
 
 ---
 
