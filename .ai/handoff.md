@@ -1,5 +1,31 @@
 # AI Handoff
 
+## Execution Report — Phase 4: Mobile Parity for Request Headcount vs. Request New Store & Fractional Store Capacity (ohm#phase4-mixed-roving-hc-mobile)
+**Date:** 2026-11-23 | **Mobile Repo:** `D:\Projects\OHMployee` (Commit: `bb33507`) | **Branch:** `main` | **Status:** Verified & Complete (All 4 Phases Complete)
+
+### What Was Implemented
+1. **`PlantillaScopeService.submitNewStoreRequest` (`lib/data/services/plantilla_scope_service.dart`):**
+   - Added backward-compatible optional parameters `String? position` and `int? requestedHeadcount` matching Web's payload for `submit_new_store_request`.
+2. **Philippine Island Group Resolver (`lib/shared/utils/island_group_utils.dart`):**
+   - Implemented `deriveIslandGroup(String province)` with standard canonical mappings for `Luzon`, `Visayas`, and `Mindanao` matching Web (`src/lib/queries/plantilla.ts`).
+3. **Dual-Mode `NewStoreRequestScreen` & Request Center Action (`lib/features/requests/request_center_screen.dart`):**
+   - Converted `NewStoreRequestScreen` into a standalone dual-mode screen:
+     - **Stationary (1 New Store):** Store Name, Province, City, Account, Position (required), Initial Headcount (`default 1, min 1`), and Reason/Justification (`>= 20` characters). Submits via `submitNewStoreRequest`.
+     - **Roving (Multi-Door Opening, ADR-003):** 2–20 doors (mix of existing + unlisted new stores, requiring `>= 1` unlisted new store), Island Group consistency validation, Position, Headcount Needed, Vacant Date, Target Fill Date, Urgency, and Reason/Justification (`>= 20` characters). Submits via `submitHeadcountRequest`.
+   - Added `+ Request New Store` action button on the AppBar when filtered to the `New Stores` queue (`_isNewStoreQueueOnly`).
+4. **Plantilla Store Capacity, Fractional Headcount & HC Request Locks (`lib/features/plantilla/plantilla_screen.dart`):**
+   - **`AccountHeadcountRequestScreen`**: Added `lockedStore: bool` and `lockedWorkforceType: String?` ('Stationary' | 'Roving'). Pre-locks store field and disables workforce type switcher when pre-locked. Removed embedded `_openNewStoreRequest` detour; empty store match displays informational text guiding users to `Request New Store` in Plantilla.
+   - **`_byStore` & `_employeeShareForStore`**: Associated roving employees (`e.isRoving && e.rovingStores.isNotEmpty`) with each covered store in `e.rovingStores` with fractional share (`link.hcShare ?? 1.0 / e.rovingStores.length`), summing fractional active employees for `filled` and total requirements for `headcount`.
+   - **`_StoreCoverageCard`**: Updated `headcount`, `filled`, and `gap` to `num` formatted cleanly via `_formatCapacity(num)` (e.g. `1.5`, `1.33`), and added `Request HC` button calling `_openStoreHeadcountRequest(entry.key)`.
+   - **`AccountEmployeeListScreen` FAB**: Tapping `+` opens a bottom sheet with `Request Roving Headcount` (existing stores only) and `Request New Store` (unlisted store opening).
+
+### Verification
+- `flutter analyze` in `D:\Projects\OHMployee`: Clean exit code `0` (0 compile errors).
+- `flutter test` in `D:\Projects\OHMployee`: Passed cleanly (`176/176` tests passed, `0` failures).
+- Web verification in `d:\Projects\ohmployee-web`: `npm test` (`255/255` passed, `ADR_MIRROR_STATUS: FRESH`, `SQL_CONTRACTS_OK`), `npm run lint` (`0` errors, `0` warnings).
+
+---
+
 ## Execution Report — Phase 3: Web UI Separation for Request Headcount vs. Request New Store & Fractional Store Capacity (ohm#phase3-mixed-roving-hc-web)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete (Phase 4 Mobile Parity Next)
 
