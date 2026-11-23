@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: c831b4e 2026-11-23T11:39:42+08:00
-source_sha256: 2014fa1fed0c72c4d2d4e4d7e79f6ef43fb06cdda174bc08c5bd9afb0e6df6e6
-synced_at: 2026-11-23T07:09:33.620Z
+source_commit: 5ce4032 2026-11-23T17:29:18+08:00
+source_sha256: 16b8537c94bc5c2a2db710657d8c21916d413bd8f6e8240149902c46dc90a63b
+synced_at: 2026-11-23T09:29:28.386Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -107,6 +107,7 @@ User Management (`public.user_scopes` joined to `public.users_profile` with `rol
 16. Adding stores to an existing Coverage Group: use Coverage Change Request → Add Store (not a new HC Request). A new HC Request always creates a new Coverage Group.
 17. Mixed Stationary + Roving Store Coexistence: A store with active Stationary employee(s) may simultaneously be covered by one or more Roving employees under a Coverage Group (CGCODE). Store-level capacity sums Stationary (1.00 each) + Roving ($1/N$ each, e.g., 1.50 for 2-store roving, 1.33 for 3-store roving), while Account/CENCOM/Dashboard HC always counts distinct people.
 18. Request Headcount vs. Request New Store Separation: Request Headcount (Plantilla Store View per-row Stationary action + Plantilla header Roving action) operates strictly on existing stores. Request New Store is an independent Plantilla header flow owning all unlisted store openings (Stationary 1-store with initial HC >= 1, and Roving multi-door openings per ADR-003).
+19. Automatic Inactive Status on Effective Date of Separation: When `plantilla.date_of_separation` is populated and `<= CURRENT_DATE`, the employee's status automatically transitions to `Inactive` (or `Deactivated`), even without a prior deactivation request. The employee is immediately excluded from active deployed headcount (`Actual = 0`), and their occupied slot in `plantilla_slots` is vacated (`slot_status = 'open'`), reopening the replacement vacancy for the store.
 
 ### Definitions
 

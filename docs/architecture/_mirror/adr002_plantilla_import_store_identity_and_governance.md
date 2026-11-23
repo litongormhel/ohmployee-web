@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-002. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr002_plantilla_import_store_identity_and_governance.md
-source_commit: 2c413ad 2026-11-23T15:09:30+08:00
-source_sha256: 17ff15bd030a5ecff05f38fb6117d7a487159cc706db2e1f0da01c5e0f3f20f6
-synced_at: 2026-11-23T07:09:33.841Z
+source_commit: 5ce4032 2026-11-23T17:29:18+08:00
+source_sha256: ccc51460c3cd8c888b38f17f3b4ec678be09de5f19a168d59b46ce5d1add2c60
+synced_at: 2026-11-23T09:29:28.568Z
 -->
 # ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture
 
@@ -26,8 +26,9 @@ This Architecture Decision Record (ADR-002) establishes the definitive system of
 
 ## The 10 Architectural Invariants
 
-### Invariant 1 — Plantilla as Upstream Source of Truth
+### Invariant 1 — Plantilla as Upstream Source of Truth & 1:1 Headcount to Physical Slot Identity
 Plantilla Baseline Import is the primary upstream origin for stores, slots, and initial employee allocations in the system.
+- **1:1 Slot-to-Headcount Parity**: Regardless of whether a store/position originated from Plantilla Baseline Import or Requisition / Headcount Request, authorized headcount maps 1:1 to physical rows in `public.plantilla_slots`. Every active deployed employee must hold a corresponding occupied slot (`slot_status = 'occupied'`, `current_occupant_plantilla_id = plantilla.id`).
 - Batches and rows may be uploaded without an employee (creating vacant baseline slots on fresh VCODEs).
 - Downstream imports (`Vacancy Import` and `HR Emploc Import`) must validate that any referenced `VCODE` already exists in Plantilla (`stores` / `plantilla_slots`) before accepting records. Uploading downstream records for unseeded VCODEs is blocked.
 
@@ -53,10 +54,10 @@ Every store permanently retains its individual `VCODE` even when grouped into a 
   - Pre-upload dry-run validation RPC (`validate_plantilla_baseline_import`) acts as the single source of truth for file validation. If any row is blocked (`blocked_rows > 0`), the entire file is blocked from submission at Upload & Preview. Server-side `submit_plantilla_baseline_import` re-validates the payload and hard-refuses (`RAISE EXCEPTION`) if `blocked_rows > 0`.
   - Data Team can attach or request a Coverage Group (`CGCODE`) overlay subsequently.
 
-### Invariant 5 — Multi-Batch Existing `VCODE` Rule
+### Invariant 5 — Multi-Batch Existing `VCODE` Rule & Slot Provisioning
 When uploading Plantilla batches, if a row's `VCODE` already exists in the database:
 - **No Employee** (`EMPLOYEE_NO` is null / blank): The row is marked as **`skipped`** (`validation_status = 'skipped'`, non-blocking, informational message: `"Existing VCODE skipped (vacant row — only fresh VCODEs create new vacant slots)"`). It is ignored during approval commit.
-- **Assigned Employee** (`EMPLOYEE_NO` is populated): The row is **allowed**. During commit, it claims and occupies an existing open vacant slot at that `VCODE` or creates an occupied slot ordinal under that store's existing `VCODE`.
+- **Assigned Employee** (`EMPLOYEE_NO` is populated): The row is **allowed**. During commit, it claims and occupies an existing open vacant slot at that `VCODE` or creates an occupied slot ordinal under that store's existing `VCODE` (`slot_status = 'occupied'`, `current_occupant_plantilla_id = v_plantilla_id`). If no open slot exists, an occupied slot row MUST be auto-provisioned to guarantee 1:1 parity between deployed personnel and `plantilla_slots`.
 
 ### Invariant 6 — `MOTHER_ACCOUNT` Penalty Inheritance
 - `MOTHER_ACCOUNT` is a mandatory column in Plantilla Import (positioned immediately following `ACCOUNT_NAME`).

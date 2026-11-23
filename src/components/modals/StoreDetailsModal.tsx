@@ -242,6 +242,12 @@ export function StoreDetailsModal({
                  (alloc.employeeNo && e.employeeNo === alloc.employeeNo)
         );
 
+        const rawStatus = (emp?.plantillaStatus || "active").toLowerCase();
+        // Skip inactive or deactivated personnel from active deployed roster
+        if (rawStatus === "inactive" || rawStatus === "deactivated" || rawStatus === "separated") {
+          return;
+        }
+
         const empId = emp?.id || alloc.plantillaId || alloc.employeeNo || alloc.id;
         if (empId && seenEmpIds.has(empId)) return;
         if (empId) seenEmpIds.add(empId);
@@ -255,8 +261,12 @@ export function StoreDetailsModal({
           (alloc.filledHc > 0 && alloc.filledHc < 1)
         );
 
-        const status = (emp?.plantillaStatus || "active").toLowerCase();
-        const isOnLeave = status === "on leave" || status === "on_leave";
+        const isOnLeave = rawStatus === "on leave" || rawStatus === "on_leave";
+        const displayStatus = isOnLeave
+          ? "On Leave"
+          : emp?.plantillaStatus
+          ? emp.plantillaStatus.charAt(0).toUpperCase() + emp.plantillaStatus.slice(1).toLowerCase()
+          : "Active";
 
         list.push({
           id: empId,
@@ -267,7 +277,7 @@ export function StoreDetailsModal({
           rovingShareText: isRoving && alloc.filledHc ? `${alloc.filledHc} HC` : undefined,
           scheduleDays: null,
           scheduleTime: null,
-          status: isOnLeave ? "On Leave" : "Active",
+          status: displayStatus,
           isOnLeave,
           initials: getInitials(emp?.firstName ?? null, emp?.lastName ?? null),
         });
@@ -279,6 +289,12 @@ export function StoreDetailsModal({
       if (emp.id && seenEmpIds.has(emp.id)) return;
       if (emp.employeeNo && seenEmpIds.has(emp.employeeNo)) return;
 
+      const rawStatus = (emp.plantillaStatus || "active").toLowerCase();
+      // Skip inactive or deactivated personnel from active deployed roster
+      if (rawStatus === "inactive" || rawStatus === "deactivated" || rawStatus === "separated") {
+        return;
+      }
+
       const isPrimary = (emp.primaryStoreName || "").toLowerCase().trim() === storeKey;
       const isRovingCovered = Array.isArray(emp.assignedStores) &&
         emp.assignedStores.some((s) => (s || "").toLowerCase().trim() === storeKey);
@@ -287,9 +303,13 @@ export function StoreDetailsModal({
         const empId = emp.id || emp.employeeNo || `emp-${emp.fullName || "unnamed"}`;
         seenEmpIds.add(empId);
 
-        const status = (emp.plantillaStatus || "active").toLowerCase();
-        const isOnLeave = status === "on leave" || status === "on_leave";
+        const isOnLeave = rawStatus === "on leave" || rawStatus === "on_leave";
         const isRoving = Boolean((emp.assignmentType || "").toLowerCase().includes("roving") || isRovingCovered);
+        const displayStatus = isOnLeave
+          ? "On Leave"
+          : emp.plantillaStatus
+          ? emp.plantillaStatus.charAt(0).toUpperCase() + emp.plantillaStatus.slice(1).toLowerCase()
+          : "Active";
 
         list.push({
           id: empId,
@@ -300,7 +320,7 @@ export function StoreDetailsModal({
           rovingShareText: isRoving && emp.coveredStoresCount > 1 ? `${(1 / emp.coveredStoresCount).toFixed(2)} HC (${emp.coveredStoresCount} stores)` : undefined,
           scheduleDays: null,
           scheduleTime: null,
-          status: isOnLeave ? "On Leave" : "Active",
+          status: displayStatus,
           isOnLeave,
           initials: getInitials(emp.firstName, emp.lastName),
         });
