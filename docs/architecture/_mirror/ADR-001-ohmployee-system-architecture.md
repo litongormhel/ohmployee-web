@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: b0d03cf 2026-11-15T18:35:35+08:00
-source_sha256: bac343b4aa15790c33952dcda2319e6a5c2e56a1816b461e691d527bb889fc8b
-synced_at: 2026-11-15T10:35:41.552Z
+source_commit: c831b4e 2026-11-23T11:39:42+08:00
+source_sha256: 2014fa1fed0c72c4d2d4e4d7e79f6ef43fb06cdda174bc08c5bd9afb0e6df6e6
+synced_at: 2026-11-23T03:39:51.372Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -92,7 +92,7 @@ User Management (`public.user_scopes` joined to `public.users_profile` with `rol
 1. HC means People only.
 2. Coverage Group means store structure only.
 3. Store count must never affect HC.
-4. Coverage Weight and HC Share are deprecated.
+4. Manual Coverage Weight and manual HC Share inputs are deprecated for headcount derivation; per-store fractional capacity ($1/N$) is auto-computed strictly by the database (ADR-002 Invariant 4) for store-level capacity views while Account/Company HC remains people-only.
 5. Coverage Request never creates slot, vacancy, pipeline, or HC.
 6. HC Request is the only source of workforce demand.
 7. Roving workforce uses Coverage Group vacancy.
@@ -105,6 +105,8 @@ User Management (`public.user_scopes` joined to `public.users_profile` with `rol
 14. No cross-island Coverage Groups: a Coverage Group cannot span Luzon + Visayas, Luzon + Mindanao, or Visayas + Mindanao. Validated at backend (hard block in `submit_headcount_request` and `create_plantilla_slot_from_request`) and at UI (client-side warning via `fn_validate_coverage_island_group`).
 15. Store removal from Coverage Group: a removed store's VCode survives. Only the coverage membership (`coverage_group_stores` row) is removed. Vacancies are never deleted by coverage structure changes.
 16. Adding stores to an existing Coverage Group: use Coverage Change Request → Add Store (not a new HC Request). A new HC Request always creates a new Coverage Group.
+17. Mixed Stationary + Roving Store Coexistence: A store with active Stationary employee(s) may simultaneously be covered by one or more Roving employees under a Coverage Group (CGCODE). Store-level capacity sums Stationary (1.00 each) + Roving ($1/N$ each, e.g., 1.50 for 2-store roving, 1.33 for 3-store roving), while Account/CENCOM/Dashboard HC always counts distinct people.
+18. Request Headcount vs. Request New Store Separation: Request Headcount (Plantilla Store View per-row Stationary action + Plantilla header Roving action) operates strictly on existing stores. Request New Store is an independent Plantilla header flow owning all unlisted store openings (Stationary 1-store with initial HC >= 1, and Roving multi-door openings per ADR-003).
 
 ### Definitions
 
@@ -138,9 +140,19 @@ User Management (`public.user_scopes` joined to `public.users_profile` with `rol
 2. **Fractional Slot Allocation**: In the Plantilla Vacancy tab, each roving member store's slot allocation reflects fractional roving capacity ($\text{Slot} = 1/N$, e.g., $0.5$ for 2 stores, $1/3$ for 3 stores). The total headcount demand across the cluster remains governed by the 1-employee-per-roving-slot invariant.
 3. **Structure-Only & Vacant Grouping**: If a Coverage Group is formed from vacant stores without an active employee (`v_employees_converted = 0`), member stores' plantilla slots transition to `is_roving = true, employment_type = 'Roving'`, and their vacancies are linked under the group's `CGCode`.
 
+**Mixed Stationary + Roving Store Capacity & Entry-Point Architecture (`ohm#phase1-mixed-roving-hc`, 2026-11-23)** — Cross-repo binding invariants for simultaneous Stationary and Roving coverage at the same store and clean Request Headcount vs. Request New Store entry-point separation:
+1. **Stationary + Roving Coexistence on Same Store**: Store 1 (Juan, Stationary = `1.00`) + Store 2 (Pedro, Stationary = `1.00`) + Maria (Roving across Store 1 & Store 2 = `0.50` each) yields Store 1 = `1.50`, Store 2 = `1.50`, Account Total = `3` people. Approving a Roving HC Request on an already-occupied store MUST create a distinct `plantilla_slots` row (`slot_ordinal = max + 1`, `is_roving = true`, `employment_type = 'Roving'`, `coverage_group_id = v_new_cg_id`) without altering or converting existing Stationary slots/employees.
+2. **Dynamic $1/N$ Recalculation on Coverage Structure Changes**: Adding or removing a store in a Coverage Group (`Add Store` / `Remove Store` via `_execute_approved_coverage_request`) MUST atomically insert/deactivate the member store's `employee_store_allocations` row and recompute `filled_hc = ROUND(1.0 / N, 2)` across all active member stores for every roving employee in that group (e.g., adding Store 3 shifts Maria from `0.50` → `0.33`, yielding Store 1 = `1.33`, Store 2 = `1.33`, Store 3 = `0.33` or `1.33` if Store 3 also has a stationary).
+3. **Account vs. Store Reconciliation Parity (Web + Mobile)**: Account, Dashboard, and CENCOM HC ALWAYS count distinct people (`3` people, never summing rounded `0.33` fractions). Store View (`StoreCapacityTable` on Web and Store View on Mobile) computes `Active Deployed = SUM(filled_hc)` and `Open Vacancy = SUM(stationary open slots + 1/N per roving open slot)` from the shared Supabase DB so Web and Mobile display identical `1.50` / `1.33` values.
+4. **Request Headcount vs. Request New Store Entry-Point Architecture (Web + Mobile)**:
+   - **Plantilla → Store View (per-row `Request HC`)**: Pre-locked Stationary HC request for that existing store (all request types: Additional, Replacement, Reliever, Commando, HC Reduction; zero New Store detour).
+   - **Plantilla Header (`+ Request Roving HC`)**: Existing stores only (2–20 stores, same Island Group).
+   - **Plantilla Header (`+ Request New Store`)**: Independent entry point for all unlisted/opening stores — Stationary mode (1 new store + initial HC >= 1 so approved stores immediately receive an Open Vacancy and appear in Store View) and Roving mode (2–20 new/mixed stores per ADR-003 atomic provisioning → `/approvals?tab=new_stores`).
+   - **Vacancy Detail Drawer**: Retains Admin `Adjust Headcount Quota` and Ops `Request HC Adjustment` for quick existing-VCode adjustments.
+
 ### Deprecated Concepts
 
-Coverage Weight and HC Share are deprecated and must not be used for new logic, calculations, dashboards, requests, or workflow decisions. Do not derive HC from Coverage Weight, HC Share, store count, or store footprint.
+Manual Coverage Weight and manual HC Share inputs are deprecated for company headcount derivation and must not be used to inflate company/account HC from store count or store footprint. DB-computed $1/N$ fractional store allocation (ADR-002 Invariant 4) governs Store View capacity display only.
 
 ### Forbidden Logic Examples
 

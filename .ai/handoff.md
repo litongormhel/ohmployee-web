@@ -1,5 +1,24 @@
 # AI Handoff
 
+## Execution Report — Phase 1: ADR-001 Mixed Stationary + Roving Store Capacity & Request HC Separation (ohm#phase1-mixed-roving-hc-adr)
+
+**Status: COMPLETE & VERIFIED (Docs-Only Phase 1).**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index), `docs/state/plantilla_web_state.md`, `docs/state/approvals_web_state.md`, `docs/architecture/ADR-003-roving-headcount-new-stores-architecture.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, § HC Request & Coverage Semantics), `docs/architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md`.
+- **ADR mirror synced**: `b0d03cf` → `c831b4e` (`ADR_MIRROR_STATUS: FRESH`; `ADR-002` unchanged at `49d7a40`).
+- **Key Architectural Locks Added to Mobile `ADR-001-ohmployee-system-architecture.md` (`c831b4e`)**:
+  1. **Core Decision #4 (Clarified)**: Manual Coverage Weight and manual HC Share inputs remain deprecated for company headcount derivation; DB-computed $1/N$ fractional allocation (ADR-002 Invariant 4) governs store-level capacity views while Account/Company HC stays people-only.
+  2. **Core Decision #17 (Mixed Stationary + Roving Store Coexistence)**: Stores with active Stationary employees may simultaneously be covered by Roving employees under a Coverage Group (`CGCODE`). Store capacity sums Stationary (`1.00`) + Roving (`1/N`, e.g., `1.50` / `1.33`), while Account/CENCOM/Dashboard HC counts distinct people.
+  3. **Core Decision #18 (Request Headcount vs. Request New Store Separation)**: Request Headcount (`Plantilla > Store View` per-row Stationary action + Header `+ Request Roving HC`) operates strictly on existing stores; `+ Request New Store` is an independent Plantilla header flow owning all unlisted openings (Stationary with initial HC >= 1 + Roving ADR-003).
+  4. **Binding Cross-Repo Invariants (`ohm#phase1-mixed-roving-hc`)**:
+     - Distinct `plantilla_slots` creation for Roving HC requests on already-occupied stores without altering existing Stationary slots/employees.
+     - Dynamic $1/N$ `filled_hc` recalculation in `_execute_approved_coverage_request` upon `Add Store` / `Remove Store`.
+     - Single-source-of-truth DB parity between Web and Mobile (`Store View` sums `filled_hc` + fractional open vacancies; Account/Dashboard counts distinct people).
+     - Clean UI entry-point separation across Web and Mobile while retaining Vacancy Detail Drawer quick quota adjustments.
+- **Verification**:
+  - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH — ADR-001 (c831b4e 2026-11-23T11:39:42+08:00), ADR-002 (49d7a40 2026-11-12T17:34:47+08:00)`.
+  - Mobile repo (`D:\Projects\OHMployee`): local commit `c831b4e` on `main`, working tree clean.
+- **Next Phase Readiness**: Ready for **Phase 2 (Shared Supabase Migration)** covering `create_plantilla_slot_from_request` (roving slot creation alongside existing stationary slots), `_execute_approved_coverage_request` (dynamic $1/N$ recalculation on `Add Store` / `Remove Store`), and store capacity / fractional open vacancy projections.
+
 ## Execution Report — MARIZ Orphan Stores Archival & Database-Wide Store Alignment (ohm#archive-mariz-orphan-stores-and-sync-all)
 
 **Status: COMPLETE & VERIFIED.**
