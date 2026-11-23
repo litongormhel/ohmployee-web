@@ -117,9 +117,13 @@ export function Modal({
                 {title}
               </h2>
               {subtitle && (
-                <p className="mt-0.5 text-xs text-text-secondary truncate">
+                <div
+                  className={`mt-0.5 text-xs text-text-secondary ${
+                    typeof subtitle === "string" ? "truncate" : ""
+                  }`}
+                >
                   {subtitle}
-                </p>
+                </div>
               )}
             </div>
           </div>

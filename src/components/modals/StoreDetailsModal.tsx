@@ -324,10 +324,10 @@ export function StoreDetailsModal({
       onClose={onClose}
       maxWidthClass="max-w-3xl"
       title={
-        <div className="flex items-center gap-2.5">
+        <span className="flex items-center gap-2.5">
           <Building2 className="h-5 w-5 text-brand-600 shrink-0" />
           <span className="truncate">{formatStoreName(store.storeBranch)}</span>
-        </div>
+        </span>
       }
       subtitle={
         <div className="flex items-center gap-2 flex-wrap text-xs text-text-secondary mt-0.5">
