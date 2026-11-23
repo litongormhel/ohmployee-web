@@ -4,14 +4,14 @@
   1. `.ai/briefing.md`
   2. `.ai/current_state.md` → "Routing Index" section only
   3. Infer the module(s) from the prompt (route, component, RPC, or module name). Load each
-     module's web state file(s) and its ADR-001 sections from the Routing Index table.
-  4. ADR mirror → § Core Cross-Module Invariants + the module section(s).
+     module's web state file(s) and its specific modular ADR file from the Routing Index table.
+  4. ADR mirror → `docs/architecture/_mirror/adr/00_core_invariants.md` + `docs/architecture/_mirror/adr/<module_file>.md` (Token-Optimized Hub-and-Spoke Loading: NEVER load unrelated module ADR files).
   If the module is ambiguous, ask before loading. Start every report with
   "Context loaded: <files + ADR sections>". Fail loudly: if any file is missing, STOP and report
   the missing path. Never proceed silently. All paths are relative to THIS web repo.
   A Context block in the prompt is optional: it overrides or extends this default.
-- ADR Mirrors: ADR-001 and ADR-002 are read from `docs/architecture/_mirror/`
-  (read-only copies; source of truth is the mobile repo). At the start of EVERY prompt run
+- ADR Mirrors: Hub-and-Spoke modular ADRs are read from `docs/architecture/_mirror/adr/`
+  (read-only copies; source of truth is mobile repo `docs/architecture/adr/`). At the start of EVERY prompt run
   `npm run check:adr` and act on `ADR_MIRROR_STATUS`:
   `FRESH` → proceed. `STALE` / `MIRROR_MISSING` / `MIRROR_EDITED` → run `npm run sync:adr`
   (exempt from the Approval Gate: copy only, no code/logic), then include the mirror file(s) in the

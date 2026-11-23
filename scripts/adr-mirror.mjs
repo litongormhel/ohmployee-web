@@ -25,14 +25,49 @@ const mobileRepo = path.resolve(process.env.OHM_MOBILE_REPO || path.join(root, '
 
 const ADR_FILES = [
   {
-    id: 'ADR-001',
+    id: 'ADR-001-Full',
     srcRel: '.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md',
     mirrorRel: 'docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md',
   },
   {
-    id: 'ADR-002',
-    srcRel: 'docs/architecture/adr002_plantilla_import_store_identity_and_governance.md',
-    mirrorRel: 'docs/architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md',
+    id: 'ADR-Core',
+    srcRel: 'docs/architecture/adr/00_core_invariants.md',
+    mirrorRel: 'docs/architecture/_mirror/adr/00_core_invariants.md',
+  },
+  {
+    id: 'ADR-Plantilla',
+    srcRel: 'docs/architecture/adr/01_plantilla.md',
+    mirrorRel: 'docs/architecture/_mirror/adr/01_plantilla.md',
+  },
+  {
+    id: 'ADR-Vacancy',
+    srcRel: 'docs/architecture/adr/02_vacancy.md',
+    mirrorRel: 'docs/architecture/_mirror/adr/02_vacancy.md',
+  },
+  {
+    id: 'ADR-HREmploc',
+    srcRel: 'docs/architecture/adr/03_hr_emploc.md',
+    mirrorRel: 'docs/architecture/_mirror/adr/03_hr_emploc.md',
+  },
+  {
+    id: 'ADR-Approvals',
+    srcRel: 'docs/architecture/adr/04_approvals_requisitions.md',
+    mirrorRel: 'docs/architecture/_mirror/adr/04_approvals_requisitions.md',
+  },
+  {
+    id: 'ADR-More',
+    srcRel: 'docs/architecture/adr/05_more_module.md',
+    mirrorRel: 'docs/architecture/_mirror/adr/05_more_module.md',
+  },
+  {
+    id: 'ADR-Dashboard-CENCOM',
+    srcRel: 'docs/architecture/adr/06_dashboard_cencom.md',
+    mirrorRel: 'docs/architecture/_mirror/adr/06_dashboard_cencom.md',
+  },
+  {
+    id: 'ADR-Index',
+    srcRel: 'docs/architecture/adr/README.md',
+    mirrorRel: 'docs/architecture/_mirror/adr/README.md',
   },
 ];
 

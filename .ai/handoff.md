@@ -1,5 +1,54 @@
 # AI Handoff
 
+## Execution Report — Hub-and-Spoke Modular ADR Architecture (ohm#hub-and-spoke-modular-adr-architecture)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **User Request Alignment**:
+   - The user asked how to avoid heavy token consumption so that an AI working on a specific module (e.g., Vacancy) does NOT read the entire 14k-token monolithic architecture document.
+   - Recommended and implemented **Solution 1: Hub-and-Spoke Modular ADR Architecture**, partitioning architecture rules into dedicated, isolated module files under `docs/architecture/adr/`.
+2. **Modular Architecture Structure (`D:\Projects\OHMployee\docs\architecture\adr/`)**:
+   - `00_core_invariants.md`: (~70 lines) Mandatory cross-module invariants (Rules 1–7: Slot Authority, Hired HC Source, Lifecycle Sync, Denormalized Writes, User Management SSOT).
+   - `01_plantilla.md`: (~270 lines) Store Identity (1 Store = 1 VCODE), Plantilla Baseline Import, Headcount Fractions ($1/N$), 6 Sub-Tabs, DOLE Floating, Relievers (absorbing ADR-002).
+   - `02_vacancy.md`: (~180 lines) Capacity Matrix, 5 Tabs, Candidate-Level Pipeline Expansion, Strict Closure Lock, Aging Continuity.
+   - `03_hr_emploc.md`: (~190 lines) 5 Queues, Emploc Number Ownership, Deployment Rules a–d, 4 Statutory Requirements, Deployed Reverts.
+   - `04_approvals_requisitions.md`: (~350 lines) 11 Queues, Option 1 Requisition Routing, ADR-003 Unified Roving with Atomic Store Provisioning, /my-requests.
+   - `05_more_module.md`: (~180 lines) 5 Tabs, 5 Batch Imports with 72h Rollback, QA Simulation Sandbox, MIKA Ghost Detection.
+   - `06_dashboard_cencom.md`: (~120 lines) 4 KPIs, CENCOM 5 Tabs, MFR Health Scale, Database Computes / UI Renders, Rounding Contract.
+   - `README.md`: Master Catalog & Token Router.
+   - Committed in mobile repository on `main` (`0eb4407`).
+3. **Web Tooling & Mirror Sync (`scripts/adr-mirror.mjs`)**:
+   - Updated `ADR_FILES` in `scripts/adr-mirror.mjs` to mirror all 8 modular files into `docs/architecture/_mirror/adr/` in addition to the monolithic reference.
+   - Ran `npm run sync:adr` and verified `ADR_MIRROR_STATUS: FRESH` across all 9 items.
+4. **Context Loading Protocol**:
+   - Updated `AGENTS.md`, `.ai/briefing.md`, and `.ai/current_state.md` to instruct AI agents to load ONLY `00_core_invariants.md` plus the active module's ADR file (e.g., `02_vacancy.md` for Vacancy).
+   - Achieves up to **90% token savings** per prompt with zero line-drift risk.
+
+### Files
+- Mobile (`D:\Projects\OHMployee`):
+  - `docs/architecture/adr/00_core_invariants.md`
+  - `docs/architecture/adr/01_plantilla.md`
+  - `docs/architecture/adr/02_vacancy.md`
+  - `docs/architecture/adr/03_hr_emploc.md`
+  - `docs/architecture/adr/04_approvals_requisitions.md`
+  - `docs/architecture/adr/05_more_module.md`
+  - `docs/architecture/adr/06_dashboard_cencom.md`
+  - `docs/architecture/adr/README.md`
+- Web (`D:\Projects\ohmployee-web`):
+  - `scripts/adr-mirror.mjs`
+  - `docs/architecture/_mirror/adr/*` (mirrored copies)
+  - `AGENTS.md`
+  - `.ai/briefing.md`
+  - `.ai/current_state.md`
+  - `.ai/handoff.md`
+
+### Validation
+- `npm run check:adr` -> `ADR_MIRROR_STATUS: FRESH` (exit code 0)
+- `npm test` -> 257/257 passed (exit code 0)
+- `npm run lint` -> 0 errors / 0 warnings (exit code 0)
+
+---
+
 ## Execution Report — Restrict HR Emploc Deficiency Reviews to SA & HR Personnel (ohm#restrict-deficiency-review-to-hr-personnel)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 

@@ -5,27 +5,28 @@
 AI context router. Load ONLY the files for the active module. Do not load unrelated modules.
 All paths are relative to THIS web repo. If a required file is missing, STOP and report it — never proceed silently.
 
-### Architecture Locks (ADR-001 & ADR-002)
-- Read ADR-001: `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (read-only mirror)
-- Read ADR-002: `docs/architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md` (read-only mirror)
-- Source of truth (do NOT edit from web): mobile repo `.ai/architecture_locks/` and `docs/architecture/`
-- Freshness: run `npm run check:adr` at the start of every prompt (AGENTS.md § ADR Mirror).
-- Every module below also loads ADR-001 § **Core Cross-Module Invariants**.
+### Architecture Locks (Hub-and-Spoke Modular ADRs)
+- **Token-Optimized Loading Rule:** To minimize token consumption, do **NOT** read the entire architecture repository. Load ONLY:
+  1. `docs/architecture/_mirror/adr/00_core_invariants.md` (mandatory cross-module invariants, ~70 lines)
+  2. The single module-specific ADR file from the table below (~100–250 lines).
+- Master Index / Catalog: `docs/architecture/_mirror/adr/README.md`
+- Source of truth: mobile repo `docs/architecture/adr/` (do NOT edit from web).
+- Freshness: run `npm run check:adr` at the start of every prompt (`ADR_MIRROR_STATUS: FRESH`).
 
 ### Module Routing
-| Module | Web state file(s) | ADR section(s) besides Core |
+| Module | Web state file(s) | Modular ADR File to Load |
 |---|---|---|
-| Vacancy | `docs/state/vacancy_web_state.md` | Vacancy |
-| Plantilla | `docs/state/plantilla_web_state.md` | Plantilla (ADR-001); ADR-002 mirror |
-| HR Emploc | `docs/state/hr_emploc_web_state.md`, `docs/state/web_mutation_workflow_state.md` | HR Emploc Import |
-| Dashboard / CENCOM | `docs/state/dashboard_state.md`, `docs/state/cencom_state.md` | Dashboard & CENCOM |
-| More | `docs/state/more_state.md` | More Module |
-| Approvals | `docs/state/approvals_web_state.md` | HC Request & Coverage Semantics |
-| Auth / RBAC | `docs/state/web_auth_rbac_state.md` | — (Core Rule 7) |
-| Notifications | `docs/state/notifications_state.md` | — |
-| UI System / Tokens | `docs/state/web_ui_system_state.md`, `docs/state/web_design_tokens.md` | — |
-| OHMni Copilot | `docs/state/ohmni_copilot_state.md` | — |
-| Foundation / Target | `docs/state/web_foundation_state.md`, `docs/state/web_target_state.md` | — |
+| Vacancy | `docs/state/vacancy_web_state.md` | `docs/architecture/_mirror/adr/02_vacancy.md` |
+| Plantilla | `docs/state/plantilla_web_state.md` | `docs/architecture/_mirror/adr/01_plantilla.md` |
+| HR Emploc | `docs/state/hr_emploc_web_state.md`, `docs/state/web_mutation_workflow_state.md` | `docs/architecture/_mirror/adr/03_hr_emploc.md` |
+| Approvals | `docs/state/approvals_web_state.md` | `docs/architecture/_mirror/adr/04_approvals_requisitions.md` |
+| More | `docs/state/more_state.md` | `docs/architecture/_mirror/adr/05_more_module.md` |
+| Dashboard / CENCOM | `docs/state/dashboard_state.md`, `docs/state/cencom_state.md` | `docs/architecture/_mirror/adr/06_dashboard_cencom.md` |
+| Auth / RBAC | `docs/state/web_auth_rbac_state.md` | `docs/architecture/_mirror/adr/00_core_invariants.md` (Rule 7) |
+| Notifications | `docs/state/notifications_state.md` | `docs/architecture/_mirror/adr/00_core_invariants.md` |
+| UI System / Tokens | `docs/state/web_ui_system_state.md`, `docs/state/web_design_tokens.md` | `docs/architecture/_mirror/adr/00_core_invariants.md` |
+| OHMni Copilot | `docs/state/ohmni_copilot_state.md` | `docs/architecture/_mirror/adr/00_core_invariants.md` |
+| Foundation / Target | `docs/state/web_foundation_state.md`, `docs/state/web_target_state.md` | `docs/architecture/_mirror/adr/00_core_invariants.md` |
 
 - Use the web state files above, NOT same-named files in the mobile repo (mobile copies are older and diverged).
 - Mobile-only state (e.g. Flutter `docs/state/vacancy_state.md`) is out of scope for web work unless the prompt says otherwise.
@@ -36,7 +37,8 @@ Include only to override or extend the default:
 1. .ai/briefing.md
 2. .ai/current_state.md (Routing Index section only)
 3. docs/state/<module web state file from table>
-4. docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md → Core Cross-Module Invariants, <module section>
+4. docs/architecture/_mirror/adr/00_core_invariants.md
+5. docs/architecture/_mirror/adr/<module ADR file from table>
 ```
 
 ---
@@ -46,6 +48,7 @@ _Everything below is historical log (not routing). Do not load unless needed._
 OHMployee Web is a Next.js App Router project with a lightweight admin command shell, authentication page, and scaffold-only module routes.
 
 ## Recent Updates
+- **ohm#hub-and-spoke-modular-adr-architecture**: Established the Hub-and-Spoke Modular ADR Architecture in the mobile source-of-truth repository (`D:\Projects\OHMployee\docs\architecture\adr\`) and synchronized web read-only mirrors (`docs/architecture/_mirror/adr/`). Solved the heavy token consumption problem where agents previously had to parse the full 14k-token monolithic architecture document. (1) Partitioned architecture into 8 discrete, token-optimized modules: `00_core_invariants.md` (~70 lines, mandatory cross-module invariants), `01_plantilla.md` (~270 lines, including ADR-002 Store Identity, Plantilla Baseline Import, Headcount Fractions $1/N$, 6 Sub-Tabs, DOLE Floating, Relievers), `02_vacancy.md` (~180 lines, Capacity Matrix, 5 Tabs, Pipeline Expansion, Strict Closure Lock, Aging Continuity), `03_hr_emploc.md` (~190 lines, 5 Queues, Emploc Number Ownership, Deployment, 4 Statutory Requirements, Deployed Reverts), `04_approvals_requisitions.md` (~350 lines, 11 Queues, Option 1 Requisition Routing, ADR-003 Unified Roving with Atomic Store Provisioning, /my-requests), `05_more_module.md` (~180 lines, 5 Tabs, 5 Batch Imports with 72h Rollback, QA Simulation, MIKA Ghost Detection), `06_dashboard_cencom.md` (~120 lines, 4 KPIs, CENCOM 5 Tabs, MFR Health Scale, DB Computes / UI Renders), and `README.md` (Master Catalog & Token Router). (2) Tooling & Mirror Sync (`scripts/adr-mirror.mjs`): Enhanced `ADR_FILES` array to mirror all 8 modular files plus the monolithic archive, achieving `ADR_MIRROR_STATUS: FRESH`. (3) Context Loading Protocol: Updated `AGENTS.md`, `.ai/briefing.md`, and `.ai/current_state.md` routing indexes instructing AI agents to load ONLY `00_core_invariants.md` plus the active module file, saving up to 90% in token overhead per prompt. (4) Verification: Passed all 257 unit tests (`npm test`), 0 ESLint errors/warnings (`npm run lint`), 0 secret leaks (`check:secrets`), 0 SQL contract violations (`check:sql`).
 - **ohm#archive-superseded-architecture-docs**: Executed Option A (Architecture Reorganization & Historical Archival) in the mobile source-of-truth repository (`D:\Projects\OHMployee`). Moved 24 historical design plans, early phase specifications (Phases A–G and RA–RE), and superseded slot RFCs to `docs/architecture/archive/` (`git mv`) to prevent AI context confusion and stale-rule pollution. Created canonical `docs/architecture/archive/README.md` cataloging the archived files and explicitly pointing developers and AI agents to active locks: canonical ADR-001 (`.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md`), canonical ADR-002 (`docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`), and active operational governance docs. Left only 9 active operational/architecture documents in root `docs/architecture/`. Verified ADR mirror status remained clean and fresh (`ADR_MIRROR_STATUS: FRESH`).
 - **ohm#harden-date-parsing-and-sanitize-anomalous-ages**: Implemented 3-layer architecture hardening and data remediation resolving negative and underage employee age anomalies across Web and Mobile. (1) Forensic Diagnosis: Identified that PostgreSQL `to_date(p_str, 'MM/DD/YY')` in `public.safe_parse_date` mapped 2-digit years 00-69 to 2000-2069 (e.g. `68` -> `2068`, `65` -> `2065`), resulting in negative computed ages (`-41`, `-38`, `-34`, `-14`, `-10`) relative to 2026. Excel zero-date cells (`1/0/00`) rolled back to `0001-01-01 BC` (2,026 yrs old), and test template rows entered with 2-digit years (`18`, `10`, `09`) were parsed as ages 8, 16, and 17. (2) Database Migration (`supabase/migrations/20262606000151_harden_date_parsing_and_sanitize_anomalous_ages.sql`): Hardened `public.safe_parse_date` with automatic 2-digit year pivot correction (`v_res > CURRENT_DATE + INTERVAL '1 year' -> v_res - INTERVAL '100 years'`) and explicit nullification of zero-dates (`1/0/00`, `0`, and dates `< 1900-01-01`). Sanitized all 11 historical anomalous records in `public.plantilla` (shifting 2-digit future dates back to 20th century, updating test records to valid legal working ages, and setting corrupted BC dates to NULL). Updated `public.v_plantilla_safe` view clamping `age` and `tenure_months` to valid calendar intervals ($1900 \le \text{date} \le \text{today}$). (3) Client & Mobile Hardening: Updated `normalizeDateToIso` in `src/lib/utils/plantilla_normalization.ts` to reject zero-dates and pivot 2-digit years. Hardened Web `formatBirthDateAndAge` (`/plantilla/[id]`) and Mobile `_computeAge` (`D:\Projects\OHMployee\lib\features\plantilla\plantilla_screen.dart`) with boundary guards ($0 \le \text{age} \le 120$ and $\text{dob} \le \text{today}$). (4) Verification: Passed all 257 unit tests (`npm test`), 0 ESLint errors/warnings (`npm run lint`), 0 secret leaks (`check:secrets`), 0 SQL contract violations (`check:sql`), clean Next.js 16.2.4 Turbopack build (`npm run build`), clean Flutter analysis on Mobile (`flutter analyze`), live `pg_get_functiondef` verification, and pushed migration live to Staging (`qqiiznmqxfoamqytjica`).
 - **ohm#auto-separation-sync-and-plantilla-slots-backfill**: Codified ADR-001 Invariant 19 (Auto-Inactive on Separation Date) and ADR-002 Invariants 1 & 5 (1:1 Headcount to Physical Slot Identity). (1) Database Migration (`supabase/migrations/20262606000149_auto_separation_sync_and_plantilla_slots_backfill.sql`): Added trigger `trg_plantilla_auto_separation_sync` on `public.plantilla` (`BEFORE INSERT OR UPDATE OF date_of_separation, status`) automatically transitioning records to `'Inactive'` whenever `date_of_separation <= CURRENT_DATE`. Added trigger `trg_plantilla_vacate_slot_on_inactive` on `public.plantilla` (`AFTER UPDATE OF status`) automatically vacating occupied slots (`slot_status = 'open', current_occupant_plantilla_id = NULL`) upon deactivation/inactivation. Backfilled missing occupied rows in `public.plantilla_slots` across all legacy baseline stores (including `TEST001` through `TEST008` in BANKO), guaranteeing 1:1 parity between authorized headcount and physical slots. Reopened Super 9 (`TEST009`) vacancy and transitioned separated employee Kimi Antonelli (`date_of_separation = '2026-10-27'`) to Inactive. (2) ADR Amendments: Updated source of truth (`OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md` and `docs/architecture/adr002_plantilla_import_store_identity_and_governance.md`) and synced web read-only mirrors via `npm run sync:adr` (`5ce4032`). (3) Frontend Alignment (`src/components/modals/StoreDetailsModal.tsx`): Filtered out inactive/deactivated/separated personnel from `deployedPersonnel` and mapped dynamic status badges from `emp.plantillaStatus` instead of hardcoding "Active". (4) Verification: Passed all 257 unit tests (`npm test`), 0 ESLint errors/warnings (`npm run lint`), 0 secret leaks (`check:secrets`), 0 SQL contract violations (`check:sql`), clean Next.js 16.2.4 Turbopack build (`npm run build`), and applied migration live to Staging (`qqiiznmqxfoamqytjica`).

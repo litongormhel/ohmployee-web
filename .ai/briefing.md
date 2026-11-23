@@ -59,10 +59,10 @@ For heavy, multi-surface, or high-risk tasks (cross-module impact, complex busin
 2. **Decompose and delegate**: Utilize subagents (e.g., `research` or specialized agents via `invoke_subagent`) to trace schema dependencies, search the codebase, or cross-verify parity in isolated contexts.
 3. **Primary Orchestration**: The primary agent remains responsible for all workflow rules, the Approval Gate, local commits, and communication with the user.
 
-### ADR Architecture Lock Reference
-ADR mirrors (read these): `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` and `docs/architecture/_mirror/adr002_plantilla_import_store_identity_and_governance.md` — read-only mirrors.
-Source of truth: mobile repo `.ai/architecture_locks/` and `docs/architecture/` (Windows: `D:\Projects\OHMployee`; override with env `OHM_MOBILE_REPO`).
-Freshness check + auto-sync every prompt: `npm run check:adr` / `npm run sync:adr` (rules in AGENTS.md § ADR Mirrors). Module → ADR section routing: `.ai/current_state.md`.
+### ADR Architecture Lock Reference (Hub-and-Spoke Modular System)
+ADR mirrors (read these): `docs/architecture/_mirror/adr/00_core_invariants.md` plus the active module's file in `docs/architecture/_mirror/adr/<module>.md` — read-only mirrors. To maintain maximum token efficiency, NEVER load all ADR files; load only Core Invariants and the active module file.
+Source of truth: mobile repo `docs/architecture/adr/` (Windows: `D:\Projects\OHMployee`; override with env `OHM_MOBILE_REPO`).
+Freshness check + auto-sync every prompt: `npm run check:adr` / `npm run sync:adr` (rules in AGENTS.md § ADR Mirrors). Module → ADR file routing: `.ai/current_state.md`.
 Do not edit ADRs (or mirrors) from this web repo. If a loop requires an ADR update, log it in handoff under "ADR updates needed (Ohm applies in mobile repo)". In every loop report, state "ADR basis: <file + sections>" and the mirrors' `source_commit`.
 
 ### Permanent Architectural Rule Locks
