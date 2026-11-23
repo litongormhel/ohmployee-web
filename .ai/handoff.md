@@ -1,6 +1,6 @@
 # AI Handoff
 
-## Execution Report — Plantilla Store View VCode Colors, Clean Store Names & Deployment History Modal (ohm#store-view-vcode-deployment-history)
+## Execution Report — Plantilla Store View VCode Colors, Clean Store Names, Deployment History Modal & Universal Type Filter (ohm#store-view-vcode-deployment-history)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 
 ### What Was Built
@@ -14,13 +14,19 @@
      - **Roving**: Violet / Purple badge (`border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/60 dark:text-purple-300`).
      - **Mixed (Stationary + Roving)**: Indigo gradient badge (`border-indigo-300 bg-gradient-to-r from-blue-50 to-purple-50 text-indigo-800 dark:border-indigo-700 dark:from-blue-950/60 dark:to-purple-950/60 dark:text-indigo-200`).
    - When a store lacks an assigned VCode, it displays a dashed `No VCode` badge using the same designated deployment color, ensuring zero hidden or missing VCodes.
+   - Updated table column headers with live totals: `Required ({totals.required})`, `Actual ({totals.actual})`, `On-Leave ({totals.onLeave})`, and `Vacancy ({totals.vacancy})`.
 3. **Store Details Modal (`StoreDetailsModal`)**:
    - Created `src/components/modals/StoreDetailsModal.tsx` and connected it to store branch clicks in `src/app/(dashboard)/plantilla/page.tsx`.
    - Features:
-     - **Header & Metric Cards**: Store name, city/province, account, styled VCode, and 4 KPI metrics (`Plantilla Required`, `Active Deployed`, `On-Leave`, `Open Vacancy`).
+     - **Header & Metric Cards**: Store name, city/province, account, styled VCode, and 4 KPI metrics (`Required`, `Actual`, `On-Leave`, `Vacancy`).
      - **Tab 1: Deployed Personnel ("Who Deployed")**: Lists all active and on-leave employees assigned to that store (from live allocations, account employees, and slot occupants) with position, schedule days/time, status, and roving fractional headcount shares (e.g. `0.50 HC (2 stores)`).
-     - **Tab 2: Store History ("History ng Store")**: Displays chronological audit timeline powered by `useStoreHistory(storeId, vcode)` (querying `slot_history` and `employee_activity_log` with resolved performer names).
+     - **Tab 2: Store History ("History ng Store")**: Displays chronological audit timeline powered by `useStoreHistory(storeId, vcode)` (querying `slot_history` and `employee_activity_log` with humanized action labels, sanitized clean remarks removing UUID/RPC syntax residues, and resolved performer names).
      - **Tab 3: Plantilla Slots**: Lists discrete ADR-001 slots with occupant details and `Inspect Slot` action opening `SlotDetailDrawer`.
+4. **Universal Assignment Type Dropdown Filter ("Stationary / Roving")**:
+   - Connected `assignmentType` filter across both Employee View, Vacancies Tab, and Store View in `src/app/(dashboard)/plantilla/page.tsx`:
+     - **Employee View**: Evaluates `assignmentType`, multi-store coverage (`coveredStoresCount > 1`), `cgCode`, and `vcode` prefix (`CG-`).
+     - **Vacancy Tab**: Filters open and pipeline vacancies by Stationary vs. Roving employment type.
+     - **Store View**: Filters `filteredStoreCapacityRows` by store `deploymentTypes` (`Stationary`, `Roving`, and `Mixed`), correctly preserving stores matching the selected mode.
 
 ### Files
 - `src/lib/utils/displayText.ts`
@@ -38,7 +44,7 @@
 - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
 - `npm test`: `255/255` passed (`ADR_MIRROR_STATUS: FRESH`, `SQL_CONTRACTS_OK`, zero leaks).
 - `npm run lint`: `0` errors, `0` warnings.
-- `npm run build`: verified production build compilation.
+- `npm run build`: verified production build compilation (`22/22` static pages).
 
 ---
 

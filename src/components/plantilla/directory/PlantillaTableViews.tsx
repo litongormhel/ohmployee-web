@@ -1079,6 +1079,29 @@ export function StoreCapacityTable({
 }) {
   const showActions = Boolean(canRequestHeadcount && onRequestHeadcount);
 
+  const totals = React.useMemo(() => {
+    let req = 0;
+    let act = 0;
+    let leave = 0;
+    let vac = 0;
+    rows.forEach((r) => {
+      req += r.plantillaRequired;
+      act += r.activeDeployed;
+      leave += r.onLeave;
+      vac += r.openVacancy;
+    });
+    const format = (n: number) => {
+      const rounded = Math.round(n * 100) / 100;
+      return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+    };
+    return {
+      required: format(req),
+      actual: format(act),
+      onLeave: format(leave),
+      vacancy: format(vac),
+    };
+  }, [rows]);
+
   return (
     <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
       <div className="overflow-auto flex-1 min-h-0">
@@ -1092,16 +1115,16 @@ export function StoreCapacityTable({
                 Area & City
               </th>
               <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Plantilla Required
+                Required ({totals.required})
               </th>
               <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Active Deployed
+                Actual ({totals.actual})
               </th>
               <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
-                On-Leave
+                On-Leave ({totals.onLeave})
               </th>
               <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Open Vacancy
+                Vacancy ({totals.vacancy})
               </th>
               <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Fulfillment Status

@@ -709,7 +709,12 @@ function PlantillaPageContent() {
     }
 
     if (assignmentType) {
-      const isRoving = emp.assignmentType?.toLowerCase() === "roving";
+      const isRoving = Boolean(
+        emp.assignmentType?.toLowerCase().includes("roving") ||
+        (emp.coveredStoresCount && emp.coveredStoresCount > 1) ||
+        emp.cgCode ||
+        emp.vcode?.startsWith("CG-")
+      );
       if (assignmentType === "roving" && !isRoving) return false;
       if (assignmentType === "stationary" && isRoving) return false;
     }
@@ -974,9 +979,19 @@ function PlantillaPageContent() {
         }
       }
 
+      if (assignmentType) {
+        const isRoving = Boolean(
+          v.employmentType?.toLowerCase().includes("roving") ||
+          v.cgCode ||
+          v.vcode?.startsWith("CG-")
+        );
+        if (assignmentType === "roving" && !isRoving) return false;
+        if (assignmentType === "stationary" && isRoving) return false;
+      }
+
       return true;
     });
-  }, [allVacancies, vacancySubFilter, search, areaCityFilter, storeLookupMap]);
+  }, [allVacancies, vacancySubFilter, search, areaCityFilter, assignmentType, storeLookupMap]);
 
   // Discover stores deployed to employees or vacancies not directly under account_id in stores table
   const unmappedStoreNames = useMemo(() => {
@@ -1086,7 +1101,13 @@ function PlantillaPageContent() {
         }
 
         const hc = alloc.filledHc > 0 ? alloc.filledHc : 1;
-        recordDeploymentType(storeKey, (emp?.assignmentType || "").toLowerCase().includes("roving") ? "Roving" : "Stationary");
+        const isEmpRoving = Boolean(
+          (emp?.assignmentType || "").toLowerCase().includes("roving") ||
+          (emp?.coveredStoresCount && emp.coveredStoresCount > 1) ||
+          emp?.cgCode ||
+          emp?.vcode?.startsWith("CG-")
+        );
+        recordDeploymentType(storeKey, isEmpRoving ? "Roving" : "Stationary");
 
         if (s === "active" && (!emp || (!isDeactivationRecord(emp) && !isFloatingRecord(emp) && !isOnLeaveRecord(emp)))) {
           storeActiveCountMap.set(storeKey, (storeActiveCountMap.get(storeKey) ?? 0) + hc);
@@ -1106,7 +1127,13 @@ function PlantillaPageContent() {
       if (!storeKey) return;
 
       const hc = emp.coveredStoresCount > 1 ? (1 / emp.coveredStoresCount) : 1;
-      recordDeploymentType(storeKey, (emp.assignmentType || "").toLowerCase().includes("roving") ? "Roving" : "Stationary");
+      const isEmpRoving = Boolean(
+        (emp.assignmentType || "").toLowerCase().includes("roving") ||
+        (emp.coveredStoresCount > 1) ||
+        emp.cgCode ||
+        emp.vcode?.startsWith("CG-")
+      );
+      recordDeploymentType(storeKey, isEmpRoving ? "Roving" : "Stationary");
 
       if (s === "active" && !isDeactivationRecord(emp) && !isFloatingRecord(emp) && !isOnLeaveRecord(emp)) {
         storeActiveCountMap.set(storeKey, (storeActiveCountMap.get(storeKey) ?? 0) + hc);
@@ -1175,7 +1202,12 @@ function PlantillaPageContent() {
       const rawName = alloc.storeName?.trim();
       if (rawName) {
         const key = rawName.toLowerCase();
-        if (!candidateStoreMap.has(key)) {
+        if (candidateStoreMap.has(key)) {
+          const entry = candidateStoreMap.get(key)!;
+          if (!entry.code && alloc.vcode) {
+            entry.code = alloc.vcode;
+          }
+        } else {
           const info = effectiveStoreLookupMap.get(key);
           candidateStoreMap.set(key, {
             id: alloc.storeId || info?.id || `alloc-${key}`,
@@ -1192,12 +1224,17 @@ function PlantillaPageContent() {
       const rawName = emp.primaryStoreName?.trim();
       if (rawName) {
         const key = rawName.toLowerCase();
-        if (!candidateStoreMap.has(key)) {
+        if (candidateStoreMap.has(key)) {
+          const entry = candidateStoreMap.get(key)!;
+          if (!entry.code && emp.vcode) {
+            entry.code = emp.vcode;
+          }
+        } else {
           const info = effectiveStoreLookupMap.get(key);
           candidateStoreMap.set(key, {
             id: info?.id || `temp-emp-${key}`,
             name: rawName,
-            code: info?.code || null,
+            code: emp.vcode || info?.code || null,
             city: info?.city || null,
             province: info?.province || null,
           });
@@ -1209,12 +1246,17 @@ function PlantillaPageContent() {
       const rawName = v.storeName?.trim();
       if (rawName) {
         const key = rawName.toLowerCase();
-        if (!candidateStoreMap.has(key)) {
+        if (candidateStoreMap.has(key)) {
+          const entry = candidateStoreMap.get(key)!;
+          if (!entry.code && v.vcode) {
+            entry.code = v.vcode;
+          }
+        } else {
           const info = effectiveStoreLookupMap.get(key);
           candidateStoreMap.set(key, {
             id: v.storeId || info?.id || `temp-vac-${key}`,
             name: rawName,
-            code: info?.code || null,
+            code: v.vcode || info?.code || null,
             city: info?.city || null,
             province: info?.province || null,
           });
@@ -1295,9 +1337,16 @@ function PlantillaPageContent() {
         }
       }
 
+      if (assignmentType) {
+        const isRoving = st.deploymentTypes.includes("Roving");
+        const isStationary = st.deploymentTypes.includes("Stationary");
+        if (assignmentType === "roving" && !isRoving) return false;
+        if (assignmentType === "stationary" && !isStationary) return false;
+      }
+
       return true;
     });
-  }, [storeCapacityRows, search, areaCityFilter]);
+  }, [storeCapacityRows, search, areaCityFilter, assignmentType]);
 
   const storesWithAvailableSlots = useMemo<StoreWithAvailableSlots[]>(() => {
     const rawStores = storesUnderAccountQuery.data ?? [];

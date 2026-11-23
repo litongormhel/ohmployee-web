@@ -195,10 +195,11 @@ Responsive 5-column grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4`) wit
 
 ---
 
-### D. Hierarchical Area → City Filter Bar
+### D. Hierarchical Area → City Filter Bar & Assignment Type Filter
 - Dropdown options group stores by **Area** (`area:<province>`) with **Cities** (`city:<area_city>`) listed underneath.
 - Selecting an Area filters all stores matching that province; selecting a City filters specifically for that city.
-- Redundant "All Statuses" dropdown removed in favor of the 5 Sub-Tabs. "All Types" filter (`Stationary`, `Roving`) retained.
+- Redundant "All Statuses" dropdown removed in favor of the 5 Sub-Tabs.
+- **Universal Assignment Type Filter ("All Types")**: Filters personnel and stores by `Stationary` or `Roving` across both Employee View (checking `assignmentType`, covered stores $> 1$, and coverage group codes) and Store View (checking store deployment types: Stationary, Roving, and Mixed). Fully synchronized with the Reset Filters action.
 
 ---
 

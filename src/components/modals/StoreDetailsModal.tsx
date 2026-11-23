@@ -49,6 +49,94 @@ function formatTimelineDate(isoStr: string | null | undefined): string {
   }
 }
 
+function humanizeActionType(action: string): { label: string; variant: BadgeVariant } {
+  const a = (action || "").toLowerCase().trim();
+  switch (a) {
+    case "occupied":
+    case "slot_occupied":
+      return { label: "Slot Filled", variant: "success" };
+    case "deployed":
+    case "employee_deployed":
+      return { label: "Personnel Deployed", variant: "success" };
+    case "hr_processing":
+      return { label: "HR Processing", variant: "warning" };
+    case "pipeline":
+      return { label: "Candidate Endorsed", variant: "info" };
+    case "confirmed onboard":
+    case "confirmed_onboard":
+      return { label: "Confirmed Onboard", variant: "success" };
+    case "created":
+    case "slot_created":
+      return { label: "Slot Created", variant: "neutral" };
+    case "deactivated":
+    case "deactivation":
+      return { label: "Slot Deactivated", variant: "danger" };
+    case "separated":
+      return { label: "Personnel Separated", variant: "danger" };
+    case "quota_revised":
+      return { label: "Quota Updated", variant: "info" };
+    case "transfer":
+      return { label: "Transferred", variant: "info" };
+    default:
+      return {
+        label: action.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        variant: "neutral",
+      };
+  }
+}
+
+function humanizeRemarks(remarks: string | null | undefined, actionType?: string): string {
+  if (!remarks) return "";
+  let text = remarks;
+
+  // Clean out internal RPC signatures, parameter dumps, and UUIDs
+  text = text.replace(/auto_move_to_plantilla:\s*/gi, "");
+  text = text.replace(/Phase\s*[\d.]+\s*\([^)]*\)\s*\/\s*/gi, "");
+  text = text.replace(/confirm_applicant_onboard\s*\/\s*/gi, "");
+  text = text.replace(/\/?[a-z_]+_id=[0-9a-f-]+/gi, "");
+  text = text.replace(/\/?[a-z_]+=[A-Z0-9_-]+/gi, "");
+  text = text.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "");
+
+  // Clean up internal syntax residues
+  text = text.replace(/\s*\/\s*\/\s*/g, " / ").replace(/\s*\/\s*$/g, "").replace(/^\s*\/\s*/g, "");
+  text = text.replace(/by plantilla\s*$/i, "by deployed personnel.");
+  text = text.replace(/slot occupied by plantilla/i, "Slot occupied and assigned to plantilla staff.");
+  text = text.replace(/applicant confirmed onboard and moved to hr emploc for/i, "Applicant confirmed onboard and transitioned to HR Emploc for");
+
+  text = text.trim();
+  if (!text || text.length < 3) {
+    const a = (actionType || "").toLowerCase();
+    if (a.includes("occupied")) return "Workforce slot successfully occupied by deployed staff.";
+    if (a.includes("hr_processing")) return "Candidate transitioned to HR processing pipeline.";
+    if (a.includes("pipeline")) return "Candidate assigned and undergoing applicant pipeline review.";
+    if (a.includes("deployed")) return "Staff member successfully deployed to store branch.";
+    return "Event successfully processed and logged.";
+  }
+
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function humanizeStatus(status: string | null | undefined): string {
+  if (!status) return "";
+  const s = status.toLowerCase().trim();
+  switch (s) {
+    case "hr_processing":
+      return "HR Processing";
+    case "occupied":
+    case "filled":
+      return "Occupied";
+    case "pipeline":
+      return "Pipeline";
+    case "open":
+    case "vacancy":
+      return "Open";
+    case "closed":
+      return "Closed";
+    default:
+      return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
 function slotStatusBadgeVariant(status: string | null | undefined): BadgeVariant {
   switch ((status ?? "").toLowerCase().trim()) {
     case "occupied":
@@ -259,11 +347,11 @@ export function StoreDetailsModal({
         {/* Metric Summary Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
           <div className="rounded-lg border border-border-default bg-surface-muted p-2.5">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Plantilla Required</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Required</div>
             <div className="text-lg font-bold font-mono text-text-primary mt-0.5">{store.plantillaRequired}</div>
           </div>
           <div className="rounded-lg border border-border-default bg-surface-muted p-2.5">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Active Deployed</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Actual</div>
             <div className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">{store.activeDeployed}</div>
           </div>
           <div className="rounded-lg border border-border-default bg-surface-muted p-2.5">
@@ -271,7 +359,7 @@ export function StoreDetailsModal({
             <div className="text-lg font-bold font-mono text-amber-600 dark:text-amber-400 mt-0.5">{store.onLeave}</div>
           </div>
           <div className="rounded-lg border border-border-default bg-surface-muted p-2.5">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Open Vacancy</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Vacancy</div>
             <div className={`text-lg font-bold font-mono mt-0.5 ${store.openVacancy > 0 ? "text-red-600 dark:text-red-400" : "text-text-muted"}`}>
               {store.openVacancy}
             </div>
@@ -408,32 +496,38 @@ export function StoreDetailsModal({
               </div>
             ) : (
               <div className="relative pl-6 space-y-3 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border-default">
-                {(historyEvents ?? []).map((ev) => (
-                  <div key={ev.id} className="relative group">
-                    <div className="absolute -left-6 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-brand-500 bg-surface-base" />
-                    <div className="rounded-md border border-border-default bg-surface-base p-2.5 text-xs shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="font-semibold text-text-primary capitalize">{ev.actionType.replace(/_/g, " ")}</span>
-                        <span className="font-mono text-[10px] text-text-muted">{formatTimelineDate(ev.createdAt)}</span>
+                {(historyEvents ?? []).map((ev) => {
+                  const actionMeta = humanizeActionType(ev.actionType);
+                  const cleanRemarks = humanizeRemarks(ev.remarks, ev.actionType);
+                  const performer = ev.performerName && !ev.performerName.includes("-")
+                    ? ev.performerName
+                    : "System Automated";
+
+                  return (
+                    <div key={ev.id} className="relative group">
+                      <div className="absolute -left-6 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-brand-500 bg-surface-base" />
+                      <div className="rounded-md border border-border-default bg-surface-base p-2.5 text-xs shadow-2xs space-y-1.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <StatusBadge variant={actionMeta.variant} text={actionMeta.label} />
+                          <span className="font-mono text-[10px] text-text-muted">{formatTimelineDate(ev.createdAt)}</span>
+                        </div>
+                        {cleanRemarks && (
+                          <p className="text-[11px] text-text-secondary leading-relaxed">{cleanRemarks}</p>
+                        )}
+                        {(ev.oldValue || ev.newValue) && (
+                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-text-muted bg-surface-muted rounded px-2 py-0.5 w-fit">
+                            {ev.oldValue && <span className="line-through">{humanizeStatus(ev.oldValue)}</span>}
+                            {ev.oldValue && ev.newValue && <span>→</span>}
+                            {ev.newValue && <span className="text-text-primary font-semibold">{humanizeStatus(ev.newValue)}</span>}
+                          </div>
+                        )}
+                        <div className="text-[10px] text-text-muted pt-0.5">
+                          Logged by: <span className="font-medium text-text-secondary">{performer}</span>
+                        </div>
                       </div>
-                      {ev.remarks && (
-                        <p className="text-[11px] text-text-secondary">{ev.remarks}</p>
-                      )}
-                      {(ev.oldValue || ev.newValue) && (
-                        <div className="flex items-center gap-1.5 text-[11px] font-mono text-text-muted">
-                          {ev.oldValue && <span className="line-through">{ev.oldValue}</span>}
-                          {ev.oldValue && ev.newValue && <span>→</span>}
-                          {ev.newValue && <span className="text-text-primary font-semibold">{ev.newValue}</span>}
-                        </div>
-                      )}
-                      {ev.performerName && (
-                        <div className="text-[10px] text-text-muted">
-                          By: <span className="font-medium text-text-secondary">{ev.performerName}</span>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
