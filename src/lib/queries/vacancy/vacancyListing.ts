@@ -2068,7 +2068,8 @@ export async function listVacancies(params: VacancyListParams) {
               const cgCode = asString(firstCg?.coverage_code) || "";
               const cgStatus = (asString(firstCg?.status) || "").toLowerCase();
               const isFilled = cgStatus === "filled" || filledCgIds.has(cgId);
-              const requiredHc = asNumber(firstCg?.required_headcount) || 1;
+              const rawReq = asNumber(firstCg?.required_headcount);
+              const requiredHc = rawReq != null && !isNaN(rawReq) ? rawReq : 1;
               const count = items.length || 1;
               const defaultFraction = `1/${count}`;
 
@@ -2138,12 +2139,52 @@ export async function listVacancies(params: VacancyListParams) {
 
           for (const row of rows) {
             const rowVk = (row.vcode || "").trim().toUpperCase();
-            const cgId = (row.storeId ? storeIdToCgId.get(row.storeId) : null) || (rowVk ? vcodeToCgId.get(rowVk) : null);
+            const rowCg = (row.cgCode || "").trim().toUpperCase();
+            const isExplicitlyStationary =
+              (row.employmentType || "").toLowerCase() === "stationary" ||
+              (!row.cgCode && !rowVk.startsWith("CG-") && (row.employmentType || "").toLowerCase() !== "roving");
+
+            let cgId: string | null = null;
+            if (rowCg) {
+              for (const [id, info] of cgMap.entries()) {
+                if (info.cgCode.toUpperCase() === rowCg) {
+                  cgId = id;
+                  break;
+                }
+              }
+            }
+            if (!cgId && rowVk) {
+              if (rowVk.startsWith("CG-")) {
+                for (const [id, info] of cgMap.entries()) {
+                  if (info.cgCode.toUpperCase() === rowVk) {
+                    cgId = id;
+                    break;
+                  }
+                }
+              }
+              if (!cgId && vcodeToCgId.has(rowVk)) {
+                cgId = vcodeToCgId.get(rowVk) || null;
+              }
+            }
+
+            // Only fallback to storeId matching if the vacancy is not explicitly stationary/backfill,
+            // and is either designated as roving or belongs to an active coverage group with requiredHc > 0
+            if (!cgId && !isExplicitlyStationary && row.storeId && storeIdToCgId.has(row.storeId)) {
+              const candidateCgId = storeIdToCgId.get(row.storeId)!;
+              const candidateInfo = cgMap.get(candidateCgId);
+              const isRoving = (row.employmentType || "").toLowerCase().includes("roving");
+              if (
+                candidateInfo &&
+                (isRoving || (candidateInfo.requiredHc > 0 && candidateInfo.anchorVcode?.toUpperCase() === rowVk))
+              ) {
+                cgId = candidateCgId;
+              }
+            }
 
             if (cgId && cgMap.has(cgId)) {
               const cgInfo = cgMap.get(cgId)!;
-              if (cgInfo.isFilled) {
-                // Member store covered by active employee -> fulfilled, suppressed from vacancy
+              if (cgInfo.isFilled || cgInfo.requiredHc <= 0) {
+                // Member store covered by active employee or 0-headcount test group -> fulfilled/suppressed
                 continue;
               }
 

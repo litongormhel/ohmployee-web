@@ -8,6 +8,28 @@ No fake data, CRUD flow, mutation, raw table query, or RLS bypass is introduced 
 
 ## Current Vacancy Web Assessment
 
+- **Stationary vs Coverage Group Disambiguation & BANKO Clean Up (`ohm#disambiguate-coverage-group-and-cleanup-banko` — 2026-11-23)**:
+  - **The Requirement**:
+    1. Eliminate non-equal fractional headcount anomalies (`0.4` and `0.2`) on stationary stores in Plantilla Store View for BANKO.
+    2. Ensure stationary store vacancies are never hijacked or scaled by roving coverage groups simply because the store was linked to a coverage group.
+    3. Clean up historical orphan test coverage groups (`CG-BG1-0002` and `CG-BG1-0003`) and align required headcount in Staging.
+  - **Forensic Diagnosis**:
+    - Super 11 (`TEST011`, req HC = 2) and Super 5 (`TEST005`, req HC = 1) were member stores in 5-store test Coverage Group `CG-BG1-0002` ($1/5 = 0.20$ slot fraction per store).
+    - `vacancyListing.ts` used `storeIdToCgId` as a fallback, causing stationary store vacancies to be scaled by $0.20$ ($2 \times 0.20 = 0.40$ and $1 \times 0.20 = 0.20$).
+    - Super 9 (`TEST009`) had 1 active employee ($1.0$) + open vacancy ($0.20$) = $1.20$ required.
+  - **Code Disambiguation (`src/lib/queries/vacancy/vacancyListing.ts`)**:
+    - Introduced strict `isExplicitlyStationary` predicate:
+      `(row.employmentType || "").toLowerCase() === "stationary" || (!row.cgCode && !rowVk.startsWith("CG-") && (row.employmentType || "").toLowerCase() !== "roving")`.
+    - Blocked fallback to `storeIdToCgId` whenever `isExplicitlyStationary` is true.
+    - Handled fallback gracefully when `required_headcount` is explicitly 0 on test coverage groups.
+  - **Database Migration 148 (`20262606000148_cleanup_banko_orphan_coverage_groups.sql`)**:
+    - Archived orphan test coverage groups `CG-BG1-0002` and `CG-BG1-0003` in `coverage_groups`.
+    - Deactivated member store links in `coverage_group_stores` (`is_active = false`).
+    - Aligned Super 11 (`TEST011`) required headcount from 2.0 to 1.0.
+    - Marked Super 9 (`TEST009`) filled vacancy as `'Filled'` under active employee Kimi Antonelli (wrapped with `ALTER TABLE public.vacancies DISABLE/ENABLE TRIGGER trg_assert_vacancy_edit_allowed`).
+  - **Verification**:
+    - Verified all 257 unit tests passed (`npm test`), 0 SQL contract violations (`check:sql`), 0 secret leaks (`check:secrets`), 0 ESLint errors/warnings (`npm run lint`), clean Turbopack production build (`npm run build`), and applied migration live to Staging (`qqiiznmqxfoamqytjica`).
+
 - **Multi-Slot Open Vacancy Visibility, Drawer Pipeline Counter, and Candidate Identity (`ohm#fix-multi-slot-open-visibility-and-vacancy-detail` — 2026-11-15)**:
   - **The Requirement**:
     1. Multi-slot vacancies (e.g. `TEST011` with 2 slots) must remain visible in the Open tab until all slots are actually fulfilled ($2/2$). Adding an applicant to the pipeline ($1/2$ fulfilled) must not kick the vacancy out of the Open tab.
