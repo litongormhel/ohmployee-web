@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Execution Report — RBAC Matrix Lock Bleed Resolution & Operational Permissions Restoration (ohm#fix-rbac-matrix-lock-bleed)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **Root Cause Resolved**:
+   - On the dedicated `/rbac` matrix page, 100% of sub-action toggle switches across all operational roles were disabled (`disabled:opacity-40 disabled:cursor-not-allowed`) and marked with a `Locked` badge.
+   - Forensic tracing identified that database RPC `public.get_all_roles_effective_permission_matrix` returned `is_system_locked` with `CASE WHEN r.role_name = 'Super Admin' THEN true ELSE d.is_system_locked END AS is_system_locked`.
+   - Because the RPC ordered rows by `d.module_key, d.sort_order, r.role_level DESC`, Super Admin (`level 100`) was always the first row returned for every permission definition.
+   - Frontend `distinctDefinitions` deduplication in `src/app/(dashboard)/rbac/page.tsx` recorded `isSystemLocked` from the first row (Super Admin), falsely tagging all 58 definitions as system-locked.
+   - In `ModuleGroupRows`, `const isLocked = (role.level >= 100) || def.isSystemLocked` evaluated to `true` for all roles (Head Admin, OM, HRCO, ATL, TL, Encoder, etc.), disabling every toggle.
+2. **Database Migration (`supabase/migrations/20262606000152_fix_rbac_matrix_system_locked_rpc.sql`)**:
+   - Updated `public.get_all_roles_effective_permission_matrix` to return `d.is_system_locked` directly, strictly preserving definition lock semantics.
+   - Pushed live to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging` with zero errors and verified live `pg_get_functiondef` parity.
+3. **Web Presentation Layer Defense (`src/app/(dashboard)/rbac/page.tsx`)**:
+   - Fortified `distinctDefinitions` to prefer non-locked row values (`if (!existing || (existing.isSystemLocked && !r.isSystemLocked))`) so role-level protection on Super Admin never bleeds into the definition catalog.
+   - Aligned child action row lock evaluation to `const isLocked = (role.level >= 100) || (row?.isSystemLocked ?? def.isSystemLocked)`, matching module header row behavior.
+   - Super Admin immunity (`role.level >= 100`) and the 20 true system invariants (`is_system_locked = true`) remain permanently locked, while the 38 operational definitions are now interactive and editable for operational roles.
+
+### Files
+- Web:
+  - `supabase/migrations/20262606000152_fix_rbac_matrix_system_locked_rpc.sql`
+  - `src/app/(dashboard)/rbac/page.tsx`
+  - `.ai/briefing.md`
+  - `.ai/handoff.md`
+  - `docs/state/web_auth_rbac_state.md`
+
+### Validation
+- `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+- `npm run check:sql`: `SQL_CONTRACTS_OK` (28 core tables & 19 cross-module RPC contracts across 677 migrations).
+- `npm test`: `257/257` unit tests passed cleanly.
+- `npm run lint`: `0` errors, `0` warnings, `0` secret leaks.
+- `npm run build`: verified Next.js 16.2.4 Turbopack production build (`22/22` static pages generated).
+- Remote Staging verification (`qqiiznmqxfoamqytjica`): applied migration `20262606000152` and confirmed live `pg_get_functiondef`.
+- `npm run check:migrations`: `prod: 642 migrations, staging: 646 migrations` (4 migrations pending Prod deployment).
+
+---
+
 ## Execution Report — Account-Level Whole Number Headcount & KPI Rounding Protection (ohm#round-account-allocation-kpi-whole-numbers)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 

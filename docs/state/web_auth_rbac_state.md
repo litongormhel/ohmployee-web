@@ -399,7 +399,15 @@ Expanded universal administrative immunity to eliminate false-negative restricti
    - `lib/core/auth/module_visibility.dart`: `roleDefault` and `canViewModule` grant unconditional view access for `hasFullAccess || roleLevel >= 90`, overriding any database deny mutations.
    - `lib/features/more/more_screen.dart`: `_canSeeItem` grants unconditional visibility for `hasFullAccess || roleLevel >= 90`, guaranteeing admins access to all request centers and review queues.
 
+---
 
+## RBAC Matrix Lock Bleed Resolution (`ohm#fix-rbac-matrix-lock-bleed`)
 
-
+Resolved bug causing 100% of sub-action toggle switches across all operational roles on the dedicated `/rbac` page to be falsely disabled (`disabled:opacity-40 disabled:cursor-not-allowed`) and marked with a `Locked` badge:
+1. **Database Migration (`supabase/migrations/20262606000152_fix_rbac_matrix_system_locked_rpc.sql`)**:
+   - Updated `public.get_all_roles_effective_permission_matrix` to return `d.is_system_locked` directly instead of overloading it with `CASE WHEN r.role_name = 'Super Admin' THEN true ELSE d.is_system_locked END`.
+   - Pushed live to Staging (`qqiiznmqxfoamqytjica`) with zero errors and live `pg_get_functiondef` parity.
+2. **Frontend Matrix Deduplication Guard (`src/app/(dashboard)/rbac/page.tsx`)**:
+   - In `distinctDefinitions`, fortified `defMap` population to prefer non-locked row values (`if (!existing || (existing.isSystemLocked && !r.isSystemLocked))`) so Super Admin's role-level immunity does not bleed into the definition-level catalog.
+   - In `ModuleGroupRows`, updated cell evaluation to `const isLocked = (role.level >= 100) || (row?.isSystemLocked ?? def.isSystemLocked)`, ensuring Super Admin remains permanently protected while the 38 operational permissions are interactive and editable for operational roles (Head Admin, OM, HRCO, ATL, TL, Encoder, etc.).
 

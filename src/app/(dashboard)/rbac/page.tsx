@@ -145,7 +145,9 @@ export default function RbacPage() {
 
     allMatrixRows.forEach((r) => {
       const defKey = `${r.moduleKey}::${r.resourceKey}::${r.actionKey}`;
-      if (!defMap.has(defKey)) {
+      const existing = defMap.get(defKey);
+      // Prefer non-locked row value if any role reports false, ensuring role-protection on SA does not bleed into definition catalog
+      if (!existing || (existing.isSystemLocked && !r.isSystemLocked)) {
         defMap.set(defKey, {
           moduleKey: r.moduleKey,
           resourceKey: r.resourceKey,
@@ -1032,7 +1034,7 @@ function ModuleGroupRows({
                 const row = matrixIndex.get(cellKey);
                 const isAllowed = isStaged ? stagedChanges[cellKey] : (row?.isAllowed ?? false);
                 const hasOverride = row?.hasOverride ?? false;
-                const isLocked = (role.level >= 100) || def.isSystemLocked;
+                const isLocked = (role.level >= 100) || (row?.isSystemLocked ?? def.isSystemLocked);
 
                 return (
                   <td
