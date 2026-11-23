@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: 389f1c2 2026-11-23T19:15:48+08:00
-source_sha256: a96be6d2eca960094b322e2fea997b645bd36ff809a190f3b554aca2b2707e2d
-synced_at: 2026-11-23T11:15:51.193Z
+source_commit: e9bd325 2026-11-23T19:27:02+08:00
+source_sha256: a8e77ad7620f0ac366cdb9ed661657d0b3ec214afa1a1fa64a7eac086c220586
+synced_at: 2026-11-23T11:27:04.499Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -369,6 +369,26 @@ Vacancy represents the open demand surface for a Plantilla Slot. When HR Emploc 
      - *After 3 Days (Post-Purge)*: Documents have been purged; status is restored to `'Pending'` requiring Ops to re-upload compliance documents.
    - Reverting to Pending soft-deletes the `plantilla` row, reopens the `plantilla_slots` row to `open`, and clears `employee_no = NULL`.
 
+### Deployed Tab Revert Governance (Data Team Authority & Plantilla Cancellation)
+
+**Status: ACCEPTED.** Codifies operational authority and atomic lifecycle mechanics when reverting records from the Deployed Tab:
+
+1. **Role Authority (`public.can_edit_deployed_hr_emploc()`)**:
+   - Only the **Data Team** (`Encoder`, `Head Admin`) and `Super Admin` are authorized to execute `Revert to Pending` (`revert_hr_emploc_to_pending`) on records in the **Deployed Tab**.
+   - Field Operations coordinators (OM, TL, ATL, HRCO) and HR Personnel are strictly blocked from reverting deployed records, safeguarding active workforce rosters against unauthorized modification.
+2. **Atomic Plantilla Cancellation & Disappearance**:
+   - The deployed employee record in `public.plantilla` is soft-deleted and deactivated (`is_deleted = true`, `status = 'Deactivated'`). The employee **immediately disappears** from active Plantilla rosters and views (`v_plantilla_safe`).
+   - Store links in `public.plantilla_store_links` are marked `status = 'Backed Out', unlinked_at = now()`.
+3. **Plantilla Slot & Vacancy Reopening (Rule 1 & Rule 2)**:
+   - The occupied slot in `public.plantilla_slots` is released via `public.fn_set_slot_status` back to `slot_status = 'open'` with `reason_code = 'BACKOUT'` and occupant cleared (`current_occupant_plantilla_id = NULL`).
+   - The associated vacancy is reconciled and reopened (`status = 'Open'`).
+4. **Restoration into HR Emploc Queues**:
+   - The record returns to HR Emploc in status `status = 'Pending Emploc'` with `employee_no = NULL` and `moved_to_plantilla_at = NULL`.
+   - **Queue Placement**:
+     - *Within 3-Day Purge Window*: Queued storage purge is cancelled, uploaded documents are preserved, and the record is placed in **Tab 2: For Emploc** (`hr_status = 'For Emploc'`).
+     - *Post 3-Day Purge Window*: If documents were already purged, the record is placed in **Tab 1: Pending** (`hr_status = 'Pending'`), requiring Operations to re-upload compliance documents.
+   - The Employee Number Registry records the action in `history` (`action: 'revert_to_pending'`), releasing the number assignment while retaining full audit traceability.
+
 ### Three-Day Operational Compliance SLA Clock
 
 **Status: ACCEPTED.** Enforces onboarding velocity and managerial escalation:
@@ -377,6 +397,20 @@ Vacancy represents the open demand surface for a Plantilla Slot. When HR Emploc 
 2. **Escalation Ladder**:
    - **SLA Tier 1 (3 Days)**: If a record has no `employee_no` assigned after 3 days, `sla_breached` evaluates to `true`. Renders prominent red alert badge in UI and dispatches notification to `Head Admin`.
    - **SLA Tier 2 (5 Days)**: Critical escalation. High-priority notification dispatched directly to `Super Admin`.
+
+### Applicant Backout in HR Emploc & Vacancy Aging Continuity Invariant
+
+**Status: ACCEPTED.** Governs operational backouts during HR Emploc onboarding (pre-deployment):
+
+1. **Backout Execution (`tag_backout` / `reject_hr_emploc`)**:
+   - When an applicant awaiting documentation or number assignment in HR Emploc backs out:
+     - The applicant record is tagged `backout` and routes to the **Failed / Backout Tab** in Vacancy.
+     - The linked slot in `public.plantilla_slots` transitions from `hr_processing` $\rightarrow$ `open` via `fn_set_slot_status(slot_id, 'open', 'BACKOUT')`.
+     - The corresponding requisition immediately reappears in the **Vacancy Open Tab** (`remaining_open` increments).
+2. **Original Vacancy Aging Continuity (Anti-Reset Lock)**:
+   - When a slot returns to Open following an HR Emploc backout, its vacancy aging (`aging_days`, `aging_start_at`) **MUST NOT RESET** to the backout timestamp or `CURRENT_DATE`.
+   - The aging clock preserves unbroken continuity from the **original date the position became vacant** (`vacant_date` / start of the vacancy episode when the prior employee separated or when the requisition was first created).
+   - This ensures operational KPIs, aging alert badges (30d/60d), and executive dashboards truthfully report cumulative store vacancy duration without masking delays caused by applicant dropouts during onboarding.
 
 ---
 
@@ -437,11 +471,12 @@ To eliminate operational ambiguity between Open and Pipeline queues across Web a
 
 **Status: ACCEPTED.** Codifies the state transitions between the 5 operational tabs:
 
-1. **Applicant Backout & Immediate Slot Reopening**:
-   - When an active candidate backs out (`status = 'backout'` via `failBackoutApplicant` / `tag_backout`):
+1. **Applicant Backout & Immediate Slot Reopening with Aging Continuity**:
+   - When an active candidate backs out (whether in Vacancy screening via `failBackoutApplicant` or in HR Emploc onboarding via `tag_backout`):
      - The applicant record is tagged `backout` and routes to the **Failed / Backout Tab**.
      - The linked plantilla slot is immediately released to `open` via `fn_set_slot_status(slot_id, 'open', 'BACKOUT')`.
      - Database trigger `trg_reopen_vacancy_on_slot_open` restores `vacancies.status = 'Open'`, and because unallocated capacity increases (`remaining_open > 0`), the store **immediately reappears in the Open Tab** ready for new candidate endorsement.
+     - **Aging Continuity Invariant (Anti-Reset Lock)**: Reopening the vacancy MUST NOT reset its aging clock (`aging_days`) to the backout date or `CURRENT_DATE`. The requisition's aging strictly maintains unbroken continuity from the original date the position became vacant (`vacant_date` / separation date of the previous employee / initial headcount requisition creation). Failed recruitments and candidate dropouts during screening or HR Emploc onboarding never wipe out the accumulated vacancy duration.
 2. **In-Flight Closure Request Routing**:
    - When Operations submits a vacancy closure request (`has_pending_closure = true`, `closure_request_status = 'Pending'`):
      - The requisition **immediately vacates the Open and Pipeline tabs** (Rule 4 closure priority).
@@ -720,4 +755,5 @@ Historical record, chronological. Full rule substance now lives in the module se
 - **2026-11-23 — `ohm#plantilla-subtabs-arch`** — Codified Plantilla Dual Views, Six Status Sub-Tabs, DOLE Article 301 Floating Governance (180-day statutory ceiling + slot-restricted reassignment), and On-Leave EDR SLA Escalation with Moses HQ Reliever Auto-Release. → "Plantilla" above.
 - **2026-11-23 — `ohm#vacancy-capacity-governance`** — Codified Vacancy Rule 4 Single-Slot vs. Multi-Slot Capacity Behavioral Matrix (1/1 moves to Pipeline, multi-slot 1/3 and 2/3 remain in Open until 3/3 filled), Five Status Tabs, Candidate-Level Pipeline Expansion (1 Row = 1 Candidate), Strict Applicant Closure Lock, 6-Stage Pipeline Lifecycle, and 1-Time Profile Edit Policy. → "Vacancy" above.
 - **2026-11-23 — `ohm#vacancy-lifecycle-transitions`** — Codified Applicant Backout & Slot Reopening (moves applicant to Failed/Backout, restores store to Open), In-Flight Closure Request Routing (moves out of Open/Pipeline into Closure Tab), 30-Day Hired Retention & Auto-Archival Window (`INTERVAL '30 days'`), and Slot-Based Vacancy Authority (demand strictly measured in physical slots, never store count). → "Vacancy" above.
-- **2026-11-23 — `ohm#hr-emploc-compliance-arch`** — Codified HR Emploc Five Operational Queues (Pending, For Emploc, Correction, Review, Deployed), Emploc Number Ownership (HR Personnel Primary, Data Team Backup), Atomic Plantilla Deployment & Registry Rules a–d, Canonical Statutory Requirements (4 items), 3-Day Storage Purge Queue & Revert Grace Window, and 3-Day Compliance SLA. → "HR Emploc" above.
+- **2026-11-23 — `ohm#hr-emploc-compliance-arch`** — Codified HR Emploc Five Operational Queues (Pending, For Emploc, Correction, Review, Deployed), Emploc Number Ownership (HR Personnel Primary, Data Team Backup), Atomic Plantilla Deployment & Registry Rules a–d, Canonical Statutory Requirements (4 items), 3-Day Storage Purge Queue & Revert Grace Window, 3-Day Compliance SLA, and Deployed Tab Revert Governance (Data Team Authority & Plantilla Cancellation). → "HR Emploc" above.
+- **2026-11-23 — `ohm#emploc-backout-aging-continuity`** — Codified HR Emploc Backout to Vacancy Open Tab with Original Aging Continuity Invariant (retains original vacancy date, never resetting to backout date) and Deployed Tab Revert Governance (Data Team authority, soft-deletes Plantilla row, releases slot to open via BACKOUT). → "HR Emploc" and "Vacancy" above.
