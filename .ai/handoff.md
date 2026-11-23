@@ -1,5 +1,53 @@
 # AI Handoff
 
+## Execution Report — Data Team (Head Admin 90 & Encoder 30) RBAC Parity Alignment (ohm#data-team-rbac-alignment)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **User Request Alignment**:
+   - Aligned RBAC permissions for the Data Team (Head Admin L90 and Encoder L30) across drawer actions, mutations, approval queues, and database permission catalogs:
+     1. `HR Emploc` -> **Approve Deficiency Correction Review**: Denied for Head Admin (90) and Encoder (30) (restricted to Ops & HR Personnel 25, plus SA 100).
+     2. `HR Emploc` -> **Revert / Reject Deficiency Correction Review**: Denied for Head Admin (90) and Encoder (30).
+     3. `Plantilla` -> **Update Employment Lifecycle Status**: Denied for Head Admin (90) and Encoder (30) (restricted to Ops team & SA 100).
+     4. `Users` -> **Deactivate / Reactivate User Account**: Allowed for Head Admin (90), Denied for Encoder (30).
+     5. `Vacancy` -> **Edit Hired Date**: Denied for both Head Admin (90) and Encoder (30) (restricted to Ops team & SA 100).
+     6. `Approvals` -> **Employee Deactivations Queue**: Denied for Head Admin (90) and Encoder (30) in `getAllowedApprovalCategories` (restricted to SA 100 and Backoffice 15).
+     7. `Data Control` / `Approvals` -> **Batch Rollback Requests / Rollback Import Batch**: Allowed for Head Admin (90) and SA (100), Denied for Encoder (30).
+2. **Web RBAC Action Matrix Evaluator (`src/lib/rbac.ts`)**:
+   - In `DRAWER_ACTION_RULES`:
+     - Updated `"Edit Hired Date"`: `[100, 70, 45, 42, 41]` (removed 30; 90 omitted).
+     - Updated `"Approve Deficiency Correction Review"`: `[100, 70, 45, 42, 41, 25]` (removed 30; 90 omitted).
+     - Updated `"Revert / Reject Deficiency Correction Review"`: `[100, 70, 45, 42, 41, 25]` (removed 30; 90 omitted).
+     - Updated `"Rollback / Reject Import Batch"`: `[100, 90]` (removed 30; 90 kept).
+   - In `canPerformDrawerAction`:
+     - Removed blanket `level >= 90` bypass which previously leaked operational drawer actions to Head Admin.
+     - Super Admin (`level >= 100` / `isOwner`) retains administrative universal immunity, while all other roles (including Head Admin 90 and Encoder 30) are strictly governed by `DRAWER_ACTION_RULES[actionItem].includes(level)`.
+3. **Database Migration (`supabase/migrations/20262606000153_align_data_team_rbac_permissions.sql`)**:
+   - Synchronized `role_permission_definitions_compat` and base matrix table `role_permission_matrix` for Head Admin and Encoder across the affected definitions.
+   - Pushed live to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging` with zero errors.
+4. **Unit Tests (`src/lib/utils/__tests__/rbac_sanity.test.mjs`)**:
+   - Updated Sanity 4 and Sanity 6 test assertions to verify exact Head Admin (18 allowed actions, 15 denied actions) and Encoder (12 allowed actions, 21 denied actions) permissions. All 257 unit tests passed cleanly.
+
+### Files
+- Web:
+  - `src/lib/rbac.ts`
+  - `src/lib/utils/__tests__/rbac_sanity.test.mjs`
+  - `supabase/migrations/20262606000153_align_data_team_rbac_permissions.sql`
+  - `.ai/briefing.md`
+  - `.ai/handoff.md`
+  - `docs/state/web_auth_rbac_state.md`
+
+### Validation
+- `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+- `npm run check:sql`: `SQL_CONTRACTS_OK` (28 core tables & 19 cross-module RPC contracts across 678 migrations).
+- `npm test`: `257/257` unit tests passed cleanly.
+- `npm run lint`: `0` errors, `0` warnings, `0` secret leaks.
+- `npm run build`: verified Next.js 16.2.4 Turbopack production build (`22/22` static pages generated).
+- Remote Staging verification (`qqiiznmqxfoamqytjica`): applied migration `20262606000153` via `npm run db:push:staging`.
+- `npm run check:migrations`: `prod: 642 migrations, staging: 647 migrations` (5 migrations pending Prod deployment).
+
+---
+
 ## Execution Report — RBAC Matrix Lock Bleed Resolution & Operational Permissions Restoration (ohm#fix-rbac-matrix-lock-bleed)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 

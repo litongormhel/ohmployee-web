@@ -411,3 +411,27 @@ Resolved bug causing 100% of sub-action toggle switches across all operational r
    - In `distinctDefinitions`, fortified `defMap` population to prefer non-locked row values (`if (!existing || (existing.isSystemLocked && !r.isSystemLocked))`) so Super Admin's role-level immunity does not bleed into the definition-level catalog.
    - In `ModuleGroupRows`, updated cell evaluation to `const isLocked = (role.level >= 100) || (row?.isSystemLocked ?? def.isSystemLocked)`, ensuring Super Admin remains permanently protected while the 38 operational permissions are interactive and editable for operational roles (Head Admin, OM, HRCO, ATL, TL, Encoder, etc.).
 
+---
+
+## Data Team (Head Admin 90 & Encoder 30) RBAC Parity Alignment (`ohm#data-team-rbac-alignment`)
+
+Enforced strict role-level alignment for the Data Team (Head Admin L90 and Encoder L30) across drawer actions, mutations, approval queues, and database permission catalogs:
+1. **HR Emploc Deficiency Reviews**:
+   - **Approve Deficiency Correction Review**: Strictly **DENIED** for Head Admin (90) and Encoder (30) (restricted to Ops and HR Personnel 25, plus SA 100).
+   - **Revert / Reject Deficiency Correction Review**: Strictly **DENIED** for Head Admin (90) and Encoder (30).
+2. **Plantilla Employment Lifecycle Status**:
+   - **Update Employment Lifecycle Status**: Strictly **DENIED** for Head Admin (90) and Encoder (30) (restricted to Ops: OM 70, HRCO 45, ATL 42, TL 41, plus SA 100).
+3. **Users Management**:
+   - **Deactivate / Reactivate User Account**: **ALLOWED** for Head Admin (90), **DENIED** for Encoder (30) (restricted to SA 100 and HA 90).
+4. **Vacancy Management**:
+   - **Edit Hired Date**: Strictly **DENIED** for both Head Admin (90) and Encoder (30) (restricted to Ops: OM 70, HRCO 45, ATL 42, TL 41, plus SA 100).
+5. **Approvals Hub Queues**:
+   - **Employee Deactivations Queue**: Strictly **DENIED** for Head Admin (90) and Encoder (30) in `getAllowedApprovalCategories` (restricted to Super Admin 100 and Backoffice Personnel 15).
+   - **Batch Rollback Requests (`rollbacks`)**: **ALLOWED** for Head Admin (90) and Super Admin (100), strictly **DENIED** for Encoder (30).
+6. **Web RBAC Action Matrix Evaluator (`src/lib/rbac.ts`)**:
+   - Removed blanket `level >= 90` bypass inside `canPerformDrawerAction`, ensuring `DRAWER_ACTION_RULES[actionItem]` remains the authoritative source of truth for allowed role levels. Super Admin (`level >= 100` / `isOwner`) retains administrative universal immunity.
+   - Updated `DRAWER_ACTION_RULES` entries for `"Edit Hired Date"`, `"Approve Deficiency Correction Review"`, `"Revert / Reject Deficiency Correction Review"`, and `"Rollback / Reject Import Batch"`.
+7. **Database Migration (`supabase/migrations/20262606000153_align_data_team_rbac_permissions.sql`)**:
+   - Synchronized `role_permission_definitions_compat` and base matrix table `role_permission_matrix` on Staging (`qqiiznmqxfoamqytjica`) for all 6 affected definitions across Head Admin and Encoder roles.
+
+

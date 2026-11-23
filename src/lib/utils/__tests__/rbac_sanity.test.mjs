@@ -230,29 +230,40 @@ test("Sanity 4: Authoritative Drawer Actions (canPerformDrawerAction) for all 33
     assert.equal(canPerformDrawerAction(act, { roleKey: AppRole.SUPER_ADMIN, roleLevel: 100 }), true);
   }
 
-  // 2. Head Admin (90) universal administrative immunity EXCEPT the 4 SA-only actions
-  const saOnlyActions = [
-    "Archive / Soft-Delete User Account",
-    "Terminate Active User Sessions",
-    "Toggle System Edit Lock (Freeze Mode)",
-    "Manage Permission Matrix Overrides",
+  // 2. Head Admin (90) permissions (explicit drawer action rules)
+  const headAdminAllowed = [
+    "Export Full Vacancy Dataset",
+    "Rollback / Reject Import Batch",
+    "Approve / Reject New Store Requests",
+    "Approve / Reject Headcount Adjustments",
+    "Approve / Reject Plantilla Reassignments",
+    "Approve / Reject User Signup Requests",
+    "Approve / Reject Coverage Group Requests",
+    "Approve / Reject Applicant Movements",
+    "Approve / Reject Account Group Transfers",
+    "Approve / Reject Reliever Requests",
+    "Grant / Revoke Temporary Elevated Permissions",
+    "Deactivate / Reactivate User Account",
+    "Admin Forced Password Reset",
+    "HR Emploc XLSX Bulk Import",
+    "Vacancy Roster XLSX Bulk Import",
+    "Plantilla Structure XLSX Import",
+    "Payroll Hours & Deductions Import",
+    "Live MIKA Sync Trigger",
   ];
   for (const act of allActionKeys) {
-    if (saOnlyActions.includes(act)) {
-      assert.equal(canPerformDrawerAction(act, "Head Admin"), false, `Head Admin must NOT perform SA-only: ${act}`);
-    } else {
-      assert.equal(canPerformDrawerAction(act, "Head Admin"), true, `Head Admin must be allowed on: ${act}`);
-    }
+    const expected = headAdminAllowed.includes(act);
+    assert.equal(
+      canPerformDrawerAction(act, "Head Admin"),
+      expected,
+      `Head Admin mismatch on ${act}: expected ${expected}`
+    );
   }
 
   // 3. Encoder (30) permissions
   const encoderAllowed = [
-    "Edit Hired Date",
     "Reopen Vacancy Slot",
     "Export Full Vacancy Dataset",
-    "Approve Deficiency Correction Review",
-    "Revert / Reject Deficiency Correction Review",
-    "Rollback / Reject Import Batch",
     "Approve / Reject New Store Requests",
     "Approve / Reject Headcount Adjustments",
     "Approve / Reject Plantilla Reassignments",
@@ -398,7 +409,7 @@ test("Sanity 6: Specialized vacancy, applicant, and quota RBAC functions", () =>
 
   // canEditApplicantProfile / canEditApplicantProfileOnce (SA, Ops: OM, HRCO, ATL, TL, Recruitment)
   for (const r of ALL_ROLES) {
-    const expected = [AppRole.SUPER_ADMIN, AppRole.HEAD_ADMIN, AppRole.OM, AppRole.HRCO, AppRole.ATL, AppRole.TL, AppRole.RECRUITMENT].includes(r.key);
+    const expected = [AppRole.SUPER_ADMIN, AppRole.OM, AppRole.HRCO, AppRole.ATL, AppRole.TL, AppRole.RECRUITMENT].includes(r.key);
     assert.equal(canEditApplicantProfile(r.key), expected, `canEditApplicantProfile mismatch for ${r.name}`);
     assert.equal(canEditApplicantProfileOnce(r.key), expected, `canEditApplicantProfileOnce mismatch for ${r.name}`);
   }

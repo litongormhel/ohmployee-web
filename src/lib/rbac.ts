@@ -526,15 +526,15 @@ export function isModuleAllowedForUser(
 export const DRAWER_ACTION_RULES: Record<DrawerActionItem, number[]> = {
   // Vacancy
   "Edit Applicant Profile (Once)": [100, 70, 45, 42, 41, 20],
-  "Edit Hired Date": [100, 70, 45, 42, 41, 30],
+  "Edit Hired Date": [100, 70, 45, 42, 41],
   "Reopen Vacancy Slot": [100, 70, 45, 42, 41, 30],
   "Request Applicant Movement": [100, 70, 45, 42, 41, 20],
   "Export Full Vacancy Dataset": [100, 90, 30],
 
   // HR Emploc
-  "Approve Deficiency Correction Review": [100, 70, 45, 42, 41, 30, 25],
-  "Revert / Reject Deficiency Correction Review": [100, 70, 45, 42, 41, 30, 25],
-  "Rollback / Reject Import Batch": [100, 90, 30],
+  "Approve Deficiency Correction Review": [100, 70, 45, 42, 41, 25],
+  "Revert / Reject Deficiency Correction Review": [100, 70, 45, 42, 41, 25],
+  "Rollback / Reject Import Batch": [100, 90],
 
   // Plantilla
   "Update Employment Lifecycle Status": [100, 70, 45, 42, 41],
@@ -582,17 +582,8 @@ export function canPerformDrawerAction(
   if (!userOrRole) return false;
   // Administrative Universal Immunity: Super Admin (100) unconditionally owns all actions
   if (isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100) return true;
-  // Head Admin (90) unconditionally owns all operational, plantilla, vacancy, data control, and approval actions
+
   const level = getRoleLevel(userOrRole);
-  if (
-    level >= 90 &&
-    actionItem !== "Archive / Soft-Delete User Account" &&
-    actionItem !== "Terminate Active User Sessions" &&
-    actionItem !== "Toggle System Edit Lock (Freeze Mode)" &&
-    actionItem !== "Manage Permission Matrix Overrides"
-  ) {
-    return true;
-  }
   const allowedLevels = DRAWER_ACTION_RULES[actionItem];
   if (!allowedLevels) return false;
   return allowedLevels.includes(level);
