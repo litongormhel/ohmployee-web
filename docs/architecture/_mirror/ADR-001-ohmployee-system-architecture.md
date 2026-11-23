@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: c2b71bc 2026-11-23T18:40:24+08:00
-source_sha256: 24fdf93347156de3b900fc9bde660cf7756948a8eb720ab2e313f1c9a76233b1
-synced_at: 2026-11-23T10:40:30.951Z
+source_commit: ad19c33 2026-11-23T18:55:27+08:00
+source_sha256: 9bb104eab380789f35911182b9ec7ae5232997bab2fdb67e4b1bcd8cbb29a1ad
+synced_at: 2026-11-23T10:55:35.447Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -344,6 +344,30 @@ To eliminate operational ambiguity between Open and Pipeline queues across Web a
 2. **Terminal Dropouts**: Terminal exits are categorized into `Backout`, `Failed / Rejected by Ops`, `Rejected`, or `Did Not Report` with mandatory audit reason logging.
 3. **One-Time Profile Edit Policy (`fn_update_applicant_profile_once`)**: Non-admin users are restricted to exactly one profile identity edit (`profile_edit_count = 0`) with uppercase name normalization, contact number verification, and mandatory edit audit justification. Super Admin and Head Admin maintain administrative bypass.
 
+### Slot-Based Vacancy Demand Authority (Slots, Not Store Count)
+
+**Status: ACCEPTED.** Total vacancy across an account or the organization is STRICTLY derived from authorized, unfulfilled **physical slots** (`plantilla_slots`), NEVER from the count of store branches:
+1. **Multi-Headcount Stores**: A single store requiring 3 employees with 0 deployed staff constitutes **3 Vacancy Slots**, NOT 1 vacancy.
+2. **Roving Coverage Groups**: A roving coverage group spanning 5 stores for 1 roaming merchandiser constitutes **1 Vacancy Slot**, NOT 5 vacancies.
+3. **Core Invariant**: Store count must never dictate vacancy demand. Physical rows in `public.plantilla_slots` with `slot_status IN ('open', 'pipeline')` remain the sole unit of measure for vacancy counting across all views, KPIs, and reports.
+
+### Vacancy Lifecycle Transitions (Backout Reopening, In-Flight Closure, & 30-Day Hired Auto-Archive)
+
+**Status: ACCEPTED.** Codifies the state transitions between the 5 operational tabs:
+
+1. **Applicant Backout & Immediate Slot Reopening**:
+   - When an active candidate backs out (`status = 'backout'` via `failBackoutApplicant` / `tag_backout`):
+     - The applicant record is tagged `backout` and routes to the **Failed / Backout Tab**.
+     - The linked plantilla slot is immediately released to `open` via `fn_set_slot_status(slot_id, 'open', 'BACKOUT')`.
+     - Database trigger `trg_reopen_vacancy_on_slot_open` restores `vacancies.status = 'Open'`, and because unallocated capacity increases (`remaining_open > 0`), the store **immediately reappears in the Open Tab** ready for new candidate endorsement.
+2. **In-Flight Closure Request Routing**:
+   - When Operations submits a vacancy closure request (`has_pending_closure = true`, `closure_request_status = 'Pending'`):
+     - The requisition **immediately vacates the Open and Pipeline tabs** (Rule 4 closure priority).
+     - It routes to the **Closure Tab** (`p_status = 'Closure'`) to await administrative review and approval (`Approve / Reject / Withdraw`).
+3. **Hired Auto-Archive 30-Day Governance**:
+   - Fulfilled requisitions / confirmed onboards remain visible in the **Hired Tab** for an operational auditing window of **30 calendar days**.
+   - Database sweep function `fn_archive_hired_vacancies` automatically transitions records with `a.hired_at < NOW() - INTERVAL '30 days'` to `is_archived = true`, `status = 'Archived'`, cleanly archiving completed historical hiring cycles while preserving full audit history.
+
 **7th revision (`ohm#w8r4n2yj`, 2026-08-04):** added `hr_processing_count` as a third subtraction term. Rationale: a Confirmed-Onboard/HIRED applicant sitting in `plantilla_slots.slot_status = 'hr_processing'` (awaiting Employee Number, before reaching `Plantilla.status = 'Active'`) was previously counted in NEITHER `hired_count` NOR `pipeline_count` — a real population, already exposed as `hr_processing_count` in `vw_slot_derived_vacancy_shadow`, that business confirms is effectively already hired and not truly vacant. No SQL change required — the column already existed in the view; only `VacancyItem.remainingOpenCount` (`models.dart`) and Dashboard's parallel raw-map formula (`dashboard_screen.dart`) were updated.
 
 **Status: SHIPPED, live-verified (commit `622fa4f`; 7th revision commit pending).** The DB's raw `open_count`/`derivedOpenCount` field (`hc_needed - hired_count`, no pipeline or hr_processing subtraction) is a distinct, still-valid field used by 9+ other call sites for org-wide capacity totals — it is not itself wrong, it simply is not the Open-tab membership/display formula.
@@ -401,7 +425,7 @@ Confirmed live writers (all `SECURITY DEFINER`, all gated on `is_super_admin()`,
 - `fn_qa_archive_operational_data_reset` — full cross-module QA reset (earlier/parallel build of the function above)
 - `fn_archive_vacancy_data` — Vacancy-module-only bulk archive
 - `fn_archive_moses_hq_data` — archives pool vacancies (`is_pool_vacancy = true`)
-- `fn_archive_hired_vacancies` — archives stale hired vacancies (Confirmed-Onboard ≥ 7 days)
+- `fn_archive_hired_vacancies` — archives stale hired vacancies (Confirmed-Onboard ≥ 30 days)
 
 **Informational, not an action item:** 3 of the 6 (`fn_qa_archive_operational_data_reset`, `archive_vacancy_record`, `fn_archive_hired_vacancies`) are currently unwired from any Flutter call site (confirmed via `.dart` source grep — only referenced in the auto-generated `database_types.ts` type file, never invoked). Flagged for a future cleanup/consolidation decision; not resolved here.
 
@@ -613,3 +637,4 @@ Historical record, chronological. Full rule substance now lives in the module se
 - **2026-08-05 — `ohm#d4w7k2ml`** — Rule 5 drift fix + correctness fix in Dashboard, sites 3 & 5 (FINAL, closes Dashboard Rule 5 6 of 6): `accountMfrBreakdown` (`v_dashboard_account_mfr_breakdown`, migration `20262606000032`) and `omHrcoBreakdown` (`v_dashboard_hrco_breakdown`, migration `20262606000033`) — both new `security_invoker` 3-way aggregates of `v_plantilla_safe`/`hr_emploc`/`vw_slot_derived_vacancy_shadow`, vacancy component gated on the Rule 4 formula, kept as two separate views (not one parameterized artifact) due to genuinely different blank-dimension-value semantics between `account` and `hrco_name`. Confirmed the same dead-vacancy-loop bug as sites 1/4: `v['status']`/`v['account']` don't exist in `vacQ`'s select, so the vacancy component of both breakdowns was always 0 — the `'Unassigned'` HRCO bucket, only ever creatable by that dead loop, had never once appeared despite its pinned-last sort logic already existing. Dashboard Rule 5 now fully compliant (6 of 6 sites); only CENCOM remains open. → "Dashboard & CENCOM" above.
 - **2026-11-23 — `ohm#plantilla-subtabs-arch`** — Codified Plantilla Dual Views, Six Status Sub-Tabs, DOLE Article 301 Floating Governance (180-day statutory ceiling + slot-restricted reassignment), and On-Leave EDR SLA Escalation with Moses HQ Reliever Auto-Release. → "Plantilla" above.
 - **2026-11-23 — `ohm#vacancy-capacity-governance`** — Codified Vacancy Rule 4 Single-Slot vs. Multi-Slot Capacity Behavioral Matrix (1/1 moves to Pipeline, multi-slot 1/3 and 2/3 remain in Open until 3/3 filled), Five Status Tabs, Candidate-Level Pipeline Expansion (1 Row = 1 Candidate), Strict Applicant Closure Lock, 6-Stage Pipeline Lifecycle, and 1-Time Profile Edit Policy. → "Vacancy" above.
+- **2026-11-23 — `ohm#vacancy-lifecycle-transitions`** — Codified Applicant Backout & Slot Reopening (moves applicant to Failed/Backout, restores store to Open), In-Flight Closure Request Routing (moves out of Open/Pipeline into Closure Tab), 30-Day Hired Retention & Auto-Archival Window (`INTERVAL '30 days'`), and Slot-Based Vacancy Authority (demand strictly measured in physical slots, never store count). → "Vacancy" above.

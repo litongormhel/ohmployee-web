@@ -3,7 +3,7 @@ ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-002. Edit in mobile repo, then ru
 source: OHMployee/docs/architecture/adr002_plantilla_import_store_identity_and_governance.md
 source_commit: 5ce4032 2026-11-23T17:29:18+08:00
 source_sha256: ccc51460c3cd8c888b38f17f3b4ec678be09de5f19a168d59b46ce5d1add2c60
-synced_at: 2026-11-23T10:40:31.117Z
+synced_at: 2026-11-23T10:55:35.611Z
 -->
 # ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture
 
