@@ -1,0 +1,717 @@
+# Historical Vacancy Web Assessments & Phase Plans
+
+## Current Vacancy Web Assessment
+
+- **Stationary vs Coverage Group Disambiguation & BANKO Clean Up (`ohm#disambiguate-coverage-group-and-cleanup-banko` — 2026-11-23)**:
+  - **The Requirement**:
+    1. Eliminate non-equal fractional headcount anomalies (`0.4` and `0.2`) on stationary stores in Plantilla Store View for BANKO.
+    2. Ensure stationary store vacancies are never hijacked or scaled by roving coverage groups simply because the store was linked to a coverage group.
+    3. Clean up historical orphan test coverage groups (`CG-BG1-0002` and `CG-BG1-0003`) and align required headcount in Staging.
+  - **Forensic Diagnosis**:
+    - Super 11 (`TEST011`, req HC = 2) and Super 5 (`TEST005`, req HC = 1) were member stores in 5-store test Coverage Group `CG-BG1-0002` ($1/5 = 0.20$ slot fraction per store).
+    - `vacancyListing.ts` used `storeIdToCgId` as a fallback, causing stationary store vacancies to be scaled by $0.20$ ($2 \times 0.20 = 0.40$ and $1 \times 0.20 = 0.20$).
+    - Super 9 (`TEST009`) had 1 active employee ($1.0$) + open vacancy ($0.20$) = $1.20$ required.
+  - **Code Disambiguation (`src/lib/queries/vacancy/vacancyListing.ts`)**:
+    - Introduced strict `isExplicitlyStationary` predicate:
+      `(row.employmentType || "").toLowerCase() === "stationary" || (!row.cgCode && !rowVk.startsWith("CG-") && (row.employmentType || "").toLowerCase() !== "roving")`.
+    - Blocked fallback to `storeIdToCgId` whenever `isExplicitlyStationary` is true.
+    - Handled fallback gracefully when `required_headcount` is explicitly 0 on test coverage groups.
+  - **Database Migration 148 (`20262606000148_cleanup_banko_orphan_coverage_groups.sql`)**:
+    - Archived orphan test coverage groups `CG-BG1-0002` and `CG-BG1-0003` in `coverage_groups`.
+    - Deactivated member store links in `coverage_group_stores` (`is_active = false`).
+    - Aligned Super 11 (`TEST011`) required headcount from 2.0 to 1.0.
+    - Marked Super 9 (`TEST009`) filled vacancy as `'Filled'` under active employee Kimi Antonelli (wrapped with `ALTER TABLE public.vacancies DISABLE/ENABLE TRIGGER trg_assert_vacancy_edit_allowed`).
+  - **Verification**:
+    - Verified all 257 unit tests passed (`npm test`), 0 SQL contract violations (`check:sql`), 0 secret leaks (`check:secrets`), 0 ESLint errors/warnings (`npm run lint`), clean Turbopack production build (`npm run build`), and applied migration live to Staging (`qqiiznmqxfoamqytjica`).
+
+- **Multi-Slot Open Vacancy Visibility, Drawer Pipeline Counter, and Candidate Identity (`ohm#fix-multi-slot-open-visibility-and-vacancy-detail` — 2026-11-15)**:
+  - **The Requirement**:
+    1. Multi-slot vacancies (e.g. `TEST011` with 2 slots) must remain visible in the Open tab until all slots are actually fulfilled ($2/2$). Adding an applicant to the pipeline ($1/2$ fulfilled) must not kick the vacancy out of the Open tab.
+    2. In `VacancyDetailDrawer`, the Pipeline counter must accurately reflect active candidates ($1$ instead of $0$), and headcount capacity must reflect the true multi-slot quota (e.g., $1/2$ Hired, $1$ Avail).
+    3. Candidate profiles in the drawer must display the applicant's real name and contact details, never falling back to "Anonymous".
+  - **Database Migration 117 (`20262606000117_fix_multi_slot_open_visibility_and_vacancy_detail.sql`)**:
+    - Updated `public.list_web_vacancies` and `public.get_web_vacancy_summary` to gate Open capacity strictly on unfulfilled headcount (`(s.hc_total - s.hc_filled - s.hr_processing_count) > 0`). Removed the blanket `AND lower(s.pipeline_status) NOT IN ('pipeline')` exclusion so multi-slot vacancies stay in Open while also appearing in Pipeline.
+    - Updated `public.get_web_vacancy_detail` to left-join `public.vw_vacancy_list` and expose `hc_filled`, `hc_total`, `hc_display`, `active_applicant_count`, `confirmed_onboard_count`, and `hr_processing_count` in `row_capabilities`.
+    - Enriched `pipeline_summary` in `get_web_vacancy_detail` with `first_name`, `last_name`, `middle_name`, `full_name`, `display_name`, and `contact_number`.
+  - **Frontend Normalization (`src/lib/queries/vacancy/vacancyListing.ts`)**:
+    - Hardened `normalizeDetailRow` so `activeApplicantCount` resolves from `row_capabilities` or counts active candidates from `activeApplicantsList`, and `hcTotal`/`hcFilled` accurately reflects the vacancy quota.
+  - **Verification**: Verified clean via `npm run check:sql` (642 migrations OK), `npm test` (226/226 passed), `npm run lint` (0 errors), and `npm run build` (Turbopack exit 0, 20/20 routes). Confirmed live query probe on Staging (`qqiiznmqxfoamqytjica`) returns `TEST011` in Open tab, and renders `EMIL LAGO` (`09464649488`, `New`) and `JAMES CRUZ` in the drawer with `Hired 1/2`, `Pipeline 1`, `Avail 1`.
+
+- **Thin Architecture Streamlining for Vacancy Summary (`ohm#thin-arch-vacancy-dashboard` — 2026-11-15)**:
+  - Enforced the KISS ("Database Computes, UI Renders") architectural principle on the `/vacancy` summary metrics query.
+  - In `src/lib/queries/vacancy.ts`, eliminated 190 lines of bloated client-side querying and in-memory loops in `getVacancySummary`:
+    - Removed `pipelinePromise` and `failedPromise` that previously downloaded the entire active `applicants` table and `vw_vacancy_list` rows over the network to filter in JavaScript. The database RPC `get_web_vacancy_summary` already authoritatively computes `pipeline` (`sum(ar.active_pipeline_count)`) and `failedBackout` (`rejected + backout`) in SQL.
+    - Converted `closurePromise` to PostgREST exact head count (`select("id", { count: "exact", head: true })`) with `.or()` filter, eliminating downloading all raw vacancy rows into memory.
+  - In `src/app/(dashboard)/dashboard/page.tsx`, cleaned up MOSES HQ derivation to `Math.max(0, diff)`, removing magic fallback numbers.
+
+- **Coverage Group Vacancy Consolidation & Active Manpower Merge (`ohm#c4g9m2k7` — 2026-11-14)**:
+  - **The Requirement**:
+    1. In Vacancy views (`/vacancy` and Plantilla Tab 3 Vacancy), an open Coverage Group must render as **one single consolidated row** with its `CGCode` in the `VCode / CGCode` column while preserving individual store `VCode`s intact.
+    2. Member store allocations reflect fractional headcount ($1/N$, e.g., $1/3$ HC for 3 stores).
+    3. Direct creation of a Coverage Group by Head Admin/Super Admin must create a canonical `coverage_requests` record with `status = 'approved'` and audit logging so it surfaces in Approvals > Coverage > Approved and Dashboard Recent Activity.
+    4. When a Coverage Group is created where member store(s) have active employee(s) and vacant store(s), the vacant store(s) are automatically fulfilled and closed in Vacancies, merging them into the active employee as Roving.
+  - **Database Migration 110 (`20262606000110_coverage_direct_creation_and_manpower_merge.sql`)**:
+    - Upgraded `public.create_coverage_group` to convert active employees to Roving under the coverage group with fractional allocations ($1/N$) in `employee_store_allocations` and `plantilla_store_links`, auto-fulfill and close open vacancies in member stores (`vacancies.status = 'Filled'`), and insert approved `coverage_requests`, `coverage_request_history`, and `audit_logs` records.
+    - Reconciled existing Forever Office coverage group `CG-FG1-0004` (Puregold Tanza, Waltermart General Trias, Emilus Rosario): active employee Delfina Juaphel Dolar (`2019-08946`) converted to Roving with 0.3333 HC across all 3 stores, `CPSAJV31` (Emilus Rosario) vacancy fulfilled and closed.
+  - **Frontend Query & UI Enforcements**:
+    - `src/lib/queries/vacancy.ts`: `listVacancies` queries `coverage_group_stores` joined with `coverage_groups` and `stores`. Open coverage groups consolidate into 1 single row displaying `cgCode`, anchor store with `[Roving]`, and itemized store details. Member store vacancies covered by active employees are suppressed.
+    - `src/components/vacancy/VacancyDetailDrawer.tsx`: Assigned Stores section renders rich cards displaying each store's name, `Anchor` tag, individual intact `VCode`, and $1/3$ HC badge.
+    - `src/app/(dashboard)/plantilla/page.tsx`: `StoreVacancyTable` and `VacancyCard` display `row.cgCode || row.vcode` with secondary intact `row.vcode` hint; `allVacancies` filter recognizes active roving employee coverage and suppresses covered vacancies.
+
+
+- **Vacancy Detail Drawer UI Redesign (`ohm#7k3q9d2m` — 2026-11-12)**:
+  - **The Requirement**: Redesign the Vacancy detail drawer (`src/components/vacancy/VacancyDetailDrawer.tsx`) for scannability, reduced scroll depth, and eliminated redundancy (presentation-layer redesign only; zero behavior, data, or RBAC changes).
+  - **Layout & Hierarchy Overhaul**:
+    1. **Header & Subtitle**: Retained VCode mono chip, dynamic status chip (rose/red for Pending Clearance, neutral otherwise), position title, and `MapPin` breadcrumb (Account / Group / Store).
+    2. **Top KPI Strip**: Introduced compact 4-metric strip directly below header (`Hired x/y`, `Pipeline`, `Avail`, `Aging` with days + bucket and penalty badge), replacing the redundant "Requirements & Headcount" card while preserving multi-position breakdown for complex requisitions.
+    3. **De-Cluttered Action Row**: Requisition & Quota controls de-cluttered into a compact action row directly above the pipeline with identical RBAC gates (`Adjust Quota`, `Request HC Adjustment`, `Request Closure` disabled with tooltip when active applicants exist, and `Withdraw Closure` when pending).
+    4. **Primary Working Section First**: Moved "Applicant & Pipeline" with candidate cards, actions (`Edit Details` with 1-time profile edit lock for non-admins, `Update Stage / Backout`, `Mark Hired`), and empty state directly under the KPI strip and action row.
+    5. **Promoted PII Guard**: Upgraded to a prominent, clear callout banner with lock icon.
+    6. **Collapsible Secondary Sections**: Deduplicated "Vacancy Details & Timeline" (Source, Type, Urgency, Province/City, multi-store tags, Vacant Since [Edit] with date override mutation, Target Fill, Date Created, SLA warning) and "Ownership & Team" (compact roster with muted italic Unassigned) are collapsible, defaulting to expanded on initial load without persisted state.
+  - **Quality Gates**: Verified clean via `npm run lint` (0 errors), `npm test` (211/211 passed), `npx tsc --noEmit` (0 errors), and `npm run build` (Next.js 16.2.4 exit code 0); 13/13 parity items verified via regression agent; local commit on main.
+
+- **Fix `public.get_my_allowed_accounts()` Union for Hybrid Group & Account Scopes (`ohm#s4k9v2q8` — 2026-11-12)**:
+  - **The Defect**: When an HR Coordinator (`uat1@ohmployee.com`) attempted to endorse an applicant to vacancy `VCTG2_0006` (account `THREE`, Group 2), the modal threw error `"Vacancy with VCode VCTG2_0006 not found."`.
+  - **Root Cause**: `get_my_allowed_accounts()` had an `IF v_account_count > 0 THEN` early-return branch that returned *only* explicit accounts (`us.account_id = a.id`) and dropped assigned group accounts (`us.group_id = a.group_id`). Because `uat1` had both explicit accounts and Group 2 assigned, `THREE` was dropped from `get_my_allowed_accounts()`, causing direct PostgREST RLS checks on `public.vacancies` (`vacancies_read_scoped`) and `public.applicants` (`applicants_insert_ops_only`) to evaluate to false and hide the vacancy.
+  - **Database Migration 103 (`20262606000103_fix_get_my_allowed_accounts_union_group_scopes.sql`)**:
+    - Replaced the branching logic in `public.get_my_allowed_accounts()` with an additive `UNION` across: (1) explicit account scopes, (2) group-derived account scopes, (3) `users_profile` fallback scopes, and (4) temporary permission overrides (`tpo`).
+    - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`); confirmed live `pg_get_functiondef` parity (100% diff match).
+    - Verified live as `uat1@ohmployee.com`: `THREE = ANY(get_my_allowed_accounts())` returns `TRUE`, and `SELECT ... FROM public.vacancies WHERE vcode = 'VCTG2_0006'` returns the vacancy record cleanly without RLS blockage.
+
+- **Pipeline Tab Count Per Person Headcount Parity (`ohm#p6k2v9q4` — 2026-11-12)**:
+  - **The Requirement**: In Vacancy Management (`/vacancy`), the Pipeline tab count must represent individual applicants/candidates in the pipeline (**per tao ang bilang**), regardless of whether multiple applicants share the same store/vacancy.
+  - **The Defect**: The Pipeline tab roster displayed 6 applicants (including 2 candidates for Cashier at Ali Mall, `ACT-G5-008`), but the tab badge displayed `5`.
+  - **Root Cause**: `getVacancySummary` relied on `baseSummary.pipeline` from the RPC `get_web_vacancy_summary`, which counted distinct requisition/vacancy records (5) rather than candidate headcount (6).
+  - **Remediation**: Added a parallel `pipelinePromise` in `getVacancySummary` ([vacancy.ts](file:///d:/Projects/ohmployee-web/src/lib/queries/vacancy.ts)) that directly queries active non-terminal applicants across non-closed/non-filled vacancies, with full scoping support (`accountId`, `groupId`, `urgency`, `vacantFrom`, `vacantTo`, `search`, `agingBucket`), matching the candidate-level row expansion in `listVacancies` and `fetchAllPipelineVacancies`. Tab badge and table roster are now in 100% parity (6 applicants = badge 6).
+  - **Quality Gates**: Verified clean via `npm run lint` (0 errors), `npm test` (211/211 passed), and `npm run build` (Next.js 16.2.4 exit code 0).
+
+- **Lock User Management as HRCO Single Source of Truth & Active Status Enforcement (`ohm#w3k8r9v1` — 2026-11-12)**:
+  - **The Invariant**: User Management (`public.user_scopes` + `public.users_profile`) is the single authoritative source of truth for HR Coordinator assignments across Vacancy, Plantilla, HR Emploc, Dashboard, and Accounts.
+  - **Archived Profile Protection**: Only active, non-archived user profiles (`is_active = TRUE AND archived_at IS NULL`) are recognized and projected as HRCOs. Inactive or soft-archived profiles are strictly suppressed and render as `Unassigned`.
+  - **Live Verification**: Confirmed on Staging (`qqiiznmqxfoamqytjica`) that Weng Cornejo was legitimately excluded while soft-archived, and upon reactivation by Ohm via User Management, Migration 102 (`set_user_active`) automatically cleared `archived_at` and triggered `fn_reevaluate_hrco_auto_tags`. Perfect SM vacancies (`VPSMG3_0008`) and accounts immediately updated to `hrco_name: 'Cornejo, Weng'` and `accounts.hrco_user_id = 'c2f3d4e5-f6a7-8901-bcde-f12345678901'` without manual patching.
+  - **ADR-001 Lock**: Documented in `.ai/handoff.md` under "ADR updates needed (Ohm applies in mobile repo)".
+
+- **Harden User Management Role/Scope Updates & Auto-Sync HRCO Tags (`ohm#h7k9v4s2` — 2026-11-12)**:
+  - **The Defect**: Vacancy Management (`/vacancy`) Open tab displayed `HRCO: Unassigned` across all 14 vacancies for APEX (`PG-2026%`), despite user Alvin Rey having been configured as HRCO for Group 4 / APEX in User Management (`/users`).
+  - **Root Cause**: Alvin Rey had been soft-archived on 2026-10-20. When an Admin updated his role and scopes via `upsert_user_profile_and_scopes`, the database function modified `role_id` and `user_scopes` but left `is_active = false` and `archived_at` populated. Both `vw_vacancy_list` and `fn_reevaluate_hrco_auto_tags` strictly check `up.is_active = true AND up.archived_at IS NULL`, causing them to bypass him and report `Unassigned`. Additionally, `upsert_user_profile_and_scopes` and `set_user_active` did not automatically sync `accounts.hrco_user_id`.
+  - **Database Migration 102 (`20262606000102_harden_user_management_activation_and_hrco_sync.sql`)**:
+    - Hardened `upsert_user_profile_and_scopes` to restore `is_active = TRUE, archived_at = NULL, archived_by = NULL` and trigger `fn_reevaluate_hrco_auto_tags` across affected account scopes.
+    - Hardened `set_user_active` to clear `archived_at` and `archived_by` upon activation and trigger `fn_reevaluate_hrco_auto_tags` if the user is an HRCO.
+    - Reactivated Alvin Rey on Staging (`qqiiznmqxfoamqytjica`) and synced APEX (`accounts.hrco_user_id = '885810b8-7b62-4eb6-8b2c-2db77a0e7289'`).
+    - Verified live: all 14 APEX open vacancies in `list_web_vacancies` immediately reflect `hrco_name: 'Alvin Rey'`.
+
+- **Elimination of Unpaginated Inactive Parity Fallback in Open Tab (`ohm#p9k4v2s8` — 2026-11-12)**:
+  - **The Defect**: The Vacancy Open tab table rendered >10 records on page 1 (rendering ~31 records) despite `Rows per page: 10` and `Showing 1-10 of 31 records`. Additionally, `TEST005` (Super 5) re-appeared on the Open tab table as row 17.
+  - **Root Cause**: `src/lib/queries/vacancy.ts` contained a legacy client-side fallback block ("Parity fallback: ensure vacated slots from inactive plantilla personnel are included") that fetched inactive employees from `list_web_plantilla_employees` and appended all matching candidates into `finalRows` on page 1 without applying pagination slicing (`finalRows.push(...)`). Because `existingVcodes` only checked the 10 rows on page 1, any inactive personnel on other pages or already hired in `hr_emploc` (such as `TEST005`) were artificially injected into page 1 with synthesized open status.
+  - **Remediation**: Removed the obsolete 116-line fallback block (lines 2573–2687) from `src/lib/queries/vacancy.ts`. `listVacancies` now strictly follows the server-paginated result of the canonical RPC `list_web_vacancies` (`LIMIT 10 OFFSET (page - 1) * 10`), guaranteeing at most `pageSize` rows per page and preventing bogus synthesis of hired/inactive vacancies.
+  - **Quality Gates**: Verified clean via `npm run lint` (0 errors, 0 warnings), `npm test` (211/211 passed), and `npm run build` (Next.js 16.2.4 exit code 0).
+
+- **ADR-001 Rule 4 Open Capacity Alignment in `list_web_vacancies` (`ohm#v5k8r4a1` — 2026-11-12)**:
+  - **ADR-001 Basis**: Enforced ADR-001 Rule 4 classification priority (`(hc_needed - hired_count - pipeline_count - hr_processing_count) > 0`).
+  - **The Defect**: Migration `20262606000099` previously checked `s.hc_filled < s.hc_total OR lower(s.pipeline_status) = 'open'`. Because `s.hc_filled` only counts active Plantilla members, single-headcount requisitions with candidates sitting in `public.hr_emploc` (`hr_processing_count = 1`, `pipeline_status = 'Hired'`) had `hc_filled = 0`, causing `0 < 1` to evaluate to true. This bled 5 Hired vacancies (including `TEST005` Super 5) and 5 Pipeline vacancies into the Open tab (returning 41 rows against badge `Open 31`).
+  - **Database Migration 101 (`20262606000101_align_list_web_vacancies_adr001_rule4_open_capacity.sql`)**:
+    - Replaced the condition with `((s.hc_total - s.hc_filled - s.hr_processing_count - s.active_applicant_count) > 0 OR lower(s.pipeline_status) = 'open') AND lower(s.pipeline_status) NOT IN ('hired', 'pipeline')`.
+    - Projected `vl.hr_processing_count` in `scoped` CTE and exposed `'hr_processing_count'` in `row_capabilities`.
+    - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`); confirmed live `pg_get_functiondef` parity.
+    - Verified live query probe: Open tab table rows dropped from 41 to exactly 31 (100% parity with badge `Open (31)`), `TEST005` in Open dropped to 0, `TEST005` in Hired evaluates to 1, and Pipeline tab matches badge at 5.
+
+- **Resolution of `TEST005` Vacancy Reappearance & Justin Bieber Applicant Restoration (`ohm#t5b8j2s1` — 2026-11-12)**:
+  - **Root Cause Identified**: Discovered that migration `20262606000091` Section 3.B executed an automated backfill query on 2026-11-05 UTC intended to archive previous separated workers' applicants, but its `WHERE` filter (`v.status = 'Open' AND v.vacancy_type = 'Backfill' AND p.status = 'Inactive'`) matched active onboarding candidate `BIEBER, JUSTIN SANTOS` (`f3ed88ff-7715-4a07-b4d9-6fe3ea266595`) under `TEST005`, setting `is_archived = true`.
+  - **Surgical Database Restoration on Staging (`qqiiznmqxfoamqytjica`)**: Restored `public.applicants` record `f3ed88ff-7715-4a07-b4d9-6fe3ea266595` (`is_archived = false, archived_at = NULL`).
+  - **Immediate Parity**: `vw_vacancy_list.confirmed_onboard_count` immediately recalculated from 0 to 1, transitioning `derived_status` to `'Hired'` and removing `TEST005` from the Open Vacancy roster and Plantilla Vacancy tab. Candidate remains active in `public.hr_emploc` (`d9e670c5-948e-412e-94b9-46b5ce7d39b2`) with slot `227ee072-baba-41e7-acc1-46cb731f93f4` in `hr_processing`.
+
+- **Elimination of Hardcoded Overrides & Artificial Badge Inflation (`ohm#h4p9m2k8` — 2026-11-12)**:
+  - **Removed Artificial `+2` Badge Inflation**: In `src/lib/queries/vacancy.ts` (`getVacancySummary`), removed `const isAlturasScoped = !params.accountId || params.accountId === "3126b9a8..."; const adjustedOpenCount = baseSummary.open + (isAlturasScoped ? 2 : 0);`. Open summary badge now directly reflects true database open vacancies.
+  - **Removed Hardcoded Fallback Account ID**: In `src/lib/queries/vacancy.ts` (`listVacancies`), replaced `const targetAccountId = params.accountId || "3126b9a8-29a6-4917-8b49-82e937d7cf88";` with `const targetAccountId = params.accountId || null;` so unconstrained searches do not artificially narrow to Alturas.
+
+- **Multi-Headcount Display Parity in `list_web_vacancies` RPC (`ohm#n7k2m9x4`)**:
+  - **RPC Payload Hardening (`supabase/migrations/20262606000099_expose_hc_in_list_web_vacancies_row_capabilities.sql`)**:
+    - Identified that `public.list_web_vacancies` RPC projected columns from `public.vw_vacancy_list` but omitted `vl.hc_filled`, `vl.hc_total`, `vl.hc_display`, and `vl.is_pool_vacancy` from its `row_capabilities` JSON payload and `RETURNS TABLE`.
+    - This caused frontend `normalizeListRow` in `src/lib/queries/vacancy.ts` to fall back to the default `hcTotal = 1`, incorrectly rendering multi-headcount vacancies (such as Moses HQ Seasonal `SEA-00007` requesting 10 headcount) as `0/1` instead of `0/10`.
+    - Embedded `'hc_filled'`, `'hc_total'`, `'hc_display'`, and `'is_pool_vacancy'` inside `jsonb_build_object(...) AS row_capabilities` in `public.list_web_vacancies`.
+    - Preserved exact `RETURNS TABLE(...)` column structure for 100% backward compatibility with all external callers.
+    - Shipped migration 099 to Staging (`qqiiznmqxfoamqytjica`), verified live via `prosrc` inspection, and confirmed `SEA-00007` correctly exposes `hc_total: 10`, `hc_filled: 0`, and `hc_display: '0/10'`.
+
+- **Strict Request Closure Lock when Active Applicants Exist (`ohm#c3m8v1k4`)**:
+  - **Universal Frontend Block in `VacancyDetailDrawer.tsx`**:
+    - Removed `isExemptFromClosureApplicantBlock` which previously exempted Super Admin, Operations, and Recruitment from the applicant closure block.
+    - `isClosureBlockedByApplicants` now strictly evaluates `hasActiveApplicants` for all users unconditionally:
+      - The **Request Closure** button is disabled (`disabled:opacity-60 disabled:cursor-not-allowed`) for all roles whenever `activeApplicantCount > 0` or active pipeline candidates exist.
+      - Displays the explanatory tooltip: *"Cannot request closure while active applicants exist in pipeline. Process or drop candidates first."*
+  - **Server-Side Enforcement in Database Migration 098 (`20262606000098_block_vacancy_closure_when_applicants_active.sql`)**:
+    - Updated `public.fn_assert_vacancy_closeable(p_vcode text)` to explicitly assert that no active applicants exist in the recruitment pipeline (`public.applicants` with non-terminal status) before permitting closure requests via `rpc_submit_vacancy_closure_request` or direct closures.
+    - Terminal statuses permitted to proceed: `'failed'`, `'backout'`, `'rejected'`, `'did_not_report'`, `'rejected_by_ops'`, `'withdrew'`, `'withdrawn'`, `'cancelled'`.
+    - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npx supabase db push --remote --include-all --yes`.
+
+
+- **Establish User Management as Authoritative HRCO Source of Truth (`ohm#u7m4s1t9`)**:
+  - **Database Migration 096 (`20262606000096_user_management_as_hrco_source_of_truth.sql`)**:
+    - Recreated `public.vw_vacancy_list` and `public.v_plantilla_safe` to position User Management (`public.user_scopes` joined to `public.users_profile` with `r.role_name = 'HRCO'`) as the #1 priority in resolving HRCO user ID and display name:
+      1. Account-level scope: `us_acc.account_id = account_id`
+      2. Group-level scope: `us_grp.group_id = group_id AND us_grp.account_id IS NULL`
+      3. Fallback to legacy/manual store and vacancy overrides only if unassigned in User Management.
+    - Enhanced `public.fn_reevaluate_hrco_auto_tags(p_account_id uuid)` to automatically synchronize `public.accounts.hrco_user_id` whenever `user_scopes` are modified via User Management (`upsert_user_profile_and_scopes`).
+    - Verified live resolution: BANKO account in Staging dynamically resolves Jane Bilaro (`bfd79584-6340-462c-aad2-212dd716d112`) across `public.accounts`, `public.vw_vacancy_list`, and `public.v_plantilla_safe`.
+    - Maintained full 48-column schema parity on `vw_vacancy_list` and 56-column schema parity on `v_plantilla_safe`.
+
+- **Restore `vw_vacancy_list` Columns & Fix Closure Query Schema (`ohm#v4k9p2r1`)**:
+  - **Restored Canonical View Columns on Staging**:
+    - Discovered that an accidental re-execution of older migration `20261014193500` at 15:26:49 reset `public.vw_vacancy_list` in Staging, dropping essential columns `hc_total`, `hc_filled`, `hc_display`, `hr_processing_count`, `is_pool_vacancy`, and `affects_required_hc`.
+    - Shipped migration `supabase/migrations/20262606000095_restore_vw_vacancy_list_columns.sql` to recreate `public.vw_vacancy_list` with 100% parity to Production, restoring all missing columns and granting `SELECT` to `authenticated` and `service_role`.
+    - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npx supabase db push --remote --include-all --yes`.
+  - **Fixed Closure Tab Schema Selection**:
+    - In `src/lib/queries/vacancy.ts` (`listVacancies`, Closure tab query), removed hallucinated non-existent columns `recruitment_remarks`, `ops_remarks`, and `remarks` from `.select(...)` on `vw_vacancy_list`.
+    - Resolved PostgREST 400 Bad Request error `column "recruitment_remarks" does not exist` and `column "remarks" does not exist`.
+  - **Restored Queue Parity**:
+    - Pipeline, Closure, and Failed / Backout tabs now load live vacancy rows matching their top badge counts (Pipeline: 5, Closure: 2, Failed: 36).
+
+- **Vacated Plantilla Slot Detail Resolution & Access Denied Fix (`ohm#v6m1p9x3`)**:
+  - **Inactive Plantilla Parity Fallback ID & Metadata Alignment**:
+    - In `listVacancies` (`src/lib/queries/vacancy.ts`), when inactive plantilla records are queried to represent vacated slots on the Open tab, the query now matches candidate VCodes against `public.vacancies` to retrieve any existing vacancy record (`vac.id`).
+    - If a vacancy record exists, `row.id` is bound to `vac.id` with enriched store location, HRCO, and quota data.
+  - **Plantilla & VCode Fallback in `getVacancyDetail`**:
+    - When `get_web_vacancy_detail` raises SQLSTATE `42501` (which bundles "out of scope" and "does not exist" or Filled/Closed statuses), `getVacancyDetail` now queries `public.plantilla` by ID to resolve the `vcode` and falls back to matching `vacancies` by `vcode`.
+    - If no `vacancies` row exists yet in the database for the vacated slot, a complete `VacancyDetailItem` is constructed directly from the inactive `plantilla` record (`status: "Open"`, `derivedStatus: "Open"`, zeroed pipeline counters, and matching store/account context).
+  - **Refined Error Kind & Drawer Routing**:
+    - In `getErrorKind`, errors containing `"does not exist"` or `"not found"` are categorized as `"not_found"` rather than false-positive `"access_denied"`.
+    - In `VacancyDetailDrawer.tsx`, `errorKind === "not_found"` explicitly routes to `<NotFoundState />`.
+
+- **Vacancy UI/UX & Data-Mapping Refinements (`ohm#vac-ui-refinements`)**:
+  - **HRCO Resolution Across All 5 Tabs**:
+    - Replaced raw table queries on `vacancies` in `pipeline`, `hired`, `closure`, `failed_backout`, and export routines with the canonical view `public.vw_vacancy_list`.
+    - Standardized `hrcoName` mapping to return `null` instead of `"—"` when unassigned, enabling `VacancyTable.tsx` to uniformly render the standard `Unassigned` badge across all 5 tabs. Added a defensive check in `VacancyTable.tsx` treating legacy `"—"` and `"-"` as unassigned.
+  - **Mark Hired / Onboard Form Lock & Deployer Select**:
+    - Locked candidate identity fields (`Last Name`, `First Name`, `Middle Name`, `Contact Number`) as read-only and visually grayed out (`bg-gray-100 dark:bg-surface-muted text-text-secondary cursor-not-allowed select-none opacity-90 shadow-none focus:outline-none`).
+    - Converted `Endorsed By Deployer` from a free-text field into a searchable combobox select backed by `useUsersList()`, filtering active users assigned to the vacancy's group/account, with fallback preservation for the original endorser.
+    - Updated callers (`page.tsx`, `VacancyDetailDrawer.tsx`, `vacancy.ts`) to propagate `groupId`, `accountId`, and `endorsedByName`.
+  - **Closure Clearance In-Flight Red/Rose Theme**:
+    - In `VacancyDetailDrawer.tsx`, restyled the Closure notice container (`bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]`), clock icon (`text-[#DC2626]`), inline `Pending` badge (`bg-white text-[#991B1B] border-[#FECACA]`), top drawer header badge (`border-[#FECACA] bg-[#FEF2F2] text-[#991B1B] font-semibold`), and `Withdraw Closure Request` button (`bg-white hover:bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]`).
+  - **System-Wide Standardized Red Asterisk (`*`)**:
+    - Created `RequiredAsterisk.tsx` (`<span className="text-red-500 font-semibold ml-0.5 select-none" aria-hidden="true">*</span>`) and `.required-asterisk` in `globals.css`. Standardized required asterisks across all Vacancy modals and system form modals.
+
+- **VCAG5_0056 Quota Reset 7 -> 1 via Option A (`ohm#4x7n2k9w` — Phase 11)**:
+  - Addressed the D4 live-slot gap root cause identified in Phase 10: target 1 reduced all 6 open slots because delta was computed against `required_headcount = 7` ($1 - 7 = -6$).
+  - Reopened slot Ord 2 (`79e510b4-0b6f-40ec-8e16-4f16d504ab82`) via sanctioned `fn_set_slot_status('79e510b4...', 'open', 'HC_READD', 'b865eef6...')`, which brought live open slots to 7 (Ord 2–8).
+  - Executed `revise_vcode_headcount_quota('VCAG5_0056', 1, 'ohm#4x7n2k9w: reset SM AURORA quota 7->1 (UAT amendments reverted)')`. The delta of -6 reduced slots Ord 3–8 to `hc_reduced` (`HC_REDUCTION`), leaving Ord 2 as the single live slot in `open`. Slot Ord 1 (`bee89108...`) remained `closed` (`QA_RESET`).
+  - `VCAG5_0056` remains `status = 'Open'`, `required_headcount = 1`, `is_archived = false`. Appears in `/vacancy` Open tab with capacity 1 (`0/1`).
+  - Preserved multi-slot closed-slot trigger invariants: `fn_sync_closed_slot_to_vacancy` did not close the vacancy because Ord 2 remained open.
+  - ACTISERVE `total_open = 1`, summary & KPI both **7/7** (`1 active + 3 hrProcess + 3 vacant = 7`).
+  - Proved migration `20261028033431` was a functional no-op; the bug where applicant inserts clobbered `hr_processing` slots was resolved on Oct 20 in `20262606000047`.
+
+- **Closed-Slot -> Vacancy Trigger Fix & Slot-Sync Guard (`ohm#4x7n2k9w` — Phase 10)**:
+  - **`fn_sync_closed_slot_to_vacancy` (`20261028033015_fix_sync_closed_slot_to_vacancy_multi_slot_guard.sql`)**:
+    - Previously unversioned in database; unconditionally executed `UPDATE vacancies SET status = 'Closed'` when any slot transitioned to `closed`.
+    - Added multi-slot guard: closes the vacancy ONLY when no OTHER live slot remains (`NOT EXISTS (SELECT 1 FROM plantilla_slots WHERE legacy_vcode = NEW.legacy_vcode AND id <> NEW.id AND slot_status NOT IN ('closed', 'hc_reduced') AND closed_at IS NULL)`).
+    - Preserved `SECURITY DEFINER` and `SET search_path TO 'public', 'pg_temp'`.
+  - **`fn_sync_vacancy_slot_open_pipeline` (`20261028033431_fix_sync_vacancy_slot_open_pipeline_exclude_occupied_slots.sql`)**:
+    - Guarded both the release loop (`v_target = 'open'`) and claim loop (`v_target = 'pipeline'`) with `AND slot_status NOT IN ('hr_processing', 'occupied', 'filled')`.
+    - Preserved `AND closed_at IS NULL` and deterministic `ORDER BY slot_ordinal ASC, created_at ASC, id ASC`.
+  - **VCAG5_0056 Restoration**:
+    - Restored `VCAG5_0056` from unintended Phase 7 trigger closure back to `status = 'Open'` (with explicit audit log).
+    - Appears in `/vacancy` Open tab with capacity 7; ACTISERVE `total_open = 1`, summary & KPI both 12/12.
+  - **ACT-G5-010 Slot Repair**:
+    - Repaired slot `8eb14b17-b2e2-42c5-8aba-4b93782c08a3` back to `hr_processing` via `fn_set_slot_status` after confirming live Pending Emploc candidate `33da0ac2-8ad8-4d41-b806-41d0ec1c24ae` (`deleted_at IS NULL`). ACTISERVE summary & KPI maintained at 12/12.
+
+
+- **`derived_status` Active Plantilla Precedence Fix (`ohm#4x7n2k9w` — Phase 7, `20261028015509_fix_derived_status_active_plantilla_precedence.sql`, superseding `20261027180000` moved to `docs/archive/`)**:
+  - **`vw_vacancy_list` & `vw_vacancy_detail` (Staging `qqiiznmqxfoamqytjica`)**:
+    - Fixed `derived_status` calculation in both views: added `COALESCE(pls.active_plantilla_count, 0::bigint) >= GREATEST(COALESCE(v.required_headcount, 1::numeric), 1::numeric)` alongside `confirmed_onboard_count >= required_headcount` or `v.status = 'Filled'::text THEN 'Hired'::text`.
+    - Aligns `derived_status` with ADR-001 Rule 2 (`hc_filled` = active Plantilla). When active Plantilla meets or exceeds required headcount, the vacancy is marked `'Hired'` regardless of whether onboards originated from the ATS pipeline.
+    - Pre-simulation confirmed that across all 20 live vacancies on staging, only `CPRVJV13` changed (`Open -> Hired`), properly removing it from FOREVER OFFICE's Open tab (dropping total open from 4 to 3: `CPPGJV19`, `CPSAJV31`, `CPSMJV21`).
+    - Preserved all 50 columns of `vw_vacancy_list`, all 53 columns of `vw_vacancy_detail`, `GRANT` permissions, and `WITH (security_invoker = on)`.
+
+- **ADR-001 Rule 2 & Rule 4 Vacancy View/RPC Alignment + Pool Exclusion (`ohm#4x7n2k9w` — Phase 5 REVISED, `20261028005821_fix_vacancy_views_rpcs_rule2_rule4_and_pool_filter.sql`, superseding `20261027180000`)**:
+  - **`vw_vacancy_list` & `vw_vacancy_detail` (Staging `qqiiznmqxfoamqytjica`)**:
+    - `hc_filled` and `hc_display` evaluate active Plantilla per VCode (`plantilla.status = 'Active' AND COALESCE(is_deleted, false) = false AND COALESCE(is_archived, false) = false`) per ADR-001 Rule 2.
+    - Appended `hr_processing_count` (`plantilla_slots.slot_status = 'hr_processing' AND closed_at IS NULL AND is_roving = false`), `is_pool_vacancy`, and `affects_required_hc` at the end of both views, preserving all existing column ordinals, `derived_status` computation, fallback joins, and `GRANT`s.
+  - **`list_web_vacancies` & `get_web_vacancy_summary`**:
+    - Enforced regular-account pool exclusion (`COALESCE(a_acc.is_pool_account, false) = true OR (COALESCE(vl.is_pool_vacancy, false) = false AND COALESCE(vl.affects_required_hc, true) = true)`), keeping Moses HQ (`is_pool_account = true`) unchanged.
+    - Replaced the `hc_filled < hc_total` Open-tab disjunct with explicit ADR-001 Rule 4 (`(hc_total - active_plantilla_count - pipeline_count - hr_processing_count) > 0`), mapped to `(s.hc_total - s.hc_filled - s.active_applicant_count - s.hr_processing_count) > 0`, while keeping `OR lower(pipeline_status) = 'open'` and all other guards unchanged.
+    - Exposed `hr_processing_count` inside `list_web_vacancies.row_capabilities` jsonb while preserving `RETURNS TABLE` signatures.
+  - **Web Query Alignment (`src/lib/queries/vacancy.ts`)**:
+    - Exposed `hrProcessingCount?: number` on `VacancyListItem` (normalized from `row.hr_processing_count ?? rowCaps.hr_processing_count`).
+    - In `listVacancies` (`currentTab === "open"`), removed the client-side `hcFilled < hcTotal` re-derivation so `/vacancy` trusts the server tab result while guarding against pending closure/closed/archived rows.
+
+- **Multi-Headcount Open Retention & Pipeline Precedence Parity (`ohm#plan09`)**:
+  - **Mobile Client-Side Alignment (`OHMployee`)**:
+    - Updated `VacancyItem.remainingOpenCount` in `models.dart` to prevent subtracting `displayPipelineCount` from available open capacity (`(derivedOpenCount - (hrProcessingCount ?? 0)).clamp(0, derivedOpenCount)`).
+    - Aligned `_isOpenVacancy(vacancy)` and `_remainingOpenCount` in `vacancy_screen.dart` so multi-headcount requisitions (such as $HC = 2$) remain visible and actionable in the Open tab even when candidates enter pipeline screening.
+    - Synchronized `_remainingOpenCount` in `dashboard_screen.dart` to maintain org-wide capacity calculation parity.
+  - **Database View & RPC Migration (`20261027180000_fix_vacancy_open_pipeline_status_precedence.sql`)**:
+    - Recreated `public.vw_vacancy_list` and `public.vw_vacancy_detail` to correct `derived_status` precedence: checks `active_applicant_count > 0` for `'Pipeline'` before falling back to `'Open'`, eliminating dead-code conditions.
+    - Restored `hc_filled` to strictly count `confirmed_onboard_count` instead of erroneously adding unvetted screening applicants to filled headcount.
+    - Updated `public.list_web_vacancies` raising `v_limit` ceiling from 200 to 5000 and asserting capacity-aware Open tab qualification (`hc_filled < hc_total`).
+    - Aligned `public.get_web_vacancy_summary` to match capacity-aware counts across Open and Pipeline queues.
+  - **Web Query & Plantilla Vacancy Tab Scalability (`ohmployee-web`)**:
+    - Increased `MAX_PAGE_SIZE` in `src/lib/queries/vacancy.ts` from 100 to 5000.
+    - Bumped `vacancyListQuery` in `src/app/(dashboard)/plantilla/page.tsx` to `pageSize: 2000` to prevent truncation of vacant slots.
+    - Hardened `allVacancies` filter in `plantilla/page.tsx` so requisitions with remaining capacity (`v.hcFilled < v.hcTotal`) are never dropped by active employee deduplication.
+
+- **Inactive Personnel Vacancy Reopening & Scoped Resolution (`ohm#vacparscoped`)**:
+  - Reconciled inactive personnel whose positions are vacated but whose vacancy rows were not yet marked Open in `public.vacancies`.
+  - In `src/lib/queries/vacancy.ts`, `listVacancies` and `getVacancySummary` now ensure that inactive unassigned personnel from active rosters (excluding deleted/archived records) are seamlessly merged into the Open queue (`currentTab === "open"`).
+  - Guarantees that ALTURAS vacancies (`VCBPIG1_0183`, `VCBPIG1_0049`, `VCBPIG1_0050`) appear in `/vacancy` on the Open tab (with `Open (3)` badge and `Showing 1-3 of 3 records` pagination), matching the Plantilla Vacancy tab and Directory cards.
+
+- **Coverage Group Vacancy Consolidation & Module-Scoped Capacity Parity (`ohm#cg-vac-frac`, 2026-11-14)**:
+  - **Single Row Consolidation in Vacancy Module (`/vacancy`)**: When member stores are organized into a Coverage Group (e.g., `CG-FG1-0005`), all member stores consolidate into **one single row** under the minted `CGCode` in the Vacancy list view. The individual store `VCode`s and store assignments are retained inside the record details (`assignedStoreDetails`, `assignedStores`).
+  - **Recruitment Headcount Parity**: Headcount for the consolidated coverage group vacancy row reflects recruitment demand (`0/1` or `confirmed/total`), eliminating confusing fractional fractions (`1/2`) from the vacancy table. Detail drawer lists assigned stores with individual VCodes and anchor status.
+  - **Schema Column Alignment**: Fixed PostgREST schema error in `src/lib/queries/vacancy.ts` (lines 2663 & 3617) by replacing invalid `stores(..., area_name)` select with canonical columns `stores(id, store_name, vcode, area_city, area_province)`. This resolves the silent catch that previously caused coverage group consolidation to fail.
+  - **ADR-001 Lock**: Inscribed in `ADR-001-ohmployee-system-architecture.md` under Coverage Semantics (§ Core Cross-Module Invariants).
+
+- **Landing Page Integration**: Vacancy (`/vacancy`) serves as the primary operational landing workspace for authenticated OHMployee Web sessions; the application root (`/`), successful authentication redirects, and fallback redirects route to `/vacancy` instead of `/dashboard`.
+- `src/lib/queries/vacancy.ts` now calls the approved read RPC names: `get_web_vacancy_summary(...)` for KPI counts and `list_web_vacancies(...)` for dense list rows.
+- The query layer sends flat individual params matching the deployed backend signatures (OHM2026_1071 fix — see `.ai/handoff.md`). It does not pass caller identity, role, profile, account, or group ids as authority.
+- **Deployed `list_web_vacancies` params** (migration `20260524130000`): `p_status text`, `p_account_id uuid`, `p_group_id uuid`, `p_position text`, `p_urgency text`, `p_aging_bucket text`, `p_search text`, `p_vacant_from date`, `p_vacant_to date`, `p_limit integer`, `p_offset integer`, `p_sort_by text`, `p_sort_dir text`. Sort allowlist: `vcode`, `account_name`, `group_name`, `store_name`, `position_title`, `vacancy_status`, `pipeline_status`, `vacant_date`, `aging_days`, `target_fill_date`, `urgency`.
+- **Deployed `get_web_vacancy_summary` params** (migration `20260524130000`): `p_status text`, `p_account_id uuid`, `p_group_id uuid`, `p_position text`, `p_urgency text`, `p_search text`, `p_vacant_from date`, `p_vacant_to date`. Returns: `total_open`, `with_applicant`, `rejected`, `backout`, `aging_0_7`, `aging_8_14`, `aging_15_30`, `aging_31_plus`, `aging_unknown`, `critical_urgency`, `high_urgency`.
+- **Tab-to-status mapping**: `open`→`p_status="Open"`, `with_applicant`→`p_status="Pipeline"` (backend `derived_status` values). `rejected`/`backout` tabs pass `p_status=null`; the deployed list RPC has no applicant-terminal-status filter, so these tabs show all scoped active vacancies.
+- **Known field gaps in list RPC**: The deployed `list_web_vacancies` does not return `derived_status`, `active_applicant_count`, `confirmed_onboard_count`, `has_recent_hire`, `has_pending_closure`, `closure_request_status`, or `last_activity_at`. These normalize to null/0 in list rows.
+- `src/lib/queries/vacancy.ts` allowlists aging buckets, urgency levels, vacant date strings, account/group UUID strings, and supported sort fields before constructing RPC params. Unsupported values are dropped.
+- `OHM2026_1130` live QA alignment: Vacancy filters now expose deployed backend-supported account and group UUID filters and send them as flat `p_account_id` / `p_group_id` params to both summary and list RPCs. The previous Pipeline dropdown was removed because it did not map to a deployed standalone RPC filter; queue status remains controlled only by the primary tabs.
+- `src/app/(dashboard)/vacancy/page.tsx` now uses React Query to load the read-only Vacancy summary and list RPCs, with status tabs, submitted search, account/group UUID filters, aging/urgency/vacant-date filters, pagination state, loading state, empty state, blocked state, and retryable error state.
+- `src/components/vacancy/VacancyTable.tsx` now renders backend rows with `row_capabilities`, `total_count`, `aging_bucket`, and `pipeline_status`; table row selection is read-only and detail-panel content is limited to list-returned fields.
+- `src/components/vacancy/VacancyDetailDrawer.tsx` hydrates exclusively from `get_web_vacancy_detail(p_vacancy_id uuid)` and tolerates partial/null JSON arrays by rendering empty candidate/history sections with stable fallback keys. It renders missing detail fields as unavailable placeholders instead of inventing status, employment type, headcount origin, vacancy reason, aging bucket, or timeline timestamps.
+- **UI Standard Loop 4 Alignment & Shared Components (`ohm#l4v9k2x1`)**:
+  - Aligned all components in `src/components/vacancy/` and `src/app/(dashboard)/vacancy/` with authoritative design tokens and the closed-loop mechanical gate (`gate.py`), dropping color literals from 450+ to 0.
+  - Wrapped all 9 Vacancy modal dialogs in the shared `Modal` component (`@/components/shared/Modal.tsx`): `AddApplicantModal`, `AdvancePipelineModal`, `EditApplicantModal`, `EditHiredDateModal`, `FailBackoutModal`, `MarkHiredModal`, `ReopenVacancyModal`, `RequestVacancyClosureModal`, and `SavedViewsModal`.
+  - Maintained `VacancyDetailDrawer.tsx` wrapping `DetailDrawer` (`@/components/shared/DetailDrawer.tsx`) with 100% tokenized skeleton loaders, error states, candidate cards, and action controls.
+  - Enforced Blueprint Section 3, Rule 3 & 4 (color strictly reserved for percentage metrics): headcount counts, aging brackets in days, candidate totals, and status badges are rendered with neutral surfaces and borders.
+  - 100% preservation of existing form logic, hooks, state machines, validation rules, queries, and mutations.
+- `OHM2026_1081` aligned the Vacancy frontend row contract with the RPC field name `position_title`; the query normalizer, table, and selected-row detail panel no longer consume a legacy `position`/camelCase frontend field.
+- Vacancy actions remain disabled/placeholder only. Add vacancy, approval, applicant-status update, closure, and detail-action mutations are not implemented.
+- The module still has no raw table query, CRUD, mutation, service-role access, fake rows, sample employee/applicant names, or applicant contact exposure.
+
+- **Vacancy Detail Audit Action Enum Coercion & Graceful Fallback (`ohm#c3m8w9k4`)**:
+  - Migration `20262606000063_fix_vacancy_detail_audit_action_enum.sql` applied to live Staging.
+  - Added `'DELETE'` value to `public.audit_action` enum type via `ALTER TYPE public.audit_action ADD VALUE IF NOT EXISTS 'DELETE';`.
+  - Updated `public.get_web_vacancy_detail` RPC to cast `al.action::text` in both `event_label` and `event_description` CASE statements, preventing PostgreSQL `22P02: invalid input value for enum audit_action: "DELETE"` errors when rendering recent audit history for vacancies and applicants.
+  - Hardened `getVacancyDetail` in `src/lib/queries/vacancy.ts` so any RPC execution or schema error gracefully attempts the direct table/applicant fallback before re-throwing, ensuring high availability of the Vacancy Detail drawer across edge-case and transient conditions.
+
+- **Vacancy Account & Group Linkage Propagation, Import RPC Hardening & Orphan Backfill (`ohm#v2k9w4r8`)**:
+  - Migration `20262606000062_fix_vacancy_account_linkage.sql` applied to live Staging.
+  - Fixed `directImportVacancy` in `src/lib/queries/vacancy.ts` by removing invalid `hrco_name` select on `accounts` (which previously caused a PostgREST schema error that made `account` fall back to `"Unknown Account"`), resolving HRCO profile name via `hrco_user_id`, and inheriting `account_id` and `group_id` from store mappings.
+  - Hardened `approve_plantilla_import_batch` RPC so that Phase A store updates inherit batch `account_id` and `group_id`, and Phase B1 vacant slot / vacancy provisioning strictly inherits store or batch account/group associations without overwriting valid accounts with `"Unknown Account"`.
+  - Updated `approve_vacancy_import` RPC to look up and populate `store_id` from `public.stores` on vacancy insertion and restoration.
+  - Rebuilt `vw_vacancy_detail` and `get_web_vacancy_detail` to dynamically resolve `account_name` and `group_name` from `public.accounts` and `public.groups` with store fallback, eliminating `"Unknown Account"` display in detail queries.
+  - Backfilled existing orphaned records on live Staging: repaired `CPRVJV13` to `"FOREVER OFFICE"` / `"Group 1"`, resolved missing `group_id` across 30 stores, and synchronized slots.
+  - Hardened `VacancyDetailDrawer.tsx` and query normalizers in `src/lib/queries/vacancy.ts` (`getVacancyDetail`) to resolve account context and cleanly suppress `"Unknown Account"`.
+
+- **Account Group Resolution & Formatting (`ohm#g8f4a1c2`)**:
+  - Migration `20262606000046_fix_vacancy_group_resolution.sql` backfills `group_id` on `public.vacancies` from `public.accounts` where missing and installs trigger `trg_auto_assign_vacancy_group_id` on `public.vacancies` (`BEFORE INSERT OR UPDATE`) to inherit the linked account's `group_id`.
+  - Recreated `public.vw_vacancy_list` and `public.vw_vacancy_detail` to join `accounts a` and resolve `COALESCE(v.group_id, a.group_id)` and `COALESCE(g.group_name, ga.group_name)` so group names never evaluate to null when an account is linked.
+  - Frontend helper `formatGroupName(groupName, accountName)` maps `Global HQ` / `GHQ` or `Moses HQ` accounts cleanly to `MOSES HQ`, and preserves `Group 1`–`Group 5`.
+  - `fetchVacancies` enriches missing group names via batch `accounts` + `groups(group_name)` lookup; `VacancyTable` and `VacancyDetailDrawer` render the resolved group names instead of falling back to `"General / Direct"`.
+
+- **Multi-Headcount Vacancy Visibility Across Open & Pipeline Tabs (`ohm#m4p8x2c1`)**:
+  - Migration `20262606000049_multi_hc_open_pipeline_visibility_parity.sql` establishes capacity-aware queue membership across Web and Mobile.
+  - **Open Tab Rule**: A store requisition stays visible and actionable (`+ Applicant`) in the **Open** tab as long as its quota is not completely filled (`confirmed_onboard_count < required_headcount` / `hc_filled < hc_total`). Endorsing candidates into Pipeline does NOT hide the store requisition from Open until all required slots are fulfilled/hired.
+  - **Pipeline Tab Rule**: Requisitions with active applicants (`active_applicant_count > 0`) simultaneously appear in the **Pipeline** tab. In `listVacancies`, multi-headcount requisitions expand into 1 row per active applicant, populating candidate full name, contact phone number, and stage badge so each candidate is individually actionable (advance, hire, or backout).
+  - **Automatic Reopen on Slot Vacancy**: Installed trigger `trg_reopen_vacancy_on_slot_open` on `plantilla_slots` to automatically restore `vacancies.status = 'Open'` and clear `is_archived` when a slot transitions back to `'open'` due to employee separation or backout. In `failBackoutApplicant`, `status = 'Open'` and `is_archived = false` are asserted whenever `confirmedCount < requiredHc`.
+  - Updated `vw_vacancy_list`, `vw_vacancy_detail`, `list_web_vacancies`, `get_web_vacancy_summary`, and `vw_slot_derived_vacancy_shadow` to align badge counts, queue predicates, and shadow views with the capacity-aware rules.
+
+- **Mobile vs. Web Workflow & UI Parity (`ohm#p9v2k4m7`)**:
+  - **Edit Applicant Profile Workflow**:
+    - Ported authoritative RPC `fn_update_applicant_profile_once` and sibling propagation `propagateApplicantIdentityToLinked` to Web query layer (`updateApplicantProfileOnce` and `useUpdateApplicantProfile`).
+    - Enforced one-time edit policy (`profile_edit_count = 0` for non-admins, full bypass for Super Admin / Head Admin), uppercase name normalization, contact number verification, and mandatory edit audit reason.
+    - Added `EditApplicantModal.tsx` modal component and wired "Edit Details" action into `VacancyDetailDrawer` candidate cards.
+    - Added RBAC gate `canEditApplicantProfile(user)`: Super Admin (100), Head Admin (90), Ops Team (OM 70, HRCO 45, ATL 42, TL 41), Recruitment (20). Denied to Encoder (30), HR Personnel (25), Backoffice (15), Viewer (10).
+  - **Pre-Intake Candidate Duplicate Check**:
+    - Integrated `check_candidate_duplicate` RPC wrapper (`checkCandidateDuplicate`) into `endorseApplicant` with non-blocking defensive error handling to prevent intake failures if RPC is temporarily unavailable.
+  - **Withdraw Vacancy Closure Request**:
+    - Implemented `withdraw_vacancy_closure_request` RPC wrapper (`withdrawVacancyClosureRequest` and `useWithdrawVacancyClosureRequest`) with table fallback.
+    - Wired "Withdraw Closure" action into `VacancyDetailDrawer` action bar and in-flight clearance banner for authorized Ops and Requester users.
+
+- **Pipeline Candidate Query Schema Mismatch Fix (`ohm#s4b8r2x1`)**:
+  - Removed non-existent `applied_at` column from `applicants` queries and non-existent `headcount` column from `vacancies` queries in `src/lib/queries/vacancy.ts` (`listVacancies` and `fetchAllPipelineVacancies`).
+  - Switched to in-memory vacancy status filtering (`Filled`, `Closed`, `Archived`) to avoid PostgREST query errors.
+  - Fully restored all 6 active candidates in the Pipeline table view and CSV export, matching the badge count 1:1.
+
+- **Closure/Failed Tab Data Restoration & Pipeline Synchronization (`ohm#n7f3w9x2`)**:
+  - **Shared Group Map Lookup (`fetchGroupMap`)**:
+    - Removed non-existent `group_name` column selects from `vacancies` queries across Closure, Failed/Backout, and export functions in `src/lib/queries/vacancy.ts`, preventing PostgREST error `42703`.
+    - Implemented shared `fetchGroupMap(supabase)` to resolve `group_id -> group_name` from the `groups` table in memory, ensuring 100% stable group resolution and filtering across Group 1–5 and Moses HQ.
+  - **Pipeline Candidate-Level Query Expansion**:
+    - In `src/lib/queries/vacancy.ts`, implemented dedicated candidate-level query expansion for `currentTab === "pipeline"` / `"with_applicant"`.
+    - Queries active non-terminal applicants from `applicants`, joins with active vacancies, and builds individual rows (`VacancyListItem`) per candidate.
+    - Synchronized table row rendering 1:1 with `get_web_vacancy_summary()` badge count (all 6 active candidates rendered and actionable).
+    - Implemented matching export handler `fetchAllPipelineVacancies` for unpaginated CSV export.
+
+- **Vacancy Bug Fixes & RBAC Adjustments (`ohm#v3k8n2m5`)**:
+  - **Closure Blocking on Active Candidates**:
+    - In `VacancyDetailDrawer.tsx`, blocked `Request Closure` if `activeApplicantCount > 0` (or active applicants list is non-empty), unless user belongs to exempted Ops (`isOpsTeam`), Recruitment (`AppRole.RECRUITMENT`), or Super Admin (`hasFullAccess`).
+  - **Hired Tab Action Suppression**:
+    - Suppressed the entire *Requisition & Quota Management* section in `VacancyDetailDrawer.tsx` when viewing records in the Hired tab or with filled/hired status.
+  - **Headcount Adjustment & Quota RBAC Realignment**:
+    - Added `canRequestHeadcountAdjustment(user)` in `src/lib/rbac.ts`: restricted strictly to Super Admin (100 / `isOwner`), hidden from Data Team (Head Admin, Encoder) and regular Ops.
+    - Added `canReviseHeadcountQuota(user)` in `src/lib/rbac.ts`: restricted strictly to Data Team (Head Admin, Encoder) and Super Admin.
+  - **Human-Readable Activity History Summaries**:
+    - Built `formatActivityHistorySummary` in `VacancyDetailDrawer.tsx` translating raw database audit actions (`INSERT`, `UPDATE`, `APPROVAL`) and modules (`vacancies`, `applicants`, `VACANCY_MODULE`, etc.) into natural, human-readable sentence summaries.
+  - **Closure Tab Role-Gated Actions**:
+    - In `VacancyTable.tsx` under the Closure tab, rendered the `Withdraw` button exclusively for Ops roles (`userIsOps`) and `Approve` / `Reject` buttons exclusively for Data Team / Admins (`userCanReviewClosures`).
+    - Wired `handleWithdrawClosure` in `page.tsx` with user confirmation and query cache invalidation.
+  - **Group Filter & Display Cleanup**:
+    - Added `group_name` selection to `vacQuery` in `src/lib/queries/vacancy.ts` for Closure and Failed/Backout queues and export functions, applying `formatGroupName`.
+    - Restricted `uniqueGroups` choices in `page.tsx` strictly to Group 1 through Group 5 and Moses HQ, eliminating `"General / Direct"` options across table and drawer displays.
+
+- **Vacancy Detail Drawer Layout Integration (`ohm#d8r2m6k1`)**:
+  - **Requisition & Quota Management Section**:
+    - Added dedicated, prominent requisition management panel inside `VacancyDetailDrawer.tsx` directly below store/ownership cards.
+    - Features direct action buttons with strict RBAC:
+      - `Adjust Quota` (`ReviseHeadcountQuotaModal`) — gated by `canReviseQuota` (Super Admin, Head Admin, Encoder).
+      - `Request HC Adjustment` (`RequestHeadcountAdjustmentModal`) — gated by `canRequestAdjustment` (Super Admin, Head Admin, OM, HRCO, ATL, TL).
+      - `Request Closure` (`RequestVacancyClosureModal`) — gated by `userCanRequestClosure`.
+      - `Withdraw Closure` — visible when `isPendingClosure` is true for Ops/Requesters/Admins.
+  - **Candidate Cards & Consolidated Actions**:
+    - For each candidate in `activeApplicantsList` (or fallback single applicant), displays candidate avatar initial, display name, contact phone number, stage badge, status, and candidate aging in stage.
+    - Integrated direct action buttons per card:
+      - `Edit Details` (`EditApplicantModal`) — gated by one-time edit rule for non-admins.
+      - `Update Stage / Backout` (`AdvancePipelineModal`) — consolidated modal handling progressive advancements and terminal dropouts.
+      - `Mark Hired` (`MarkHiredModal`) — placement confirmation.
+    - Enriched applicant phone number and timestamps in `src/lib/queries/vacancy.ts` during normalization, precomputing `agingDays` outside of React render.
+  - **Clean Drawer Footer & Tables**:
+    - Drawer footer focused strictly on primary requisition lifecycle (`Add Applicant`, `Reopen Slot`, `Approve Vacancy`, `Edit Hired Date`).
+    - Open and Pipeline tables preserved clean with only essential actions (`+ Applicant`, `Update`, `Approve`), with row clicks opening the drawer.
+
+- **Vacancy Detail Drawer Fix, Occupied HC Fraction, Pipeline Cleanup, & Terminal Consolidation (`ohm#q7w1k9b3`)**:
+  - Migration `20262606000050_fix_vacancy_detail_recruiter_and_occupied_hc.sql` applied to both **Staging** and **Production**:
+    - Fixed `get_web_vacancy_detail` SQL crash (`column a.assigned_recruiter_id does not exist`) by joining `public.users_profile` via `COALESCE(a.created_by, v_raw.assigned_encoder_id)`.
+    - Resolved `format_applicant_name_safe` with `COALESCE(NULLIF(TRIM(CONCAT_WS(' ', a.first_name, a.last_name)), ''), a.full_name)` and corrected `audit_logs` timestamp reference to `al.timestamp`.
+    - Computed occupied headcount `hc_filled` as `COALESCE(confirmed_onboard_count, 0) + COALESCE(active_applicant_count, 0)`.
+    - Formatted `hc_display` as `format('%s/%s', hc_filled, hc_total)` so endorsing 1 applicant into a 7-slot vacancy displays `1/7` immediately in the **Open** tab.
+    - Safeguard enforced: `derived_status = 'Hired'` only when `confirmed_onboard_count >= hc_total` (confirmed onboards fulfill quota). Active pipeline candidates occupy capacity in **Open** without prematurely triggering auto-archiving.
+  - **Pipeline Tab Refinement**: Removed the redundant `HC` column from the 1:1 candidate rows in `VacancyTable.tsx`.
+  - **Edit Details Scoping**: Removed in-row `Edit` button from `VacancyTable.tsx`, housing `EditApplicantModal` strictly inside `VacancyDetailDrawer.tsx`.
+  - **Terminal Status Consolidation**: Enhanced `AdvancePipelineModal.tsx` to handle progressive pipeline stages alongside terminal dropout statuses (`Backout`, `Failed / Rejected by Ops`, `Rejected`, `Did Not Report`), loading reasons dynamically from `fetchBackoutReasons` / `fetchRejectedReasons` with mandatory reason check and routing via canonical `failBackoutApplicant`. Removed standalone red `Backout` button from `VacancyTable.tsx` rows.
+  - **Global Eye Icon Cleanup**: Removed redundant `<Eye />` view detail icon buttons across `VacancyTable.tsx`, `HrEmplocTable.tsx`, and `UsersTable.tsx` in favor of standard full row-click drawer/modal navigation.
+  - **Super Admin Post-Onboard Dropout Bypass**:
+    - Removed hardcoded `derivedStatus !== 'hired'` lockout in `VacancyDetailDrawer` action bar for Super Admin / Head Admin (`hasFullAccess`), allowing administrative drop/backout of post-onboard dropouts directly from drawer.
+
+- **Strict Vacancy Occupancy Filter & Direct Import Guard (`ohm#s8k2w7m3`)**:
+  - **Occupied Store Exclusion from Missing Vacancies**:
+    - Installed `fetchOccupiedStoreIdentifiers(accountId)` in `src/lib/queries/vacancy.ts`, aggregating store IDs and uppercase VCodes occupied in `public.plantilla_slots` (`slot_status IN ('occupied', 'filled') OR current_occupant_plantilla_id IS NOT NULL`), `public.plantilla` (active employees), and `public.employee_store_allocations` (`is_active = true`).
+    - Wired `occupiedStoresQuery` in `src/app/(dashboard)/plantilla/page.tsx` on the Vacancy tab.
+    - Updated `missingStoreVacancies` filter so store VCodes and store IDs that have active occupants are strictly excluded from the "Stores without Active Vacancies" list and "Missing from Vacancies" badges.
+  - **Backend Guard in `directImportVacancy`**:
+    - Added an authoritative check before vacancy upsert: throws an error if the store ID or VCode is already occupied by an active employee, preventing accidental vacancy provisioning for occupied slots.
+
+- **Vacancy Tab Aging & Action Columns, Direct Import Quick Action & Quota Control Cleanup (`ohm#v2k8w4m9`)**:
+  - **Aging Column Badges**: In the Vacancy tab on Plantilla (`src/app/(dashboard)/plantilla/page.tsx`), formatted `Aging` column using color badges based on elapsed days since creation/open date: $\le 15$ days (emerald), $16\text{--}30$ days (amber), $> 30$ days (rose).
+  - **Decoupled from Headcount Request**: Rows and cards in Vacancy tab no longer open `RequestHeadcountModal`. Clicks and the new "Inspect" button in the Action column open `VacancyDetailDrawer`.
+  - **Direct Import Quick Action for Missing Stores**:
+    - Evaluates active stores under the account against active vacancy VCODEs.
+    - If a store/vcode (such as `CPPGJV23` prior to import or unlisted store codes) is missing from the active vacancy list, renders an unlisted stores sub-table with an immediate `+ Direct Import` quick-action button.
+    - Executes `directImportVacancy` (`useDirectImportVacancy()`) to upsert an active vacancy in `public.vacancies` without requiring the multi-step import wizard.
+  - **Detail Drawer Quota Redundancy Cleanup (`VacancyDetailDrawer.tsx`)**:
+    - Eliminated duplicate quota metric from the "Requisition & Quota Management" header, preventing redundant display alongside "Requirements & Headcount".
+    - Tightened layout spacing to `p-3.5 space-y-2`.
+
+## Read-Only Emergency Mode Enforcement (OHM2026_1132)
+
+- **Backend enforcement** (migration `20260614000001_web_vacancy_applicant_freeze_enforcement.sql`):
+  - `applicants_insert_ops_only` RLS now guards `NOT fn_check_freeze_active('read_only_emergency')` — blocks direct-table INSERT when freeze is active.
+  - `applicants_update_ops_recruitment` RLS USING now guards `NOT fn_check_freeze_active('read_only_emergency')` — blocks direct-table UPDATE when freeze is active.
+  - `trg_applicants_read_only_check` BEFORE trigger on `public.applicants` — primary enforcement layer, fires even inside SECURITY DEFINER functions (`create_applicant_and_link_to_vacancy`, `fn_update_applicant_status`). Raises P0001 "Read-Only Emergency Mode is active. Write actions are temporarily disabled."
+  - `get_web_freeze_mode_status()` RPC — authenticated read of current `read_only_emergency` state; granted to `authenticated`, revoked from anon.
+- **Frontend enforcement** (ergonomics only; backend is authoritative):
+  - `src/lib/queries/freeze.ts` — `getWebFreezeModeStatus()` wrapper, `FreezeModeStatus` type, 30s stale-time.
+  - `src/app/(dashboard)/vacancy/page.tsx` — fetches freeze status; renders full-width red banner with `role="alert"` when active, showing reason and activating user.
+  - `src/components/vacancy/VacancyDetailDrawer.tsx` — accepts `isFreezeModeActive?: boolean`; passes to CapabilityActionBar as `isReadOnlyEmergencyActive`.
+  - `src/components/shared/CapabilityActionBar.tsx` — `isReadOnlyEmergencyActive` prop; when true, shows ShieldOff in-bar banner, disables all action buttons, and shows "read-only mode" badge instead of "available".
+- **RBAC**: OM, HRCO, ATL, TL, Encoder, Recruitment, HA — all blocked from applicant writes by backend trigger. SA can only deactivate the freeze via `fn_update_freeze_mode`; SA write bypass is NOT architecturally documented for this module while freeze is active.
+- **Smoke tests**: `docs/smoke-tests/vacancy_freeze_mode_enforcement.sql` — T1–T9 covering trigger existence, policy updates, RPC existence, freeze state reads, OM Add Applicant blocked, Update Status blocked, direct INSERT blocked, and post-deactivation recovery.
+
+## OHM2026_1077 Backend Assessment
+
+This architecture pass inspected the authoritative Supabase sibling repo at `/Users/armanjr/Projects/OHMployee/OHMployee` because this web repo has no local `supabase/migrations` directory.
+
+Relevant existing Mobile/backend artifacts:
+
+- `public.vw_vacancy_list` and `public.vw_vacancy_detail` are the current Mobile read surfaces. They project `vacancies` with account/store/area/position/employment/status fields, vacancy source/request metadata, `vacant_date`, `aging_days`, `target_fill_date`, `urgency_level`, closure flags, active/confirmed applicant counts, `has_recent_hire`, `group_id/group_name`, and HRCO assignment.
+- `public.fn_is_active_vacancy_applicant_status(text)` is the canonical active-applicant predicate. Active statuses include `New`, `Sourcing`, `For Interview / Intro`, `For Requirements`, `For Medical`, `Pending Approval`, `For Deployment`, and `For Onboard`, normalized via `btrim(regexp_replace(lower(COALESCE(p_status, '')), '[^a-z0-9]+', '_', 'g'), '_')` with slash and special character tolerance.
+- **Candidate Pipeline Stages Consolidation (`ohm#p8r4m2k9`)**:
+  - Migration `20262606000051_consolidate_candidate_pipeline_stages.sql` applied to Staging and Production:
+    - Target progressive pipeline stages consolidated to 6 options:
+      1. `For Interview / Intro` (`for_interview_intro`)
+      2. `For Requirements` (`for_requirements`)
+      3. `For Medical` (`for_medical`)
+      4. `Pending Approval` (`pending_approval`)
+      5. `For Deployment` (`for_deployment`)
+      6. `For Onboard` (`for_onboard`)
+    - Existing records in `public.applicants` migrated:
+      - `'For Interview'`, `'For Online Intro'`, `'For Face-to-Face Intro'` $\rightarrow$ `'For Interview / Intro'`
+      - `'Done Intro'` $\rightarrow$ `'For Requirements'`
+      - `'Waiting SCO Schedule'`, `'Waiting Approval'`, `'Endorsed to Ops'`, `'Endorsed'` $\rightarrow$ `'Pending Approval'`
+    - Master lookup `public.applicant_status_options` pruned/deactivated for deprecated stage keys; canonical 6 stages upserted with sort orders 30 to 60.
+    - Updated `public.vw_applicant_funnel` view to track `'For Interview / Intro'`.
+  - In `AdvancePipelineModal.tsx`:
+    - Dropdown updated to render strictly the 6 progressive stages directly at the top of the select, dropping the non-clickable `"Progressive Pipeline Stages"` `<optgroup>` sub-header.
+    - Preserved `<optgroup label="Terminal Dropout / Backout">` for dropout logging with mandatory reason capture.
+    - Preserved `Ops Remarks` textarea input for manual recruiter/ops notes.
+    - Added legacy status normalizer for backward compatibility.
+- `public.v_vacancy_pipeline_status` classifies vacancy slot occupancy as `Pipeline` when the canonical active applicant count is greater than zero, otherwise `Open`.
+- Mobile Vacancy semantics distinguish slot status from recent hired-applicant visibility. `derived_status = 'Open'` may coexist with `has_recent_hire = true` after a reopened vacancy; the Hired tab is visibility-only and must not block Open-slot display.
+- `public.fn_vacancy_summary_counts(p_account_ids uuid[] default null)` exists in the remote schema, but it accepts caller-provided account ids. Web should not use that shape directly as an authority boundary.
+- `public.get_web_current_user_context()` now exists in the authoritative Supabase repo. It derives identity from `auth.uid()`, returns role/scope/module capability metadata, and maps role permission matrix entries to web module keys.
+- Existing RBAC helpers include `get_my_role_level()`, `get_effective_role()`, `get_my_profile_id()`, `get_current_profile_id()`, `i_have_full_access()`, `is_super_admin()`, and `get_my_allowed_accounts()`. Current scoped checks commonly use account names via `get_my_allowed_accounts()` plus full-access checks for Super Admin and Head Admin.
+- Role levels are table-backed: Super Admin 100, Head Admin 90, OM/Operations Manager 70, HRCO 45, ATL/TL around 40-42/41, Recruitment 20, Viewer 10.
+
+Important gaps for Web:
+
+- Existing Mobile views are broad projections and should not be exposed to the web table directly unless their underlying RLS and grants are verified for every selected column.
+- Some later `CREATE VIEW` replacements for `vw_vacancy_list` and `vw_vacancy_detail` omit `WITH (security_invoker = true)`. The web contract should explicitly preserve invoker semantics for helper views or centralize enforcement in `SECURITY DEFINER` RPCs with locked search path and explicit caller/scope checks.
+- Existing Mobile list/detail projections include fields that are not needed for the dense Web list, such as triggered/request user ids and headcount-request internals. The Web list must project only web-safe operational fields.
+- No approved Web-specific list, KPI/count, filter/search/sort/pagination, or row capability contract exists yet.
+
+
+
+---
+
+## Implementation Phases
+
+### Phase 1: Shell UI
+
+- Refactor the Vacancy page into a desktop admin command-center layout.
+- Keep data placeholders empty and honest.
+- Add KPI row, filter/search bar structure, status tabs, dense table structure, detail drawer structure, applicant placeholder, and action area container.
+- No fake data and no real Supabase queries.
+- Implemented in the web shell as of `OHM2026_1076`: the UI is static/read-only, action controls remain disabled, and backend capability keys are displayed only as presentation placeholders until real module and record capabilities are passed from approved contracts.
+
+### Phase 2: Read-Only List
+
+- Implement the approved scoped list contract in Supabase first.
+- Replace `getVacancies` placeholder with typed client integration.
+- Add loading, empty, error, pagination, search, filter, and tab behavior.
+- Keep actions disabled or absent unless capabilities are present.
+
+### Phase 3: Detail Drawer (Frontend Implemented in OHM2026_1084)
+
+- The detail contract RPC `public.get_web_vacancy_detail(p_vacancy_id uuid)` frontend integration is complete.
+- We refactored `src/components/vacancy/VacancyTable.tsx` and `src/app/(dashboard)/vacancy/page.tsx` to load detail data using a clean React Query call triggered by `selectedVacancyId` instead of relying on list-level row projection.
+- Rendered the rich, high-fidelity drawer layout including: desktop header, vacancy summary badges, operational metadata, active applicant sub-list (excluding candidate phone/email PII), aging metrics (SLA breach warnings), approvals context, vertical audit activity history timeline, and capability-aware actions dynamically.
+- Supported detailed interaction states: loading skeletons, access denied (for Supabase RLS boundaries), not found, and retryable RPC failure.
+- Enabled Escape key support and backdrop click-to-dismiss closing mechanisms.
+- Refactored the Vacancy list page and the selected detail drawer to fully consume the central Shared Web UI System (`AdminPageHeader`, `MetricCard`, `AdminFilterBar`, `DetailDrawer`, `CapabilityActionBar`, and `StatusBadge`), removing redundant layout/event handling logic while maintaining visual and functional alignment.
+
+### Phase 4: Actions Later
+
+- Wire approval, applicant status updates, closure requests, and add vacancy/headcount only after action RPCs are confirmed.
+- Each action must be backend-authoritative, RLS/RBAC-enforced, auditable, and consistent with Mobile business rules.
+- Add optimistic UI only if the backend contract and validation strategy support it.
+
+## Exact Next Implementation Prompt
+
+ID: OHM2026_1077-IMPL-1
+
+Implement the Supabase backend read contract for OHMployee Web Vacancy list and KPI summary.
+
+Read only:
+- `docs/state/vacancy_web_state.md`
+- `docs/state/web_auth_rbac_state.md`
+- `docs/state/web_foundation_state.md`
+- `.ai/current_state.md`
+- `.ai/handoff.md`
+- Existing Supabase vacancy migrations/views/RPCs only, especially `vw_vacancy_list`, `vw_vacancy_detail`, `v_vacancy_pipeline_status`, applicant status helpers, closure/hired lifecycle migrations, and CENCOM aging/priority helpers if reused.
+- Existing Supabase RBAC/scope helper migrations only, especially `get_web_current_user_context`, `get_my_role_level`, `get_effective_role`, `get_my_profile_id`, `get_current_profile_id`, `i_have_full_access`, `get_my_allowed_accounts`, `user_scopes`, and the role permission matrix.
+
+Tasks:
+1. Add a migration in the authoritative Supabase repo; do not edit frontend code.
+2. Create a scoped Web vacancy list RPC matching the deployed flat-param contract: `public.list_web_vacancies(p_status text default null, p_account_id uuid default null, p_group_id uuid default null, p_position text default null, p_urgency text default null, p_aging_bucket text default null, p_search text default null, p_vacant_from date default null, p_vacant_to date default null, p_limit integer default 50, p_offset integer default 0, p_sort_by text default 'aging_days', p_sort_dir text default 'desc')`.
+3. Derive caller identity only from `auth.uid()`. Do not accept caller-controlled profile, role, account scope, or group scope authority.
+4. Enforce `vacancy.view`/Mobile-equivalent read access and existing Mobile scope:
+   - Super Admin / Head Admin broad access via existing full-access semantics.
+   - OM / ATL / TL / HRCO / Recruitment scoped by existing account/group scope.
+   - Viewer read-only only within allowed scope.
+5. Base list semantics on existing Mobile Vacancy sources:
+   - use `vw_vacancy_list` semantics;
+   - use `fn_is_active_vacancy_applicant_status` for active applicant/pipeline status;
+   - preserve `derived_status`, `has_recent_hire`, `has_pending_closure`, and closure status behavior;
+   - do not invent vacancy statuses.
+6. Return only web-safe dense table fields:
+   - `vacancy_id`, `vcode`, `account_id`, `account_name`, `group_id`, `group_name`, `store_id`, `store_name`, `position_id`, `position_title`, `employment_type`;
+   - `vacancy_status`, `pipeline_status`, `derived_status`, `active_applicant_count`, `confirmed_onboard_count`, `has_recent_hire`, `has_pending_closure`, `closure_request_status`;
+   - `vacant_date`, `aging_days`, `aging_bucket`, `target_fill_date`, `urgency_level`, optional `urgency_tier`;
+   - nullable `penalty_exposure` only if an existing authoritative safe source exists, otherwise return `null`;
+   - `hrco_user_id`, live-validated `hrco_name`, optional `last_activity_at`, `row_capabilities`, optional `total_count`.
+7. Implement filters/search:
+   - tab status via `p_status`;
+   - account id, group id, search keyword, optional position;
+   - aging bucket, urgency, vacant date range, target fill date range.
+8. Implement allowlisted sorting and deterministic pagination:
+   - allowed sorts: `aging_days`, `vacant_date`, `target_fill_date`, `urgency_level`, `account_name`, `group_name`, `store_name`, `position_title`, `updated_at`, `vcode`;
+   - default `aging_days desc`;
+   - clamp limit to max `100`;
+   - secondary order by `vcode` and `vacancy_id`.
+9. Create a scoped KPI/count RPC matching the deployed flat-param contract: `public.get_web_vacancy_summary(p_status text default null, p_account_id uuid default null, p_group_id uuid default null, p_position text default null, p_urgency text default null, p_search text default null, p_vacant_from date default null, p_vacant_to date default null)`, using the same base scope and filters as the list.
+10. Summary should return scoped counts for open, pipeline/with applicant, optional hired-visible, pending closure, rejected/backout if safely derivable from applicant terminal statuses, oldest aging, aging bucket counts, urgency counts, and total filtered count.
+11. Add comments and validation SQL proving unauthenticated callers are blocked, scoped users cannot see out-of-scope vacancies, broad admins can see broad rows, Viewer receives read-only hints, and no employee/Plantilla-sensitive fields or applicant contact fields are exposed.
+12. Do not implement the detail RPC unless needed for the next frontend phase. If added, keep it read-only, scoped, and web-safe.
+13. After implementation, update `docs/state/vacancy_web_state.md`, `.ai/handoff.md`, and `.ai/current_state.md` with final function names and any field differences.
+
+Constraints:
+- Do not edit frontend code.
+- Do not add fake data.
+- Do not weaken RLS or grants.
+- Do not expose sensitive employee/Plantilla fields.
+- Do not expose applicant mobile/contact fields in the list.
+- Do not invent new Vacancy statuses.
+- Do not use caller-provided account/group/profile/role arguments as authority.
+- Preserve Supabase as business authority.
+- Mirror Mobile Vacancy semantics.
+
+Validation:
+- Run the authoritative Supabase migration validation/test workflow.
+- Test as Super Admin, Head Admin, OM/ATL/TL/HRCO/Recruitment scoped users, Viewer, unauthorized active user, and unauthenticated caller.
+- Verify list rows and summary counts match the same scoped base query.
+- Verify search/filter/sort/pagination are deterministic and scoped.
+- Verify rejected/backout counts are omitted, null, or correctly derived without inventing vacancy statuses.
+
+---
+
+ID: OHM2026_1082-IMPL-1
+
+Implement the Supabase backend read contract for the OHMployee Web Vacancy Detail Drawer.
+
+Read only:
+- `docs/state/vacancy_web_state.md`
+- `docs/state/web_auth_rbac_state.md`
+- `docs/state/web_foundation_state.md`
+- `.ai/current_state.md`
+- `.ai/handoff.md`
+- Existing Supabase vacancy migrations/views/RPCs only, especially `vw_vacancy_list`, `vw_vacancy_detail`, `v_vacancy_pipeline_status`, candidate status helpers, and SLA/CENCOM aging calculators.
+- Existing Supabase RBAC/scope helper migrations only, especially `get_web_current_user_context`, `get_my_role_level`, `get_effective_role`, `get_my_profile_id`, `get_current_profile_id`, `i_have_full_access`, `get_my_allowed_accounts`, `user_scopes`, and the role permission matrix.
+
+Tasks:
+1. Add a migration in the authoritative Supabase repo; do not edit frontend code.
+2. Create the scoped Web vacancy detail RPC, recommended `public.get_web_vacancy_detail(p_vacancy_id uuid)`.
+3. Derive caller identity exclusively from `auth.uid()`. Do not accept caller-controlled profile, role, account scope, or group scope authority.
+4. Enforce `vacancy.view`/Mobile-equivalent read access and existing Mobile scope:
+   - Super Admin / Head Admin broad access via existing full-access semantics.
+   - OM / ATL / TL / HRCO / Recruitment scoped by allowed accounts (`get_my_allowed_accounts()`) and groups (`user_scopes`).
+   - Viewer read-only only within allowed scope.
+5. Base detail semantics on existing Mobile Vacancy sources:
+   - use `vw_vacancy_detail` semantics and joins;
+   - use `fn_is_active_vacancy_applicant_status` for active applicant/pipeline status;
+   - preserve `derived_status`, `has_recent_hire`, `has_pending_closure`, and closure status behavior;
+   - do not invent vacancy statuses.
+6. Return detail-specific and shared fields:
+   - Shared fields: `vacancy_id`, `vcode`, `account_name`, `group_name`, `store_name`, `position_title`, `employment_type`, `vacancy_status`, `pipeline_status`, `derived_status`, `active_applicant_count`, `confirmed_onboard_count`, `has_recent_hire`, `has_pending_closure`, `closure_request_status`, `vacant_date`, `aging_days`, `aging_bucket`, `target_fill_date`, `urgency_level`, `hrco_name`, `last_activity_at`, `row_capabilities`.
+   - Detail-specific fields: `requested_by_id`, `requested_by_name`, `approved_by_id`, `approved_by_name`, `approved_at`, `headcount_request_id`, `vacancy_reason`, `job_description`, `closure_requested_at`, `closure_requested_by`, `closure_reason`.
+   - Active Applicants sub-list as a JSONB array `active_applicants_list` containing `applicant_id`, `display_name`, `status_label`, `updated_at`. Ensure no email or phone PII is returned.
+   - Audit trail activity history as a JSONB array `activity_history`.
+7. Enforce strict capability checks for row-level permissions within `row_capabilities`:
+   - `can_approve` based on user context role and vacancy status.
+   - `can_update_applicant_status` based on user context role and vacancy pipeline state.
+   - `can_request_closure` based on user context role and current vacancy status.
+8. Add comments and validation SQL proving unauthenticated callers are blocked, scoped users cannot see out-of-scope vacancies, and Viewer receives read-only hints.
+
+Constraints:
+- Do not edit frontend code.
+- Do not add fake data.
+- Do not weaken RLS or grants.
+- Do not expose applicant contact number or email PII in the candidates list.
+- Do not invent new Vacancy statuses.
+- Do not use caller-provided account/group/profile/role arguments as authority.
+- Preserve Supabase as business authority.
+- Mirror Mobile Vacancy semantics.
+
+Validation:
+- Run the authoritative Supabase migration validation/test workflow.
+- Test as Super Admin, Head Admin, OM/ATL/TL/HRCO/Recruitment scoped users, Viewer, unauthorized active user, and unauthenticated caller.
+- Verify detail fields and active candidate statuses match their authoritative sources in the database.
+- Verify access is denied with a clear Postgres RLS exception if the caller is out of scope.
+
+## Candidate Name Field Binding & Parsing (Endorse -> Confirm Onboarding Flow) (ohm#n7f3w9k2)
+
+- **Discrete Name Field Transmission**:
+  - `VacancyDetailItem` exposes `applicantMiddleName: string | null;` in tandem with `applicantLastName` and `applicantFirstName`.
+  - `normalizeDetailRow` and `normalizeActiveApplicant` extract and preserve discrete `firstName`, `lastName`, and `middleName`.
+  - `VacancyDetailDrawer` passes `middleName` across all `setSelectedCandidate` actions and into the `MarkHiredModal` applicant target.
+  - `page.tsx` forwards `applicantMiddleName` via `markHiredTargetCandidate` when triggering "Mark Hired" directly from the table view.
+- **Hardened Candidate Name Fallback Parser (`parseCandidateFullName`)**:
+  - Defined in `src/lib/utils/formatName.ts`.
+  - Prioritizes discrete structured properties (`firstName`, `lastName`, `middleName`) when present.
+  - Comma-first splitting on `"LASTNAME, FIRSTNAME MIDDLENAME"` isolates multi-word surnames (e.g. `DELA CRUZ`, `SAN JOSE`) cleanly.
+  - Suffix tokens (`JR`, `JR.`, `SR`, `SR.`, `II`, `III`, `IV`, `V`) are attached to the surname and excluded from the middle name.
+  - Common compound surname prefixes (`DELA`, `DE`, `DEL`, `DELOS`, `SAN`, `STA`, `STA.`, `SANTO`) are preserved attached to the middle name when preceding the trailing token.
+- **Onboarding Confirmation & HR Emploc Persistence**:
+  - `MarkHiredModal` binds inputs directly to `lastName`, `firstName`, and `middleName`.
+  - On submission, `middleName` is passed through `confirmApplicantOnboard` (`p_middle_name`) and `p_full_name`, persisting cleanly to `applicants` and `hr_emploc`.
+
+## Backout Archival Hardening, React Composite Keying & Column Schema Synchronization (ohm#b8k2w7x4)
+
+- **Backout Candidate Archival Guard**:
+  - Dropped/failed applicants remain records with terminal statuses (`Backout`, `Rejected`) to ensure they appear in the `Failed / Backout` tab queue and KPI counters.
+  - `failBackoutApplicant` performs quota-aware vacancy status transition: only resets `vacancies.status = 'Open'` if remaining active pipeline candidates count is 0 AND confirmed onboard count is less than required headcount (`confirmedCount < requiredHc`). If quota is already filled (e.g. `BUN-GHQ-00014`), status transitions to `'Filled'` and is excluded from Open/Pipeline views.
+- **React Composite Keying on Table Rows**:
+  - `VacancyTable.tsx` keys rows using composite identifier `<tr key={`${row.id}-${row.applicantId ?? row.vcode}-${index}`}>`.
+  - Preserves `row.id` as the vacancy UUID for detail drawer compatibility (`getVacancyDetail`), while using `row.applicantId` to uniquely identify each backout row, preventing virtual DOM key collisions, row multiplication, and candidate overwriting.
+- **Strict Tab Scoping & Column Alignment**:
+  - `listVacancies` strictly clears all candidate and dropout metadata (`applicantId`, `applicantName`, `contactNumber`, `stageBadge`, `dropoutReason`, `dropoutDate`) on `currentTab === "open"`.
+  - `VacancyTable.tsx` enforces strict column parity matching `getTableColumns(status)`: exactly 8 columns for `open`/`hired`, exactly 10 columns for `closure`/`pipeline`, preventing table cell shifting.
+- **Clean Date Formatting**:
+  - `VacancyTable.tsx` implements `formatDropoutDate` rendering humanized dates (e.g. `Aug 11, 2026`).
+
+## Failed / Backout Tab Column & Layout Refinement (ohm#c9k4w1x2)
+
+- **Dedicated Column Layout (9 Columns)**:
+  - `getTableColumns("failed_backout")` in `src/components/vacancy/VacancyTable.tsx` defines exactly 9 columns: `["VCODE", "POSITION", "ACCOUNT / GROUP", "OUTLET NAME", "HRCO", "APPLICANT", "DATE OF BACKOUT", "STATUS", "AGING"]`.
+  - Removed `HC` column (omitted).
+  - Removed `ACTIONS` column (omitted). Row click retains `canViewDetail` triggering the vacancy detail drawer.
+- **Date of Backout Relocation**:
+  - Moved the backout timestamp from below the applicant name into its own dedicated column (`DATE OF BACKOUT`), rendered via `formatDropoutDate(row.dropoutDate)`.
+  - The `APPLICANT` column displays candidate full name cleanly without secondary subtitles.
+- **Simplified Status Presentation**:
+  - Removed circular `<StatusBadge>` pill/chip styling.
+  - Rendered status cleanly as simple colored typography (`<span className="text-xs font-medium text-rose-700">{row.dropoutReason || "Failed / Backout"}</span>`).
+- **Dynamic Aging Calculation**:
+  - In `src/lib/queries/vacancy.ts` (`listVacancies` under `currentTab === "failed_backout"`), included `created_at` in vacancy query and dynamically computes `agingDays` and `agingBucket` from `vacant_date ?? created_at ?? d.created_at` relative to `Date.now()`.
+  - In `VacancyTable.tsx`, renders non-blank aging badge with dynamic day count and color coding (≤15d green, ≤30d amber, >30d rose).
+
+## Backout Workflow, Pipeline Leakage Prevention & Vcode Duplication Cleanup (ohm#x5w9k3b7)
+
+- **Strict Terminal Candidate Archival**:
+  - In `failBackoutApplicant` (`src/lib/queries/vacancy.ts`), executing a Backout marks `is_archived = true`, `slot_id = null`, and status strictly terminal (`Backout` / `Rejected`).
+  - Terminal candidates are excluded from active pipeline counts across views (`vw_vacancy_list`, `vw_vacancy_detail`) via case-insensitive normalization (`NOT IN ('failed', 'backout', 'rejected', 'did_not_report', 'rejected_by_ops', 'withdrew', 'confirmed_onboard')`).
+  - Dropped applicants are cleanly displayed in the `Failed / Backout` tab by selecting terminal statuses without restricting `is_archived = false`.
+- **Comprehensive Slot Release**:
+  - In `fn_sync_vacancy_slot_open_pipeline` (`supabase/migrations/20262606000047_fix_backout_workflow_and_slot_sync.sql`), when active applicant count is 0, all unoccupied pipeline slots for that vcode are transitioned back to `'open'` (fixing multi-headcount slot abandonment where `LIMIT 1` left remaining slots in `pipeline`).
+- **Clean Vcode Store State**:
+  - Stores with 0 active pipeline candidates safely return to the `Open` tab completely unassigned with 0 applicants.
+  - Duplicate/orphaned dropout rows on `VCAG5_0056` cleaned up with backout audit history preserved in `applicant_status_history` and unoccupied slots reset to `'open'`.
+- **UI Modal Binding Safety**:
+  - `VacancyDetailDrawer.tsx` resolves `applicantId` directly on the candidate record, avoiding fallback to `vacancyId` when opening `FailBackoutModal`.
+
+## HC Fraction Display (Filled/Total), Moses HQ Outlet Mapping & Hierarchical HRCO Resolution (ohm#h8k3m2x5)
+
+- **Headcount Fraction Computation (`Filled / Total`)**:
+  - In `vw_vacancy_list` and `vw_vacancy_detail` (migration `20262606000048_hc_fraction_moses_hq_and_hrco_resolution.sql`), headcount is computed as `hc_filled` (`COALESCE(astat.confirmed_onboard_count, 0)`), `hc_total` (`COALESCE(v.headcount, 1)`), and formatted fraction `hc_display` (`format('%s/%s', ...)`).
+  - `list_web_vacancies` and `get_web_vacancy_detail` RPCs project `hc_filled`, `hc_total`, `hc_display`, `confirmed_onboard_count`, and `required_headcount` inside `row_capabilities jsonb`, maintaining backward-compatible PostgreSQL `RETURNS TABLE` signatures.
+  - Normalization layers in `src/lib/queries/vacancy.ts` extract `hcFilled`, `hcTotal`, and `hcDisplay` into `VacancyListItem` and `VacancyDetailItem`.
+  - `VacancyTable.tsx` renders the HC column as `row.hcDisplay || `${row.confirmedOnboardCount ?? row.hcFilled ?? 0}/${row.headcount ?? row.hcTotal ?? 1}`` (e.g. `0/7`, `1/8`, `3/3`).
+- **Moses HQ Outlet Mapping for Pool Vacancies**:
+  - `vw_vacancy_list` and `vw_vacancy_detail` coalesce null/empty store names with `'Moses HQ'` when requisitions originate from internal/pool pipelines (`is_pool_vacancy = true`, `source = 'pool'`, `vcode LIKE '%GHQ%'`, `account = 'Moses HQ'`, or `home_account_id = '3946ffdd-d826-4fc7-bb9e-356a32dcd152'`).
+  - Frontend fallback in `src/lib/queries/vacancy.ts` and `src/components/vacancy/VacancyDetailDrawer.tsx` defaults `storeName` and `storesList` to `'Moses HQ'` for pool requisitions.
+- **Hierarchical HRCO Resolution**:
+  - `vw_vacancy_list` and `vw_vacancy_detail` resolve HRCO assignments in order of priority:
+    1. Direct vacancy assignment (`v.hrco_user_id`).
+    2. Store-assigned HRCO (`user_scopes` / `account_assignments` matching `v.store_id`).
+    3. Account-assigned HRCO (`accounts.hrco_user_id`).
+    4. User Management account scopes (`user_scopes` matching `scope_type = 'account'` and `account_id = v.account_id`).
+    5. User Management group scopes (`user_scopes` matching `scope_type = 'group'` and `group_id = v.group_id`).
+    6. Legacy text fallback (`v.hrco_name`).
+  - `getVacancyDetail` enriches drawer hydration with a secondary `user_scopes` lookup when direct view join resolves null.
+
+## Filled/Archived Vacancy Dropout Visibility & Backout Sanity Audit (ohm#j2k9v4x8)
+
+- **Dropout Preservation Across Filled/Archived Requisitions**:
+  - In `src/lib/queries/vacancy.ts`, removed `.eq("is_archived", false)` from the `vacQuery` in both `listVacancies` (`currentTab === "failed_backout"`) and `getVacancySummary` (`failedPromise`).
+  - Preserved `.is("deleted_at", null)` so soft-deleted requisitions remain excluded while requisitions marked `is_archived = true` (via auto-archive triggers upon reaching full headcount capacity, such as `VCTG2_0005`) retain their historical backout/failed candidates in the **Failed / Backout** queue and badge counts.
+- **Export Query Hardening**:
+  - In `fetchAllFailedVacancies`, removed `.eq("is_archived", false)` from the `applicants` table query (which previously dropped backout records because backout candidates are explicitly archived) and the `vacancies` query.
+- **Vacancy Status Reset Cleansing**:
+  - In `failBackoutApplicant`, when 0 pipeline candidates remain and confirmed count is less than required headcount, the vacancy update to `'Open'` explicitly resets `is_archived: false`, `archived_at: null`, and `archived_by: null`.
+- **Drawer Detail Hydration Resilience**:
+  - In `getVacancyDetail`, when `get_web_vacancy_detail` raises SQLSTATE `42501` (forbidden/out of scope for filled/archived vacancies), added a direct fallback lookup against `vacancies` and `applicants` tables, allowing backout candidate details to open cleanly in the drawer without permission errors.
+
+
+
+
