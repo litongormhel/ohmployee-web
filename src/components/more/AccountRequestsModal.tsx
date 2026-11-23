@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertCircle,
   Clock,
@@ -21,6 +21,7 @@ import {
 import { useRolesQuery, useGroupsQuery, useAccountsByGroupsQuery } from "@/lib/queries/users";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
+import { TablePagination } from "@/components/shared/TablePagination";
 
 export interface AccountRequestsModalProps {
   isOpen: boolean;
@@ -35,6 +36,8 @@ export function AccountRequestsModal({
 }: AccountRequestsModalProps) {
   const [activeTab, setActiveTab] = useState<AccountRequestStatus>("pending");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Approval / Rejection Action States
   const [selectedRequest, setSelectedRequest] = useState<AccountRequestItem | null>(null);
@@ -71,16 +74,28 @@ export function AccountRequestsModal({
     (r) => r.name !== "Super Admin" && r.name !== "Head Admin"
   );
 
-  const filteredRequests = requests.filter((r) => {
-    if (!searchQuery.trim()) return true;
+  const filteredRequests = useMemo(() => {
+    if (!searchQuery.trim()) return requests;
     const q = searchQuery.toLowerCase();
-    return (
-      r.fullName.toLowerCase().includes(q) ||
-      r.email.toLowerCase().includes(q) ||
-      (r.mobileNumber && r.mobileNumber.toLowerCase().includes(q)) ||
-      (r.requestedRoleName && r.requestedRoleName.toLowerCase().includes(q))
-    );
-  });
+    return requests.filter((r) => {
+      return (
+        r.fullName.toLowerCase().includes(q) ||
+        r.email.toLowerCase().includes(q) ||
+        (r.mobileNumber && r.mobileNumber.toLowerCase().includes(q)) ||
+        (r.requestedRoleName && r.requestedRoleName.toLowerCase().includes(q))
+      );
+    });
+  }, [requests, searchQuery]);
+
+  const totalFilteredRequests = filteredRequests.length;
+  const safePage = Math.min(
+    Math.max(1, page),
+    Math.ceil(totalFilteredRequests / pageSize) || 1
+  );
+  const paginatedRequests = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredRequests.slice(start, start + pageSize);
+  }, [filteredRequests, safePage, pageSize]);
 
   const handleOpenApprove = (req: AccountRequestItem) => {
     setSelectedRequest(req);
@@ -201,6 +216,7 @@ export function AccountRequestsModal({
                     setActiveTab(tab);
                     setSelectedRequest(null);
                     setActionType(null);
+                    setPage(1);
                   }}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg capitalize transition cursor-pointer ${
                     activeTab === tab
@@ -220,7 +236,10 @@ export function AccountRequestsModal({
                   type="text"
                   placeholder="Search request..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPage(1);
+                  }}
                   className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-border-default bg-surface-primary text-text-primary placeholder:text-text-muted focus:outline-hidden focus:border-brand-primary"
                 />
               </div>
@@ -258,7 +277,7 @@ export function AccountRequestsModal({
               </div>
             ) : (
               <div className="divide-y divide-border-subtle border border-border-default rounded-2xl overflow-hidden bg-surface-primary">
-                {filteredRequests.map((req) => (
+                {paginatedRequests.map((req) => (
                   <div
                     key={req.id}
                     className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-surface-hover transition-colors"
@@ -364,6 +383,22 @@ export function AccountRequestsModal({
               </div>
             )}
           </div>
+
+          {totalFilteredRequests > 0 && (
+            <div className="pt-2">
+              <TablePagination
+                page={safePage}
+                totalCount={totalFilteredRequests}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+                pageSizeOptions={[5, 10, 20, 50]}
+              />
+            </div>
+          )}
         </div>
       </Modal>
 

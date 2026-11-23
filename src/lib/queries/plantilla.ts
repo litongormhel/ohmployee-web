@@ -329,6 +329,7 @@ export type PlantillaDetailItem = {
   activeMovementRequest: PlantillaMovementRequest | null;
   auditTimeline: PlantillaAuditTimelineItem[];
   accountId?: string | null;
+  groupId?: string | null;
   storeId?: string | null;
   province?: string | null;
   islandGroup?: string | null;
@@ -898,6 +899,7 @@ function normalizeDetailRow(row: PlantillaRpcRow): PlantillaDetailItem | null {
     activeMovementRequest,
     auditTimeline,
     accountId: asString(row.account_id ?? row.accountId),
+    groupId: asString(row.group_id ?? row.groupId),
     storeId: asString(row.store_id ?? row.storeId),
     province: asString(row.province ?? row.area_province ?? row.area),
     islandGroup: asString(row.island_group ?? row.islandGroup),
@@ -3584,6 +3586,44 @@ export function useTransferPersonnel() {
       transferPlantillaPersonnel(params),
     onSuccess: (_, variables) => {
       invalidatePlantillaCaches(queryClient, variables.plantillaId);
+    },
+  });
+}
+
+export interface ReassignHrcoParams {
+  plantillaId: string;
+  hrcoUserId: string;
+  reason?: string;
+}
+
+export async function reassignPlantillaHrco({
+  plantillaId,
+  hrcoUserId,
+  reason,
+}: ReassignHrcoParams): Promise<string> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("assign_hrco_to_plantilla", {
+    p_plantilla_id: plantillaId,
+    p_hrco_user_id: hrcoUserId,
+    p_reason: reason || null,
+  });
+
+  if (error) {
+    console.error("[PostgREST Schema Error] assign_hrco_to_plantilla error:", error);
+    throwPlantillaError(error);
+  }
+
+  return data as string;
+}
+
+export function useReassignHrco() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ReassignHrcoParams) => reassignPlantillaHrco(params),
+    onSuccess: (_, variables) => {
+      invalidatePlantillaCaches(queryClient, variables.plantillaId);
+      queryClient.invalidateQueries({ queryKey: ["inherited-hrco-map"] });
     },
   });
 }

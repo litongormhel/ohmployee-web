@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertCircle, Download, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import { useTeamPerformanceDetail } from "@/lib/queries/reports";
 import { exportToCsv, exportToXlsx } from "@/lib/utils/reports_export";
+import { TablePagination } from "@/components/shared/TablePagination";
 
 interface TeamPerformanceIssuesModalProps {
   accountId: string;
@@ -21,26 +22,42 @@ export function TeamPerformanceIssuesModal({
 }: TeamPerformanceIssuesModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data: issues = [], isLoading, error } = useTeamPerformanceDetail(
     null,
     accountId
   );
 
-  const categories = Array.from(new Set(issues.map((i) => i.issueCategory).filter(Boolean)));
+  const categories = useMemo(
+    () => Array.from(new Set(issues.map((i) => i.issueCategory).filter(Boolean))),
+    [issues]
+  );
 
-  const filteredIssues = issues.filter((i) => {
-    if (categoryFilter !== "all" && i.issueCategory !== categoryFilter) return false;
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      i.issueLabel.toLowerCase().includes(q) ||
-      i.issueDetail.toLowerCase().includes(q) ||
-      (i.storeName && i.storeName.toLowerCase().includes(q)) ||
-      (i.employeeName && i.employeeName.toLowerCase().includes(q)) ||
-      (i.vcode && i.vcode.toLowerCase().includes(q))
-    );
-  });
+  const filteredIssues = useMemo(() => {
+    return issues.filter((i) => {
+      if (categoryFilter !== "all" && i.issueCategory !== categoryFilter) return false;
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        i.issueLabel.toLowerCase().includes(q) ||
+        i.issueDetail.toLowerCase().includes(q) ||
+        (i.storeName && i.storeName.toLowerCase().includes(q)) ||
+        (i.employeeName && i.employeeName.toLowerCase().includes(q)) ||
+        (i.vcode && i.vcode.toLowerCase().includes(q))
+      );
+    });
+  }, [issues, categoryFilter, searchQuery]);
+
+  const totalCount = filteredIssues.length;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(page, pageCount);
+
+  const paginatedIssues = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredIssues.slice(start, start + pageSize);
+  }, [filteredIssues, safePage, pageSize]);
 
   const handleExportXlsx = () => {
     exportToXlsx(
@@ -109,7 +126,10 @@ export function TeamPerformanceIssuesModal({
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={() => setCategoryFilter("all")}
+              onClick={() => {
+                setCategoryFilter("all");
+                setPage(1);
+              }}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
                 categoryFilter === "all"
                   ? "bg-brand-50 text-brand-700 border border-brand-200 shadow-2xs"
@@ -122,7 +142,10 @@ export function TeamPerformanceIssuesModal({
               <button
                 key={cat}
                 type="button"
-                onClick={() => setCategoryFilter(cat)}
+                onClick={() => {
+                  setCategoryFilter(cat);
+                  setPage(1);
+                }}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
                   categoryFilter === cat
                     ? "bg-brand-50 text-brand-700 border border-brand-200 shadow-2xs"
@@ -139,7 +162,10 @@ export function TeamPerformanceIssuesModal({
               type="text"
               placeholder="Search issues, store, employee..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="h-8 px-3 text-xs bg-surface border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 w-48 sm:w-60"
             />
             <button
@@ -196,7 +222,7 @@ export function TeamPerformanceIssuesModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle font-medium">
-                  {filteredIssues.map((issue, idx) => (
+                  {paginatedIssues.map((issue, idx) => (
                     <tr key={idx} className="hover:bg-surface-hover/50 transition">
                       <td className="py-2.5 px-3">
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-subtle text-text-secondary border border-border-default">
@@ -239,6 +265,23 @@ export function TeamPerformanceIssuesModal({
             </div>
           )}
         </div>
+
+        {/* Modal Pagination Controls */}
+        {totalCount > 0 && (
+          <div className="border border-border-subtle rounded-lg overflow-hidden bg-surface-muted/20">
+            <TablePagination
+              page={safePage}
+              pageSize={pageSize}
+              totalCount={totalCount}
+              pageSizeOptions={[10, 20, 50]}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
+          </div>
+        )}
       </div>
     </Modal>
   );

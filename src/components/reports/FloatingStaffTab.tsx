@@ -13,6 +13,7 @@ import {
   useReportFilterOptions,
 } from "@/lib/queries/reports";
 import { exportToCsv, exportToXlsx } from "@/lib/utils/reports_export";
+import { TablePagination } from "@/components/shared/TablePagination";
 
 type BucketFilter = "all" | "under30" | "between30And60" | "over60";
 
@@ -27,6 +28,8 @@ export function FloatingStaffTab() {
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeBucket, setActiveBucket] = useState<BucketFilter>("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
 
   const { data: filterOpts } = useReportFilterOptions();
   const groups = filterOpts?.groups ?? [];
@@ -68,6 +71,15 @@ export function FloatingStaffTab() {
       );
     });
   }, [rows, activeBucket, searchQuery]);
+
+  const totalCount = filteredRows.length;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(page, pageCount);
+
+  const paginatedRows = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, safePage, pageSize]);
 
   // Account breakdown summary
   const accountBreakdown = useMemo(() => {
@@ -172,7 +184,10 @@ export function FloatingStaffTab() {
       {/* KPI Cards Strip (Clickable Bucket Filters) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <button
-          onClick={() => setActiveBucket("all")}
+          onClick={() => {
+            setActiveBucket("all");
+            setPage(1);
+          }}
           className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "all"
               ? "border-brand-default bg-brand-subtle ring-2 ring-brand-default/20"
@@ -187,7 +202,10 @@ export function FloatingStaffTab() {
         </button>
 
         <button
-          onClick={() => setActiveBucket("under30")}
+          onClick={() => {
+            setActiveBucket("under30");
+            setPage(1);
+          }}
           className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "under30"
               ? "border-brand-default bg-brand-subtle ring-2 ring-brand-default/20"
@@ -203,7 +221,10 @@ export function FloatingStaffTab() {
         </button>
 
         <button
-          onClick={() => setActiveBucket("between30And60")}
+          onClick={() => {
+            setActiveBucket("between30And60");
+            setPage(1);
+          }}
           className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "between30And60"
               ? "border-brand-default bg-brand-subtle ring-2 ring-brand-default/20"
@@ -219,7 +240,10 @@ export function FloatingStaffTab() {
         </button>
 
         <button
-          onClick={() => setActiveBucket("over60")}
+          onClick={() => {
+            setActiveBucket("over60");
+            setPage(1);
+          }}
           className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "over60"
               ? "border-danger bg-danger-subtle ring-2 ring-danger/20"
@@ -243,6 +267,7 @@ export function FloatingStaffTab() {
             onChange={(e) => {
               setSelectedGroupId(e.target.value);
               setSelectedAccountId("");
+              setPage(1);
             }}
             className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
           >
@@ -258,7 +283,10 @@ export function FloatingStaffTab() {
         <div>
           <select
             value={selectedAccountId}
-            onChange={(e) => setSelectedAccountId(e.target.value)}
+            onChange={(e) => {
+              setSelectedAccountId(e.target.value);
+              setPage(1);
+            }}
             className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
           >
             <option value="">All Accounts</option>
@@ -276,7 +304,10 @@ export function FloatingStaffTab() {
             type="text"
             placeholder="Search employee, no, store, position..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
             className="w-full h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default text-text-primary"
           />
         </div>
@@ -299,6 +330,7 @@ export function FloatingStaffTab() {
                       const match = accounts.find((a) => a.name === item.account);
                       if (match) setSelectedAccountId(match.id);
                     }
+                    setPage(1);
                   }}
                   className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border transition cursor-pointer shrink-0 ${
                     isSelected
@@ -354,7 +386,7 @@ export function FloatingStaffTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle font-medium text-text-primary">
-                {filteredRows.map((r) => {
+                {paginatedRows.map((r) => {
                   const bucket = getBucket(r.daysFloating);
                   return (
                     <tr key={r.plantillaId} className="hover:bg-surface-hover/50 transition">
@@ -399,11 +431,29 @@ export function FloatingStaffTab() {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border-subtle bg-surface-muted/30 text-xs text-text-muted">
-          <span>
-            Showing {filteredRows.length} of {rows.length} floating personnel • {under30} &lt;30d • {between30And60} 30–60d • {over60} &gt;60d
-          </span>
+        {/* Footer & Pagination */}
+        <div className="flex flex-col border-t border-border-subtle bg-surface-muted/30">
+          <div className="px-4 py-2.5 text-xs text-text-muted border-b border-border-subtle/50 flex flex-wrap items-center justify-between gap-2">
+            <span>
+              Aging breakdown: {under30} &lt;30d • {between30And60} 30–60d • {over60} &gt;60d (DOLE Art. 301 compliance)
+            </span>
+            <span className="font-mono text-[11px]">
+              Total Active Floating: {rows.length}
+            </span>
+          </div>
+          {filteredRows.length > 0 && (
+            <TablePagination
+              page={safePage}
+              pageSize={pageSize}
+              totalCount={totalCount}
+              pageSizeOptions={[15, 25, 50, 100]}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

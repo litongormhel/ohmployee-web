@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -43,6 +43,8 @@ import { UpdateEmploymentStatusModal } from "@/components/plantilla/UpdateEmploy
 import { RequestDeactivationModal } from "@/components/plantilla/RequestDeactivationModal";
 import { TransferPersonnelModal } from "@/components/plantilla/TransferPersonnelModal";
 import { UpdateScheduleModal } from "@/components/plantilla/UpdateScheduleModal";
+import { ReassignHrcoModal } from "@/components/plantilla/ReassignHrcoModal";
+import { useInheritedHrcoMap } from "@/components/hr-emploc/useInheritedHrco";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -206,6 +208,7 @@ export function PlantillaDetailDrawer({
   const [isDeactivationModalOpen, setIsDeactivationModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
 
   const detailQuery = useQuery({
     queryKey: ["plantilla", "detail", plantillaId],
@@ -274,6 +277,13 @@ export function PlantillaDetailDrawer({
   const isPendingDeactivation =
     status === "pending deactivation" || status === "pending_deactivation";
   const isDeactivationEligible = isInactive || status === "floating";
+
+  const { getHrcoUsersForRecord } = useInheritedHrcoMap();
+  const availableHrcos = useMemo(() => {
+    return getHrcoUsersForRecord({ accountId: data?.accountId, groupId: data?.groupId });
+  }, [getHrcoUsersForRecord, data?.accountId, data?.groupId]);
+
+  const canReassignHrco = availableHrcos.length >= 2;
 
   if (!isOpen) return null;
 
@@ -622,19 +632,16 @@ export function PlantillaDetailDrawer({
                       >
                         <ArrowRightLeft className="w-3.5 h-3.5 text-brand-primary" /> Transfer Employee
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActionFeedback({
-                            type: "info",
-                            message: "HR Coordinator assignment request submitted for review.",
-                          });
-                        }}
-                        disabled={!isAuthorized || isInactive}
-                        className="bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-lg p-2.5 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
-                      >
-                        <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" /> Reassign HRCO
-                      </button>
+                      {canReassignHrco && (
+                        <button
+                          type="button"
+                          onClick={() => setIsReassignModalOpen(true)}
+                          disabled={!isAuthorized || isInactive}
+                          className="bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-lg p-2.5 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" /> Reassign HRCO
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setIsDeactivationModalOpen(true)}
@@ -1013,6 +1020,25 @@ export function PlantillaDetailDrawer({
               : undefined
           }
           onSuccess={() => {
+            detailQuery.refetch();
+          }}
+        />
+      )}
+
+      {data && isReassignModalOpen && (
+        <ReassignHrcoModal
+          isOpen={isReassignModalOpen}
+          onClose={() => setIsReassignModalOpen(false)}
+          plantillaId={data.id}
+          employeeName={displayName}
+          employeeNo={data.employeeNo}
+          currentHrcoName={data.coordinator || data.hrcoName}
+          availableHrcos={availableHrcos}
+          onSuccess={(newHrcoName) => {
+            setActionFeedback({
+              type: "success",
+              message: `Successfully reassigned HR Coordinator to ${newHrcoName}.`,
+            });
             detailQuery.refetch();
           }}
         />

@@ -18,6 +18,7 @@ import {
   useTeamPerformanceSummary,
 } from "@/lib/queries/reports";
 import { exportToCsv, exportToXlsx } from "@/lib/utils/reports_export";
+import { TablePagination } from "@/components/shared/TablePagination";
 import { TeamPerformanceIssuesModal } from "./TeamPerformanceIssuesModal";
 
 export function TeamPerformanceTab() {
@@ -25,6 +26,8 @@ export function TeamPerformanceTab() {
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
 
   const [drilldownAccount, setDrilldownAccount] = useState<{
     id: string;
@@ -66,6 +69,15 @@ export function TeamPerformanceTab() {
       );
     });
   }, [summary?.leaderboard, severityFilter, searchQuery]);
+
+  const totalCount = filteredLeaderboard.length;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(page, pageCount);
+
+  const paginatedLeaderboard = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredLeaderboard.slice(start, start + pageSize);
+  }, [filteredLeaderboard, safePage, pageSize]);
 
   const handleExportXlsx = () => {
     exportToXlsx(
@@ -221,7 +233,10 @@ export function TeamPerformanceTab() {
           ).map(([key, label]) => (
             <button
               key={key}
-              onClick={() => setSeverityFilter(key)}
+              onClick={() => {
+                setSeverityFilter(key);
+                setPage(1);
+              }}
               className={`px-2.5 py-1 text-xs font-medium rounded-md transition cursor-pointer ${
                 severityFilter === key
                   ? "bg-brand-subtle text-brand-primary border border-brand-border font-semibold"
@@ -241,6 +256,7 @@ export function TeamPerformanceTab() {
               onChange={(e) => {
                 setSelectedGroupId(e.target.value);
                 setSelectedAccountId("");
+                setPage(1);
               }}
               className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
             >
@@ -256,7 +272,10 @@ export function TeamPerformanceTab() {
           <div>
             <select
               value={selectedAccountId}
-              onChange={(e) => setSelectedAccountId(e.target.value)}
+              onChange={(e) => {
+                setSelectedAccountId(e.target.value);
+                setPage(1);
+              }}
               className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
             >
               <option value="">All Accounts</option>
@@ -274,7 +293,10 @@ export function TeamPerformanceTab() {
               type="text"
               placeholder="Search account, group, coordinator..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="w-full h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default text-text-primary"
             />
           </div>
@@ -319,7 +341,7 @@ export function TeamPerformanceTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle font-medium text-text-primary">
-                {filteredLeaderboard.map((entry, idx) => {
+                {paginatedLeaderboard.map((entry, idx) => {
                   const badgeColor =
                     entry.severity === "Critical"
                       ? "bg-danger-subtle text-danger border-danger-border"
@@ -328,7 +350,7 @@ export function TeamPerformanceTab() {
                   return (
                     <tr key={entry.accountId} className="hover:bg-surface-hover/50 transition">
                       <td className="py-3 px-4 text-center font-bold text-text-secondary text-sm">
-                        #{idx + 1}
+                        #{(safePage - 1) * pageSize + idx + 1}
                       </td>
                       <td className="py-3 px-4">
                         <div className="font-semibold text-text-primary text-sm">{entry.accountName}</div>
@@ -395,11 +417,26 @@ export function TeamPerformanceTab() {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border-subtle bg-surface-muted/30 text-xs text-text-muted">
-          <span>
-            Ranked {filteredLeaderboard.length} account scorecards • Weighted operational discipline index
-          </span>
+        {/* Footer & Pagination */}
+        <div className="flex flex-col border-t border-border-subtle bg-surface-muted/30">
+          <div className="flex items-center justify-between px-4 py-2.5 text-xs text-text-muted border-b border-border-subtle/50">
+            <span>
+              Ranked {filteredLeaderboard.length} account scorecards • Weighted operational discipline index
+            </span>
+          </div>
+          {filteredLeaderboard.length > 0 && (
+            <TablePagination
+              page={safePage}
+              pageSize={pageSize}
+              totalCount={totalCount}
+              pageSizeOptions={[15, 25, 50, 100]}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
+          )}
         </div>
       </div>
 

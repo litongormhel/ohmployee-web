@@ -17,6 +17,7 @@ import {
   type ReportQueryFilters,
 } from "@/lib/queries/reports";
 import { exportToCsv, exportToXlsx } from "@/lib/utils/reports_export";
+import { TablePagination } from "@/components/shared/TablePagination";
 import { AttritionDrilldownModal } from "./AttritionDrilldownModal";
 
 export interface ReportDefinition {
@@ -117,6 +118,8 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortType, setSortType] = useState<"metric" | "count" | "stores" | "name">("metric");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
 
   // Drilldown Modal
   const [drilldownAccount, setDrilldownAccount] = useState<{ id: string; name: string } | null>(null);
@@ -212,6 +215,15 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
 
     return result;
   }, [reportRows, searchQuery, sortType, reportId]);
+
+  const totalCount = filteredAndSortedRows.length;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(page, pageCount);
+
+  const paginatedRows = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredAndSortedRows.slice(start, start + pageSize);
+  }, [filteredAndSortedRows, safePage, pageSize]);
 
   // Computed KPIs
   const totalEvents = filteredAndSortedRows.reduce((sum, r) => sum + r.totalCount, 0);
@@ -544,6 +556,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                   setDatePreset(key);
                   setCustomStart("");
                   setCustomEnd("");
+                  setPage(1);
                 }}
                 className={`px-2.5 py-1 text-xs font-medium rounded-md transition cursor-pointer ${
                   datePreset === key && !customStart
@@ -569,7 +582,10 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
             ).map(([key, label]) => (
               <button
                 key={key}
-                onClick={() => setSortType(key)}
+                onClick={() => {
+                  setSortType(key);
+                  setPage(1);
+                }}
                 className={`px-2.5 py-1 text-xs font-medium rounded-md transition cursor-pointer ${
                   sortType === key
                     ? "bg-surface-subtle text-text-primary border border-border-default font-semibold"
@@ -590,6 +606,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               onChange={(e) => {
                 setSelectedGroupId(e.target.value);
                 setSelectedAccountId("");
+                setPage(1);
               }}
               className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer"
             >
@@ -605,7 +622,10 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
           <div className="relative">
             <select
               value={selectedAccountId}
-              onChange={(e) => setSelectedAccountId(e.target.value)}
+              onChange={(e) => {
+                setSelectedAccountId(e.target.value);
+                setPage(1);
+              }}
               className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer"
             >
               <option value="">All Accounts</option>
@@ -623,7 +643,10 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
               type="text"
               placeholder="Search by account or group name..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="w-full h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500"
             />
           </div>
@@ -666,7 +689,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle font-medium">
-                {filteredAndSortedRows.map((row) => (
+                {paginatedRows.map((row) => (
                   <tr
                     key={`${row.groupId}-${row.accountId}`}
                     className="hover:bg-surface-hover/50 transition"
@@ -729,10 +752,25 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
         )}
 
         {/* Table Footer */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border-subtle bg-surface-muted/30 text-xs text-text-muted">
-          <span>
-            Displaying {filteredAndSortedRows.length} account metrics • All operational queries synchronized
-          </span>
+        <div className="flex flex-col border-t border-border-subtle bg-surface-muted/30">
+          <div className="flex items-center justify-between px-4 py-2.5 text-xs text-text-muted border-b border-border-subtle/50">
+            <span>
+              Total Scope: {filteredAndSortedRows.length} account metrics • All operational queries synchronized
+            </span>
+          </div>
+          {filteredAndSortedRows.length > 0 && (
+            <TablePagination
+              page={safePage}
+              pageSize={pageSize}
+              totalCount={totalCount}
+              pageSizeOptions={[15, 25, 50, 100]}
+              onPageChange={(newPage) => setPage(newPage)}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+            />
+          )}
         </div>
       </div>
 
