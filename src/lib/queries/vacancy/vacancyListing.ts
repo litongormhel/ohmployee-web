@@ -2158,7 +2158,7 @@ export async function listVacancies(params: VacancyListParams) {
                 seenCgInVacancies.add(cgId);
                 row.cgCode = cgInfo.cgCode;
                 row.vcode = cgInfo.anchorVcode || row.vcode;
-                row.storeName = `${cgInfo.anchorStoreName} [Roving]`;
+                row.storeName = cgInfo.anchorStoreName;
                 row.employmentType = "Roving";
                 row.assignedStores = cgInfo.storeNames;
                 row.assignedStoreDetails = cgInfo.storeDetails;
@@ -2170,9 +2170,6 @@ export async function listVacancies(params: VacancyListParams) {
               } else {
                 // Plantilla Vacancy tab (/plantilla): Keep 1:1 row per store, annotate roving slot = 0.5
                 row.cgCode = cgInfo.cgCode;
-                if (!row.storeName?.includes("[Roving]")) {
-                  row.storeName = `${row.storeName || ""} [Roving]`.trim();
-                }
                 row.employmentType = "Roving";
                 row.assignedStores = cgInfo.storeNames;
                 row.assignedStoreDetails = cgInfo.storeDetails;

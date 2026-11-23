@@ -45,6 +45,7 @@ export interface StoreCapacityRow {
   onLeave: number;
   openVacancy: number;
   isFulfilled: boolean;
+  deploymentTypes: Array<"Roving" | "Stationary">;
 }
 
 export interface AccountSummaryMetric {

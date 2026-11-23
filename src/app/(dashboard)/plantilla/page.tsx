@@ -42,6 +42,8 @@ import {
 } from "@/lib/utils/displayText";
 import { MosesHqPoolView } from "@/components/plantilla/MosesHqPoolView";
 import { WorkforceAnalyticsView } from "@/components/plantilla/WorkforceAnalyticsView";
+import { StoreDetailsModal } from "@/components/modals/StoreDetailsModal";
+import { SlotDetailDrawer } from "@/components/plantilla/SlotDetailDrawer";
 
 // Modular Directory Presentation Containers (SRP Decomposition)
 import {
@@ -205,6 +207,8 @@ function PlantillaPageContent() {
 
   // Detail drawers and modals
   const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
+  const [selectedStoreCapacity, setSelectedStoreCapacity] = useState<StoreCapacityRow | null>(null);
+  const [selectedStoreSlotId, setSelectedStoreSlotId] = useState<string | null>(null);
   const [requestHeadcountConfig, setRequestHeadcountConfig] = useState<RequestHeadcountConfig | null>(null);
   const [isNewStoreModalOpen, setIsNewStoreModalOpen] = useState(false);
 
@@ -1048,6 +1052,12 @@ function PlantillaPageContent() {
 
     const storeActiveCountMap = new Map<string, number>();
     const storeOnLeaveCountMap = new Map<string, number>();
+    const storeDeploymentTypes = new Map<string, Set<"Roving" | "Stationary">>();
+    const recordDeploymentType = (storeKey: string, type: "Roving" | "Stationary") => {
+      const types = storeDeploymentTypes.get(storeKey) ?? new Set<"Roving" | "Stationary">();
+      types.add(type);
+      storeDeploymentTypes.set(storeKey, types);
+    };
 
     // Build map of employee status from allEmployees
     const employeeMap = new Map<string, PlantillaEmployeeListItem>();
@@ -1076,6 +1086,7 @@ function PlantillaPageContent() {
         }
 
         const hc = alloc.filledHc > 0 ? alloc.filledHc : 1;
+        recordDeploymentType(storeKey, (emp?.assignmentType || "").toLowerCase().includes("roving") ? "Roving" : "Stationary");
 
         if (s === "active" && (!emp || (!isDeactivationRecord(emp) && !isFloatingRecord(emp) && !isOnLeaveRecord(emp)))) {
           storeActiveCountMap.set(storeKey, (storeActiveCountMap.get(storeKey) ?? 0) + hc);
@@ -1095,6 +1106,7 @@ function PlantillaPageContent() {
       if (!storeKey) return;
 
       const hc = emp.coveredStoresCount > 1 ? (1 / emp.coveredStoresCount) : 1;
+      recordDeploymentType(storeKey, (emp.assignmentType || "").toLowerCase().includes("roving") ? "Roving" : "Stationary");
 
       if (s === "active" && !isDeactivationRecord(emp) && !isFloatingRecord(emp) && !isOnLeaveRecord(emp)) {
         storeActiveCountMap.set(storeKey, (storeActiveCountMap.get(storeKey) ?? 0) + hc);
@@ -1116,6 +1128,7 @@ function PlantillaPageContent() {
         const assignedCount = v.assignedStoreDetails?.length || v.assignedStores?.length || 0;
         const rovingShare =
           v.slotShare ?? (isRoving && assignedCount > 1 ? 1 / assignedCount : 1);
+        recordDeploymentType(key, isRoving ? "Roving" : "Stationary");
         storeVacancyCountMap.set(
           key,
           (storeVacancyCountMap.get(key) ?? 0) + remainingCapacity * rovingShare
@@ -1242,6 +1255,7 @@ function PlantillaPageContent() {
         onLeave,
         openVacancy,
         isFulfilled,
+        deploymentTypes: Array.from(storeDeploymentTypes.get(storeKey) ?? ["Stationary"]),
       });
     });
 
@@ -1797,6 +1811,7 @@ function PlantillaPageContent() {
                     onRequestHeadcount={(store) =>
                       setRequestHeadcountConfig({ mode: "stationary_locked", store })
                     }
+                    onSelectStore={setSelectedStoreCapacity}
                   />
                 )
               ) : statusTab === "active" ? (
@@ -2211,6 +2226,16 @@ function PlantillaPageContent() {
             toastVariant={toastVariant}
             onCloseToast={() => setToastMessage(null)}
           />
+          <StoreDetailsModal
+            isOpen={Boolean(selectedStoreCapacity)}
+            onClose={() => setSelectedStoreCapacity(null)}
+            store={selectedStoreCapacity}
+            accountName={selectedAccountName}
+            allEmployees={allEmployees}
+            allocations={storeAllocationsQuery.data ?? []}
+            onInspectSlot={setSelectedStoreSlotId}
+          />
+          <SlotDetailDrawer slotId={selectedStoreSlotId} onClose={() => setSelectedStoreSlotId(null)} />
         </>
       )}
     </div>

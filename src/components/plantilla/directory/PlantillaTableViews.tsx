@@ -1070,10 +1070,12 @@ export function StoreCapacityTable({
   rows,
   canRequestHeadcount = false,
   onRequestHeadcount,
+  onSelectStore,
 }: {
   rows: StoreCapacityRow[];
   canRequestHeadcount?: boolean;
   onRequestHeadcount?: (store: StoreCapacityRow) => void;
+  onSelectStore?: (store: StoreCapacityRow) => void;
 }) {
   const showActions = Boolean(canRequestHeadcount && onRequestHeadcount);
 
@@ -1114,17 +1116,45 @@ export function StoreCapacityTable({
           <tbody className="divide-y divide-table-rule">
             {rows.map((store) => {
               const locationLabel = [store.city, store.province].filter(Boolean).join(", ");
+              const isRoving = store.deploymentTypes.includes("Roving");
+              const isStationary = store.deploymentTypes.includes("Stationary");
+              const isMixed = isRoving && isStationary;
+
+              const vcodeColorClass = store.code
+                ? isMixed
+                  ? "border-indigo-300 bg-gradient-to-r from-blue-50 to-purple-50 text-indigo-800 dark:border-indigo-700 dark:from-blue-950/60 dark:to-purple-950/60 dark:text-indigo-200"
+                  : isRoving
+                  ? "border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/60 dark:text-purple-300"
+                  : "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
+                : isMixed
+                ? "border-dashed border-indigo-300 bg-indigo-50/50 text-indigo-600 dark:border-indigo-800/60 dark:bg-indigo-950/30 dark:text-indigo-400"
+                : isRoving
+                ? "border-dashed border-purple-300 bg-purple-50/50 text-purple-600 dark:border-purple-800/60 dark:bg-purple-950/30 dark:text-purple-400"
+                : "border-dashed border-blue-300 bg-blue-50/50 text-blue-600 dark:border-blue-800/60 dark:bg-blue-950/30 dark:text-blue-400";
+
+              const vcodeTitle = store.code
+                ? `${isMixed ? "Mixed (Stationary & Roving)" : isRoving ? "Roving" : "Stationary"} VCode: ${store.code}`
+                : `${isMixed ? "Mixed" : isRoving ? "Roving" : "Stationary"} store (No VCode assigned yet)`;
+
               return (
                 <tr key={store.id} className="transition-colors hover:bg-table-row-hover">
                   {/* 1. Store Branch */}
                   <td className="px-3.5 py-2 font-medium text-table-text">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs">{formatStoreName(store.storeBranch)}</span>
-                      {store.code && (
-                        <span className="font-mono text-[11px] text-text-muted">
-                          ({store.code})
-                        </span>
-                      )}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => onSelectStore?.(store)}
+                        className="font-bold text-xs text-left hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded transition-colors"
+                        title={`View deployments and history for ${formatStoreName(store.storeBranch)}`}
+                      >
+                        {formatStoreName(store.storeBranch)}
+                      </button>
+                      <span
+                        className={`inline-flex items-center rounded border px-1.5 py-0.2 font-mono text-[10px] font-semibold ${vcodeColorClass}`}
+                        title={vcodeTitle}
+                      >
+                        {store.code || "No VCode"}
+                      </span>
                     </div>
                   </td>
 

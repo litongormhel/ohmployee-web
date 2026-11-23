@@ -4097,6 +4097,168 @@ export function useSlotHistory(slotId: string | null) {
   });
 }
 
+export async function fetchStoreHistory(
+  storeId?: string | null,
+  vcode?: string | null
+): Promise<PlantillaSlotHistoryEvent[]> {
+  if (!storeId && !vcode) return [];
+
+  const supabase = createClient();
+  const allEvents: PlantillaSlotHistoryEvent[] = [];
+
+  // 1. Resolve slot IDs for this store
+  let slotIds: string[] = [];
+  try {
+    let slotQuery = supabase.from("plantilla_slots").select("id");
+    const isSyntheticId = Boolean(storeId && (storeId.startsWith("alloc-") || storeId.startsWith("temp-")));
+    if (storeId && !isSyntheticId) {
+      slotQuery = slotQuery.eq("store_id", storeId);
+    } else if (vcode) {
+      slotQuery = slotQuery.eq("legacy_vcode", vcode);
+    } else {
+      slotQuery = slotQuery.eq("id", "00000000-0000-0000-0000-000000000000"); // no match
+    }
+
+    const { data: slotData, error: slotErr } = await slotQuery;
+    if (slotErr) {
+      console.error("[PostgREST Schema Error] fetchStoreHistory slot query failed:", slotErr);
+    } else {
+      slotIds = (slotData ?? []).map((s) => String(s.id));
+    }
+  } catch (err) {
+    console.error("[PostgREST Schema Error] fetchStoreHistory slot resolution exception:", err);
+  }
+
+  // 2. Fetch history from slot_history
+  if (slotIds.length > 0) {
+    try {
+      const { data, error } = await supabase
+        .from("slot_history")
+        .select(`
+          id,
+          slot_id,
+          account_id,
+          action_type,
+          old_value,
+          new_value,
+          reason_code,
+          performed_by,
+          remarks,
+          created_at
+        `)
+        .in("slot_id", slotIds)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error("[PostgREST Schema Error] fetchStoreHistory slot_history query failed:", error);
+      } else {
+        const events = asArray(data).map((row) => {
+          const obj = asObject(row);
+          return {
+            id: asString(obj.id) ?? "",
+            slotId: asString(obj.slot_id) ?? "",
+            accountId: asString(obj.account_id),
+            actionType: asString(obj.action_type) ?? "status_change",
+            oldValue: asString(obj.old_value),
+            newValue: asString(obj.new_value),
+            reasonCode: asString(obj.reason_code),
+            performedBy: asString(obj.performed_by),
+            performerName: null as string | null,
+            remarks: asString(obj.remarks),
+            createdAt: asString(obj.created_at) ?? new Date().toISOString(),
+          };
+        });
+        allEvents.push(...events);
+      }
+    } catch (err) {
+      console.error("[PostgREST Schema Error] fetchStoreHistory slot_history query exception:", err);
+    }
+  }
+
+  // 3. Also fetch activity log from employee_activity_log if vcode exists
+  if (vcode) {
+    try {
+      const { data: actData, error: actError } = await supabase
+        .from("employee_activity_log")
+        .select("id, activity_type, activity_date, description, performed_by, metadata, created_at")
+        .eq("vcode", vcode)
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      if (actError) {
+        console.error("[PostgREST Schema Error] fetchStoreHistory employee_activity_log failed:", actError);
+      } else if (actData) {
+        actData.forEach((act) => {
+          allEvents.push({
+            id: String(act.id),
+            slotId: "",
+            accountId: null,
+            actionType: String(act.activity_type ?? "Activity"),
+            oldValue: null,
+            newValue: null,
+            reasonCode: null,
+            performedBy: act.performed_by ? String(act.performed_by) : null,
+            performerName: act.performed_by ? String(act.performed_by) : null,
+            remarks: String(act.description ?? ""),
+            createdAt: String(act.created_at ?? act.activity_date ?? new Date().toISOString()),
+          });
+        });
+      }
+    } catch (err) {
+      console.error("[PostgREST Schema Error] fetchStoreHistory employee_activity_log exception:", err);
+    }
+  }
+
+  // Sort by created_at desc
+  allEvents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Resolve performer names where performed_by is a UUID
+  const performerIds = Array.from(
+    new Set(
+      allEvents
+        .map((e) => e.performedBy)
+        .filter((id): id is string => Boolean(id && id.includes("-") && id.length >= 32))
+    )
+  );
+
+  if (performerIds.length > 0) {
+    try {
+      const { data: profiles, error: profileErr } = await supabase
+        .from("users_profile")
+        .select("id, full_name")
+        .in("id", performerIds);
+
+      if (!profileErr && Array.isArray(profiles)) {
+        const profileMap = new Map<string, string>();
+        for (const p of profiles) {
+          if (p.id && p.full_name) {
+            profileMap.set(p.id, p.full_name);
+          }
+        }
+        for (const ev of allEvents) {
+          if (ev.performedBy && profileMap.has(ev.performedBy)) {
+            ev.performerName = profileMap.get(ev.performedBy) ?? null;
+          }
+        }
+      }
+    } catch {
+      // Non-blocking performer resolution
+    }
+  }
+
+  return allEvents;
+}
+
+export function useStoreHistory(storeId?: string | null, vcode?: string | null) {
+  return useQuery({
+    queryKey: ["store-history", storeId, vcode],
+    queryFn: () => fetchStoreHistory(storeId, vcode),
+    enabled: Boolean(storeId || vcode),
+    retry: false,
+  });
+}
+
 export async function fetchStorePlantillaSlots(storeId: string): Promise<PlantillaSlotItem[]> {
   if (!storeId) return [];
 

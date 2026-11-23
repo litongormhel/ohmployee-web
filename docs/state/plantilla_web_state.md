@@ -173,7 +173,7 @@ When `Store View` is active, the 5 Employee Status Sub-Tabs are hidden and repla
 - **Default Pagination**:
   - Store View features a dedicated independent pagination controller defaulting to **15 rows per page** with `[15, 30, 50]` page size options.
 - **Columns**:
-  1. `Store Branch`: Store name with store code badge.
+  1. `Store Branch`: Keyboard-accessible store name opening `StoreDetailsModal`; the permanent VCode is always visible beside it. Deployment type is signaled directly on the VCode badge: blue for Stationary, violet for Roving, or indigo/dual-gradient for mixed slot capacity. Stores without an assigned VCode display a dashed `No VCode` badge in the same deployment color.
   2. `Area & City`: City and province pill tags.
   3. `Plantilla Required`: Contracted store headcount requirement (formerly Quota, centered).
   4. `Active Deployed`: Actual deployed headcount (centered, emerald bold text).
@@ -181,6 +181,7 @@ When `Store View` is active, the 5 Employee Status Sub-Tabs are hidden and repla
   6. `Open Vacancy`: Unfilled headcount gaps (centered, red bold text if > 0; weighted by fractional roving share).
   7. `Fulfillment Status`: `100% Fulfilled` green badge (`active >= required`) or `Understaffed` amber/red badge.
   8. `Actions`: Per-row `Request HC` button (gated by `canRequestHeadcount`) opening `RequestHeadcountModal` pre-locked to that existing store (`lockedStore=true`, `lockedWorkforceType="stationary"`).
+- **Deployment & History Detail**: Selecting a Store Branch opens `StoreDetailsModal`, featuring three dedicated tabs: `Deployed Personnel` (listing all active/on-leave employees assigned to that store with positions, schedules, and roving fractional shares), `Store History` (chronological timeline of slot modifications and activity logs via `useStoreHistory`), and `Plantilla Slots` (with `Inspect Slot` navigation to `SlotDetailDrawer`).
 
 ---
 

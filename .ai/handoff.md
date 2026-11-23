@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Execution Report — Plantilla Store View VCode Colors, Clean Store Names & Deployment History Modal (ohm#store-view-vcode-deployment-history)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **Clean Store Names (Removed `[roving]` suffix)**:
+   - Updated `src/lib/utils/displayText.ts` (`formatStoreName`) to automatically strip any `\s*\[roving\]\s*` naming cues case-insensitively, preventing duplicated roving annotations.
+   - Updated `src/lib/queries/vacancy/vacancyListing.ts` to set clean `row.storeName = cgInfo.anchorStoreName` without appending ` [Roving]`.
+2. **Permanent VCode Visibility & Semantic Color Coding**:
+   - Updated `StoreCapacityTable` (`src/components/plantilla/directory/PlantillaTableViews.tsx`) so the store VCode is always visible for every store branch.
+   - When VCode exists, the color is applied directly on the VCode badge:
+     - **Stationary**: Blue badge (`border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300`).
+     - **Roving**: Violet / Purple badge (`border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/60 dark:text-purple-300`).
+     - **Mixed (Stationary + Roving)**: Indigo gradient badge (`border-indigo-300 bg-gradient-to-r from-blue-50 to-purple-50 text-indigo-800 dark:border-indigo-700 dark:from-blue-950/60 dark:to-purple-950/60 dark:text-indigo-200`).
+   - When a store lacks an assigned VCode, it displays a dashed `No VCode` badge using the same designated deployment color, ensuring zero hidden or missing VCodes.
+3. **Store Details Modal (`StoreDetailsModal`)**:
+   - Created `src/components/modals/StoreDetailsModal.tsx` and connected it to store branch clicks in `src/app/(dashboard)/plantilla/page.tsx`.
+   - Features:
+     - **Header & Metric Cards**: Store name, city/province, account, styled VCode, and 4 KPI metrics (`Plantilla Required`, `Active Deployed`, `On-Leave`, `Open Vacancy`).
+     - **Tab 1: Deployed Personnel ("Who Deployed")**: Lists all active and on-leave employees assigned to that store (from live allocations, account employees, and slot occupants) with position, schedule days/time, status, and roving fractional headcount shares (e.g. `0.50 HC (2 stores)`).
+     - **Tab 2: Store History ("History ng Store")**: Displays chronological audit timeline powered by `useStoreHistory(storeId, vcode)` (querying `slot_history` and `employee_activity_log` with resolved performer names).
+     - **Tab 3: Plantilla Slots**: Lists discrete ADR-001 slots with occupant details and `Inspect Slot` action opening `SlotDetailDrawer`.
+
+### Files
+- `src/lib/utils/displayText.ts`
+- `src/lib/queries/vacancy/vacancyListing.ts`
+- `src/lib/queries/plantilla.ts`
+- `src/components/modals/StoreDetailsModal.tsx`
+- `src/components/plantilla/directory/PlantillaTableViews.tsx`
+- `src/components/plantilla/directory/types.tsx`
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Validation
+- `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+- `npm test`: `255/255` passed (`ADR_MIRROR_STATUS: FRESH`, `SQL_CONTRACTS_OK`, zero leaks).
+- `npm run lint`: `0` errors, `0` warnings.
+- `npm run build`: verified production build compilation.
+
+---
+
 ## Execution Report — Phase 4: Mobile Parity for Request Headcount vs. Request New Store & Fractional Store Capacity (ohm#phase4-mixed-roving-hc-mobile)
 **Date:** 2026-11-23 | **Mobile Repo:** `D:\Projects\OHMployee` (Commit: `bb33507`) | **Branch:** `main` | **Status:** Verified & Complete (All 4 Phases Complete)
 

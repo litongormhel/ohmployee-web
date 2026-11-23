@@ -143,10 +143,13 @@ export function formatPosition(pos: string | null | undefined): string {
 }
 
 /**
- * Specialized alias for store or outlet names
+ * Specialized alias for store or outlet names.
+ * Strips obsolete [roving] naming cues to prevent duplicate indicators.
  */
 export function formatStoreName(store: string | null | undefined): string {
-  return formatDisplayText(store);
+  if (!store) return "";
+  const cleaned = store.replace(/\s*\[roving\]\s*/gi, " ").trim();
+  return formatDisplayText(cleaned);
 }
 
 /**
