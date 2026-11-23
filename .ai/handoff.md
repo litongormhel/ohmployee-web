@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — Phase 3: Web UI Separation for Request Headcount vs. Request New Store & Fractional Store Capacity (ohm#phase3-mixed-roving-hc-web)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete (Phase 4 Mobile Parity Next)
+
+### What Was Implemented
+1. **Plantilla Header & Store View Actions (`src/app/(dashboard)/plantilla/page.tsx`, `src/components/plantilla/directory/PlantillaTableViews.tsx`, `src/components/plantilla/directory/PlantillaModalsHub.tsx`):**
+   - Removed the generic header `+ Request Headcount` button and replaced it with `+ Request Roving HC` (`canRequestAdjustment`) and independent `+ Request New Store` (`canSubmitNewStoreRequest`).
+   - Added an 8th `Actions` column (`Request HC`, gated by `canRequestHeadcount`) to `StoreCapacityTable` opening `RequestHeadcountModal` pre-locked to that existing store (`lockedStore=true`, `lockedWorkforceType="stationary"`).
+   - Updated `storeCapacityRows` (`storeVacancyCountMap`) to multiply `remainingCapacity * rovingShare` (`1 / N` for Roving vacancies using `VacancyListItem.slotShare` / assigned store count) while keeping the existing Store View zero-record orphan filter (`activeDeployed > 0 || onLeave > 0 || openVacancy > 0`) intact.
+2. **`RequestHeadcountModal` (`src/components/modals/RequestHeadcountModal.tsx`):**
+   - Added optional `lockedWorkforceType` and `lockedStore` props.
+   - Restricted the modal to existing stores only by removing the embedded `NewStoreRequestModal` detour, `linkedNewStoreRequestId`, and inline `+ Add Unlisted Store` form; empty states now direct users to `+ Request New Store` in the Plantilla header.
+3. **Standalone Dual-Mode `NewStoreRequestModal` (`src/components/modals/NewStoreRequestModal.tsx`):**
+   - Converted into an independent dual-mode modal triggered from Plantilla Header `+ Request New Store`:
+     - **Stationary (1 New Store):** Requires Position, Initial HC (`default 1, min 1`), and `>= 20`-char justification -> `submit_new_store_request`.
+     - **Roving (Multi-Door Opening, ADR-003):** Supports 2–20 new/mixed stores (requiring at least 1 unlisted New Store), Island Group validation, duplicate store checks, Position, HC, Urgent/Vacant Date, and `>= 20`-char justification -> `submit_headcount_request` (Option 1 routing to `/approvals?tab=new_stores`).
+4. **OHMNI SOP Alignment (`src/app/api/ohmni/route.ts`):**
+   - Updated `OHMPLOYEE_SOP_MANUAL` and fallback how-to responses to reference `Store View -> Request HC`, `+ Request Roving HC`, and `+ Request New Store`.
+
+### Verification
+- `npm test`: `255/255` tests passed (`ADR_MIRROR_STATUS: FRESH`, `[secret-guard] OK`, `[sql-guard] SQL_CONTRACTS_OK`).
+- `npm run lint`: Passed cleanly (`0` errors, `0` warnings).
+- `npm run build`: Next.js `16.2.4` (Turbopack) compiled in `16.4s`, TypeScript finished in `34.4s` (`0` errors), generated `22/22` static pages cleanly.
+- Browser UI E2E verification (`Plantilla` -> `Store View`, `NewStoreRequestModal` toggles) not executed in headless browser here; covered statically via lint + Next.js production build.
+
+### Next For Next Session (Phase 4)
+- Begin **Phase 4 (Mobile Parity)** in `D:\Projects\OHMployee` (Flutter/Dart) once approved by user, keeping Web `RequestHeadcountModal`, standalone `NewStoreRequestModal`, and Store View `1/N` parity 1:1 with Mobile.
+
+---
+
 ## Execution Report — Phase 2: Shared Supabase Migration for Mixed Stationary + Roving Store Capacity & NSR Initial Vacancy (ohm#phase2-mixed-roving-hc)
 
 **Status: COMPLETE & VERIFIED ON STAGING (`qqiiznmqxfoamqytjica`).**

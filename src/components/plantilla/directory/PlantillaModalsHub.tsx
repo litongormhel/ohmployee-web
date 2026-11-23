@@ -1,6 +1,10 @@
 import React from "react";
 import { VacancyDetailDrawer } from "@/components/vacancy/VacancyDetailDrawer";
 import { RequestHeadcountModal } from "@/components/modals/RequestHeadcountModal";
+import {
+  NewStoreRequestModal,
+  type NewStoreRequestSuccessPayload,
+} from "@/components/modals/NewStoreRequestModal";
 import { AssignRelieverModal } from "@/components/plantilla/AssignRelieverModal";
 import { ReturnToActiveModal } from "@/components/plantilla/ReturnToActiveModal";
 import { AssignStoreModal } from "@/components/plantilla/AssignStoreModal";
@@ -22,8 +26,14 @@ import type {
   ArchiveModalAccount,
   AbsorbModalAccount,
   StoreWithAvailableSlots,
+  StoreCapacityRow,
   StatusSubTab,
 } from "./types";
+
+export interface RequestHeadcountConfig {
+  mode: "stationary_locked" | "roving_existing";
+  store?: StoreCapacityRow;
+}
 
 export interface PlantillaModalsHubProps {
   // Vacancy Drawer
@@ -31,11 +41,16 @@ export interface PlantillaModalsHubProps {
   onCloseVacancyDrawer: () => void;
 
   // Request Headcount
-  isRequestHeadcountOpen: boolean;
+  requestHeadcountConfig: RequestHeadcountConfig | null;
   onCloseRequestHeadcount: () => void;
   accountId: string;
   selectedAccountName: string;
   onRequestHeadcountSuccess: () => void;
+
+  // Request New Store (Independent)
+  isNewStoreModalOpen: boolean;
+  onCloseNewStoreModal: () => void;
+  onNewStoreSuccess: (result: NewStoreRequestSuccessPayload) => void;
 
   // Assign Reliever
   relieverTargetEmployee: RelieverTargetEmployee | null;
@@ -101,11 +116,14 @@ export interface PlantillaModalsHubProps {
 export function PlantillaModalsHub({
   selectedVacancyId,
   onCloseVacancyDrawer,
-  isRequestHeadcountOpen,
+  requestHeadcountConfig,
   onCloseRequestHeadcount,
   accountId,
   selectedAccountName,
   onRequestHeadcountSuccess,
+  isNewStoreModalOpen,
+  onCloseNewStoreModal,
+  onNewStoreSuccess,
   relieverTargetEmployee,
   onCloseAssignReliever,
   onAssignRelieverSuccess,
@@ -154,13 +172,32 @@ export function PlantillaModalsHub({
       />
 
       {/* Request Headcount Modal */}
-      {isRequestHeadcountOpen && (
+      {requestHeadcountConfig && (
         <RequestHeadcountModal
-          isOpen={isRequestHeadcountOpen}
+          isOpen={Boolean(requestHeadcountConfig)}
           onClose={onCloseRequestHeadcount}
           accountId={accountId}
           accountName={selectedAccountName}
+          lockedWorkforceType={
+            requestHeadcountConfig.mode === "roving_existing" ? "roving" : "stationary"
+          }
+          lockedStore={requestHeadcountConfig.mode === "stationary_locked"}
+          initialStoreId={requestHeadcountConfig.store?.id ?? null}
+          initialStoreName={requestHeadcountConfig.store?.storeBranch ?? null}
+          initialProvince={requestHeadcountConfig.store?.province ?? null}
+          initialCity={requestHeadcountConfig.store?.city ?? null}
           onSuccess={onRequestHeadcountSuccess}
+        />
+      )}
+
+      {/* Request New Store Modal (Independent) */}
+      {isNewStoreModalOpen && (
+        <NewStoreRequestModal
+          isOpen={isNewStoreModalOpen}
+          onClose={onCloseNewStoreModal}
+          initialAccountId={accountId}
+          initialAccountName={selectedAccountName}
+          onSuccess={onNewStoreSuccess}
         />
       )}
 

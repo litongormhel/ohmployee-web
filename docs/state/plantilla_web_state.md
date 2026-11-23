@@ -41,13 +41,13 @@ Like other modules in OHMployee Web, this is designed as a thin admin presentati
 
 ## 2. Dual Views Architecture (Employee vs. Store)
 
-Admin users can switch seamlessly between reviewing individual personnel and auditing store capacity compliance. The Plantilla module implements **Dual Views** driven by a top-right segmented pill toggle (`[ Employee View | Store View ]`) beside uniform outlined action buttons (`+ Request Headcount`, `+ Coverage Group`, `Absorb Employees`):
+Admin users can switch seamlessly between reviewing individual personnel and auditing store capacity compliance. The Plantilla module implements **Dual Views** driven by a top-right segmented pill toggle (`[ Employee View | Store View ]`) beside uniform outlined action buttons (`+ Request Roving HC`, `+ Request New Store`, `+ Coverage Group`, `Absorb Employees`):
 
 ```
-[ Plantilla Header (← Accounts / ACCOUNT_NAME) ]     [ Employee View | Store View ]  [ + Request Headcount ]  [ + Coverage Group ]  [ Absorb Employees ]
-========================================================================================================================================================
+[ Plantilla Header (← Accounts / ACCOUNT_NAME) ]     [ Employee View | Store View ]  [ + Request Roving HC ]  [ + Request New Store ]  [ + Coverage Group ]  [ Absorb Employees ]
+=================================================================================================================================================================================
 Search: "Search employees, IDs, stores..."    [ All Stores (Area -> City) ]    [ All Types (Stationary / Roving) ]
-========================================================================================================================================================
+=================================================================================================================================================================================
 [ 6 Status Sub-Tabs: Active (count) | On-Leave (count) | Vacancy (count) | Floating (count) | Deactivation (count) | Inactive (count) ]
 ```
 
@@ -167,7 +167,7 @@ When `Store View` is active, the 5 Employee Status Sub-Tabs are hidden and repla
 
 - **Strict Population Logic & Roving Headcount Parity (Zero-Record Orphan Filter)**:
   - The Store View **ONLY** populates stores that have at least one associated record in the following states: **Active OR On-Leave OR Open Vacancy** (`activeDeployed > 0 || onLeave > 0 || openVacancy > 0`).
-  - **Roving Fractional Headcount ($1/N$) & Multi-Store Visibility**: Stores assigned to roving personnel (via `employee_store_allocations`) are dynamically included in candidate stores and credited with the employee's fractional headcount (`filled_hc`, e.g. `0.33` for 3 stores). All roving member stores (e.g. `PUREGOLD QC`, `PUREGOLD BULACAN`, `PUREGOLD PILI`) remain fully visible in Store View with their proportional `Plantilla Required` and `Active Deployed` counts, rather than being suppressed or erroneously rounded to `1.00`.
+  - **Roving Fractional Headcount ($1/N$) & Multi-Store Visibility**: Stores assigned to roving personnel (via `employee_store_allocations`) are dynamically included in candidate stores and credited with the employee's fractional headcount (`filled_hc`, e.g. `0.33` for 3 stores). Open vacancies similarly multiply `remainingCapacity * rovingShare` (`1 / N` for Roving vacancies) and render with `formatCapacityCount` (`Number(val.toFixed(2)).toString()`). All roving member stores (e.g. `PUREGOLD QC`, `PUREGOLD BULACAN`, `PUREGOLD PILI`) remain fully visible in Store View with their proportional `Plantilla Required` and `Active Deployed` counts, rather than being suppressed or erroneously rounded to `1.00`.
   - Orphaned stores having 0 Active, 0 On-Leave, and 0 Vacancies (e.g., Festival Mall, SM Caloocan) are strictly filtered out and hidden from this view.
   - Stores with active deployed personnel whose records lack a direct `store_id` foreign key or are not pre-registered in `public.stores` under the current account portfolio (e.g., `Super 8 Dau`) are dynamically consolidated and fetched, preserving full visibility over operational deployments with fallback city/province lookup.
 - **Default Pagination**:
@@ -178,8 +178,9 @@ When `Store View` is active, the 5 Employee Status Sub-Tabs are hidden and repla
   3. `Plantilla Required`: Contracted store headcount requirement (formerly Quota, centered).
   4. `Active Deployed`: Actual deployed headcount (centered, emerald bold text).
   5. `On-Leave`: Count of employees on leave for that store (centered, amber text).
-  6. `Open Vacancy`: Unfilled headcount gaps (centered, red bold text if > 0).
+  6. `Open Vacancy`: Unfilled headcount gaps (centered, red bold text if > 0; weighted by fractional roving share).
   7. `Fulfillment Status`: `100% Fulfilled` green badge (`active >= required`) or `Understaffed` amber/red badge.
+  8. `Actions`: Per-row `Request HC` button (gated by `canRequestHeadcount`) opening `RequestHeadcountModal` pre-locked to that existing store (`lockedStore=true`, `lockedWorkforceType="stationary"`).
 
 ---
 

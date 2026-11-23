@@ -8,12 +8,13 @@ import {
   ArrowRightLeft,
   Building2,
   Plus,
+  Store,
   Users2,
   BarChart3,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCurrentUser, isOpsAmendmentRole, isHeadOrSuperAdmin } from "@/lib/auth";
-import { isDataTeam } from "@/lib/rbac";
+import { isDataTeam, canSubmitNewStoreRequest } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/client";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { DataState } from "@/components/shared/DataState";
@@ -87,7 +88,10 @@ import {
   EmployeeDeactivationCard,
   EmployeeInactiveCard,
 } from "@/components/plantilla/directory/PlantillaCardViews";
-import { PlantillaModalsHub } from "@/components/plantilla/directory/PlantillaModalsHub";
+import {
+  PlantillaModalsHub,
+  type RequestHeadcountConfig,
+} from "@/components/plantilla/directory/PlantillaModalsHub";
 
 // Re-export types and helpers for backward compatibility
 export type {
@@ -201,7 +205,8 @@ function PlantillaPageContent() {
 
   // Detail drawers and modals
   const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
-  const [isRequestHeadcountOpen, setIsRequestHeadcountOpen] = useState(false);
+  const [requestHeadcountConfig, setRequestHeadcountConfig] = useState<RequestHeadcountConfig | null>(null);
+  const [isNewStoreModalOpen, setIsNewStoreModalOpen] = useState(false);
 
   // Workflow modals
   const [relieverTargetEmployee, setRelieverTargetEmployee] = useState<RelieverTargetEmployee | null>(null);
@@ -249,6 +254,7 @@ function PlantillaPageContent() {
   const currentUser = useCurrentUser();
   const userRole = currentUser?.roleKey ?? currentUser?.roleName;
   const canRequestAdjustment = isOpsAmendmentRole(userRole);
+  const canRequestNewStore = canSubmitNewStoreRequest(currentUser);
 
   // Derive viewMode directly from searchParams
   const viewParam = searchParams.get("view") || searchParams.get("tab");
@@ -1102,7 +1108,18 @@ function PlantillaPageContent() {
       const key = (v.storeName || "").toLowerCase().trim();
       if (key) {
         const remainingCapacity = getVacancyRemainingCapacity(v);
-        storeVacancyCountMap.set(key, (storeVacancyCountMap.get(key) ?? 0) + remainingCapacity);
+        const isRoving = Boolean(
+          v.employmentType?.toLowerCase().includes("roving") ||
+          v.cgCode ||
+          v.vcode?.startsWith("CG-")
+        );
+        const assignedCount = v.assignedStoreDetails?.length || v.assignedStores?.length || 0;
+        const rovingShare =
+          v.slotShare ?? (isRoving && assignedCount > 1 ? 1 / assignedCount : 1);
+        storeVacancyCountMap.set(
+          key,
+          (storeVacancyCountMap.get(key) ?? 0) + remainingCapacity * rovingShare
+        );
       }
     });
 
@@ -1652,15 +1669,29 @@ function PlantillaPageContent() {
                     </button>
                   </div>
 
-                  {/* Primary button: + Request Headcount */}
+                  {/* Primary button: + Request Roving HC (existing stores) */}
                   {canRequestAdjustment && (
                     <button
                       type="button"
-                      onClick={() => setIsRequestHeadcountOpen(true)}
+                      onClick={() => setRequestHeadcountConfig({ mode: "roving_existing" })}
                       className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
+                      title="Request a roving headcount across 2–20 existing stores (use Store View -> Request HC for stationary)"
                     >
                       <Plus className="w-3.5 h-3.5 shrink-0 text-brand-600" />
-                      <span>Request Headcount</span>
+                      <span>Request Roving HC</span>
+                    </button>
+                  )}
+
+                  {/* Independent button: + Request New Store (Stationary or Roving Multi-Door) */}
+                  {canRequestNewStore && (
+                    <button
+                      type="button"
+                      onClick={() => setIsNewStoreModalOpen(true)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
+                      title="Register a new opening store (Stationary or Roving multi-door)"
+                    >
+                      <Store className="w-3.5 h-3.5 shrink-0 text-brand-600" />
+                      <span>Request New Store</span>
                     </button>
                   )}
 
@@ -1762,6 +1793,10 @@ function PlantillaPageContent() {
                 ) : (
                   <StoreCapacityTable
                     rows={paginatedStoreRows}
+                    canRequestHeadcount={canRequestAdjustment}
+                    onRequestHeadcount={(store) =>
+                      setRequestHeadcountConfig({ mode: "stationary_locked", store })
+                    }
                   />
                 )
               ) : statusTab === "active" ? (
@@ -2065,14 +2100,23 @@ function PlantillaPageContent() {
               vacancyListQuery.refetch();
               summaryQuery.refetch();
             }}
-            isRequestHeadcountOpen={isRequestHeadcountOpen}
-            onCloseRequestHeadcount={() => setIsRequestHeadcountOpen(false)}
+            requestHeadcountConfig={requestHeadcountConfig}
+            onCloseRequestHeadcount={() => setRequestHeadcountConfig(null)}
             accountId={accountId}
             selectedAccountName={selectedAccountName}
             onRequestHeadcountSuccess={() => {
               employeeQuery.refetch();
               summaryQuery.refetch();
               vacancyListQuery.refetch();
+              showToast("Headcount requisition submitted for approval.", "success");
+            }}
+            isNewStoreModalOpen={isNewStoreModalOpen}
+            onCloseNewStoreModal={() => setIsNewStoreModalOpen(false)}
+            onNewStoreSuccess={(res) => {
+              showToast(
+                `New Store request submitted for "${res.storeName}" (pending review).`,
+                "success"
+              );
             }}
             relieverTargetEmployee={relieverTargetEmployee}
             onCloseAssignReliever={() => setRelieverTargetEmployee(null)}

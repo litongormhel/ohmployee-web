@@ -1068,9 +1068,15 @@ function formatCapacityCount(val: number): string {
 
 export function StoreCapacityTable({
   rows,
+  canRequestHeadcount = false,
+  onRequestHeadcount,
 }: {
   rows: StoreCapacityRow[];
+  canRequestHeadcount?: boolean;
+  onRequestHeadcount?: (store: StoreCapacityRow) => void;
 }) {
+  const showActions = Boolean(canRequestHeadcount && onRequestHeadcount);
+
   return (
     <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
       <div className="overflow-auto flex-1 min-h-0">
@@ -1098,6 +1104,11 @@ export function StoreCapacityTable({
               <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Fulfillment Status
               </th>
+              {showActions && (
+                <th className="px-3.5 py-2 text-right text-xs font-semibold text-text-secondary whitespace-nowrap">
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-table-rule">
@@ -1161,6 +1172,21 @@ export function StoreCapacityTable({
                       </span>
                     )}
                   </td>
+
+                  {/* 8. Actions */}
+                  {showActions && (
+                    <td className="px-3.5 py-2 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => onRequestHeadcount?.(store)}
+                        className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-[11px] font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
+                        title={`Request stationary headcount for ${formatStoreName(store.storeBranch)}`}
+                      >
+                        <Plus className="h-3 w-3 text-brand-600 shrink-0" />
+                        <span>Request HC</span>
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}

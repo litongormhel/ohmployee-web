@@ -16,7 +16,9 @@ export const runtime = "nodejs";
 
 const OHMPLOYEE_SOP_MANUAL = `
 ## Built-In SOP Manual:
-- How to file a Headcount Request: Navigate to Plantilla module (/plantilla) -> select target Account -> click "+ Request Headcount" in the top-right header -> fill in Store/Branch, Position/Slot, headcount needed, and reason -> submit for approval (tracked under the Approvals module).
+- How to file a Stationary Headcount Request (existing store): Navigate to Plantilla module (/plantilla) -> select target Account -> switch to "Store View" -> click "Request HC" in the Actions column of the target store row -> choose Position, Request Type, headcount, and justification (tracked under Approvals -> Headcount).
+- How to file a Roving Headcount Request (existing stores): Navigate to Plantilla (/plantilla) -> select target Account -> click "+ Request Roving HC" in the top-right header -> pick 2-20 existing stores in the same Island Group, Position, and justification.
+- How to file a New Store Opening Request (unlisted Stationary or Roving multi-door): Navigate to Plantilla (/plantilla) -> select target Account -> click "+ Request New Store" in the top-right header -> choose Stationary (1 new store + initial HC >= 1) or Roving Multi-Door (2-20 new/mixed doors) -> submit for approval (tracked under Approvals -> New Stores).
 - How to hydrate/sync Plantilla: Navigate to Plantilla -> use bulk import / "Sync MIKA" action to hydrate slot assignments.
 - How to check HR Emploc discrepancies: Navigate to HR Emploc -> filter queue by pending/sync status to compare web vs. mobile movement records.
 - CENCOM overview: Central Command sits right above OHMni for high-level executive operational oversight and directory tracking.
@@ -2160,11 +2162,10 @@ async function handleDeterministicFallback(
   if (isHowTo || p.includes("paano mag-request") || p.includes("how to request")) {
     if (p.includes("headcount") || p.includes("request")) {
       return (
-        "Para mag-file ng **Headcount Request**:\n\n" +
-        "1. Pumunta sa **Plantilla** module (`/plantilla`) mula sa kaliwang navigation sidebar at piliin ang target **Account**.\n" +
-        "2. I-click ang **`+ Request Headcount`** button sa kanang itaas ng header (action bar).\n" +
-        "3. Piliin ang target **Store / Branch**, **Position / Slot**, bilang ng kailangang headcount, at dahilan (justification).\n" +
-        "4. I-click ang **Submit** para mapunta sa **Approvals** module para sa review at approval."
+        "Para mag-file ng **Headcount** o **New Store Request**:\n\n" +
+        "- **Stationary HC (Existing Store):** Pumunta sa **Plantilla** (`/plantilla`) -> piliin ang **Account** -> lumipat sa **`Store View`** -> i-click ang **`Request HC`** sa Actions column ng target store row -> piliin ang Position, Request Type, headcount, at justification.\n" +
+        "- **Roving HC (Existing Stores):** Sa **Plantilla** header -> i-click ang **`+ Request Roving HC`** -> pumili ng 2–20 existing stores sa iisang Island Group.\n" +
+        "- **New Store Opening (Stationary o Roving Multi-Door):** Sa **Plantilla** header -> i-click ang **`+ Request New Store`** -> ilagay ang bagong store details at initial headcount (ma-tatrack sa **Approvals -> New Stores**)."
       );
     }
     if (p.includes("mika") || p.includes("hydrate") || p.includes("sync")) {
@@ -2188,7 +2189,8 @@ async function handleDeterministicFallback(
     }
     return (
       "Narito ang mga gabay mula sa **OHMployee Built-In SOP Manual**:\n\n" +
-      "- **Headcount Request:** Navigate sa *Plantilla* module -> piliin ang target Account -> click `+ Request Headcount` sa itaas -> punan ang Store, Position, at headcount -> submit for approval sa *Approvals*.\n" +
+      "- **Headcount Request (Stationary):** Navigate sa *Plantilla* -> *Store View* -> click `Request HC` sa Actions ng target store row.\n" +
+      "- **Roving HC / New Store Opening:** Sa *Plantilla* header -> click `+ Request Roving HC` (existing stores) o `+ Request New Store` (opening stores).\n" +
       "- **Plantilla Sync:** Navigate sa *Plantilla* -> gamitin ang bulk import / `Sync MIKA` para ma-hydrate ang slots.\n" +
       "- **HR Emploc Queue:** Navigate sa *HR Emploc* -> i-filter ang queue ayon sa pending/sync status para ma-resolve ang discrepancies.\n" +
       "- **CENCOM:** Central Command sa sidebar para sa high-level operational oversight."
