@@ -1,5 +1,56 @@
 # AI Handoff
 
+## Execution Report — Prune Unnecessary Skills (ohm#prune-unnecessary-skills)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **User Request Alignment**:
+   - The user asked to audit existing skills: whether any skills should be removed, and how skills get utilized during prompt execution.
+   - Diagnosed that the global provider environment (`~/.t3/userdata/.../config/skills/`) had 21 Google Cloud / BigQuery / Dataproc / Spark skills that were exceeding the context budget limit and triggering system exclusions.
+   - In addition, identified 5 marketing / slide creation skills in `.agents/skills/` (`banner-design`, `brand`, `design`, `design-system`, `slides`) that are unrelated to the core OHMployee HR/Plantilla admin application.
+   - User explicitly approved removing both sets.
+2. **Global Provider GCP Skills Removal & Safe Backup**:
+   - Safely relocated all 21 GCP skills and `.datacloud_skills_manifest` from `C:\Users\Ohm\.t3\userdata\providers\antigravity\ac0a3dfd6dddb20962cecff6ee5fe65e19d3923be20e52c5ab52ff877f7e4c32\config\skills` to `config\skills_backup_gcp\`.
+   - Verified that `config\skills\` has 0 items remaining, permanently resolving the context budget overflow warning.
+3. **Workspace Marketing Skills Cleanup**:
+   - Removed 5 marketing / creative skills (`banner-design`, `brand`, `design`, `design-system`, `slides`) from `.agents/skills/`.
+   - Preserved all 10 high-value, domain-specific skills:
+     - `nextjs-16-app-router-tanstack`
+     - `ohmployee-cross-repo-parity`
+     - `supabase-postgres-best-practices`
+     - `xlsx-import-reconciliation`
+     - `ui-styling`
+     - `ui-ux-pro-max`
+     - `vercel-composition-patterns`
+     - `security-audit`
+     - `ponytail`
+     - `loop-engineering`
+4. **Verification**:
+   - `npm test`: 257/257 passed (0 failures)
+   - `npm run lint`: 0 errors, 0 warnings
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`
+   - `npm run check:sql`: verified 28 core tables & 19 cross-module RPC contracts across 679 migrations
+
+### Files
+- Global Provider Config:
+  - `config\skills_backup_gcp/*` (backed up 21 GCP skills + manifest)
+- Web (`D:\Projects\ohmployee-web`):
+  - `.agents/skills/banner-design/` (removed)
+  - `.agents/skills/brand/` (removed)
+  - `.agents/skills/design/` (removed)
+  - `.agents/skills/design-system/` (removed)
+  - `.agents/skills/slides/` (removed)
+  - `.ai/briefing.md`
+  - `.ai/handoff.md`
+
+### Validation
+- `npm run check:adr` -> `ADR_MIRROR_STATUS: FRESH` (exit code 0)
+- `npm test` -> 257/257 passed (exit code 0)
+- `npm run lint` -> 0 errors / 0 warnings (exit code 0)
+- `npm run check:sql` -> OK (exit code 0)
+
+---
+
 ## Execution Report — Hub-and-Spoke Modular ADR Architecture (ohm#hub-and-spoke-modular-adr-architecture)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 
