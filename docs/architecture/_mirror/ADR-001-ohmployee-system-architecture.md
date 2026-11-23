@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: b04b40b 2026-11-23T19:39:06+08:00
-source_sha256: 4a41883e6b7dfaa9aa30f3cf503e2f473e5b11cc3887f44392a7dfa3855ecb04
-synced_at: 2026-11-23T11:39:08.703Z
+source_commit: 4cc2840 2026-11-23T19:47:35+08:00
+source_sha256: d28eb9a5dbbb52634ebbacd83f8aca56f81e682e427873120cb8cd11c685cec5
+synced_at: 2026-11-23T11:47:38.329Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -221,6 +221,76 @@ Hard architecture lock enforced across all Coverage Change actions and all other
   - **Occupied case:** the anchor store's active `plantilla` row's `plantilla.position_id` (the current active employee's position — a real uuid FK).
   - **Open-slot fallback:** `plantilla_slots.position` (text) matched by name against `positions.position_name` (text) to resolve `positions.id`.
   - If neither resolves, `position_id` remains NULL. This never blocks Coverage Group creation.
+
+### Approvals Clearinghouse Architecture (Eleven Functional Review Queues)
+
+**Status: ACCEPTED.** Codifies the centralized request clearinghouse (`/approvals`) across Web and Mobile:
+
+1. **Eleven Dedicated Functional Queues**:
+   Review operations are partitioned into 11 strictly separated functional queues:
+   - `new_stores`: New Store Requests & Roving Door Expansion Requisitions (Option 1).
+   - `headcount`: Standard Headcount Quota Amendments & Requisitions for existing stores.
+   - `account_requests`: User Account Sign-Ups & Profile Provisioning.
+   - `coverage`: Roving Coverage Group Requests (Add Store, Remove Store, Merge, Dissolve).
+   - `vacancy_closures`: Vacancy Closure Requests (linked to Vacancy Closure Tab).
+   - `hr_emploc_deletions`: HR Emploc Candidate Deletion Requests.
+   - `deactivations`: Employee Deactivation & Separation Clearance.
+   - `applicant_movements`: Cross-Store Applicant Movement & Transfer Requests (`vw_amr_list`).
+   - `relievers`: Workforce Pool Reliever Coverage Endorsements (`v_workforce_assignment_request_queue`).
+   - `account_archives`: Billing Account Retirement Approval Queue (Super Admin only).
+   - `rollbacks`: Spreadsheet Import Batch Rollbacks & Reversal Queue (Super Admin & Head Admin).
+2. **Access Control & Universal Super Admin Bypass**:
+   - **Super Admin (`role_level >= 100` / `isOwner`)**: Holds universal bypass authority across all 11 review queues.
+   - **Head Admin (`role_level >= 90`)**: Access to all operational request queues, user provisioning, and import rollbacks.
+   - **Encoder (`role_level === 30`)**: Scoped access to operational queues (`headcount`, `new_stores`, `hr_emploc_deletions`, `deactivations`).
+   - **Operations Manager (OM) & Field Roles**: Strictly blocked from administrative clearinghouse queues unless specifically granted approval authority over their direct team endorsements.
+
+### Option 1 Requisition Queue Routing (New Doors vs. Headcount Quota)
+
+**Status: ACCEPTED.** Eliminates operational ambiguity and blank store lines in the Headcount queue:
+
+1. **Automatic Routing Trigger (`hc_request_stores.is_new_store = true`)**:
+   - Requisitions submitted via headcount amendment that contain proposed unlisted / new store doors automatically route out of the standard `Headcount` queue and land in **Tab 1: New Stores** (`/approvals?tab=new_stores`).
+   - Requisitions on pre-existing stores without new doors remain in **Tab 2: Headcount** (`/approvals?tab=headcount`).
+2. **Review Pane Display Invariant**:
+   - In `New Stores`, multi-door roving proposals render all proposed branches (`Store 1, Store 2, Store 3`) with location snapshots and a `✨ New Roving Doors (N)` badge.
+   - In `Headcount`, store columns reliably display registered store names without ambiguous `Store: —` fallbacks.
+3. **Dispatch & Execution Parity**:
+   - Approving a new store headcount request dispatches to `approve_headcount_request`, which atomically provisions the unlisted stores in `public.stores` before minting CGCode, VCodes, and Slots.
+
+### ADR-003 Unified Roving Requisitions & Atomic Store Provisioning
+
+**Status: ACCEPTED.** Solves multi-store opening bottlenecks for Roving Headcount requisitions (`submit_headcount_request`):
+
+1. **Zero Database Pollution**:
+   - Proposed unlisted stores submitted in `hc_request_stores` carry location metadata (`store_name`, `area_province`, `area_city`, `island_group`) but cause **zero speculative rows in `public.stores`** during the pending request lifecycle.
+2. **Atomic Store Insertion upon Approval (`create_plantilla_slot_from_request`)**:
+   - When the requisition is formally approved by Head Admin or Super Admin:
+     - **Step 1.5 (Atomic Store Provisioning)**: Inserts each unlisted store into `public.stores` (with auto-generated store code, account binding, and derived island group via `fn_derive_island_group`), updating `hc_request_stores.created_store_id`.
+     - **Step 2 (Coverage Group & Slot Creation)**: Binds the newly created stores into a new Coverage Group (`CGCode`), mints per-store VCodes in `public.vacancies`, and creates `plantilla_slots` rows in a single database transaction.
+3. **Hard-Block Island Group Span Constraint**:
+   - Proposed roving store clusters spanning multiple island groups (Luzon, Visayas, Mindanao) are rejected at both frontend validation and database level (`submit_headcount_request`).
+
+### Account Group Transfer Direct Admin Execution Policy
+
+**Status: ACCEPTED.** Simplifies operational hierarchy and governance:
+
+1. **Retirement from Approval Queues**:
+   - Account Group Transfers are permanently removed from `/approvals` queues (`account_group_transfer_requests` queue retired).
+2. **Direct Execution in Plantilla**:
+   - Head Admin (`role_level >= 90`) and Super Admin (`role_level >= 100`) execute group transfers directly from the Plantilla Account Directory context menu (`Transfer Group`).
+   - Backed by RPC `transfer_account_group_direct(p_account_id, p_to_group_id, p_reason)` with pre-execution impact simulation (`simulate_account_group_transfer`) and mandatory audit logging to `public.audit_logs`.
+
+### Dedicated Requester Tracking Feed (/my-requests)
+
+**Status: ACCEPTED.** Provides personal request tracking across Web and Mobile:
+
+1. **Cross-Platform Requester Surface**:
+   - Requesters who lack access to the admin `/approvals` clearinghouse (OM, HRCO, TL, ATL, Encoders) track all their submitted requests via `/my-requests` (Web) and `My Requests` (Mobile).
+2. **Unified Aggregation across Six Request Sources**:
+   - Queries and normalizes user-submitted rows from: `headcount_requests`, `new_store_requests`, `vacancy_closure_requests`, `v_deactivation_requests`, `vw_amr_list`, and `coverage_requests`.
+   - Unified status taxonomy: `pending`, `approved`, `rejected`, `cancelled`.
+3. **Option 1 Parity**: Headcount requests introducing new store doors render under `category: "new_stores"` with clear title `New Store (Position): Store Names` and subtitle `Account · N New Door(s) Proposed`.
 
 ---
 
@@ -850,3 +920,4 @@ Historical record, chronological. Full rule substance now lives in the module se
 - **2026-11-23 — `ohm#hr-emploc-compliance-arch`** — Codified HR Emploc Five Operational Queues (Pending, For Emploc, Correction, Review, Deployed), Emploc Number Ownership (HR Personnel Primary, Data Team Backup), Atomic Plantilla Deployment & Registry Rules a–d, Canonical Statutory Requirements (4 items), 3-Day Storage Purge Queue & Revert Grace Window, 3-Day Compliance SLA, and Deployed Tab Revert Governance (Data Team Authority & Plantilla Cancellation). → "HR Emploc" above.
 - **2026-11-23 — `ohm#emploc-backout-aging-continuity`** — Codified HR Emploc Backout to Vacancy Open Tab with Original Aging Continuity Invariant (retains original vacancy date, never resetting to backout date) and Deployed Tab Revert Governance (Data Team authority, soft-deletes Plantilla row, releases slot to open via BACKOUT). → "HR Emploc" and "Vacancy" above.
 - **2026-11-23 — `ohm#more-module-operations-hub-arch`** — Codified More Module (Operations Hub) Five Operational Tabs (Overview, Data Control, Permissions, Audit, Admin Tools), 5 Canonical Batch Imports (Plantilla, HR Emploc, Vacancy, Mika, Payroll) with 72h Rollback Governance, QA Simulation Engine (Atomic Sandbox Isolation with 0 live pollution), Role Impersonation (Acting Sessions), Permission Matrix Overrides with Bulk Reset, and Audit Activity Feed Lockdown. → "More Module" above.
+- **2026-11-23 — `ohm#approvals-clearinghouse-and-routing-arch`** — Codified Approvals Module Eleven Functional Review Queues, Option 1 Requisition Routing (New Doors vs. Headcount Quota), ADR-003 Unified Roving Requisitions with Atomic Store Provisioning, Account Group Transfer Direct Admin Execution Policy, and Dedicated Requester Tracking Feed (/my-requests). → "HC Request & Coverage Semantics" above.
