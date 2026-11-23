@@ -1051,6 +1051,19 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
   - **Crisp & Direct Messages**: Messages now read directly as `"Mismatched hired date across roving store rows."`, `"Underage employee. Minimum legal working age is 18."`, `"Hire date does not match master record in database."`, and `"Multiple employee numbers assigned to the same person. Roving employees must share the same Emp No."`.
   - **Signature Simplification**: Cleaned up function signature and call sites to remove unused parameter `_employeeName`.
 
+## Recent Updates
+- **Account Archival Cascade Trigger & Orphan Store Guard (`ohm#account-archive-cascade-and-orphan-cleanup` — 2026-11-23)**:
+  - **Database Cascade Trigger (`trg_account_archive_cascade_stores`)**: Added trigger on `public.accounts` via migration `20262606000139_account_archive_cascade_and_orphan_stores_cleanup.sql`. Whenever an account transitions to `is_active = false`, `is_archived = true`, or `status = 'Inactive'`, all its child stores in `public.stores` are automatically cascade-deactivated (`is_active = false, status = 'archived', is_archived = true, archived_at = now()`), permanently preventing orphan stores under retired/inactive accounts.
+  - **Query Layer 3-Way Archive Guard**: Hardened `fetchHeadcountModalMasterData` in `src/lib/queries/requests.ts` and `fetchAccountStores` & `fetchDestinationStores` in `src/lib/queries/plantilla.ts` with multi-column filtering (`.eq("is_active", true).neq("status", "archived").or("is_archived.is.null,is_archived.eq.false")`).
+  - **Database Cleanup & Rollback Finalization**: Resolved historical failed rollbacks resulting from the legacy 42703 `type` column bug:
+    - **MARIZ**: Batch `a1bf2b5e-2e8e-40f1-93e0-c730a626b452` marked `rolled_back`, 4 orphan stores and 2 plantilla rows archived.
+    - **ZEBRA**: Batches `29f1c261-39ea-4cc7-9b1e-681ccb55c7c9` and `a79f1571-4ee4-48db-9aa6-d2a66f08a347` marked `rolled_back`, 257 stores archived, and 252 unassigned slots / 1 vacancy closed.
+    - **ALTURAS**: Batch `0071cb78-c960-46b7-a5dd-dbce08335449` marked `rolled_back` and 6 orphan stores archived.
+    - **APEX**: Batch `82ee6311-404f-4358-b4d8-3d45cf30641b` marked `rejected/completed`, 14 stores and 4 plantilla rows archived.
+    - **ONE**: Batches `1d7ffc3f-a5b0-468f-bb39-689e3189428d` and `e9102051-c6cf-4057-8eee-8896d3fe6846` marked `rolled_back`.
+    - **ALING NENA STORE**: Deactivated orphan store `ALING NENA` (`518bdc0c-118a-42d3-9140-e99b501fcb21`).
+  - **Automated Health & Integrity Script**: Created `scripts/check-database-integrity.mjs` and registered npm script `npm run check:integrity` to proactively audit for orphan stores, unexecuted rollbacks, and inconsistent flags.
+
 - **Phase 2: Operations Coverage Requesting & Tiered Review/Approval (`ohm#o4p9s2k1` — 2026-11-13)**:
   - **Operations Request Authorization**: Enabled Operations roles (`Operations Manager`, `Team Leader`, `Assistant Team Leader`, `HR Coordinator` via `isOpsAmendmentRole`) to access the `+ Coverage Group` button and submit roving coverage group operations (Create Group, Add Store, Remove Store, Merge, Dissolve) in Request Mode.
   - **Tiered Review & Approval Model**:

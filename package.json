@@ -19,6 +19,7 @@
     "db:new": "node scripts/new-migration.mjs",
     "finish": "node scripts/finish.js",
     "check:migrations": "node scripts/check-migrations.mjs",
+    "check:integrity": "node scripts/check-database-integrity.mjs",
     "check:adr": "node scripts/adr-mirror.mjs check",
     "sync:adr": "node scripts/adr-mirror.mjs sync"
   },

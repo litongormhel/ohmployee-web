@@ -1,5 +1,49 @@
 # AI Handoff
 
+## Execution Report — Account Archival Cascade Trigger & Orphan Store Guard (ohm#account-archive-cascade-and-orphan-cleanup)
+
+**Status: COMPLETE & VERIFIED.**
+- **Context loaded**: `.ai/briefing.md`, `.ai/current_state.md` (Routing Index: Plantilla), `docs/state/plantilla_web_state.md`, `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md` (§ Core Cross-Module Invariants, Plantilla).
+- **ADR basis**: `ADR-001-ohmployee-system-architecture.md` commit `b0d03cf`; `adr002_plantilla_import_store_identity_and_governance.md` commit `49d7a40` (`ADR_MIRROR_STATUS: FRESH`).
+- **Goal & User Request**:
+  - User prompt: "check CITRUS account bakit may mga stores na sya eh 0 plantilla naman sya? check these stores if archive to then bakit nakikita sya dapat hindi."
+  - User follow-up: "Investigate if may mga rollback pa na need ayusin at may mga orphan. I need full report before we fix and ano ung pwede natin gawin guard to make sure that the Archive will not resurface? -> Plan A".
+- **Root Cause Analysis**:
+  1. **Legacy Failed Rollbacks**: Back on 2026-05-26, batch rollbacks failed with PostgreSQL error `[42703] column "type" not found in data type stores`. Because the transaction aborted, stores remained active (`is_active = true, status = 'active'`) in `public.stores` even when batch-created employees were later archived.
+  2. **Missing Cascade Deactivation on Accounts**: Inactivating or archiving an account (`accounts.is_active = false`) had no database trigger to cascade-deactivate child stores, leaving orphan stores active (e.g. `ALING NENA STORE`).
+  3. **Single-Column UI Queries**: Query layers (`fetchHeadcountModalMasterData`, `fetchAccountStores`) filtered stores solely with `.eq("is_active", true)`, omitting checks on `status != 'archived'` or `is_archived = false`.
+- **Key Changes Implemented**:
+  1. **Database Migration (`supabase/migrations/20262606000139_account_archive_cascade_and_orphan_stores_cleanup.sql`)**:
+     - Created trigger function `public.fn_trg_account_archive_cascade_stores()` with trigger `trg_account_archive_cascade_stores` on `public.accounts` (`AFTER UPDATE OF is_active, is_archived, status`).
+     - Data Cleanup:
+       - Deactivated orphan store `518bdc0c-118a-42d3-9140-e99b501fcb21` under inactive account `ALING NENA STORE`.
+       - Archived 4 orphan stores and 2 plantilla rows under MARIZ batch `a1bf2b5e-2e8e-40f1-93e0-c730a626b452`, marking batch `rolled_back`.
+       - Archived 257 stores, closed 252 unassigned slots and 1 vacancy under ZEBRA batches `29f1c261-39ea-4cc7-9b1e-681ccb55c7c9` & `a79f1571-4ee4-48db-9aa6-d2a66f08a347`, marking batches `rolled_back`.
+       - Archived 6 stores under ALTURAS batch `0071cb78-c960-46b7-a5dd-dbce08335449`, marking batch `rolled_back`.
+       - Archived 14 stores and 4 plantilla rows under APEX batch `82ee6311-404f-4358-b4d8-3d45cf30641b`, finalizing batch status.
+       - Finalized ONE batches `1d7ffc3f-a5b0-468f-bb39-689e3189428d` & `e9102051-c6cf-4057-8eee-8896d3fe6846` as `rolled_back`.
+  2. **Query Layer Multi-Column Barrier (`src/lib/queries/requests.ts`, `src/lib/queries/plantilla.ts`)**:
+     - Hardened `fetchHeadcountModalMasterData`, `fetchAccountStores`, and `fetchDestinationStores` with strict 3-way barrier `.eq("is_active", true).neq("status", "archived").or("is_archived.is.null,is_archived.eq.false")`.
+  3. **Automated Integrity Guard Script (`scripts/check-database-integrity.mjs`, `package.json`)**:
+     - Added script `scripts/check-database-integrity.mjs` and npm script `npm run check:integrity`.
+  4. **Staging Database Application & Live Verification**:
+     - Successfully pushed migration `20262606000139_account_archive_cascade_and_orphan_stores_cleanup.sql` to Staging (`qqiiznmqxfoamqytjica`).
+     - Verified live `pg_get_functiondef` for `fn_trg_account_archive_cascade_stores`.
+     - Verified zero remaining `rollback_failed` batches, zero orphan stores for MARIZ, ZEBRA, ALTURAS, APEX, ALING NENA, and CITRUS.
+  5. **Documentation & State**:
+     - Updated `docs/state/plantilla_web_state.md`, `.ai/current_state.md`, and `.ai/handoff.md`.
+- **Verification Summary**:
+  - `npm test`: 255/255 unit tests passed.
+  - `npm run lint`: 0 ESLint errors, 0 ESLint warnings (`check:secrets` clean, `check:sql` clean).
+  - Staging Migration Auto-Push: Cleanly applied to `qqiiznmqxfoamqytjica`.
+- **Migration Counter**:
+  prod: 631 migrations
+  staging: 633 migrations
+
+  2 migrations are not on prod:
+  - 20262606000138_fix_plantilla_deactivation_status_and_rpcs.sql
+  - 20262606000139_account_archive_cascade_and_orphan_stores_cleanup.sql
+
 ## Execution Report — Fix Plantilla Deactivation Check Constraint & Scope Parity (ohm#fix-plantilla-deactivation-status-check)
 
 **Status: COMPLETE & VERIFIED.**

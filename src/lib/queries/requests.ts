@@ -999,12 +999,14 @@ export async function fetchHeadcountModalMasterData(
 
   const supabase = createClient();
 
-  // 1. Fetch stores
+  // 1. Fetch stores (hardened with multi-column archive guard)
   const storesQuery = supabase
     .from("stores")
-    .select("id, store_name, area_city, area_province, province, island_group, is_active, account_id")
+    .select("id, store_name, area_city, area_province, province, island_group, is_active, account_id, status, is_archived")
     .eq("account_id", accountId)
     .eq("is_active", true)
+    .neq("status", "archived")
+    .or("is_archived.is.null,is_archived.eq.false")
     .order("store_name");
 
   // 2. Fetch positions via RPC
