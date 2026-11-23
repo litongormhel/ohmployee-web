@@ -1790,6 +1790,43 @@ export async function listWebPlantillaStoreStaffing(params: PlantillaStoreStaffi
   };
 }
 
+export type PlantillaStoreAllocationRow = {
+  id: string;
+  plantillaId: string | null;
+  employeeNo: string | null;
+  storeId: string | null;
+  storeName: string | null;
+  vcode: string | null;
+  filledHc: number;
+  isActive: boolean;
+};
+
+export async function fetchAccountStoreAllocations(accountId: string): Promise<PlantillaStoreAllocationRow[]> {
+  if (!accountId) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("employee_store_allocations")
+    .select("id, plantilla_id, employee_no, store_id, store_name, vcode, filled_hc, is_active")
+    .eq("account_id", accountId)
+    .eq("is_active", true);
+
+  if (error) {
+    console.error("[PostgREST Schema Error] fetchAccountStoreAllocations failed:", error);
+    return [];
+  }
+
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    plantillaId: (r.plantilla_id as string) || null,
+    employeeNo: (r.employee_no as string) || null,
+    storeId: (r.store_id as string) || null,
+    storeName: (r.store_name as string) || null,
+    vcode: (r.vcode as string) || null,
+    filledHc: Number(r.filled_hc) || 0,
+    isActive: Boolean(r.is_active),
+  }));
+}
+
 export async function getWebPlantillaDetail(plantillaId: string): Promise<PlantillaDetailItem> {
   const supabase = createClient();
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(plantillaId);

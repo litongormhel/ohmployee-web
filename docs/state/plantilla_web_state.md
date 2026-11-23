@@ -165,8 +165,9 @@ All card views implement the responsive 3-column layout (`grid grid-cols-1 md:gr
 ### B. Store View (Store Capacity Table)
 When `Store View` is active, the 5 Employee Status Sub-Tabs are hidden and replaced with the **Store Capacity Table** grouped per store branch:
 
-- **Strict Population Logic (Zero-Record Orphan Filter)**:
+- **Strict Population Logic & Roving Headcount Parity (Zero-Record Orphan Filter)**:
   - The Store View **ONLY** populates stores that have at least one associated record in the following states: **Active OR On-Leave OR Open Vacancy** (`activeDeployed > 0 || onLeave > 0 || openVacancy > 0`).
+  - **Roving Fractional Headcount ($1/N$) & Multi-Store Visibility**: Stores assigned to roving personnel (via `employee_store_allocations`) are dynamically included in candidate stores and credited with the employee's fractional headcount (`filled_hc`, e.g. `0.33` for 3 stores). All roving member stores (e.g. `PUREGOLD QC`, `PUREGOLD BULACAN`, `PUREGOLD PILI`) remain fully visible in Store View with their proportional `Plantilla Required` and `Active Deployed` counts, rather than being suppressed or erroneously rounded to `1.00`.
   - Orphaned stores having 0 Active, 0 On-Leave, and 0 Vacancies (e.g., Festival Mall, SM Caloocan) are strictly filtered out and hidden from this view.
   - Stores with active deployed personnel whose records lack a direct `store_id` foreign key or are not pre-registered in `public.stores` under the current account portfolio (e.g., `Super 8 Dau`) are dynamically consolidated and fetched, preserving full visibility over operational deployments with fallback city/province lookup.
 - **Default Pagination**:

@@ -1060,6 +1060,12 @@ export function EmployeeInactiveTable({
 // Store Capacity Table (Store View)
 // ---------------------------------------------------------------------------
 
+function formatCapacityCount(val: number): string {
+  if (!val || val === 0) return "0";
+  if (Number.isInteger(val)) return val.toString();
+  return Number(val.toFixed(2)).toString();
+}
+
 export function StoreCapacityTable({
   rows,
 }: {
@@ -1121,23 +1127,23 @@ export function StoreCapacityTable({
 
                   {/* 3. Plantilla Required (centered) */}
                   <td className="px-3.5 py-2 text-center font-mono font-bold text-text-primary text-xs">
-                    {store.plantillaRequired}
+                    {formatCapacityCount(store.plantillaRequired)}
                   </td>
 
                   {/* 4. Active Deployed (centered, emerald) */}
                   <td className="px-3.5 py-2 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">
-                    {store.activeDeployed}
+                    {formatCapacityCount(store.activeDeployed)}
                   </td>
 
                   {/* 5. On-Leave (centered, amber) */}
                   <td className="px-3.5 py-2 text-center font-mono font-bold text-amber-600 dark:text-amber-400 text-xs">
-                    {store.onLeave}
+                    {formatCapacityCount(store.onLeave)}
                   </td>
 
                   {/* 6. Open Vacancy (centered, red if > 0) */}
                   <td className="px-3.5 py-2 text-center font-mono font-bold text-xs">
                     {store.openVacancy > 0 ? (
-                      <span className="text-red-600 dark:text-red-400">{store.openVacancy}</span>
+                      <span className="text-red-600 dark:text-red-400">{formatCapacityCount(store.openVacancy)}</span>
                     ) : (
                       <span className="text-text-muted">0</span>
                     )}

@@ -23,6 +23,7 @@ import {
   getPlantillaSummary,
   listWebPlantillaEmployees,
   listWebPlantillaStoreStaffing,
+  fetchAccountStoreAllocations,
   fetchActiveCoverageForAccount,
   fetchPlantillaScopedAccounts,
   usePlantillaInactiveRemarks,
@@ -655,6 +656,14 @@ function PlantillaPageContent() {
     staleTime: 30000,
   });
 
+  // Store allocations query for accurate roving fractional headcount in Store View
+  const storeAllocationsQuery = useQuery({
+    queryKey: ["plantilla", "account-store-allocations", accountId],
+    queryFn: () => fetchAccountStoreAllocations(accountId),
+    enabled: !!accountId && isAccountAuthorized && mainView === "store",
+    staleTime: 30000,
+  });
+
   // -------------------------------------------------------------------------
   // Filtering & Partitioning into 5 Status Tabs
   // -------------------------------------------------------------------------
@@ -1028,18 +1037,63 @@ function PlantillaPageContent() {
       staffingMap.set(s.storeId, s);
     });
 
+    const activeAllocations = storeAllocationsQuery.data ?? [];
+    const hasAllocations = activeAllocations.length > 0;
+
     const storeActiveCountMap = new Map<string, number>();
     const storeOnLeaveCountMap = new Map<string, number>();
 
+    // Build map of employee status from allEmployees
+    const employeeMap = new Map<string, PlantillaEmployeeListItem>();
     allEmployees.forEach((emp) => {
+      if (emp.id) employeeMap.set(emp.id, emp);
+      if (emp.employeeNo) employeeMap.set(emp.employeeNo, emp);
+    });
+
+    // Track which employees were processed via allocations
+    const processedEmployeeKeys = new Set<string>();
+
+    if (hasAllocations) {
+      activeAllocations.forEach((alloc) => {
+        const emp = (alloc.plantillaId ? employeeMap.get(alloc.plantillaId) : null) ??
+          (alloc.employeeNo ? employeeMap.get(alloc.employeeNo) : null);
+
+        const s = (emp?.plantillaStatus || "active").toLowerCase();
+        const storeKey = alloc.storeName?.toLowerCase().trim();
+        if (!storeKey) return;
+
+        if (emp) {
+          processedEmployeeKeys.add(emp.id);
+          if (emp.employeeNo) processedEmployeeKeys.add(emp.employeeNo);
+        } else if (alloc.employeeNo) {
+          processedEmployeeKeys.add(alloc.employeeNo);
+        }
+
+        const hc = alloc.filledHc > 0 ? alloc.filledHc : 1;
+
+        if (s === "active" && (!emp || (!isDeactivationRecord(emp) && !isFloatingRecord(emp) && !isOnLeaveRecord(emp)))) {
+          storeActiveCountMap.set(storeKey, (storeActiveCountMap.get(storeKey) ?? 0) + hc);
+        } else if (s === "on leave" || s === "on_leave") {
+          storeOnLeaveCountMap.set(storeKey, (storeOnLeaveCountMap.get(storeKey) ?? 0) + hc);
+        }
+      });
+    }
+
+    // Fallback: for employees without allocations in employee_store_allocations
+    allEmployees.forEach((emp) => {
+      if (processedEmployeeKeys.has(emp.id) || (emp.employeeNo && processedEmployeeKeys.has(emp.employeeNo))) {
+        return;
+      }
       const storeKey = emp.primaryStoreName?.toLowerCase().trim();
       const s = (emp.plantillaStatus || "").toLowerCase();
       if (!storeKey) return;
 
+      const hc = emp.coveredStoresCount > 1 ? (1 / emp.coveredStoresCount) : 1;
+
       if (s === "active" && !isDeactivationRecord(emp) && !isFloatingRecord(emp) && !isOnLeaveRecord(emp)) {
-        storeActiveCountMap.set(storeKey, (storeActiveCountMap.get(storeKey) ?? 0) + 1);
+        storeActiveCountMap.set(storeKey, (storeActiveCountMap.get(storeKey) ?? 0) + hc);
       } else if (s === "on leave" || s === "on_leave") {
-        storeOnLeaveCountMap.set(storeKey, (storeOnLeaveCountMap.get(storeKey) ?? 0) + 1);
+        storeOnLeaveCountMap.set(storeKey, (storeOnLeaveCountMap.get(storeKey) ?? 0) + hc);
       }
     });
 
@@ -1086,6 +1140,24 @@ function PlantillaPageContent() {
       }
     });
 
+    // Ensure all stores with active allocations are in candidateStoreMap
+    activeAllocations.forEach((alloc) => {
+      const rawName = alloc.storeName?.trim();
+      if (rawName) {
+        const key = rawName.toLowerCase();
+        if (!candidateStoreMap.has(key)) {
+          const info = effectiveStoreLookupMap.get(key);
+          candidateStoreMap.set(key, {
+            id: alloc.storeId || info?.id || `alloc-${key}`,
+            name: rawName,
+            code: alloc.vcode || info?.code || null,
+            city: info?.city || null,
+            province: info?.province || null,
+          });
+        }
+      }
+    });
+
     allEmployees.forEach((emp) => {
       const rawName = emp.primaryStoreName?.trim();
       if (rawName) {
@@ -1123,17 +1195,24 @@ function PlantillaPageContent() {
     const rows: StoreCapacityRow[] = [];
 
     candidateStoreMap.forEach((storeObj, storeKey) => {
-      const activeDeployed = storeActiveCountMap.get(storeKey) ?? 0;
-      const onLeave = storeOnLeaveCountMap.get(storeKey) ?? 0;
-      const openVacancy = storeVacancyCountMap.get(storeKey) ?? 0;
+      const rawActive = storeActiveCountMap.get(storeKey) ?? 0;
+      const rawOnLeave = storeOnLeaveCountMap.get(storeKey) ?? 0;
+      const rawVacancy = storeVacancyCountMap.get(storeKey) ?? 0;
+
+      const activeDeployed = Math.round(rawActive * 100) / 100;
+      const onLeave = Math.round(rawOnLeave * 100) / 100;
+      const openVacancy = Math.round(rawVacancy * 100) / 100;
 
       if (activeDeployed === 0 && onLeave === 0 && openVacancy === 0) {
         return;
       }
 
+      const derivedRequired = Math.round((activeDeployed + openVacancy) * 100) / 100;
       const staffing = staffingMap.get(storeObj.id);
-      const plantillaRequired = staffing?.requiredHeadcount ?? (activeDeployed + openVacancy);
-      const isFulfilled = activeDeployed >= plantillaRequired && openVacancy === 0;
+      const plantillaRequired = derivedRequired > 0
+        ? derivedRequired
+        : (staffing?.requiredHeadcount ?? derivedRequired);
+      const isFulfilled = activeDeployed >= plantillaRequired - 0.01 && openVacancy === 0;
 
       rows.push({
         id: storeObj.id,
@@ -1152,6 +1231,7 @@ function PlantillaPageContent() {
     return rows.sort((a, b) => a.storeBranch.localeCompare(b.storeBranch));
   }, [
     storeStaffingQuery.data?.data,
+    storeAllocationsQuery.data,
     storesUnderAccountQuery.data,
     unmappedStoresQuery.data,
     effectiveStoreLookupMap,
