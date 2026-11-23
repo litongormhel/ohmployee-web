@@ -424,11 +424,11 @@ function PlantillaPageContent() {
         const accId = String(row.account_id);
         processedAccountIds.add(accId);
 
-        const actual = Number(row.actual_hc ?? 0);
-        const hrProcess = Number(row.pipeline_count ?? 0);
+        const actual = Math.round(Number(row.actual_hc ?? 0));
+        const hrProcess = Math.round(Number(row.pipeline_count ?? 0));
         const vacant = Math.round(Number(row.slot_vacant_hc ?? 0));
-        const required = Number(row.required_hc ?? (actual + vacant + hrProcess));
-        const leave = leaveMap.get(accId) ?? 0;
+        const required = Math.round(Number(row.required_hc ?? (actual + vacant + hrProcess)));
+        const leave = Math.round(leaveMap.get(accId) ?? 0);
 
         const fillRate = required > 0 ? (actual / required) * 100 : 0;
         map.set(accId, { actual, vacant, hrProcess, required, fillRate, leave });
@@ -438,12 +438,12 @@ function PlantillaPageContent() {
       (allowedAccountsQuery.data ?? []).forEach((a) => {
         const accId = String(a.id);
         if (!processedAccountIds.has(accId) && !a.isPoolAccount && a.name.trim().toLowerCase() !== "moses hq") {
-          const actual = activeEmpMap.get(accId) ?? 0;
-          const leave = leaveMap.get(accId) ?? 0;
-          const openSlots = openSlotsMap.get(accId) ?? 0;
+          const actual = Math.round(activeEmpMap.get(accId) ?? 0);
+          const leave = Math.round(leaveMap.get(accId) ?? 0);
+          const openSlots = Math.round(openSlotsMap.get(accId) ?? 0);
           const vacant = openSlots;
           const hrProcess = 0;
-          const required = actual + leave + vacant + hrProcess;
+          const required = Math.round(actual + leave + vacant + hrProcess);
           const fillRate = required > 0 ? (actual / required) * 100 : 0;
           map.set(accId, { actual, vacant, hrProcess, required, fillRate, leave });
         }
@@ -470,13 +470,13 @@ function PlantillaPageContent() {
         const vacant = poolSlots.length > 0 ? openPoolSlotsCount : 0;
         const required = poolSlots.length > 0 ? poolSlots.length : poolActiveHc;
         const fillRate = required > 0 ? (poolActiveHc / required) * 100 : 0;
-        const leave = leaveMap.get(poolId) ?? 0;
+        const leave = Math.round(leaveMap.get(poolId) ?? 0);
 
         map.set(poolId, {
-          actual: poolActiveHc,
-          vacant,
+          actual: Math.round(poolActiveHc),
+          vacant: Math.round(vacant),
           hrProcess: 0,
-          required,
+          required: Math.round(required),
           fillRate,
           leave,
         });

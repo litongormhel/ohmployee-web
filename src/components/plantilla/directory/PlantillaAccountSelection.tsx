@@ -146,11 +146,11 @@ export function PlantillaAccountSelection({
             const sortedAccounts = filteredAccounts
               .map((account) => {
                 const summary = getAccountSummary(account.id);
-                const actual = summary.actual;
-                const vacant = summary.vacant;
-                const hrProcess = summary.hrProcess;
-                const leave = summary.leave;
-                const required = summary.required;
+                const actual = Math.round(summary.actual);
+                const vacant = Math.round(summary.vacant);
+                const hrProcess = Math.round(summary.hrProcess);
+                const leave = Math.round(summary.leave);
+                const required = Math.round(summary.required);
                 const fillRate = required > 0 ? (actual / required) * 100 : 0;
 
                 return {
@@ -351,18 +351,18 @@ export function PlantillaAccountSelection({
 
                     <div className="mt-2.5 text-xs text-text-secondary flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span>
-                        HC <strong className="text-text-primary font-bold">{account.actual}</strong>/
-                        <strong className="text-text-primary font-bold">{account.required}</strong>
+                        HC <strong className="text-text-primary font-bold">{Math.round(account.actual)}</strong>/
+                        <strong className="text-text-primary font-bold">{Math.round(account.required)}</strong>
                       </span>
                       <span className="text-text-secondary/40">•</span>
                       <span>
-                        Vacant <strong className="text-text-primary font-bold">{account.vacant}</strong>
+                        Vacant <strong className="text-text-primary font-bold">{Math.round(account.vacant)}</strong>
                       </span>
                       {!account.isPoolAccount && (
                         <>
                           <span className="text-text-secondary/40">•</span>
                           <span>
-                            Pipeline <strong className="text-text-primary font-bold">{account.hrProcess}</strong>
+                            Pipeline <strong className="text-text-primary font-bold">{Math.round(account.hrProcess)}</strong>
                           </span>
                         </>
                       )}
@@ -370,7 +370,7 @@ export function PlantillaAccountSelection({
                         <>
                           <span className="text-text-secondary/40">•</span>
                           <span>
-                            Leave <strong className="text-text-primary font-bold">{account.leave}</strong>
+                            Leave <strong className="text-text-primary font-bold">{Math.round(account.leave)}</strong>
                           </span>
                         </>
                       )}

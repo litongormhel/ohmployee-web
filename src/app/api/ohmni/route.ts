@@ -294,10 +294,10 @@ async function executePlantillaSummary(
           .maybeSingle();
 
         if (kpiData) {
-          actualHc = Number(kpiData.actual_hc ?? 0);
+          actualHc = Math.round(Number(kpiData.actual_hc ?? 0));
           vacantHc = Math.round(Number(kpiData.slot_vacant_hc ?? 0));
-          pipelineCount = Number(kpiData.pipeline_count ?? 0);
-          requiredHc = Number(kpiData.required_hc ?? (actualHc + vacantHc));
+          pipelineCount = Math.round(Number(kpiData.pipeline_count ?? 0));
+          requiredHc = Math.round(Number(kpiData.required_hc ?? (actualHc + vacantHc)));
           const rawMfr = requiredHc > 0 ? (actualHc / requiredHc) * 100 : 0;
           fillRatePercent =
             rawMfr >= 100

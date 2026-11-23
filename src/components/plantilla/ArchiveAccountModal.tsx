@@ -80,9 +80,9 @@ export function ArchiveAccountModal({
         requestedBy: currentUser?.profileId ?? currentUser?.authUserId,
         requestedByName: currentUser?.displayName ?? "Admin",
         authUserId: currentUser?.authUserId ?? null,
-        actual: account.actual,
-        vacant: account.vacant,
-        required: account.required,
+        actual: Math.round(account.actual),
+        vacant: Math.round(account.vacant),
+        required: Math.round(account.required),
         groupName: account.groupName,
       });
 
@@ -163,7 +163,7 @@ export function ArchiveAccountModal({
             </div>
             <div>
               <p className="text-[10px] font-medium text-text-muted uppercase">Required Cap</p>
-              <p className="text-base font-bold text-text-secondary mt-0.5">{account.required}</p>
+              <p className="text-base font-bold text-text-secondary mt-0.5">{Math.round(account.required)}</p>
             </div>
           </div>
         </div>

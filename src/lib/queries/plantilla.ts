@@ -1199,10 +1199,10 @@ export async function getPlantillaSummary(
         .maybeSingle();
 
       if (!kpiError && kpiRows) {
-        const actual = Number(kpiRows.actual_hc ?? 0);
+        const actual = Math.round(Number(kpiRows.actual_hc ?? 0));
         const vacant = Math.round(Number(kpiRows.slot_vacant_hc ?? 0));
-        const hrProcess = Number(kpiRows.pipeline_count ?? 0);
-        const required = Number(kpiRows.required_hc ?? (actual + vacant));
+        const hrProcess = Math.round(Number(kpiRows.pipeline_count ?? 0));
+        const required = Math.round(Number(kpiRows.required_hc ?? (actual + vacant)));
         if (actual > 0 || required > 0) {
           return {
             required,

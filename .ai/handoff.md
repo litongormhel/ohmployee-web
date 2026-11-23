@@ -1,5 +1,49 @@
 # AI Handoff
 
+## Execution Report — Account-Level Whole Number Headcount & KPI Rounding Protection (ohm#round-account-allocation-kpi-whole-numbers)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **Root Cause Resolved**:
+   - In `employee_store_allocations`, roving merchandisers assigned across $N$ stores have fractional headcount shares $1/N$ (e.g. $1/3 \approx 0.33$ or $0.3333$).
+   - When summed across stores under an account, floating-point rounding inaccuracies leaked into account-level metrics (e.g., ACTISERVE had an employee with $0.33$ across 3 stores yielding $3.9900$ filled + $5$ vacant + $3$ pipeline = $11.9900$ required, rendering `HC 4/11.99` on the Directory card; BANCON rendered `HC 4/3.9999`; ACTIVESTYLE rendered `HC 1/0.9999`).
+   - This violated ADR-001 Invariant 17: while store-level capacity supports fractional roving shares ($1/N$), Account/CENCOM/Dashboard headcount strictly counts distinct people and must always be clean whole numbers.
+2. **Database Migration (`supabase/migrations/20262606000147_round_account_allocation_kpi_whole_numbers.sql`)**:
+   - Updated `public.v_account_allocation_kpi` to round `required_hc` and `slot_vacant_hc` to whole numbers (`round(..., 0)::numeric(12,4)`), and aligned `mfr` and `projected_mfr` to evaluate against distinct person counts (`actual_hc::numeric / required_hc`), preserving identical column ordering, names, and `numeric(12,4)` types.
+   - Refreshed downstream views `v_cencom_account_allocation_kpi`, `v_cencom_group_allocation_kpi`, and `v_cencom_allocation_kpi`.
+   - Pushed live to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging` (exit code 0).
+3. **Web Presentation Layer Defense-in-Depth**:
+   - `src/app/(dashboard)/plantilla/page.tsx`: In `accountMetricsQuery`, wrapped `actual`, `hrProcess`, `vacant`, `required`, and `leave` in `Math.round()`.
+   - `src/components/plantilla/directory/PlantillaAccountSelection.tsx`: Wrapped account summary attributes and JSX displays in `Math.round()` (`Math.round(account.actual)}/{Math.round(account.required)}`, `Math.round(account.vacant)}`, `Math.round(account.hrProcess)}`, `Math.round(account.leave)}`).
+   - `src/lib/queries/plantilla.ts`: Wrapped KPI fallback query in `getPlantillaSummary` with `Math.round()` on `actual`, `vacant`, `hrProcess`, and `required`.
+   - `src/app/api/ohmni/route.ts`: Hardened anomaly checks and summary formatters with `Math.round()`.
+   - `src/components/plantilla/ArchiveAccountModal.tsx`: Applied `Math.round()` on `required` and `actual`.
+   - `src/app/(dashboard)/cencom/groups/[id]/page.tsx`: Applied `Math.round()` on `account.required`, `account.actual`, and `account.vacant`.
+
+### Files
+- Web:
+  - `supabase/migrations/20262606000147_round_account_allocation_kpi_whole_numbers.sql`
+  - `src/app/(dashboard)/plantilla/page.tsx`
+  - `src/components/plantilla/directory/PlantillaAccountSelection.tsx`
+  - `src/lib/queries/plantilla.ts`
+  - `src/app/api/ohmni/route.ts`
+  - `src/components/plantilla/ArchiveAccountModal.tsx`
+  - `src/app/(dashboard)/cencom/groups/[id]/page.tsx`
+  - `.ai/briefing.md`
+  - `.ai/handoff.md`
+  - `docs/state/plantilla_web_state.md`
+
+### Validation
+- `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+- `npm run check:sql`: `SQL_CONTRACTS_OK` (28 core tables & 19 cross-module RPC contracts across 672 migrations).
+- `npm run check:migrations`: `prod: 640 migrations, staging: 641 migrations` (`1 migrations are not on prod: 20262606000147_round_account_allocation_kpi_whole_numbers.sql`).
+- `npm run lint`: `0` errors, `0` warnings.
+- `npm test`: `257/257` passed.
+- `npm run build`: verified Next.js production build (`22/22` static pages generated).
+- Remote Staging verification (`qqiiznmqxfoamqytjica`): migration `20262606000147` applied with 100% `pg_get_viewdef` parity.
+
+---
+
 ## Execution Report — Cross-Account Store Resolution & Headcount Request Parity (ohm#fix-hc-request-cross-account-store-resolution)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 

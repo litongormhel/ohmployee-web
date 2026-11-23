@@ -1190,6 +1190,21 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - In Mobile `lib/data/services/plantilla_scope_service.dart`, surfaced user-friendly error messages from RPC `result['message']`.
     - Applied and validated on Staging DB (`qqiiznmqxfoamqytjica`) with 0 errors across 255 Web tests and 27 Mobile tests.
 
+- **Account-Level Whole Number Headcount & KPI Rounding Protection (`ohm#round-account-allocation-kpi-whole-numbers` — 2026-11-23)**:
+  - **Issue Remediated**: On the Plantilla Directory overview cards (`/plantilla`), account-level headcount and vacancy metrics displayed floating-point decimal leakage (e.g. `ACTISERVE` `HC 4/11.99`, `BANCON` `HC 4/3.9999`, `ACTIVESTYLE` `HC 1/0.9999`) caused by fractional roving merchandiser allocation distributions ($1/N$, e.g. $1/3 \approx 0.33$ or $0.3333$).
+  - **Governing Architecture**: Enforces ADR-001 Invariant 17: while store-level capacity supports fractional roving shares ($1/N$), Account, CENCOM, and Dashboard headcount strictly counts distinct people and must always evaluate to whole numbers.
+  - **Database Migration (`20262606000147_round_account_allocation_kpi_whole_numbers.sql`)**:
+    - Updated `public.v_account_allocation_kpi` (and refreshed downstream views `v_cencom_account_allocation_kpi`, `v_cencom_group_allocation_kpi`, `v_cencom_allocation_kpi`) to round `required_hc` and `slot_vacant_hc` to whole numbers (`round(..., 0)::numeric(12,4)`), and aligned `mfr` and `projected_mfr` to evaluate against distinct person counts (`actual_hc::numeric / required_hc`), preserving identical column ordering, names, and `numeric(12,4)` types.
+    - Pushed live to Staging (`qqiiznmqxfoamqytjica`) with 0 errors via `npm run db:push:staging`.
+  - **Web Presentation Layer Hardening**:
+    - `src/app/(dashboard)/plantilla/page.tsx`: In `accountMetricsQuery`, wrapped `actual`, `hrProcess`, `vacant`, `required`, and `leave` in `Math.round()`.
+    - `src/components/plantilla/directory/PlantillaAccountSelection.tsx`: Wrapped account summary attributes and JSX displays in `Math.round()` (`Math.round(account.actual)}/{Math.round(account.required)}`, `Math.round(account.vacant)}`, `Math.round(account.hrProcess)}`, `Math.round(account.leave)}`).
+    - `src/lib/queries/plantilla.ts`: Wrapped KPI fallback query in `getPlantillaSummary` with `Math.round()` on `actual`, `vacant`, `hrProcess`, and `required`.
+    - `src/app/api/ohmni/route.ts`: Hardened anomaly checks and summary formatters with `Math.round()`.
+    - `src/components/plantilla/ArchiveAccountModal.tsx`: Applied `Math.round()` on `required` and `actual`.
+    - `src/app/(dashboard)/cencom/groups/[id]/page.tsx`: Applied `Math.round()` on `account.required`, `account.actual`, and `account.vacant`.
+
+
 
 
 

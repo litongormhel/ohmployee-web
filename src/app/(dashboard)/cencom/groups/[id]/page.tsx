@@ -493,17 +493,17 @@ export default function CencomGroupDetailPage() {
 
                       {/* Required HC */}
                       <td className="px-3 py-3.5 text-center font-mono font-semibold text-text-primary">
-                        {account.required}
+                        {Math.round(account.required)}
                       </td>
 
                       {/* Actual HC */}
                       <td className="px-3 py-3.5 text-center font-mono font-semibold text-text-primary">
-                        {account.actual}
+                        {Math.round(account.actual)}
                       </td>
 
                       {/* Vacancies */}
                       <td className="px-3 py-3.5 text-center font-mono font-semibold text-text-primary">
-                        {account.vacant}
+                        {Math.round(account.vacant)}
                       </td>
 
                       {/* MFR Progress */}
@@ -511,7 +511,7 @@ export default function CencomGroupDetailPage() {
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-[11px] text-text-muted">
-                              {account.actual} / {account.required}
+                              {Math.round(account.actual)} / {Math.round(account.required)}
                             </span>
                             {account.required === 0 && (
                               <span className="font-semibold text-text-muted tabular-nums">
