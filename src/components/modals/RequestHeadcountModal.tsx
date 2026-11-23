@@ -5,8 +5,6 @@ import {
   AlertCircle,
   AlertTriangle,
   Building2,
-  CheckCircle2,
-  Clock,
   Globe2,
   Layers,
   MapPin,
@@ -566,15 +564,15 @@ function RequestHeadcountModalDialog({
             : "Step 2 of 2: Review & Submit"
         }
         icon={UsersRound}
-        maxWidthClass="max-w-3xl"
+        maxWidthClass="max-w-xl"
         disableBackdropClick={submitMutation.isPending}
         isSubmitting={submitMutation.isPending}
         isDirty={isFormDirty}
       >
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 max-h-[75vh]">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 max-h-[80vh]">
           {/* Recruitment Freeze Banner */}
           {isRecruitmentFreezeActive && (
-            <div className="flex items-start gap-3 rounded-lg border border-border-default bg-surface-muted p-4 text-xs text-text-primary">
+            <div className="flex items-start gap-3 rounded-lg border border-border-default bg-surface-muted p-3.5 text-xs text-text-primary">
               <ShieldAlert className="h-5 w-5 shrink-0 text-text-secondary mt-0.5" />
               <div>
                 <p className="font-semibold text-sm">Recruitment Freeze Active</p>
@@ -587,14 +585,14 @@ function RequestHeadcountModalDialog({
 
           {/* Validation & Error Alert */}
           {validationError && (
-            <div className="flex items-start gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-3.5 text-xs text-[var(--foreground)]">
+            <div className="flex items-start gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-3 text-xs text-[var(--foreground)]">
               <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--text-muted)] mt-0.5" />
               <span>{validationError}</span>
             </div>
           )}
 
           {submissionError && (
-            <div className="flex items-start gap-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger-bg)] p-3.5 text-xs text-[var(--danger)]">
+            <div className="flex items-start gap-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger-bg)] p-3 text-xs text-[var(--danger)]">
               <AlertCircle className="h-4 w-4 shrink-0 text-[var(--danger)] mt-0.5" />
               <span>{submissionError}</span>
             </div>
@@ -604,28 +602,14 @@ function RequestHeadcountModalDialog({
           {/* STEP 1: FORM DETAILS */}
           {/* ========================================================================= */}
           {currentStep === "form" && (
-            <div className="space-y-6">
-              {/* Account Context */}
-              <div className="rounded-lg border border-border-default bg-surface-muted p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
-                    <Building2 className="h-4 w-4 text-text-muted" />
+            <div className="space-y-4">
+              {/* Account Context - Only shown if not already scoped by Plantilla */}
+              {!propAccountId && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-text-muted" />
                     Target Operational Account
-                  </span>
-                  {selectedAccountName && (
-                    <span className="text-xs font-semibold text-brand-600">
-                      Active Plantilla Scope
-                    </span>
-                  )}
-                </div>
-                {propAccountId ? (
-                  <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-                    <span>{selectedAccountName || propAccountName || "Scoped Account"}</span>
-                    <span className="inline-flex items-center rounded-md bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-700/10">
-                      Scoped Account
-                    </span>
-                  </div>
-                ) : (
+                  </label>
                   <select
                     value={selectedAccountId}
                     onChange={(e) => {
@@ -636,7 +620,7 @@ function RequestHeadcountModalDialog({
                       setSelectedStore(null);
                       setSelectedRovingStores([]);
                     }}
-                    className="w-full rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                    className="w-full rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500 shadow-xs"
                   >
                     {availableAccounts.map((a) => (
                       <option key={a.id} value={a.id}>
@@ -644,33 +628,33 @@ function RequestHeadcountModalDialog({
                       </option>
                     ))}
                   </select>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* SECTION 1: WORKFORCE TYPE TOGGLE (Hidden when locked by entry point) */}
               {!lockedWorkforceType && (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-text-secondary">
                     Workforce Deployment Type
                   </label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2.5">
                     <button
                       type="button"
                       onClick={() => {
                         setWorkforceType("stationary");
                         setValidationError(null);
                       }}
-                      className={`flex flex-col items-start gap-1 rounded-lg border p-3.5 text-left transition-all ${
+                      className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all ${
                         workforceType === "stationary"
                           ? "border-brand-primary bg-surface-selected text-text-primary shadow-xs ring-1 ring-brand-primary"
                           : "border-border-default bg-surface-base text-text-secondary hover:border-border-subtle hover:bg-surface-hover hover:text-text-primary"
                       }`}
                     >
-                      <div className="flex items-center gap-1.5 font-semibold text-sm">
-                        <MapPin className="h-4 w-4 text-brand-primary" />
+                      <div className="flex items-center gap-1.5 font-semibold text-xs sm:text-sm">
+                        <MapPin className="h-3.5 w-3.5 text-brand-primary" />
                         <span>Stationary</span>
                       </div>
-                      <p className="text-xs text-text-secondary">Single dedicated store assignment</p>
+                      <p className="text-[11px] text-text-secondary">Single dedicated store</p>
                     </button>
 
                     <button
@@ -679,25 +663,25 @@ function RequestHeadcountModalDialog({
                         setWorkforceType("roving");
                         setValidationError(null);
                       }}
-                      className={`flex flex-col items-start gap-1 rounded-lg border p-3.5 text-left transition-all ${
+                      className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all ${
                         workforceType === "roving"
                           ? "border-brand-primary bg-surface-selected text-text-primary shadow-xs ring-1 ring-brand-primary"
                           : "border-border-default bg-surface-base text-text-secondary hover:border-border-subtle hover:bg-surface-hover hover:text-text-primary"
                       }`}
                     >
-                      <div className="flex items-center gap-1.5 font-semibold text-sm">
-                        <Layers className="h-4 w-4 text-brand-primary" />
+                      <div className="flex items-center gap-1.5 font-semibold text-xs sm:text-sm">
+                        <Layers className="h-3.5 w-3.5 text-brand-primary" />
                         <span>Roving</span>
                       </div>
-                      <p className="text-xs text-text-secondary">Multi-store coverage cluster (2–20)</p>
+                      <p className="text-[11px] text-text-secondary">Multi-store cluster (2–20)</p>
                     </button>
 
                     <div
                       title="Floating workforce is reserved for a future phase"
-                      className="flex flex-col items-start gap-1 rounded-lg border border-border-default bg-surface-muted/60 p-3.5 text-left opacity-50 cursor-not-allowed"
+                      className="flex flex-col items-start gap-1 rounded-lg border border-border-default bg-surface-muted/60 p-3 text-left opacity-50 cursor-not-allowed"
                     >
-                      <div className="flex items-center gap-1.5 font-semibold text-sm text-text-muted">
-                        <Globe2 className="h-4 w-4" />
+                      <div className="flex items-center gap-1.5 font-semibold text-xs sm:text-sm text-text-muted">
+                        <Globe2 className="h-3.5 w-3.5" />
                         <span>Floating</span>
                       </div>
                       <p className="text-[11px] text-text-muted italic">Phase 2 Reserved</p>
@@ -708,53 +692,48 @@ function RequestHeadcountModalDialog({
 
               {/* SECTION 2: STORE SELECTION */}
               {workforceType === "stationary" ? (
-                /* Stationary: Province -> City -> Store */
-                <div className="space-y-3 rounded-lg border border-border-default bg-surface-base p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4 text-brand-600" />
-                      Target Store & Area
-                    </span>
-                    {selectedStore && !lockedStore && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedStore(null);
-                        }}
-                        className="text-xs font-semibold text-brand-600 hover:text-brand-700"
-                      >
-                        Change Store
-                      </button>
-                    )}
-                  </div>
-
+                /* Stationary: Store display or search */
+                <div className="space-y-2">
                   {selectedStore ? (
-                    /* Store Verification Card */
-                    <div className="flex items-start justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-[var(--foreground)]" />
-                          <h4 className="font-semibold text-sm text-[var(--foreground)]">
-                            {selectedStore.store_name}
-                          </h4>
-                          {selectedStore.island_group && (
-                            <span className="rounded bg-[var(--surface-base)] px-1.5 py-0.5 text-[10px] font-semibold font-mono text-[var(--foreground)] border border-[var(--border-subtle)]">
-                              {selectedStore.island_group}
+                    /* Compact Store Indicator Row */
+                    <div className="flex items-center justify-between rounded-lg border border-border-subtle bg-surface-muted/50 px-3.5 py-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <MapPin className="h-4 w-4 shrink-0 text-brand-600" />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm text-text-primary truncate">
+                              {selectedStore.store_name}
                             </span>
-                          )}
+                            {selectedStore.island_group && (
+                              <span className="rounded bg-surface-base px-1.5 py-0.5 text-[10px] font-semibold font-mono text-text-secondary border border-border-subtle">
+                                {selectedStore.island_group}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-text-muted truncate">
+                            {[selectedStore.area_city, selectedStore.province || selectedStore.area_province]
+                              .filter(Boolean)
+                              .join(", ") || "Active Store"}
+                          </p>
                         </div>
-                        <p className="text-xs text-[var(--text-muted)]">
-                          {[selectedStore.area_city, selectedStore.province || selectedStore.area_province]
-                            .filter(Boolean)
-                            .join(", ") || "Active Store"}
-                        </p>
                       </div>
-                      <span className="rounded-full bg-[var(--surface-base)] px-2.5 py-1 text-[11px] font-semibold text-[var(--foreground)] border border-[var(--border-subtle)]">
-                        {lockedStore ? "Store View Locked" : "Verified Store"}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="rounded-full bg-surface-base px-2 py-0.5 text-[11px] font-medium text-text-secondary border border-border-subtle">
+                          {lockedStore ? "Store Locked" : "Selected Store"}
+                        </span>
+                        {!lockedStore && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedStore(null)}
+                            className="text-xs font-semibold text-brand-600 hover:text-brand-700"
+                          >
+                            Change
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 rounded-lg border border-border-default bg-surface-base p-3.5">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-xs font-medium text-text-secondary mb-1 block">
@@ -807,7 +786,7 @@ function RequestHeadcountModalDialog({
                           />
                         </div>
 
-                        <div className="max-h-56 overflow-y-auto rounded-md border border-border-default bg-surface-base divide-y divide-border-subtle">
+                        <div className="max-h-48 overflow-y-auto rounded-md border border-border-default bg-surface-base divide-y divide-border-subtle">
                           {filteredStationaryStores.length === 0 ? (
                             isLoadingMasterData ? (
                               <div className="p-4 text-center text-xs text-text-muted">
@@ -892,7 +871,7 @@ function RequestHeadcountModalDialog({
                 </div>
               ) : (
                 /* Roving: Existing Multi-Store Chip Picker */
-                <div className="space-y-3 rounded-lg border border-border-default bg-surface-base p-4">
+                <div className="space-y-3 rounded-lg border border-border-default bg-surface-base p-3.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
                       <Layers className="h-4 w-4 text-brand-600" />
@@ -939,13 +918,13 @@ function RequestHeadcountModalDialog({
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-md border border-dashed border-border-default p-4 text-center text-xs text-text-muted">
+                    <div className="rounded-md border border-dashed border-border-default p-3 text-center text-xs text-text-muted">
                       No stores selected yet. Pick between 2 and 20 existing stores below sharing the same island group. Need to open an unlisted store? Use <strong>+ Request New Store</strong> in the Plantilla header.
                     </div>
                   )}
 
                   {/* Store Multi-picker list */}
-                  <div className="space-y-2 pt-2">
+                  <div className="space-y-2 pt-1">
                     <div className="relative">
                       <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" />
                       <input
@@ -957,7 +936,7 @@ function RequestHeadcountModalDialog({
                       />
                     </div>
 
-                    <div className="max-h-44 overflow-y-auto rounded-md border border-border-default bg-surface-base divide-y divide-border-subtle">
+                    <div className="max-h-40 overflow-y-auto rounded-md border border-border-default bg-surface-base divide-y divide-border-subtle">
                       {stores
                         .filter((s) => {
                           if (!rovingSearch.trim()) return true;
@@ -1044,21 +1023,16 @@ function RequestHeadcountModalDialog({
               )}
 
               {/* SECTION 3: POSITION & DEMAND DETAILS */}
-              <div className="space-y-4 rounded-lg border border-border-default bg-surface-base p-4">
-                <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
-                  <Sparkles className="h-4 w-4 text-brand-600" />
-                  Position & Headcount
-                </span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-text-secondary mb-1 block">
+                    <label className="text-xs font-semibold text-text-secondary mb-1.5 block">
                       Position Title <RequiredAsterisk />
                     </label>
                     <select
                       value={selectedPositionId}
                       onChange={(e) => setSelectedPositionId(e.target.value)}
-                      className="w-full rounded-md border border-border-default bg-surface-muted px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                      className="w-full rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500 shadow-xs"
                     >
                       {positions.map((pos) => (
                         <option key={pos.id} value={pos.id}>
@@ -1069,13 +1043,13 @@ function RequestHeadcountModalDialog({
                   </div>
 
                   <div>
-                    <label className="text-xs font-medium text-text-secondary mb-1 block">
+                    <label className="text-xs font-semibold text-text-secondary mb-1.5 block">
                       Request Type <RequiredAsterisk />
                     </label>
                     <select
                       value={requestType}
                       onChange={(e) => setRequestType(e.target.value as RequestType)}
-                      className="w-full rounded-md border border-border-default bg-surface-muted px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500"
+                      className="w-full rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500 shadow-xs"
                     >
                       <option value="Additional Headcount">Additional Headcount</option>
                       <option value="Replacement">Replacement</option>
@@ -1087,9 +1061,9 @@ function RequestHeadcountModalDialog({
                 </div>
 
                 {/* Stepper for Headcount */}
-                <div className="flex items-center justify-between border-t border-border-subtle pt-3">
+                <div className="flex items-center justify-between rounded-lg border border-border-subtle bg-surface-muted/40 px-3.5 py-2.5">
                   <div>
-                    <div className="text-xs font-medium text-text-secondary">
+                    <div className="text-xs font-semibold text-text-primary">
                       {requestType === "HC Reduction" ? "Headcount to Reduce" : "Headcount Needed"} <RequiredAsterisk />
                     </div>
                     <div className="text-[11px] text-text-muted">
@@ -1104,10 +1078,10 @@ function RequestHeadcountModalDialog({
                       type="button"
                       disabled={headcountNeeded <= 1}
                       onClick={() => setHeadcountNeeded((prev) => Math.max(1, prev - 1))}
-                      className="flex h-9 w-9 items-center justify-center rounded-md border border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover disabled:opacity-40 transition-colors shadow-xs"
+                      className="flex h-8 w-8 items-center justify-center rounded-md border border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover disabled:opacity-40 transition-colors shadow-xs"
                       aria-label="Decrease headcount"
                     >
-                      <Minus className="h-4 w-4" />
+                      <Minus className="h-3.5 w-3.5" />
                     </button>
                     <input
                       type="number"
@@ -1120,15 +1094,15 @@ function RequestHeadcountModalDialog({
                           setHeadcountNeeded(val);
                         }
                       }}
-                      className="h-9 w-14 rounded-md border border-border-default bg-surface-muted text-center font-mono text-base font-bold text-text-primary outline-none focus:border-brand-500"
+                      className="h-8 w-12 rounded-md border border-border-default bg-surface-base text-center font-mono text-sm font-bold text-text-primary outline-none focus:border-brand-500"
                     />
                     <button
                       type="button"
                       onClick={() => setHeadcountNeeded((prev) => prev + 1)}
-                      className="flex h-9 w-9 items-center justify-center rounded-md border border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover transition-colors shadow-xs"
+                      className="flex h-8 w-8 items-center justify-center rounded-md border border-border-default bg-surface-base text-text-secondary hover:bg-surface-hover transition-colors shadow-xs"
                       aria-label="Increase headcount"
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
@@ -1136,86 +1110,79 @@ function RequestHeadcountModalDialog({
 
               {/* SECTION 4: TIMELINE & URGENCY (Bypassed if HC Reduction) */}
               {requestType !== "HC Reduction" && (
-                <div className="space-y-4 rounded-lg border border-border-default bg-surface-base p-4">
-                  <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-brand-600" />
-                    Timeline & Fulfillment Urgency
-                  </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-text-secondary mb-1.5 block">
+                      Vacant Date <RequiredAsterisk />
+                    </label>
+                    <input
+                      type="date"
+                      value={vacantDate}
+                      onChange={(e) => handleVacantDateChange(e.target.value)}
+                      className="w-full rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500 shadow-xs"
+                    />
+                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-xs font-medium text-text-secondary mb-1 block">
-                        Vacant Date <RequiredAsterisk />
+                  <div>
+                    <label className="text-xs font-semibold text-text-secondary mb-1.5 block">
+                      Urgency Tier <RequiredAsterisk />
+                    </label>
+                    <select
+                      value={urgency}
+                      onChange={(e) => handleUrgencyChange(e.target.value as UrgencyTier)}
+                      className="w-full rounded-md border border-border-default bg-surface-base px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500 shadow-xs"
+                    >
+                      <option value="Critical">Critical (3 days)</option>
+                      <option value="High">High (7 days)</option>
+                      <option value="Medium">Medium (14 days)</option>
+                      <option value="Low">Low (30 days)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-semibold text-text-secondary block">
+                        Target Fill Date <RequiredAsterisk />
                       </label>
-                      <input
-                        type="date"
-                        value={vacantDate}
-                        onChange={(e) => handleVacantDateChange(e.target.value)}
-                        className="w-full rounded-md border border-border-default bg-surface-muted px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-medium text-text-secondary mb-1 block">
-                        Urgency Tier <RequiredAsterisk />
-                      </label>
-                      <select
-                        value={urgency}
-                        onChange={(e) => handleUrgencyChange(e.target.value as UrgencyTier)}
-                        className="w-full rounded-md border border-border-default bg-surface-muted px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500"
-                      >
-                        <option value="Critical">Critical (3 days)</option>
-                        <option value="High">High (7 days)</option>
-                        <option value="Medium">Medium (14 days)</option>
-                        <option value="Low">Low (30 days)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-medium text-text-secondary block">
-                          Target Fill Date <RequiredAsterisk />
-                        </label>
-                        {isTargetDateUserOverridden && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsTargetDateUserOverridden(false);
-                              setTargetFillDate(addDays(vacantDate, getUrgencyDays(urgency)));
-                            }}
-                            className="text-[10px] text-brand-600 hover:text-brand-700"
-                          >
-                            Reset Auto
-                          </button>
-                        )}
-                      </div>
-                      <input
-                        type="date"
-                        value={targetFillDate}
-                        onChange={(e) => {
-                          setTargetFillDate(e.target.value);
-                          setIsTargetDateUserOverridden(true);
-                        }}
-                        className={`w-full rounded-md border bg-surface-muted px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500 ${
-                          isDateOrderInvalid ? "border-[var(--danger)]" : "border-border-default"
-                        }`}
-                      />
-                      {isDateOrderInvalid && (
-                        <p className="mt-1 text-[11px] text-[var(--danger)]">
-                          Target date cannot precede vacant date
-                        </p>
+                      {isTargetDateUserOverridden && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsTargetDateUserOverridden(false);
+                            setTargetFillDate(addDays(vacantDate, getUrgencyDays(urgency)));
+                          }}
+                          className="text-[10px] font-semibold text-brand-600 hover:text-brand-700"
+                        >
+                          Reset Auto
+                        </button>
                       )}
                     </div>
+                    <input
+                      type="date"
+                      value={targetFillDate}
+                      onChange={(e) => {
+                        setTargetFillDate(e.target.value);
+                        setIsTargetDateUserOverridden(true);
+                      }}
+                      className={`w-full rounded-md border bg-surface-base px-3 py-2 text-sm text-text-primary outline-none focus:border-brand-500 shadow-xs ${
+                        isDateOrderInvalid ? "border-[var(--danger)]" : "border-border-default"
+                      }`}
+                    />
+                    {isDateOrderInvalid && (
+                      <p className="mt-1 text-[11px] text-[var(--danger)]">
+                        Target date cannot precede vacant date
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* SECTION 5: OPERATIONAL JUSTIFICATION */}
-              <div className="space-y-2 rounded-lg border border-border-default bg-surface-base p-4">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-text-secondary flex items-center gap-1">
+                  <label className="text-xs font-semibold text-text-secondary flex items-center gap-1">
                     Operational Justification <RequiredAsterisk />
-                  </span>
+                  </label>
                   <span className="text-xs text-text-muted">
                     {reason.length}/500 chars{" "}
                     <span
@@ -1235,7 +1202,7 @@ function RequestHeadcountModalDialog({
                   placeholder="Detail the operational justification, store coverage, expansion rationale, or business demand (minimum 20 characters required)..."
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  className="w-full rounded-md border border-border-default bg-surface-muted p-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors resize-none"
+                  className="w-full rounded-md border border-border-default bg-surface-base p-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors resize-none shadow-xs"
                 />
               </div>
             </div>
@@ -1245,8 +1212,8 @@ function RequestHeadcountModalDialog({
           {/* STEP 2: REVIEW CONFIRMATION STEP */}
           {/* ========================================================================= */}
           {currentStep === "review" && (
-            <div className="space-y-6">
-              <div className="rounded-lg border border-border-default bg-surface-selected p-4 text-xs text-text-primary">
+            <div className="space-y-4">
+              <div className="rounded-lg border border-border-default bg-surface-selected p-3.5 text-xs text-text-primary">
                 <h4 className="font-semibold text-sm flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-brand-primary" />
                   Review Headcount Requisition
@@ -1258,38 +1225,41 @@ function RequestHeadcountModalDialog({
 
               {/* Requisition Summary Card */}
               <div className="rounded-xl border border-border-default bg-surface-base overflow-hidden divide-y divide-border-subtle shadow-xs">
-                <div className="p-4 grid grid-cols-2 gap-4">
-                  <div>
+                {!propAccountId && (
+                  <div className="p-3.5 flex items-center justify-between">
                     <span className="text-[11px] font-semibold text-text-muted">Operational Account</span>
-                    <div className="text-sm font-bold text-text-primary mt-0.5">{selectedAccountName}</div>
+                    <span className="text-sm font-bold text-text-primary">{selectedAccountName}</span>
                   </div>
-                  <div>
-                    <span className="text-[11px] font-semibold text-text-muted">Deployment Mode</span>
-                    <div className="text-sm font-semibold text-text-primary mt-0.5 capitalize flex items-center gap-1.5">
-                      {workforceType === "stationary" ? (
-                        <MapPin className="h-3.5 w-3.5 text-brand-600" />
-                      ) : (
-                        <Layers className="h-3.5 w-3.5 text-brand-600" />
-                      )}
-                      <span>{workforceType} Deployment</span>
-                    </div>
+                )}
+
+                <div className="p-3.5 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-text-muted">Deployment Mode</span>
+                  <div className="text-xs font-semibold text-text-primary capitalize flex items-center gap-1.5">
+                    {workforceType === "stationary" ? (
+                      <MapPin className="h-3.5 w-3.5 text-brand-600" />
+                    ) : (
+                      <Layers className="h-3.5 w-3.5 text-brand-600" />
+                    )}
+                    <span>{workforceType} Deployment</span>
                   </div>
                 </div>
 
-                <div className="p-4">
-                  <span className="text-[11px] font-semibold text-text-muted">
-                    {workforceType === "stationary" ? "Assigned Store" : `Roving Cluster (${selectedRovingStores.length} stores)`}
-                  </span>
-                  {workforceType === "stationary" ? (
-                    <div className="mt-1 flex items-center justify-between">
-                      <span className="font-bold text-sm text-text-primary">
-                        {selectedStore?.store_name}
-                      </span>
+                <div className="p-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-text-muted">
+                      {workforceType === "stationary" ? "Assigned Store" : `Roving Cluster (${selectedRovingStores.length} stores)`}
+                    </span>
+                    {workforceType === "stationary" && (
                       <span className="text-xs text-text-muted">
                         {[selectedStore?.area_city, selectedStore?.province || selectedStore?.area_province]
                           .filter(Boolean)
                           .join(", ")}
                       </span>
+                    )}
+                  </div>
+                  {workforceType === "stationary" ? (
+                    <div className="mt-0.5 font-bold text-sm text-text-primary">
+                      {selectedStore?.store_name}
                     </div>
                   ) : (
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -1308,7 +1278,7 @@ function RequestHeadcountModalDialog({
                   )}
                 </div>
 
-                <div className="p-4 grid grid-cols-3 gap-4">
+                <div className="p-3.5 grid grid-cols-3 gap-3">
                   <div>
                     <span className="text-[11px] font-semibold text-text-muted">Position</span>
                     <div className="text-sm font-bold text-text-primary mt-0.5">
@@ -1330,7 +1300,7 @@ function RequestHeadcountModalDialog({
                 </div>
 
                 {requestType !== "HC Reduction" && (
-                  <div className="p-4 grid grid-cols-3 gap-4">
+                  <div className="p-3.5 grid grid-cols-3 gap-3">
                     <div>
                       <span className="text-[11px] font-semibold text-text-muted">Vacant Date</span>
                       <div className="text-sm font-medium text-text-primary mt-0.5">{vacantDate}</div>
@@ -1346,7 +1316,7 @@ function RequestHeadcountModalDialog({
                   </div>
                 )}
 
-                <div className="p-4">
+                <div className="p-3.5">
                   <span className="text-[11px] font-semibold text-text-muted">Operational Justification</span>
                   <div className="text-xs text-text-secondary mt-1 italic whitespace-pre-wrap">
                     {reason.trim() || "No additional justification notes provided."}
@@ -1358,7 +1328,7 @@ function RequestHeadcountModalDialog({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between border-t border-border-default px-6 py-4 shrink-0 bg-surface-muted/40">
+        <div className="flex items-center justify-between border-t border-border-default px-5 py-3.5 shrink-0 bg-surface-muted/40">
           {currentStep === "form" ? (
             <>
               <button

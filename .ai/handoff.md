@@ -1,5 +1,43 @@
 # AI Handoff
 
+## Execution Report — Request Headcount Modal Layout Polish & Scope Optimization (ohm#polish-request-headcount-modal)
+**Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **Modal Form Factor & Container Optimization**:
+   - Resized dialog container `maxWidthClass` on `<Modal>` in `RequestHeadcountModal.tsx` from `max-w-3xl` (768px) to `max-w-xl` (576px), eliminating awkward horizontal sprawl for a 4-field requisition dialog.
+   - Reduced content padding and vertical item gaps from `p-6 space-y-6 max-h-[75vh]` to `p-5 space-y-4 max-h-[80vh]`.
+2. **Removed Redundant "Target Operational Account" Card**:
+   - When opened inside the Plantilla module (where `propAccountId` is already provided by the active plantilla scope), completely eliminated the redundant "Target Operational Account" card and badges.
+   - For standalone invocations without a pre-scoped account (`!propAccountId`), rendered a clean, simple `<select>` dropdown.
+3. **Streamlined Store Verification Display**:
+   - Replaced bulky nested card-inside-card double borders with a sleek, compact single-row store indicator:
+     `[ MapPin icon | Store Name | Island Group badge | City, Province ] --- [ Store Locked / Selected Store ]`.
+4. **Clean Grid Form Elements**:
+   - Removed nested outer bordered container frames from Position & Headcount, rendering Position Title and Request Type in a clean 2-column grid.
+   - Retained the compact Headcount Needed stepper row directly below.
+   - Rendered Vacant Date, Urgency Tier, and Target Fill Date in a clean 3-column grid without outer boxed card frames.
+   - Rendered Operational Justification with integrated live character count header and clean textarea without outer wrapper boxes.
+5. **Step 2 (Review Step) Polish**:
+   - Optimized spacing from `space-y-6` to `space-y-4`, condensed item paddings to `p-3.5`, and removed redundant Operational Account prominence when pre-scoped by Plantilla.
+6. **TypeScript Interface Fix in `SlotDetailDrawer.tsx`**:
+   - Fixed `humanizeRemarks(remarks, actionType, reasonCode)` parameter type to `reasonCode?: string | null` to accept nullable database values cleanly.
+
+### Files
+- `src/components/modals/RequestHeadcountModal.tsx`
+- `src/components/plantilla/SlotDetailDrawer.tsx`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+- `docs/state/plantilla_web_state.md`
+
+### Validation
+- `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+- `npm run lint`: `0` errors, `0` warnings (`SQL_CONTRACTS_OK`, zero leaks).
+- `npm test`: `255/255` passed.
+- `npm run build`: verified production build compilation (`22/22` static pages).
+
+---
+
 ## Execution Report — Plantilla Slot Detail Drawer & Store View Audit Polish (ohm#slot-drawer-and-store-vcode-audit-polish)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 

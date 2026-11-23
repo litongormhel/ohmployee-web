@@ -169,7 +169,7 @@ function humanizeStatus(status: string | null | undefined): string {
 function humanizeRemarks(
   remarks: string | null | undefined,
   actionType?: string,
-  reasonCode?: string
+  reasonCode?: string | null
 ): string {
   if (!remarks) return "";
   let text = remarks.trim();

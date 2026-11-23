@@ -922,6 +922,11 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
     - Updated `CreateDeactivationRequestParams.remarks` to optional `remarks?: string | null;`.
     - Removed mandatory `if (!remarks.trim())` validation block and submit button disable constraint.
     - Removed the gray `Standard 15-Day Clearance Notice` banner box at the top.
+  - **Request Headcount Modal Layout Polish & Scope Optimization (`ohm#polish-request-headcount-modal`)**:
+    - Streamlined `RequestHeadcountModal.tsx` modal container from `max-w-3xl` to `max-w-xl`, removing empty horizontal margins.
+    - Omitted redundant "Target Operational Account" card when called within the Plantilla workspace (`propAccountId` is already provided).
+    - Streamlined Store Selection: replaced bulky nested cards with a single-row store indicator badge showing Store Name, Island Group, and Location.
+    - Restructured Position, Request Type, Headcount Needed, Timeline, and Urgency into clean, unboxed grid rows, tightening modal padding to `p-5 space-y-4`.
   - **New Store Request (NSR) Two-Tier Review Workflow & High-Contrast Button**:
     - In `RequestHeadcountModal.tsx`, fixed the "Request New Store" button in the Store Not Found card to high-contrast navy styling `bg-brand-600 text-white hover:bg-brand-700`.
     - In `NewStoreRequestModal.tsx`, updated confirmation copy to state submission for Data Team review.
