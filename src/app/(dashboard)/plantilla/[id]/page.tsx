@@ -109,13 +109,14 @@ function formatBirthDateAndAge(dateStr: string | null | undefined): string {
     } else {
       birth = new Date(cleanStr);
     }
-    if (isNaN(birth.getTime())) return cleanStr;
+    if (isNaN(birth.getTime()) || birth.getFullYear() < 1900) return "—";
+    const now = new Date();
+    if (birth > now) return "—";
     const formatted = new Intl.DateTimeFormat("en-PH", {
       year: "numeric",
       month: "short",
       day: "numeric",
     }).format(birth);
-    const now = new Date();
     let age = now.getFullYear() - birth.getFullYear();
     const m = now.getMonth() - birth.getMonth();
     if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {

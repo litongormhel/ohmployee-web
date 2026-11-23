@@ -63,6 +63,16 @@ test("R1 Normalization: normalizeDateToIso converts formats to strict YYYY-MM-DD
   // Excel serial number (44941 is 2023-01-15)
   assert.equal(normalizeDateToIso(44941), "2023-01-15");
   assert.equal(normalizeDateToIso("44941"), "2023-01-15");
+  // 2-digit years pivot correctly (e.g. 68 -> 1968, 65 -> 1965, 26 -> 2026)
+  assert.equal(normalizeDateToIso("6/16/68"), "1968-06-16");
+  assert.equal(normalizeDateToIso("10/23/65"), "1965-10-23");
+  assert.equal(normalizeDateToIso("1/15/26"), "2026-01-15");
+  assert.equal(normalizeDateToIso("06-16-68"), "1968-06-16");
+  // Excel zero-date and corrupted inputs normalize to empty string
+  assert.equal(normalizeDateToIso("1/0/00"), "");
+  assert.equal(normalizeDateToIso("0/0/00"), "");
+  assert.equal(normalizeDateToIso("0"), "");
+  assert.equal(normalizeDateToIso("00/00/0000"), "");
   // Blank inputs
   assert.equal(normalizeDateToIso(null), "");
   assert.equal(normalizeDateToIso(undefined), "");

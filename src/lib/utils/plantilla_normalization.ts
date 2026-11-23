@@ -135,7 +135,7 @@ export function normalizeDateToIso(raw: unknown): string {
   }
 
   const str = String(raw).trim();
-  if (!str) return "";
+  if (!str || str === "0" || str === "1/0/00" || str === "0/0/00" || str === "00/00/00" || str === "00/00/0000") return "";
 
   // Numeric string Excel serial (e.g. "44941")
   if (/^\d{5}$/.test(str)) {
@@ -151,24 +151,45 @@ export function normalizeDateToIso(raw: unknown): string {
     const y = isoMatch[1];
     const m = isoMatch[2].padStart(2, "0");
     const d = isoMatch[3].padStart(2, "0");
+    if (Number(y) < 1900) return "";
     return `${y}-${m}-${d}`;
   }
 
-  // Standard MM/DD/YYYY or M/D/YYYY
-  const slashMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  // Standard MM/DD/YYYY, M/D/YYYY, or 2-digit MM/DD/YY
+  const slashMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (slashMatch) {
     const m = slashMatch[1].padStart(2, "0");
     const d = slashMatch[2].padStart(2, "0");
-    const y = slashMatch[3];
+    let y = slashMatch[3];
+    if (y.length === 2) {
+      const yy = Number(y);
+      const curYear = new Date().getFullYear();
+      if (2000 + yy > curYear + 1) {
+        y = String(1900 + yy);
+      } else {
+        y = String(2000 + yy);
+      }
+    }
+    if (Number(y) < 1900) return "";
     return `${y}-${m}-${d}`;
   }
 
-  // MM-DD-YYYY or M-D-YYYY
-  const dashMatch = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  // MM-DD-YYYY, M-D-YYYY, or 2-digit MM-DD-YY
+  const dashMatch = str.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
   if (dashMatch) {
     const m = dashMatch[1].padStart(2, "0");
     const d = dashMatch[2].padStart(2, "0");
-    const y = dashMatch[3];
+    let y = dashMatch[3];
+    if (y.length === 2) {
+      const yy = Number(y);
+      const curYear = new Date().getFullYear();
+      if (2000 + yy > curYear + 1) {
+        y = String(1900 + yy);
+      } else {
+        y = String(2000 + yy);
+      }
+    }
+    if (Number(y) < 1900) return "";
     return `${y}-${m}-${d}`;
   }
 
@@ -179,7 +200,7 @@ export function normalizeDateToIso(raw: unknown): string {
     const monthKey = textMonthMatch[2].toUpperCase();
     const m = MONTH_NAME_MAP[monthKey];
     const y = textMonthMatch[3];
-    if (m) {
+    if (m && Number(y) >= 1900) {
       return `${y}-${m}-${d}`;
     }
   }
@@ -187,7 +208,12 @@ export function normalizeDateToIso(raw: unknown): string {
   // Fallback attempt with Date.parse
   const parsed = new Date(str);
   if (!isNaN(parsed.getTime())) {
-    const y = parsed.getFullYear();
+    let y = parsed.getFullYear();
+    const curYear = new Date().getFullYear();
+    if (y > curYear + 1) {
+      y -= 100;
+    }
+    if (y < 1900) return "";
     const m = String(parsed.getMonth() + 1).padStart(2, "0");
     const d = String(parsed.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
