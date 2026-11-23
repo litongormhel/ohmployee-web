@@ -24,17 +24,32 @@ async function getAccessToken() {
   if (process.env.SUPABASE_ACCESS_TOKEN) {
     return process.env.SUPABASE_ACCESS_TOKEN;
   }
-  try {
-    const raw = execSync('security find-generic-password -s "Supabase CLI" -w 2>/dev/null', {
-      encoding: "utf8",
-    }).trim();
-    if (raw.startsWith("go-keyring-base64:")) {
-      return Buffer.from(raw.replace("go-keyring-base64:", ""), "base64").toString("utf8");
-    }
-    return raw;
-  } catch {
-    return null;
+  // 1. macOS Keychain
+  if (process.platform === "darwin") {
+    try {
+      const raw = execSync('security find-generic-password -s "Supabase CLI" -w 2>/dev/null', {
+        encoding: "utf8",
+      }).trim();
+      if (raw.startsWith("go-keyring-base64:")) {
+        return Buffer.from(raw.replace("go-keyring-base64:", ""), "base64").toString("utf8");
+      }
+      if (raw) return raw;
+    } catch {}
   }
+
+  // 2. Windows Credential Manager
+  if (process.platform === "win32") {
+    try {
+      const psScriptPath = path.join(ROOT, "scripts", "get-token.ps1");
+      const winRaw = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}"`, {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
+      if (winRaw) return winRaw;
+    } catch {}
+  }
+
+  return null;
 }
 
 async function queryRemoteVersions(projectRef, token) {

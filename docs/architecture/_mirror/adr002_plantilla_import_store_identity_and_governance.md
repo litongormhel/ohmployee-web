@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-002. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr002_plantilla_import_store_identity_and_governance.md
-source_commit: 49d7a40 2026-11-12T17:34:47+08:00
-source_sha256: ff375313787b8b1e23aba5161e164d704c1d31344c3d69d5abcb06f64875c8fe
-synced_at: 2026-11-23T03:39:51.742Z
+source_commit: 2c413ad 2026-11-23T15:09:30+08:00
+source_sha256: 17ff15bd030a5ecff05f38fb6117d7a487159cc706db2e1f0da01c5e0f3f20f6
+synced_at: 2026-11-23T07:09:33.841Z
 -->
 # ADR-002: Plantilla Import, Store Identity, Headcount Governance & Rollback Architecture
 
@@ -85,6 +85,9 @@ Whenever `EMPLOYEE_NO` is populated:
 - **SA Window Override**: Super Admin can override an expired ($> 72\text{h}$) window **ONLY IF** zero records in the batch were edited after import approval.
 - **Strict Zero-Edit Immutability Lock**: If **any** record in the batch was edited in Plantilla or allocations after import approval (e.g., Ops changed `dayoff`, `schedule_days`, `schedule_time`, rate, position, status, etc., causing `updated_at > approved_at`), rollback is **HARD BLOCKED** for all roles (even SA cannot override). The system returns an explicit error naming the exact employee number, employee name, and modification timestamp.
 - **Import History Visibility**: Import History must clearly surface Batch # (e.g. `#703cdbc4`), Stores/HC count (e.g. `11/10`), and Approved/Rejected By actor details along with rollback state indicators.
+- **Rollback Records Must Not Be Treated as Archive Data (Re-Upload Allowed)**: When an import batch is rolled back, the created plantilla rows are soft-archived for lineage and reversibility. However, these rollback records MUST NOT be treated as genuine operational archive/separated data. Re-uploading the original file (or an updated version) of a rolled-back batch is **ALLOWED** and must not trigger `inactive_or_archived_existing_record`.
+  - **Re-Upload Safety Gate**: Re-upload is permitted **UNLESS** an employee in the file already possesses a separate, genuine operational inactive/archived record (`status IN ('Inactive', 'Rejected Deactivation')` from actual separation, resignation, AWOL, termination, or non-rollback archive) that pre-dated the rollback ("unless may dating naka archive na data na na dagdag"). Legitimate separated personnel remain strictly blocked from re-import.
+  - **New Batch Commitment**: Upon approval of the re-uploaded batch, the system creates a fresh active plantilla record under the new batch (`status = 'Active'`), preserving the rolled-back record's historical audit lineage without mutating or resurrecting the old batch snapshot. Archival stores under the same account and VCODE are cleanly reactivated.
 
 ---
 

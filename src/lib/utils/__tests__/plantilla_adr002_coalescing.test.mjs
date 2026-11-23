@@ -112,13 +112,25 @@ function evaluatePlantillaBatchSpec(rawRows, dbMasterRecords = {}) {
     const dbRecord = dbMasterRecords[empNo];
     if (dbRecord) {
       if (
-        dbRecord.status === "Inactive" ||
-        dbRecord.status === "Rejected Deactivation"
+        (dbRecord.status === "Inactive" ||
+        dbRecord.status === "Rejected Deactivation") &&
+        !dbRecord.is_rollback
       ) {
         errors.push({
           field: "EMPLOYEE_NO",
           conflictType: "inactive_or_archived_existing_record",
           msg: `Employee ${empNo} exists in DB with inactive/archived status (${dbRecord.status}). Import blocked.`,
+        });
+      } else if (
+        (dbRecord.status === "Inactive" ||
+        dbRecord.status === "Rejected Deactivation") &&
+        dbRecord.is_rollback
+      ) {
+        flags.push({
+          field: "EMPLOYEE_NO",
+          flag: "rollback_safe_employee",
+          conflictType: "rollback_safe_employee",
+          msg: `Rollback record detected for employee ${empNo} — eligible for re-upload.`,
         });
       } else {
         const dbLast = (dbRecord.last_name ?? "").trim().toUpperCase();
@@ -572,6 +584,75 @@ test("F6 Tier 2.5 (Boundary): Existing DB record with Rejected Deactivation stat
   assert.match(
     result.rows[0].validationErrors[0].conflictType ?? "",
     /inactive_or_archived_existing_record/
+  );
+});
+
+test("F6 Tier 2.5b (ADR-002 Rollback Safety): Inactive DB record from rolled-back batch does NOT block re-upload", () => {
+  const rows = [
+    {
+      EMPLOYEE_NO: "EMP-001",
+      LAST_NAME: "DELA CRUZ",
+      FIRST_NAME: "JUAN",
+      MIDDLE_NAME: "SANTOS",
+      DATE_HIRED: "2026-01-15",
+      VCODE: "V-001",
+      STORE_NAME: "Store A",
+      POSITION: "Merchandiser",
+    },
+  ];
+
+  const dbMaster = {
+    "EMP-001": {
+      employee_no: "EMP-001",
+      last_name: "DELA CRUZ",
+      first_name: "JUAN",
+      middle_name: "SANTOS",
+      date_hired: "2026-01-15",
+      status: "Inactive",
+      is_rollback: true, // From rolled-back import batch
+    },
+  };
+
+  const result = evaluatePlantillaBatchSpec(rows, dbMaster);
+  assert.equal(result.blockedRows, 0, "Rolled-back record must not be treated as archive data");
+  assert.equal(result.flaggedRows, 1, "Should emit rollback_safe_employee flag");
+  assert.equal(
+    result.rows[0].validationFlags[0].conflictType,
+    "rollback_safe_employee"
+  );
+});
+
+test("F6 Tier 2.5c (ADR-002 Rollback Safety): Pre-existing genuine inactive record ('dating naka archive') strictly blocks even if rollback occurred", () => {
+  const rows = [
+    {
+      EMPLOYEE_NO: "EMP-001",
+      LAST_NAME: "DELA CRUZ",
+      FIRST_NAME: "JUAN",
+      MIDDLE_NAME: "SANTOS",
+      DATE_HIRED: "2026-01-15",
+      VCODE: "V-001",
+      STORE_NAME: "Store A",
+      POSITION: "Merchandiser",
+    },
+  ];
+
+  const dbMaster = {
+    "EMP-001": {
+      employee_no: "EMP-001",
+      last_name: "DELA CRUZ",
+      first_name: "JUAN",
+      middle_name: "SANTOS",
+      date_hired: "2026-01-15",
+      status: "Inactive",
+      is_rollback: false, // Legitimate separation, NOT a rollback artifact
+    },
+  };
+
+  const result = evaluatePlantillaBatchSpec(rows, dbMaster);
+  assert.equal(result.blockedRows, 1);
+  assert.equal(
+    result.rows[0].validationErrors[0].conflictType,
+    "inactive_or_archived_existing_record"
   );
 });
 

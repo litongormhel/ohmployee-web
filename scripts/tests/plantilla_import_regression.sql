@@ -513,6 +513,29 @@ BEGIN
   END IF;
 
   -- --------------------------------------------------------------------------
+  -- 3h. Test Re-Upload After Rollback Is Not Blocked (Rollback ≠ Archive)
+  -- --------------------------------------------------------------------------
+  DECLARE
+    v_reupload_eval jsonb;
+  BEGIN
+    v_reupload_eval := public.validate_plantilla_baseline_import(
+      'regression_reupload_after_rollback.xlsx',
+      v_group_id,
+      v_account_id,
+      v_roving_rows
+    );
+
+    IF (v_reupload_eval->'summary'->>'blocked_rows')::int <> 0 THEN
+      RAISE EXCEPTION 'ASSERTION_FAILED: re-upload of rolled-back batch has % blocked rows (expected 0): %',
+        v_reupload_eval->'summary'->>'blocked_rows', v_reupload_eval;
+    END IF;
+
+    IF (v_reupload_eval->'summary'->>'flagged_rows')::int = 0 THEN
+      RAISE EXCEPTION 'ASSERTION_FAILED: expected flagged_rows > 0 with rollback_safe_employee flag, got 0';
+    END IF;
+  END;
+
+  -- --------------------------------------------------------------------------
   -- 4. Test Hard-Blocked File Rejection
   -- --------------------------------------------------------------------------
   BEGIN

@@ -142,6 +142,11 @@ export function formatFriendlyValidationMessage(
     return "Employee exists in plantilla with inactive/archived status. Re-import blocked.";
   }
 
+  // 8b. Rollback-safe employee (re-upload permitted)
+  if (conflictType === "rollback_safe_employee") {
+    return "Rollback record detected — eligible for re-upload.";
+  }
+
   // 9. Cross-account active employee
   if (conflictType === "cross_account_employee") {
     return "Employee is currently active under a different account.";
