@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: 4cc2840 2026-11-23T19:47:35+08:00
-source_sha256: d28eb9a5dbbb52634ebbacd83f8aca56f81e682e427873120cb8cd11c685cec5
-synced_at: 2026-11-23T11:47:38.329Z
+source_commit: 227a315 2026-11-23T20:19:54+08:00
+source_sha256: d1caa50e6315ac18fb03ca1314d01658791578f6a85267022216aecd7ef215af
+synced_at: 2026-11-23T12:19:56.877Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -738,6 +738,64 @@ The Plantilla module operates under **Dual Views** driven by a segmented view to
 
 `slotOpenVacCount`/`mfrVacant` headline KPIs still read the separately-locked `slot_vacant_hc` view, NOT the Rule 4 formula — requires a deliberate backend decision, out of scope until explicitly reopened.
 
+### Executive Dashboard Command Center Architecture (/dashboard)
+
+**Status: ACCEPTED.** Codifies the primary operational overview surface for executive leadership and managers:
+
+1. **Top Four Executive KPI Cards**:
+   - **Workforce Coverage**: Displays organizational average fill rate % (`avgFillRatePct`), seats filled subtitle (`X of Y seats filled`), and a prominent 3-color segmented progress bar (Active Plantilla, HR Emploc Pending, Open Vacancies) with target indicators (`Above 80% target` / `Below 80% target`). Routes to `/plantilla`.
+   - **Open Vacancies**: Total active open vacancy slots, neutral unassigned count (`N unassigned to HRCO`), and direct navigation link. Routes to `/vacancy`.
+   - **Hiring Pipeline**: Total pipeline candidate volume, active funnel badge, and monthly momentum indicator (`This month: +hired · −separated`). Routes to `/hr-emploc`.
+   - **SLA Breaches**: Total active SLA breach count across vacancies and operational requests with action required pill. Routes to `/cencom`.
+2. **Dashboard Announcement Banner Strip & Mandatory Urgent Acknowledgements**:
+   - Displays active, non-expired announcements sorted with pinned items first, styled by priority (`urgent`: red alert, `important`: amber warning, `info`: blue notice).
+   - **Mandatory Urgent Acknowledgement (`UrgentAnnouncementModal`)**: Blocks normal dashboard interaction until unacknowledged `urgent` items are formally acknowledged by the user (`public.announcement_acknowledgements`).
+   - Subscribes to Supabase Realtime channel `realtime:announcements` and fans out in-app and mobile push notifications via database trigger `trg_announcement_notify()`.
+3. **Asymmetric 2-Column Command Workspace**:
+   - **Left Column (8 cols) — "Where is the gap?"**:
+     - *Tab 1: Group Matrix*: Displays Group 1 to Group 5 by default with **MOSES HQ pinned below Group 5** (displaying real active headcount from global-to-CENCOM delta with `Standby` status). Rows in critical health receive high-visibility red highlights.
+     - *Tab 2: SLA Breaches*: Live breach items with store branch, category, scope owner, aging, and action link.
+     - *Tab 3: Under-staffed Stores*: Stores with urgent headcount deficits requiring immediate recruiter allocation.
+   - **Right Column (4 cols) — "Needs your attention"**: Compact operational alert cards prioritizing critical groups, reconciled pending approvals count, under-staffed stores, and ghost employee anomalies linking to resolution centers.
+4. **Recent Activity Feed (`public.fn_get_recent_activity`)**:
+   - Chronological audit stream rendered as individual 1-by-1 subject-first sentences (`"<Actor>: <Subject> [<no>] transferred to Plantilla [<account>]"`).
+   - Automatically deduplicates same-transaction mutations and scopes events to the caller's assigned organization or account.
+
+### CENCOM Central Command Technical Architecture (/cencom)
+
+**Status: ACCEPTED.** Codifies workforce fulfillment tracking, vacancy aging, and placement velocity:
+
+1. **Five Standard Operational Tabs**:
+   - **Tab 1: Overview** (`overview`): Hero Overall MFR sweep ring gauge, neutral KPI metrics (Total required, Total actual, Open vacancies, Deployed stores), and monthly deployment summaries.
+   - **Tab 2: Groups** (`groups`): Granular group performance table with search, health filtering, store counts, and `PercentageBar` MFR progress indicators.
+   - **Tab 3: Target Deployment** (`target_deployment`): Six standardized vacancy aging brackets (**1–15d, 16–30d, 31–60d, 61–120d, >121d, Advance**), province aging breakdowns, and store outlet drilldowns.
+   - **Tab 4: Deployments** (`deployments`): Chronological candidate placement records and onboarding velocity.
+   - **Tab 5: Quick Reports** (`reports`): 18 standard analytical workforce reports using semantic card surfaces.
+2. **Standardized MFR Health Scale & Thresholds**:
+   - **Healthy ($\ge 100\%$)**: Green status pill. Full capacity achieved.
+   - **At Risk ($95\% - 99.99\%$)**: Amber status pill. Mild operational deficit requiring recruiter attention.
+   - **Critical ($< 95\%$)**: Red alert pill. Urgent operational staffing deficit triggering managerial escalation.
+3. **Dynamic Group Scope Selector**:
+   - Dynamic organizational dropdown filtering metrics across `All groups` or individual assigned groups, strictly obeying caller scope boundaries (`cencom_scope = true` for broad access; scoped to assigned groups for OM, TL, ATL).
+
+### Authoritative Database Pass-Through Principle ("Database Computes, UI Renders")
+
+**Status: ACCEPTED.** Enforces architectural simplicity (KISS) and bandwidth optimization:
+
+1. **Zero Client-Side Headcount Calculation**:
+   - Client applications on Web and Mobile are strictly prohibited from downloading entire raw tables (`plantilla`, `plantilla_slots`) over the network to calculate headcount sums, fill rates, or vacancy totals in memory.
+2. **Authoritative View Sourcing**:
+   - All group metrics, account breakdowns, and KPI aggregates are computed natively by database views (`v_cencom_group_allocation_kpi`, `v_cencom_account_allocation_kpi`, `v_account_allocation_kpi`, `v_plantilla_safe`).
+   - The UI layer functions purely as a presentation renderer of verified database-computed columns.
+
+### Whole-Number Headcount & KPI Rounding Contract (Migration 20262606000147)
+
+**Status: ACCEPTED.** Enforces clean executive reporting across organizational views:
+
+1. **Whole-Number Corporate Presentation**:
+   - Account-level and group-level headcount allocations and KPI metrics in views (`v_account_allocation_kpi`, `v_cencom_account_allocation_kpi`, `v_cencom_group_allocation_kpi`) display rounded whole numbers (`ROUND(actual_hc)`, `ROUND(slot_vacant_hc)`, `ROUND(required_hc)`).
+   - Eliminates awkward fractional headcount decimals (e.g., `12.33` or `45.67`) on high-level executive cards, while underlying store-level allocations maintain mathematically accurate fractional capacity ($1/N$).
+
 ---
 
 ## More Module (Operations Hub & Administrative Governance)
@@ -921,3 +979,4 @@ Historical record, chronological. Full rule substance now lives in the module se
 - **2026-11-23 — `ohm#emploc-backout-aging-continuity`** — Codified HR Emploc Backout to Vacancy Open Tab with Original Aging Continuity Invariant (retains original vacancy date, never resetting to backout date) and Deployed Tab Revert Governance (Data Team authority, soft-deletes Plantilla row, releases slot to open via BACKOUT). → "HR Emploc" and "Vacancy" above.
 - **2026-11-23 — `ohm#more-module-operations-hub-arch`** — Codified More Module (Operations Hub) Five Operational Tabs (Overview, Data Control, Permissions, Audit, Admin Tools), 5 Canonical Batch Imports (Plantilla, HR Emploc, Vacancy, Mika, Payroll) with 72h Rollback Governance, QA Simulation Engine (Atomic Sandbox Isolation with 0 live pollution), Role Impersonation (Acting Sessions), Permission Matrix Overrides with Bulk Reset, and Audit Activity Feed Lockdown. → "More Module" above.
 - **2026-11-23 — `ohm#approvals-clearinghouse-and-routing-arch`** — Codified Approvals Module Eleven Functional Review Queues, Option 1 Requisition Routing (New Doors vs. Headcount Quota), ADR-003 Unified Roving Requisitions with Atomic Store Provisioning, Account Group Transfer Direct Admin Execution Policy, and Dedicated Requester Tracking Feed (/my-requests). → "HC Request & Coverage Semantics" above.
+- **2026-11-23 — `ohm#dashboard-cencom-command-arch`** — Codified Executive Dashboard Command Center Architecture (/dashboard), CENCOM Central Command 5 Operational Tabs (/cencom), Authoritative Database Pass-Through Principle ("Database Computes, UI Renders"), MFR Health Threshold Scale, and Whole-Number Headcount KPI Rounding Contract (Migration 20262606000147). → "Dashboard & CENCOM" above.
