@@ -107,13 +107,14 @@ function scanFiles() {
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
       const line = lines[lineIdx];
 
-      // Skip test mocks, placeholders, comments referencing patterns, and self-references in this script
+      // Skip test mocks, placeholders, comments referencing patterns, public staging anon fallback, and self-references in this script
       if (
         relPath === "scripts/check-secrets.mjs" ||
         line.includes("your-api-key") ||
         line.includes("example.com") ||
         line.includes("placeholder") ||
-        line.includes("env(OPENAI_API_KEY)")
+        line.includes("env(OPENAI_API_KEY)") ||
+        line.includes("STAGING_ANON_KEY")
       ) {
         continue;
       }
