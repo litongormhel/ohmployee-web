@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Execution Report — Simplify Vacancy Detail Modal, Relocate Header Actions, Add Aging Color Coding & Clean Decimal Formatting (ohm#simplify-vacancy-detail-modal-and-aging-colors)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
+
+### What Was Built
+1. **Top Header Action Bar (`Modal.tsx` & `VacancyDetailDrawer.tsx`)**:
+   - Added `headerActions?: ReactNode` to `Modal` (`src/components/shared/Modal.tsx`).
+   - Moved `Adjust Quota`, `HC Adjustment` (renamed from `Request HC Adjustment`), `Request Closure`, and `Withdraw Closure` directly into the modal top header next to the close button, freeing vertical space above the tabs.
+2. **Aging Color Coding (`getAgingColorClasses`)**:
+   - Color-coded both the top KPI `Aging` metric (`97d / 31+ days`) and individual applicant aging pills (`35d`, `0d`):
+     - **Green (Emerald)**: `<= 7 days` (`text-emerald-600 dark:text-emerald-400`)
+     - **Yellow (Amber)**: `8 - 15 days` (`text-amber-600 dark:text-amber-400`)
+     - **Red (Rose)**: `> 15 days` (`text-rose-600 dark:text-rose-400`)
+3. **Clean Number & Decimal Formatting (`formatHcNumber`, `cleanNumbersInText` & Migration 176)**:
+   - Authored and pushed migration `supabase/migrations/20262606000176_clean_hc_decimals_in_vacancy_activity_timeline.sql` to Staging (`qqiiznmqxfoamqytjica`) so `get_vacancy_activity_timeline` trims trailing zeros (`2.0000 HC -> 2 HC`, `0.5000 HC -> 0.5 HC`, `0.3333 HC -> 0.33 HC`).
+   - Added frontend helpers `formatHcNumber` and `cleanNumbersInText` so all KPI numbers, position breakdown counters, and activity history descriptions render whole numbers without decimals and fractional values with at most 1–2 decimals.
+4. **Applicant Section & Simple Activity History**:
+   - Renamed `"Applicant & Pipeline Roster"` to `"Applicant"`.
+   - Placed a compact inline edit pencil button (`<Edit3 />`) directly next to each applicant's name (removing the separate bottom `"Edit Details"` button).
+   - Simplified the `Activity History` tab: removed the `"Detailed Activity History Trail"` and `"What • Who • When"` header bar and replaced boxed cards with a clean, lightweight vertical timeline (`Title` + `Timestamp`, `Description`, `By Actor`).
+5. **Verification**:
+   - ADR fresh check: `npm run check:adr` (`ADR_MIRROR_STATUS: FRESH`).
+   - SQL contracts check: `npm run check:sql` (verified 28 core tables & 19 cross-module RPC contracts across 701 migrations).
+   - Unit tests: `npm test` (263/263 unit tests passed).
+   - ESLint: `0` errors, `0` warnings.
+   - Staging migration push: applied `20262606000176_clean_hc_decimals_in_vacancy_activity_timeline.sql` cleanly to Staging (`qqiiznmqxfoamqytjica`).
+
+### Files
+- `supabase/migrations/20262606000176_clean_hc_decimals_in_vacancy_activity_timeline.sql` — Trimmed trailing decimals on headcount numbers in `get_vacancy_activity_timeline`.
+- `src/components/shared/Modal.tsx` — Added `headerActions` prop to modal header bar.
+- `src/components/vacancy/VacancyDetailDrawer.tsx` — Relocated quota/closure actions to header, added aging color coding, inline applicant name edit icon, renamed section to `Applicant`, formatted numbers, and simplified Activity History timeline.
+- `docs/state/vacancy_web_state.md` — Updated modal specification.
+- `.ai/briefing.md` — Prepended task to Last Completed Tasks.
+- `.ai/current_state.md` — Added update log.
+- `.ai/handoff.md` — Prepended handoff report.
+
+---
+
 ## Execution Report — Reconcile Plantilla Rollback Status Desync & Prevent Zero-Edit Lock Query Storm (ohm#fix-plantilla-rollback-status-desync-and-guard)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
 

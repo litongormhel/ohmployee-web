@@ -16,7 +16,6 @@ import {
   Clock3,
   Edit3,
   FileText,
-  History,
   Lock,
   MapPin,
   Phone,
@@ -87,6 +86,69 @@ type VacancyDetailDrawerProps = {
 
 type VacancyModalTab = "pipeline" | "details" | "ownership" | "history";
 
+/**
+ * Formats numbers so that whole numbers have no decimals (e.g. 2.0000 -> "2")
+ * and fractional numbers use at most 1 to 2 decimals (e.g. 0.5 -> "0.5", 0.3333 -> "0.33").
+ */
+function formatHcNumber(val: number | string | null | undefined): string {
+  if (val === null || val === undefined || val === "") return "0";
+  const num = typeof val === "number" ? val : parseFloat(String(val));
+  if (Number.isNaN(num)) return String(val);
+  if (Number.isInteger(num) || Math.abs(num - Math.round(num)) < 0.001) {
+    return String(Math.round(num));
+  }
+  return Number(num.toFixed(2)).toString();
+}
+
+/**
+ * Normalizes any raw decimal numbers embedded inside activity history strings
+ * (e.g. "from 2.0000 HC to 3.0000 HC" -> "from 2 HC to 3 HC", "0.5000 HC" -> "0.5 HC").
+ */
+function cleanNumbersInText(text: string): string {
+  return text.replace(/\b(\d+\.\d+)\b/g, (match) => {
+    const num = parseFloat(match);
+    if (Number.isNaN(num)) return match;
+    return formatHcNumber(num);
+  });
+}
+
+/**
+ * Returns color-coded classes for Aging based on thresholds:
+ * - Green: <= 7 days
+ * - Yellow: 8 - 15 days
+ * - Red: > 15 days
+ */
+function getAgingColorClasses(days: number | null | undefined): {
+  text: string;
+  badge: string;
+} {
+  if (days === null || days === undefined) {
+    return {
+      text: "text-text-primary",
+      badge: "border-border-default bg-surface-muted text-text-secondary",
+    };
+  }
+  if (days <= 7) {
+    return {
+      text: "text-emerald-600 dark:text-emerald-400",
+      badge:
+        "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300",
+    };
+  }
+  if (days <= 15) {
+    return {
+      text: "text-amber-600 dark:text-amber-400",
+      badge:
+        "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
+    };
+  }
+  return {
+    text: "text-rose-600 dark:text-rose-400",
+    badge:
+      "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-300",
+  };
+}
+
 function formatDate(value: string | null) {
   if (!value) return "--";
   const parts = value.split("-");
@@ -137,7 +199,6 @@ function formatActivityHistoryItem(item: {
   const rawDesc = (item.eventDescription || "").trim();
   const actor = (item.profileName || "").trim() || "System";
 
-  // Check if eventLabel is already a human-readable structured label from get_vacancy_activity_timeline
   const upper = rawLabel.toUpperCase();
   const isRawDmlAction =
     upper === "INSERT" ||
@@ -184,7 +245,11 @@ function formatActivityHistoryItem(item: {
     }
   }
 
-  return { title, description, actor };
+  return {
+    title: cleanNumbersInText(title),
+    description: cleanNumbersInText(description),
+    actor,
+  };
 }
 
 export function VacancyDetailDrawer({
@@ -459,6 +524,87 @@ export function VacancyDetailDrawer({
           </div>
         ) : undefined
       }
+      headerActions={
+        !isLoading && detail && !isHiredTab && (canReviseQuota || canRequestAdjustment || userCanRequestClosure || isPendingClosure) ? (
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            {canReviseQuota && (
+              <button
+                type="button"
+                onClick={() => setIsReviseQuotaModalOpen(true)}
+                className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-surface-muted/60 px-2 py-1 text-[11px] font-medium text-text-primary hover:bg-surface-muted hover:border-border-default transition cursor-pointer shadow-2xs"
+                title="Directly revise headcount quota for this requisition slot"
+              >
+                <SlidersHorizontal className="h-3 w-3 text-brand-600" />
+                <span>Adjust Quota</span>
+              </button>
+            )}
+
+            {canRequestAdjustment && (
+              <button
+                type="button"
+                onClick={() => setIsRequestAdjustmentModalOpen(true)}
+                className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-surface-muted/60 px-2 py-1 text-[11px] font-medium text-text-primary hover:bg-surface-muted hover:border-border-default transition cursor-pointer shadow-2xs"
+                title="Submit a formal headcount quota adjustment request"
+              >
+                <FileText className="h-3 w-3 text-brand-600" />
+                <span>HC Adjustment</span>
+              </button>
+            )}
+
+            {userCanRequestClosure && !isPendingClosure && detail.derivedStatus?.toLowerCase() !== "closed" && (
+              <button
+                type="button"
+                disabled={isClosureBlockedByApplicants}
+                onClick={() => {
+                  if (isClosureBlockedByApplicants) return;
+                  setIsRequestClosureModalOpen(true);
+                }}
+                className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition shadow-2xs ${
+                  isClosureBlockedByApplicants
+                    ? "border-border-subtle bg-surface-muted text-text-muted cursor-not-allowed opacity-60"
+                    : "border-border-subtle bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary cursor-pointer"
+                }`}
+                title={
+                  isClosureBlockedByApplicants
+                    ? "Cannot request closure while active applicants exist in pipeline. Process or drop candidates first."
+                    : "Request store or vacancy closure clearance"
+                }
+              >
+                <XCircle className={`h-3 w-3 ${isClosureBlockedByApplicants ? "text-text-muted" : "text-brand-600"}`} />
+                <span>Request Closure</span>
+              </button>
+            )}
+
+            {isPendingClosure && (isUserFullAccess || userIsOps || userCanRequestClosure) && (
+              <button
+                type="button"
+                disabled={withdrawClosureMutation.isPending}
+                onClick={async () => {
+                  if (!detail?.vcode) return;
+                  const confirmed = window.confirm(
+                    `Are you sure you want to withdraw the pending closure request for ${detail.vcode}? This will restore normal sourcing and pipeline operations.`
+                  );
+                  if (!confirmed) return;
+                  try {
+                    await withdrawClosureMutation.mutateAsync({
+                      vcode: detail.vcode,
+                      userId: currentUser?.authUserId || currentUser?.profileId || null,
+                    });
+                    refetch();
+                  } catch (err: unknown) {
+                    alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
+                  }
+                }}
+                className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-muted px-2 py-1 text-[11px] font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-2xs cursor-pointer"
+                title="Withdraw in-flight closure clearance request"
+              >
+                <RotateCcw className="h-3 w-3 text-text-muted" />
+                <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure"}</span>
+              </button>
+            )}
+          </div>
+        ) : undefined
+      }
       footer={
         detail && !isHired ? (
           <div className="w-full flex items-center justify-between gap-2">
@@ -547,7 +693,7 @@ export function VacancyDetailDrawer({
       ) : !detail ? (
         <NotFoundState />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           {/* Pending Closure Clearance Notice (Top Priority Alert) */}
           {(detail.hasPendingClosure ||
             detail.closureRequestStatus?.toLowerCase() === "pending" ||
@@ -577,34 +723,6 @@ export function VacancyDetailDrawer({
                     {detail.closureRequestedAt && ` • ${new Date(detail.closureRequestedAt).toLocaleDateString()}`}
                   </div>
                 )}
-                {(isUserFullAccess || userIsOps || userCanRequestClosure) && (
-                  <div className="pt-1.5">
-                    <button
-                      type="button"
-                      disabled={withdrawClosureMutation.isPending}
-                      onClick={async () => {
-                        if (!detail?.vcode) return;
-                        const confirmed = window.confirm(
-                          `Are you sure you want to withdraw the pending closure request for ${detail.vcode}? This will restore normal sourcing and pipeline operations.`
-                        );
-                        if (!confirmed) return;
-                        try {
-                          await withdrawClosureMutation.mutateAsync({
-                            vcode: detail.vcode,
-                            userId: currentUser?.authUserId || currentUser?.profileId || null,
-                          });
-                          refetch();
-                        } catch (err: unknown) {
-                          alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
-                        }
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-white hover:bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA] px-2.5 py-1 text-[11px] font-semibold transition shadow-xs cursor-pointer disabled:opacity-50"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure Request"}</span>
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -615,6 +733,7 @@ export function VacancyDetailDrawer({
             const totalHc = detail.headcount ?? 1;
             const pipelineCount = detail.activeApplicantCount ?? 0;
             const availableSlots = Math.max(0, totalHc - hiredCount);
+            const agingColors = getAgingColorClasses(detail.agingDays);
 
             // Multi-store resolution
             const storesList: string[] = [];
@@ -656,7 +775,7 @@ export function VacancyDetailDrawer({
                         Hired
                       </span>
                       <span className="text-sm font-bold text-text-primary tabular-nums block mt-0.5">
-                        {hiredCount}/{totalHc}
+                        {formatHcNumber(hiredCount)}/{formatHcNumber(totalHc)}
                       </span>
                     </div>
                     <div className="px-1">
@@ -664,7 +783,7 @@ export function VacancyDetailDrawer({
                         Pipeline
                       </span>
                       <span className="text-sm font-bold text-text-primary tabular-nums block mt-0.5">
-                        {pipelineCount}
+                        {formatHcNumber(pipelineCount)}
                       </span>
                     </div>
                     <div className="px-1">
@@ -672,7 +791,7 @@ export function VacancyDetailDrawer({
                         Avail
                       </span>
                       <span className="text-sm font-bold text-text-primary tabular-nums block mt-0.5">
-                        {availableSlots}
+                        {formatHcNumber(availableSlots)}
                       </span>
                     </div>
                     <div className="px-1">
@@ -680,11 +799,11 @@ export function VacancyDetailDrawer({
                         Aging
                       </span>
                       <div className="mt-0.5 flex flex-col items-center justify-center">
-                        <span className="text-sm font-bold text-text-primary tabular-nums">
+                        <span className={`text-sm font-bold tabular-nums ${agingColors.text}`}>
                           {detail.agingDays !== null ? `${detail.agingDays}d` : "--"}
                         </span>
                         {detail.agingBucket && (
-                          <span className="text-[9px] text-text-muted leading-tight font-medium">
+                          <span className={`text-[9px] leading-tight font-semibold ${agingColors.text}`}>
                             {formatAgingBucket(detail.agingBucket)}
                           </span>
                         )}
@@ -714,9 +833,9 @@ export function VacancyDetailDrawer({
                               {req.positionName}
                             </span>
                             <span className="text-[11px] text-text-secondary">
-                              Hired: <strong className="text-text-primary">{req.hcFilled}/{req.hcNeeded}</strong> &bull; Pipe:{" "}
-                              <strong className="text-text-primary">{req.pipelineCount}</strong> &bull; Avail:{" "}
-                              <strong className="text-text-primary">{avail}</strong>
+                              Hired: <strong className="text-text-primary">{formatHcNumber(req.hcFilled)}/{formatHcNumber(req.hcNeeded)}</strong> &bull; Pipe:{" "}
+                              <strong className="text-text-primary">{formatHcNumber(req.pipelineCount)}</strong> &bull; Avail:{" "}
+                              <strong className="text-text-primary">{formatHcNumber(avail)}</strong>
                             </span>
                           </div>
                         );
@@ -725,119 +844,37 @@ export function VacancyDetailDrawer({
                   )}
                 </div>
 
-                {/* 2. Compact Requisition & Quota Action Row + Modal Segmented Tabs */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-                  <div className="overflow-x-auto max-w-full">
-                    <SegmentedTabs
-                      tabs={modalTabs}
-                      activeKey={activeTab}
-                      onChange={setActiveTab}
-                      ariaLabel="Vacancy detail sections"
-                    />
-                  </div>
-
-                  {!isHiredTab && (canReviseQuota || canRequestAdjustment || userCanRequestClosure || isPendingClosure) && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {canReviseQuota && (
-                        <button
-                          type="button"
-                          onClick={() => setIsReviseQuotaModalOpen(true)}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/60 px-2.5 py-1.5 text-[11px] font-medium text-text-primary hover:bg-surface-muted hover:border-border-default transition cursor-pointer shadow-2xs"
-                          title="Directly revise headcount quota for this requisition slot"
-                        >
-                          <SlidersHorizontal className="h-3 w-3 text-brand-600" />
-                          <span>Adjust Quota</span>
-                        </button>
-                      )}
-
-                      {canRequestAdjustment && (
-                        <button
-                          type="button"
-                          onClick={() => setIsRequestAdjustmentModalOpen(true)}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-muted/60 px-2.5 py-1.5 text-[11px] font-medium text-text-primary hover:bg-surface-muted hover:border-border-default transition cursor-pointer shadow-2xs"
-                          title="Submit a formal headcount quota adjustment request"
-                        >
-                          <FileText className="h-3 w-3 text-brand-600" />
-                          <span>Request HC Adjustment</span>
-                        </button>
-                      )}
-
-                      {userCanRequestClosure && !isPendingClosure && detail.derivedStatus?.toLowerCase() !== "closed" && (
-                        <button
-                          type="button"
-                          disabled={isClosureBlockedByApplicants}
-                          onClick={() => {
-                            if (isClosureBlockedByApplicants) return;
-                            setIsRequestClosureModalOpen(true);
-                          }}
-                          className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition shadow-2xs ${
-                            isClosureBlockedByApplicants
-                              ? "border-border-subtle bg-surface-muted text-text-muted cursor-not-allowed opacity-60"
-                              : "border-border-subtle bg-surface-base text-text-secondary hover:bg-surface-hover hover:text-text-primary cursor-pointer"
-                          }`}
-                          title={
-                            isClosureBlockedByApplicants
-                              ? "Cannot request closure while active applicants exist in pipeline. Process or drop candidates first."
-                              : "Request store or vacancy closure clearance"
-                          }
-                        >
-                          <XCircle className={`h-3 w-3 ${isClosureBlockedByApplicants ? "text-text-muted" : "text-brand-600"}`} />
-                          <span>Request Closure</span>
-                        </button>
-                      )}
-
-                      {isPendingClosure && (isUserFullAccess || userIsOps || userCanRequestClosure) && (
-                        <button
-                          type="button"
-                          disabled={withdrawClosureMutation.isPending}
-                          onClick={async () => {
-                            if (!detail?.vcode) return;
-                            const confirmed = window.confirm(
-                              `Are you sure you want to withdraw the pending closure request for ${detail.vcode}? This will restore normal sourcing and pipeline operations.`
-                            );
-                            if (!confirmed) return;
-                            try {
-                              await withdrawClosureMutation.mutateAsync({
-                                vcode: detail.vcode,
-                                userId: currentUser?.authUserId || currentUser?.profileId || null,
-                              });
-                              refetch();
-                            } catch (err: unknown) {
-                              alert(err instanceof Error ? err.message : "Failed to withdraw closure request");
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface-muted px-2.5 py-1.5 text-[11px] font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-2xs cursor-pointer"
-                          title="Withdraw in-flight closure clearance request"
-                        >
-                          <RotateCcw className="h-3 w-3 text-text-muted" />
-                          <span>{withdrawClosureMutation.isPending ? "Withdrawing..." : "Withdraw Closure"}</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
+                {/* 2. Modal Segmented Tabs */}
+                <div className="overflow-x-auto max-w-full">
+                  <SegmentedTabs
+                    tabs={modalTabs}
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
+                    ariaLabel="Vacancy detail sections"
+                  />
                 </div>
 
                 {/* =====================================================================
                     TAB 1: PIPELINE & APPLICANTS
                    ===================================================================== */}
                 {activeTab === "pipeline" && (
-                  <div className="rounded-lg border border-border-subtle bg-surface-base p-4 space-y-3 shadow-2xs">
+                  <div className="rounded-lg border border-border-subtle bg-surface-base p-3.5 space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-bold text-text-secondary flex items-center gap-1.5">
                         <Users className="h-4 w-4 text-brand-600 shrink-0" />
-                        <span>Applicant & Pipeline Roster</span>
+                        <span>Applicant</span>
                       </h3>
                       <div className="flex items-center gap-1.5 text-xs text-text-secondary font-medium">
-                        <span className="tabular-nums font-semibold text-text-primary">{detail.activeApplicantCount}</span>
+                        <span className="tabular-nums font-semibold text-text-primary">{formatHcNumber(detail.activeApplicantCount)}</span>
                         <span>Active</span>
                         <span>&bull;</span>
-                        <span className="tabular-nums font-semibold text-text-primary">{detail.confirmedOnboardCount}</span>
+                        <span className="tabular-nums font-semibold text-text-primary">{formatHcNumber(detail.confirmedOnboardCount)}</span>
                         <span>Onboarded</span>
                       </div>
                     </div>
 
                     {/* Candidate cards */}
-                    <div className="space-y-2.5">
+                    <div className="space-y-2">
                       {detail.activeApplicantsList && detail.activeApplicantsList.length > 0 ? (
                         detail.activeApplicantsList.map((candidate, index) => {
                           const isCandidateHired =
@@ -846,11 +883,16 @@ export function VacancyDetailDrawer({
                             candidate.statusLabel.toLowerCase().includes("confirm");
 
                           const candidateAging = candidate.agingDays ?? detail.agingDays ?? null;
+                          const candAgingColors = getAgingColorClasses(candidateAging);
+                          const canEditThisCandidate =
+                            !isCandidateHired &&
+                            userCanEditApplicant &&
+                            (isUserFullAccess || (candidate.profileEditCount ?? 0) === 0);
 
                           return (
                             <div
                               key={candidate.applicantId || `candidate-${index}`}
-                              className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3.5 text-xs hover:bg-surface-muted/60 transition space-y-2.5"
+                              className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3 text-xs hover:bg-surface-muted/60 transition space-y-2"
                             >
                               {/* Candidate Header */}
                               <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -859,8 +901,35 @@ export function VacancyDetailDrawer({
                                     {candidate.displayName.charAt(0)}
                                   </div>
                                   <div>
-                                    <div className="font-bold text-text-primary text-xs">
-                                      {formatPersonName(candidate.displayName)}
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-bold text-text-primary text-xs">
+                                        {formatPersonName(candidate.displayName)}
+                                      </span>
+                                      {canEditThisCandidate && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setSelectedCandidateForEdit({
+                                              applicantId: candidate.applicantId,
+                                              displayName: candidate.displayName,
+                                              lastName: candidate.lastName,
+                                              firstName: candidate.firstName,
+                                              middleName: candidate.middleName,
+                                              contactNumber: candidate.contactNumber,
+                                              profileEditCount: candidate.profileEditCount,
+                                              statusLabel: candidate.statusLabel,
+                                              vcode: detail.vcode,
+                                              positionTitle: detail.position_title,
+                                            });
+                                            setIsEditApplicantModalOpen(true);
+                                          }}
+                                          className="p-0.5 rounded text-text-muted hover:text-brand-600 hover:bg-surface-muted transition cursor-pointer"
+                                          title="Edit applicant name & contact number"
+                                          aria-label={`Edit ${candidate.displayName}`}
+                                        >
+                                          <Edit3 className="h-3 w-3" />
+                                        </button>
+                                      )}
                                     </div>
                                     {candidate.position && (
                                       <div className="text-[10px] text-text-secondary font-medium">
@@ -875,7 +944,7 @@ export function VacancyDetailDrawer({
                                   </Badge>
                                   {candidateAging !== null && (
                                     <span
-                                      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border border-border-default bg-surface-muted text-text-secondary"
+                                      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold border ${candAgingColors.badge}`}
                                       title="Candidate Aging in Stage"
                                     >
                                       <Clock3 className="h-2.5 w-2.5" />
@@ -904,92 +973,62 @@ export function VacancyDetailDrawer({
                                 ) : null}
                               </div>
 
-                              {/* Consolidated Candidate Action Buttons */}
-                              {!isCandidateHired && (userCanManagePipeline || userCanEditApplicant) && (
+                              {/* Candidate Pipeline Action Buttons */}
+                              {!isCandidateHired && userCanManagePipeline && (
                                 <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border-subtle/50 flex-wrap">
-                                  {userCanEditApplicant && (isUserFullAccess || (candidate.profileEditCount ?? 0) === 0) && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedCandidateForEdit({
-                                          applicantId: candidate.applicantId,
-                                          displayName: candidate.displayName,
-                                          lastName: candidate.lastName,
-                                          firstName: candidate.firstName,
-                                          middleName: candidate.middleName,
-                                          contactNumber: candidate.contactNumber,
-                                          profileEditCount: candidate.profileEditCount,
-                                          statusLabel: candidate.statusLabel,
-                                          vcode: detail.vcode,
-                                          positionTitle: detail.position_title,
-                                        });
-                                        setIsEditApplicantModalOpen(true);
-                                      }}
-                                      className="inline-flex items-center gap-1 rounded border border-border-default bg-surface px-2.5 py-1 text-[11px] font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-xs cursor-pointer"
-                                      title="Edit applicant profile details"
-                                    >
-                                      <Edit3 className="h-3 w-3" />
-                                      <span>Edit Details</span>
-                                    </button>
-                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCandidate({
+                                        id: candidate.applicantId,
+                                        fullName: candidate.displayName,
+                                        lastName: candidate.lastName,
+                                        firstName: candidate.firstName,
+                                        middleName: candidate.middleName,
+                                        contactNumber: candidate.contactNumber,
+                                        status: candidate.statusLabel,
+                                        vcode: detail.vcode,
+                                        positionTitle: candidate.position || detail.position_title,
+                                        vacancyRequirementId: candidate.vacancyRequirementId || null,
+                                        groupId: detail.groupId,
+                                        accountId: detail.accountId,
+                                        endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
+                                      });
+                                      setIsAdvancePipelineModalOpen(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-muted px-2.5 py-1 text-[11px] font-semibold text-text-primary hover:bg-surface-hover transition shadow-xs cursor-pointer"
+                                    title="Advance stage or select terminal backout/dropout reason"
+                                  >
+                                    <ArrowRightCircle className="h-3 w-3" />
+                                    <span>Update Stage / Backout</span>
+                                  </button>
 
-                                  {userCanManagePipeline && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setSelectedCandidate({
-                                            id: candidate.applicantId,
-                                            fullName: candidate.displayName,
-                                            lastName: candidate.lastName,
-                                            firstName: candidate.firstName,
-                                            middleName: candidate.middleName,
-                                            contactNumber: candidate.contactNumber,
-                                            status: candidate.statusLabel,
-                                            vcode: detail.vcode,
-                                            positionTitle: candidate.position || detail.position_title,
-                                            vacancyRequirementId: candidate.vacancyRequirementId || null,
-                                            groupId: detail.groupId,
-                                            accountId: detail.accountId,
-                                            endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
-                                          });
-                                          setIsAdvancePipelineModalOpen(true);
-                                        }}
-                                        className="inline-flex items-center gap-1 rounded border border-border-default bg-surface-muted px-2.5 py-1 text-[11px] font-semibold text-text-primary hover:bg-surface-hover transition shadow-xs cursor-pointer"
-                                        title="Advance stage or select terminal backout/dropout reason"
-                                      >
-                                        <ArrowRightCircle className="h-3 w-3" />
-                                        <span>Update Stage / Backout</span>
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setSelectedCandidate({
-                                            id: candidate.applicantId,
-                                            fullName: candidate.displayName,
-                                            lastName: candidate.lastName,
-                                            firstName: candidate.firstName,
-                                            middleName: candidate.middleName,
-                                            contactNumber: candidate.contactNumber,
-                                            status: candidate.statusLabel,
-                                            vcode: detail.vcode,
-                                            positionTitle: candidate.position || detail.position_title,
-                                            vacancyRequirementId: candidate.vacancyRequirementId || null,
-                                            groupId: detail.groupId,
-                                            accountId: detail.accountId,
-                                            endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
-                                          });
-                                          setIsMarkHiredModalOpen(true);
-                                        }}
-                                        className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 dark:bg-brand-950/60 dark:border-brand-800 dark:text-brand-300 px-2.5 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 transition shadow-xs cursor-pointer"
-                                        title="Approve and mark candidate as hired"
-                                      >
-                                        <CheckCircle2 className="h-3 w-3" />
-                                        <span>Mark Hired</span>
-                                      </button>
-                                    </>
-                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCandidate({
+                                        id: candidate.applicantId,
+                                        fullName: candidate.displayName,
+                                        lastName: candidate.lastName,
+                                        firstName: candidate.firstName,
+                                        middleName: candidate.middleName,
+                                        contactNumber: candidate.contactNumber,
+                                        status: candidate.statusLabel,
+                                        vcode: detail.vcode,
+                                        positionTitle: candidate.position || detail.position_title,
+                                        vacancyRequirementId: candidate.vacancyRequirementId || null,
+                                        groupId: detail.groupId,
+                                        accountId: detail.accountId,
+                                        endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
+                                      });
+                                      setIsMarkHiredModalOpen(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded border border-brand-200 bg-brand-50 dark:bg-brand-950/60 dark:border-brand-800 dark:text-brand-300 px-2.5 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 transition shadow-xs cursor-pointer"
+                                    title="Approve and mark candidate as hired"
+                                  >
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    <span>Mark Hired</span>
+                                  </button>
                                 </div>
                               )}
                             </div>
@@ -997,75 +1036,83 @@ export function VacancyDetailDrawer({
                         })
                       ) : detail.applicantName ? (
                         /* Fallback Single Candidate Card */
-                        <div className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3.5 text-xs space-y-2.5">
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 font-bold text-xs">
-                                {detail.applicantName.charAt(0)}
-                              </div>
-                              <div className="font-bold text-text-primary text-xs">
-                                {detail.applicantName}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <Badge className="text-[10px] py-0.5 px-2 font-medium border border-border-default bg-surface-muted text-text-secondary">
-                                {detail.pipelineStatus || "In Pipeline"}
-                              </Badge>
-                              {detail.agingDays !== null && (
-                                <span
-                                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border border-border-default bg-surface-muted text-text-secondary"
-                                  title="Aging in Pipeline"
-                                >
-                                  <Clock3 className="h-2.5 w-2.5" />
-                                  <span>{detail.agingDays}d</span>
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                        (() => {
+                          const fbAgingColors = getAgingColorClasses(detail.agingDays);
+                          const canEditFallbackCandidate =
+                            !isHired &&
+                            userCanEditApplicant &&
+                            Boolean(detail.applicantId) &&
+                            (isUserFullAccess || (detail.profileEditCount ?? 0) === 0);
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-text-secondary pt-1.5 border-t border-border-subtle/50">
-                            <div className="flex items-center gap-1.5 truncate">
-                              <Phone className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                              <span className="truncate">{detail.contactNumber || "No contact recorded"}</span>
-                            </div>
-                            {detail.onboardDate && (
-                              <div className="flex items-center gap-1.5 truncate">
-                                <Calendar className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                                <span className="truncate">Onboard: {formatDate(detail.onboardDate)}</span>
+                          return (
+                            <div className="rounded-lg border border-border-subtle bg-surface-muted/30 p-3 text-xs space-y-2">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 font-bold text-xs">
+                                    {detail.applicantName.charAt(0)}
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-text-primary text-xs">
+                                      {detail.applicantName}
+                                    </span>
+                                    {canEditFallbackCandidate && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedCandidateForEdit({
+                                            applicantId: detail.applicantId!,
+                                            displayName: detail.applicantName,
+                                            firstName: detail.applicantFirstName,
+                                            middleName: detail.applicantMiddleName,
+                                            lastName: detail.applicantLastName,
+                                            contactNumber: detail.contactNumber,
+                                            profileEditCount: detail.profileEditCount,
+                                            statusLabel: detail.pipelineStatus,
+                                            vcode: detail.vcode,
+                                            positionTitle: detail.position_title,
+                                          });
+                                          setIsEditApplicantModalOpen(true);
+                                        }}
+                                        className="p-0.5 rounded text-text-muted hover:text-brand-600 hover:bg-surface-muted transition cursor-pointer"
+                                        title="Edit applicant name & contact number"
+                                        aria-label={`Edit ${detail.applicantName}`}
+                                      >
+                                        <Edit3 className="h-3 w-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <Badge className="text-[10px] py-0.5 px-2 font-medium border border-border-default bg-surface-muted text-text-secondary">
+                                    {detail.pipelineStatus || "In Pipeline"}
+                                  </Badge>
+                                  {detail.agingDays !== null && (
+                                    <span
+                                      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold border ${fbAgingColors.badge}`}
+                                      title="Aging in Pipeline"
+                                    >
+                                      <Clock3 className="h-2.5 w-2.5" />
+                                      <span>{detail.agingDays}d</span>
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                            )}
-                          </div>
 
-                          {!isHired && (userCanManagePipeline || userCanEditApplicant) && (
-                            <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border-subtle/50 flex-wrap">
-                              {userCanEditApplicant && detail.applicantId && (isUserFullAccess || (detail.profileEditCount ?? 0) === 0) && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedCandidateForEdit({
-                                      applicantId: detail.applicantId!,
-                                      displayName: detail.applicantName,
-                                      firstName: detail.applicantFirstName,
-                                      middleName: detail.applicantMiddleName,
-                                      lastName: detail.applicantLastName,
-                                      contactNumber: detail.contactNumber,
-                                      profileEditCount: detail.profileEditCount,
-                                      statusLabel: detail.pipelineStatus,
-                                      vcode: detail.vcode,
-                                      positionTitle: detail.position_title,
-                                    });
-                                    setIsEditApplicantModalOpen(true);
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded border border-border-default bg-surface px-2.5 py-1 text-[11px] font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition shadow-xs cursor-pointer"
-                                  title="Edit applicant profile details"
-                                >
-                                  <Edit3 className="h-3 w-3" />
-                                  <span>Edit Details</span>
-                                </button>
-                              )}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-text-secondary pt-1.5 border-t border-border-subtle/50">
+                                <div className="flex items-center gap-1.5 truncate">
+                                  <Phone className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                                  <span className="truncate">{detail.contactNumber || "No contact recorded"}</span>
+                                </div>
+                                {detail.onboardDate && (
+                                  <div className="flex items-center gap-1.5 truncate">
+                                    <Calendar className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                                    <span className="truncate">Onboard: {formatDate(detail.onboardDate)}</span>
+                                  </div>
+                                )}
+                              </div>
 
-                              {userCanManagePipeline && (
-                                <>
+                              {!isHired && userCanManagePipeline && (
+                                <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border-subtle/50 flex-wrap">
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1119,13 +1166,13 @@ export function VacancyDetailDrawer({
                                     <CheckCircle2 className="h-3 w-3" />
                                     <span>Mark Hired</span>
                                   </button>
-                                </>
+                                </div>
                               )}
                             </div>
-                          )}
-                        </div>
+                          );
+                        })()
                       ) : (
-                        <div className="text-center py-8 border border-dashed border-border-subtle rounded-lg text-xs text-text-muted">
+                        <div className="text-center py-6 border border-dashed border-border-subtle rounded-lg text-xs text-text-muted">
                           No active applicants in pipeline.
                         </div>
                       )}
@@ -1143,7 +1190,7 @@ export function VacancyDetailDrawer({
                     TAB 2: VACANCY DETAILS & TIMELINE
                    ===================================================================== */}
                 {activeTab === "details" && (
-                  <div className="space-y-4">
+                  <div className="space-y-3.5">
                     <div className="rounded-lg border border-border-subtle bg-surface-base p-4 space-y-4 shadow-2xs">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-text-secondary">
                         <Building2 className="h-4 w-4 text-brand-600 shrink-0" />
@@ -1497,35 +1544,24 @@ export function VacancyDetailDrawer({
                 )}
 
                 {/* =====================================================================
-                    TAB 4: ACTIVITY HISTORY (Detailed What, Who, When)
+                    TAB 4: ACTIVITY HISTORY (Clean & Simple Timeline)
                    ===================================================================== */}
                 {activeTab === "history" && (
-                  <div className="rounded-lg border border-border-subtle bg-surface-base p-4 space-y-3 shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-text-secondary">
-                        <History className="h-4 w-4 text-brand-600 shrink-0" />
-                        <span>Detailed Activity History Trail</span>
-                      </div>
-                      <span className="text-[11px] text-text-muted">
-                        What &bull; Who &bull; When
-                      </span>
-                    </div>
-
+                  <div className="rounded-lg border border-border-subtle bg-surface-base p-4 shadow-2xs">
                     {detail.activityHistory && detail.activityHistory.length > 0 ? (
-                      <div className="relative pl-5 space-y-3.5 border-l-2 border-border-subtle ml-2 mt-2">
+                      <div className="relative pl-4 space-y-3 border-l-2 border-border-subtle ml-1.5">
                         {detail.activityHistory.map((item, index) => {
                           const formatted = formatActivityHistoryItem(item);
                           return (
                             <div
                               key={item.eventId || `activity-${index}`}
-                              className="relative rounded-lg border border-border-subtle bg-surface-muted/30 p-3 text-xs space-y-1.5 hover:bg-surface-muted/60 transition"
+                              className="relative pb-3 last:pb-0 border-b border-border-subtle/50 last:border-b-0 text-xs"
                             >
                               {/* Timeline dot */}
-                              <div className="absolute -left-[27px] top-3.5 h-2.5 w-2.5 rounded-full border-2 border-surface-base bg-brand-600" />
+                              <div className="absolute -left-[21px] top-1 h-2 w-2 rounded-full border-2 border-surface-base bg-brand-600" />
 
-                              {/* Header: What (Event Title) + When (Timestamp) */}
                               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                <span className="font-bold text-text-primary leading-tight">
+                                <span className="font-semibold text-text-primary leading-tight">
                                   {formatted.title}
                                 </span>
                                 <span className="text-[10px] font-mono text-text-muted shrink-0">
@@ -1533,26 +1569,21 @@ export function VacancyDetailDrawer({
                                 </span>
                               </div>
 
-                              {/* Body: Detailed What Happened */}
                               {formatted.description && (
-                                <p className="text-xs text-text-secondary leading-relaxed">
+                                <p className="mt-0.5 text-xs text-text-secondary leading-relaxed">
                                   {formatted.description}
                                 </p>
                               )}
 
-                              {/* Footer: Who Performed It */}
-                              <div className="pt-1 flex items-center gap-1.5 text-[11px] text-text-muted">
-                                <User className="h-3 w-3 text-text-muted shrink-0" />
-                                <span>
-                                  Performed by <strong className="font-semibold text-text-primary">{formatted.actor}</strong>
-                                </span>
+                              <div className="mt-0.5 text-[11px] text-text-muted">
+                                By <span className="font-medium text-text-secondary">{formatted.actor}</span>
                               </div>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <div className="text-center py-8 border border-dashed border-border-subtle rounded-lg text-xs text-text-muted">
+                      <div className="text-center py-6 border border-dashed border-border-subtle rounded-lg text-xs text-text-muted">
                         No activity history recorded for this vacancy yet.
                       </div>
                     )}

@@ -9,6 +9,7 @@ export interface ModalProps extends BaseModalProps {
   title: string | ReactNode;
   subtitle?: string | ReactNode;
   icon?: React.ComponentType<{ className?: string }>;
+  headerActions?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   maxWidthClass?: string; // default "max-w-lg"
@@ -25,6 +26,7 @@ export function Modal({
   title,
   subtitle,
   icon: Icon,
+  headerActions,
   children,
   footer,
   maxWidthClass = "max-w-lg",
@@ -127,15 +129,18 @@ export function Modal({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            aria-label="Close dialog"
-            className="ml-3 rounded-lg p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="ml-3 flex items-center gap-2 shrink-0">
+            {headerActions}
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              aria-label="Close dialog"
+              className="rounded-lg p-1.5 text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}

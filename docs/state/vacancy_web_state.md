@@ -97,19 +97,19 @@ The table supports loading, empty, retryable error, blocked/read-denied, selecte
 The Vacancy Detail Modal (`VacancyDetailDrawer.tsx`, rendered via centered `Modal` with `maxWidthClass="max-w-3xl"`) is a desktop-first, admin-oriented command center surface. When a vacancy is selected from the dense table, the modal opens with an always-visible top summary and 4 segmented navigation tabs (`SegmentedTabs`):
 
 1. **Compact Header & Always-Visible Top Strip**:
-   - **Header**: Prominent monospaced `VCode` badge, status badge (`Open`, `Pipeline`, `Pending Clearance`, `Hired`), primary `Position Title`, and `Account / Group / Store` hierarchy subtitle.
-   - **4-Column KPI Strip**: Displays `Hired (hc_filled/hc_total)`, `Pipeline (activeApplicantCount)`, `Avail (availableSlots)`, and `Aging (agingDays + bucket)`, plus active penalty exposure callouts and multi-position breakdowns when applicable.
-   - **Quota & Closure Action Row**: Houses capability-gated quick triggers for `Adjust Quota`, `Request HC Adjustment`, `Request Closure`, and `Withdraw Closure`.
+   - **Header**: Prominent monospaced `VCode` badge, status badge (`Open`, `Pipeline`, `Pending Clearance`, `Hired`), primary `Position Title`, `Account / Group / Store` hierarchy subtitle, and top-right `headerActions` (`Adjust Quota`, `HC Adjustment`, `Request Closure`, `Withdraw Closure`).
+   - **4-Column KPI Strip**: Displays `Hired (hc_filled/hc_total)`, `Pipeline (activeApplicantCount)`, `Avail (availableSlots)`, and color-coded `Aging (agingDays + bucket)` (`<= 7d` Green/Emerald, `8–15d` Yellow/Amber, `> 15d` Red/Rose). Numbers render as whole integers when exact and 1–2 decimal places only when fractional (`0.5`, `0.33`).
 2. **Tab 1: Pipeline & Applicants (`pipeline`)**:
-   - Displays active and onboarded candidate counts alongside individual candidate cards showing candidate name, tagged role (for multi-position stores), current stage badge, aging pill, contact number, recruiter/onboard date, and inline action buttons (`Edit Details`, `Update Stage / Backout`, `Mark Hired`), plus the PII Guard notice.
+   - Header titled `Applicant` with active and onboarded counters.
+   - Displays individual candidate cards showing candidate name with an inline edit icon (`<Edit3 />`) directly beside the name, tagged role (for multi-position stores), current stage badge, color-coded aging pill, contact number, recruiter/onboard date, and pipeline stage actions (`Update Stage / Backout`, `Mark Hired`), plus the PII Guard notice.
 3. **Tab 2: Vacancy Details (`details`)**:
    - Displays Source, Vacancy Type, Urgency Level, Province/City, Employment Type, Assigned Roving Stores (with `CGCode` and `Anchor` store badges), inline `Vacant Since` date editor, `Target Fill Date`, `Date Created`, SLA breach warning (> 60 days), and Headcount & Approvals Context.
 4. **Tab 3: Ownership & Team (`ownership`)**:
    - Displays structured assignment cards for `HRCO Assignee`, `Recruiter`, `Operations Manager (OM)`, `Team Leader (TL)`, `Assistant Team Leader (ATL)`, `Triggered By` / `Deployed By`, `Reliever on Duty`, and `HRCO Remarks`.
-5. **Tab 4: Activity History (`history`) — Detailed What, Who, When Timeline**:
-   - Powered by `public.get_vacancy_activity_timeline(p_vacancy_id)` inside `public.get_web_vacancy_detail(p_vacancy_id)` (`20262606000174_friendly_vacancy_activity_history_timeline.sql`).
-   - Aggregates and deduplicates chronological lifecycle events across `vacancies`, `applicants`, `applicant_status_history`, `applicant_profile_edit_history`, `vacancy_closure_requests`, `hr_emploc`, and meaningful field-level `audit_logs` diffs (filtering out no-op background trigger syncs).
-   - Every timeline card explicitly renders **What** (specific event title + full human-readable sentence detailing old $\rightarrow$ new values, candidate names, positions, and reasons/remarks), **Who** (`Performed by <Actor Name>`), and **When** (date + timestamp `MMM D, YYYY, h:mm AM/PM`).
+5. **Tab 4: Activity History (`history`) — Clean Chronological Timeline**:
+   - Powered by `public.get_vacancy_activity_timeline(p_vacancy_id)` inside `public.get_web_vacancy_detail(p_vacancy_id)` (`20262606000174` & `20262606000176`).
+   - Aggregates and deduplicates chronological lifecycle events across `vacancies`, `applicants`, `applicant_status_history`, `applicant_profile_edit_history`, `vacancy_closure_requests`, `hr_emploc`, and meaningful field-level `audit_logs` diffs.
+   - Renders a clean, simple vertical timeline (without redundant header labels or heavy nested card borders) showing event title, timestamp, clean description (with whole-number / 1–2 decimal HC formatting), and `By <Actor Name>`.
 
 ### Drawer Interaction Behavior
 
