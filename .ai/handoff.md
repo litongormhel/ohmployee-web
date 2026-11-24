@@ -1,5 +1,51 @@
 # AI Handoff
 
+## Execution Report — Fix Confirmed Onboard Candidates Lingering in Vacancy Open & Synchronize HR Processing (ohm#fix-vacancy-open-onboard-dual-existence-and-hr-processing-sync)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
+
+### Forensic Root Cause & Operational Fix
+1. **User Bug Report**:
+   - `VCBPIG1_0183` lingered in the Vacancy Open tab despite candidate **Tejada, Elizabeth Uy** having reached **Confirmed Onboard** status and being actively processed in **HR Emploc** (`Pending Emploc` / `Pending`).
+   - ADR Invariant Violated: A requisition cannot exist across two modules (Vacancy Open and HR Emploc) unless `required_headcount > 1` (where unfilled capacity remains open for recruitment).
+2. **Forensic Root Cause Analysis**:
+   - **Root Cause 1 (`vw_vacancy_list.derived_status`)**:
+     In `vw_vacancy_list`, `derived_status` only checked `active_plantilla_count >= required_headcount` for `'Hired'`. Candidates who reached Confirmed Onboard status without yet being deployed to Plantilla fell through all `WHEN` clauses to `ELSE 'Open'::text`.
+   - **Root Cause 2 (`list_web_vacancies` & `get_web_vacancy_summary` bypass predicate)**:
+     The query for `p_status = 'open'` included an `OR lower(s.pipeline_status) = 'open'` bypass. Because Root Cause 1 marked the pipeline status as `'Open'`, the predicate evaluated to `FALSE OR TRUE = TRUE`, leaking zero-capacity vacancies into the Open tab in violation of ADR Rule 4.
+   - **Root Cause 3 (Roving and Pool vacancy slot disconnect)**:
+     `slot_stats` had `WHERE ps.is_roving = false`, excluding roving slots from `hr_processing_count` (e.g. `CPSAJV27`), and pool slots had `legacy_vcode = NULL`. Adding `hr_emploc_stats` (`active_hr_emploc_count`) and using `GREATEST(ss.hr_processing_count, s.confirmed_onboard_count, hre.active_hr_emploc_count)` ensures onboarding candidates are always accurately reflected in `hr_processing_count`.
+3. **Database Migration (`supabase/migrations/20262606000178_fix_vacancy_open_onboard_dual_existence_and_hr_processing_sync.sql`)**:
+   - **Historical Data Reconciliations**:
+     - Unarchived active onboarding candidates in `applicants` who are active in `hr_emploc`.
+     - Backfilled missing `legacy_vcode` on `plantilla_slots` from `hr_emploc` and `applicants`.
+     - Synchronized `slot_id` linkages between `applicants` and `hr_emploc`.
+     - Reconciled raw `vacancies.status = 'Filled'` for vacancies whose active Plantilla occupancy meets required headcount.
+   - **`vw_vacancy_list` Update (Append-Only Non-Breaking View Parity)**:
+     - Preserved all 48 columns in exact identical order.
+     - Added `hr_emploc_stats` CTE and removed the `is_roving = false` exclusion in `slot_stats`.
+     - Updated `hr_processing_count` to `COALESCE(GREATEST(ss.hr_processing_count, s.confirmed_onboard_count, hre.active_hr_emploc_count), 0)::integer`.
+     - Updated `derived_status` so requisitions where confirmed onboards (in HR Emploc) + active plantilla meet or exceed required headcount evaluate to `'Hired'` (vacating Open and Pipeline).
+   - **`list_web_vacancies` & `get_web_vacancy_summary` Hardening**:
+     - Removed the `OR lower(s.pipeline_status) = 'open'` bypass, strictly enforcing ADR Rule 4: a vacancy appears in the Open tab if and only if unallocated capacity exists: `(hc_total - hc_filled - hr_processing_count - active_applicant_count) > 0`.
+4. **Verification & Testing**:
+   - Pushed migration 178 cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging`.
+   - Verified live database queries on Staging:
+     - Confirmed `VCBPIG1_0183` (Tejada, Elizabeth Uy) has `derived_status = 'Hired'` and no longer appears in Open tab.
+     - Confirmed all single-slot target vacancies (`VCBPIG1_0183`, `ACT-G5-002`, `VCBPIG1_1026`, `PSM-G3-0062`, `CPSAJV27`, `SEA-00006`, `BUN-GHQ-00015`) transitioned to `'Hired'` and appear in the Hired tab with 0 open capacity.
+     - Confirmed multi-slot vacancy `ACT-G5-008` (headcount 3, filled 1, HR processing 1) correctly remains in Open tab with 1 remaining open slot.
+   - 264/264 unit tests passed (`npm test`).
+   - 0 ESLint errors/warnings (`npm run lint`).
+   - 0 secret leaks (`npm run check:secrets`).
+   - 0 SQL contract errors (`npm run check:sql`).
+
+### Files Changed
+- `supabase/migrations/20262606000178_fix_vacancy_open_onboard_dual_existence_and_hr_processing_sync.sql` — Data cleanup, `vw_vacancy_list`, `list_web_vacancies`, and `get_web_vacancy_summary` capacity synchronization.
+- `docs/state/vacancy_web_state.md` — Updated Vacancy state specifications for Confirmed Onboard candidates and strict zero-capacity invariant.
+- `.ai/briefing.md` — Prepending task to Last Completed Tasks.
+- `.ai/handoff.md` — Prepended handoff report.
+
+---
+
 ## Execution Report — Enforce Clean Open Requisition on Backout, Auto-Archival Trigger, Zero-Applicant Avail & Multi-Position Parity (ohm#clean-open-vacancy-and-backout-invariants)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
 

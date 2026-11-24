@@ -481,6 +481,26 @@ Resolves the 1/3 capacity progression, Avail metric invariant, and clean-slate r
 
 ---
 
+## Confirmed Onboard Candidates & Strict Zero-Capacity Open Invariant (`ohm#fix-vacancy-open-onboard-dual-existence-and-hr-processing-sync`)
+
+Enforces ADR-001 Rule 4 and ADR-002 capacity rules preventing requisitions whose candidates are confirmed onboard (active in HR Emploc) from dual-existing in the Vacancy Open tab:
+
+1. **Dual Existence Prevention (ADR Invariant)**:
+   - A single-slot vacancy (`required_headcount = 1`) cannot exist across both the Vacancy Open tab and HR Emploc.
+   - When an applicant reaches `Confirmed Onboard`, they enter HR Emploc processing (`hr_processing_count >= 1`).
+   - Once all required slots are occupied by Confirmed Onboard candidates or active Plantilla personnel (`(confirmed_onboard_count + active_plantilla_count) >= required_headcount`), remaining open capacity is `0`. The vacancy evaluates to `'Hired'` (`derived_status = 'Hired'`) and is strictly excluded from Open and Pipeline tabs.
+2. **Strict Capacity Filter (`list_web_vacancies` & `get_web_vacancy_summary`)**:
+   - Removed the `OR lower(s.pipeline_status) = 'open'` bypass predicate.
+   - Requisitions appear in the Open tab if and only if open capacity exists:
+     $$\text{Remaining Open Capacity} = (\text{hc\_total} - \text{hc\_filled} - \text{hr\_processing\_count} - \text{active\_applicant\_count}) > 0$$
+3. **Multi-Headcount Requisitions (`required_headcount > 1`)**:
+   - Requisitions requiring multiple headcount (e.g., `ACT-G5-008` with `hc_total = 3`, `hc_filled = 1`, `hr_processing_count = 1`) retain accurate open capacity (`remaining = 1`) and legitimately remain in the Open tab to recruit for the remaining open slot.
+4. **Roving and Pool Slot Synchronization**:
+   - `slot_stats` in `vw_vacancy_list` removes the `is_roving = false` exclusion, ensuring roving slots in `hr_processing` are accurately counted.
+   - `hr_emploc_stats` queries active onboarding records directly from `public.hr_emploc`, guaranteeing that pool vacancies with unpopulated slot foreign keys are safely counted in `hr_processing_count`.
+
+---
+
 > [!NOTE]
 > **Historical Assessment & Implementation Phases Archive:**
 > Historical pre-implementation assessments and phase checklists have been archived to [`docs/state/archive/vacancy_web_state_historical.md`](archive/vacancy_web_state_historical.md) to keep this live specification token-optimized.
