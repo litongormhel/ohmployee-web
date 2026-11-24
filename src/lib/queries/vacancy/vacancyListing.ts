@@ -2212,7 +2212,7 @@ export async function listVacancies(params: VacancyListParams) {
               const cgStatus = (asString(firstCg?.status) || "").toLowerCase();
               const isFilled = cgStatus === "filled" || filledCgIds.has(cgId);
               const rawReq = asNumber(firstCg?.required_headcount);
-              const requiredHc = rawReq != null && !isNaN(rawReq) ? rawReq : 1;
+              const requiredHc = rawReq != null && !isNaN(rawReq) && rawReq > 0 ? rawReq : 1;
               const count = items.length || 1;
               const defaultFraction = `1/${count}`;
 
@@ -2326,8 +2326,8 @@ export async function listVacancies(params: VacancyListParams) {
 
             if (cgId && cgMap.has(cgId)) {
               const cgInfo = cgMap.get(cgId)!;
-              if (cgInfo.isFilled || cgInfo.requiredHc <= 0) {
-                // Member store covered by active employee or 0-headcount test group -> fulfilled/suppressed
+              if (cgInfo.isFilled) {
+                // Member store covered by active employee -> fulfilled/suppressed
                 continue;
               }
 

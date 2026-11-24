@@ -110,7 +110,10 @@ export function CreateCoverageGroupModal({
   );
 
   const activeCoverageGroups = useMemo(() => {
-    return coverageGroups.filter((g) => g.groupStatus === "Active" || !g.groupStatus);
+    return coverageGroups.filter((g) => {
+      const s = (g.groupStatus || "").toLowerCase().trim();
+      return s !== "archived" && s !== "dissolved" && s !== "closed";
+    });
   }, [coverageGroups]);
 
   // Target group details for Add, Remove, and Dissolve

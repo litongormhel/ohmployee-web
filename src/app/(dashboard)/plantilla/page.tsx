@@ -950,14 +950,19 @@ function PlantillaPageContent() {
     filtered.forEach((v) => {
       const candidates = v.activeApplicantsList ?? [];
       const physicalSlots = v.slotsList ?? [];
-      // Authorized headcount quota bounds the total slots for this requisition
+      // Filter out physical slots that are already occupied by active employees
+      const unoccupiedPhysicalSlots = physicalSlots.filter((s) => s.slotStatus !== "occupied");
+      const filledHc = v.hcFilled != null ? Math.max(0, Math.trunc(v.hcFilled)) : 0;
       const approvedHc = Math.max(1, Math.trunc(v.hcTotal ?? v.headcount ?? 1));
-      const targetSlotsCount = approvedHc;
+      // Authorized vacant slot count bounds the open slots for this requisition
+      const targetSlotsCount = unoccupiedPhysicalSlots.length > 0
+        ? unoccupiedPhysicalSlots.length
+        : Math.max(1, approvedHc - filledHc);
 
       if (targetSlotsCount > 1 || candidates.length > 1) {
         for (let i = 0; i < targetSlotsCount; i++) {
           const cand = candidates[i];
-          const physicalSlot = physicalSlots[i];
+          const physicalSlot = unoccupiedPhysicalSlots[i] ?? physicalSlots[i];
           const slotOrd = physicalSlot?.slotOrdinal ?? (i + 1);
           const slotPos = cand?.position || physicalSlot?.position || v.position_title;
 
@@ -1006,7 +1011,7 @@ function PlantillaPageContent() {
         }
       } else {
         const cand = candidates[0];
-        const physicalSlot = physicalSlots[0];
+        const physicalSlot = unoccupiedPhysicalSlots[0] ?? physicalSlots[0];
         const slotOrd = physicalSlot?.slotOrdinal ?? 1;
         const slotPos = cand?.position || physicalSlot?.position || v.position_title;
         expanded.push({

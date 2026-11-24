@@ -1,5 +1,54 @@
 # AI Handoff
 
+## Execution Report — Fix Coverage Group Dropdown Visibility Across Operations and Resolve Roving Vacancy Suppression (ohm#fix-coverage-group-dropdown-visibility-and-vacancy-suppression)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated & Locally Tested
+
+### What Was Built
+1. **Coverage Group Dropdown Visibility (`CreateCoverageGroupModal.tsx`)**:
+   - In `CreateCoverageGroupModal.tsx`, the `activeCoverageGroups` filter previously checked `g.groupStatus === "Active"`.
+   - In `public.vw_coverage_group_shadow` and RPC `list_coverage_groups`, coverage group statuses are lowercase lifecycle states (`open`, `filled`, `pipeline`, `hr_processing`, `archived`).
+   - Consequently, `activeCoverageGroups` always evaluated to `[]` (empty), causing all dropdowns across **Add Store**, **Remove Store**, **Merge Groups**, and **Dissolve Group** tabs to display `-- No Active Coverage Groups Found --`.
+   - Updated the filter to accept all operational non-archived groups (`s !== "archived" && s !== "dissolved" && s !== "closed"`), immediately populating operational roving groups (e.g. `CG-FG1-0004` and `CG-FG1-0005`) across all 4 operational tabs.
+2. **Roving Vacancy Suppression Resolution & Headcount Alignment**:
+   - User inquiry: *"bakit ung Puregold General Trias wala sa Vacancy. Ung Waltermart General Trias at Puregold Tanza."*
+   - Root cause identified: `PUERGOLD GENERAL TRIAS` (`CPSAJV27`, anchor) and `PUREGOLD NOVELETA OASIS` (`CPPGJV19`) form open roving group `CG-FG1-0005`. In `coverage_groups` table, `CG-FG1-0005` had denormalized `required_headcount = 0`. In `src/lib/queries/vacancy/vacancyListing.ts`, the condition `cgInfo.isFilled || cgInfo.requiredHc <= 0` dropped both stores as a 0-headcount test group. In `plantilla/page.tsx`, `CPPGJV19` was accidentally resurrected by an inactive employee (`Eurie Baculi`), while `CPSAJV27` disappeared completely.
+   - In `src/lib/queries/vacancy/vacancyListing.ts`, defaulted `requiredHc` to at least 1 when active slots exist (`rawReq != null && !isNaN(rawReq) && rawReq > 0 ? rawReq : 1`).
+   - Authored and applied migration `20262606000171_align_coverage_groups_required_headcount.sql` on Staging (`qqiiznmqxfoamqytjica`), updating `required_headcount = 1` for `CG-FG1-0005` and active coverage groups.
+3. **Vacancy Tab Unoccupied Slot Isolation (Single-Roster Parity)**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, multi-slot vacancy expansion previously expanded to `v.hcTotal` regardless of whether slots were already occupied by active personnel.
+   - For `SMCO KAWIT` (`CPSMJV21`, 2 slots total), Slot 1 was occupied by active employee `Fred Richard Borillo` (`2021-09665`) while Slot 2 was open. Because it expanded to 2 rows, it created a duplicate occupied row in Vacancy.
+   - Updated the expansion to filter out occupied slots (`s.slotStatus !== 'occupied'`) and bound target count to `unoccupiedPhysicalSlots.length` (or `approvedHc - filledHc`), ensuring only genuinely open slots (Slot 2) render in Vacancy.
+   - Result: Renders exactly the 5 valid open vacancies for account `FOREVER OFFICE` (`Vacancy 5`):
+     1. Divimart General Trias (`CPRVJV13`) - 1 open slot
+     2. Super 8 Rosario Cavite (`VCFG1_0010`) - 1 open slot
+     3. Puregold - Hugo Perez (`CPPGJV23`) - 1 open slot
+     4. Smco Kawit (`CPSMJV21`) - 1 open slot (Slot 2)
+     5. Puregold General Trias (`CPSAJV27`) - 1 open slot (CG-FG1-0005 anchor)
+4. **Coverage Group Staffing Investigation (Waltermart & Puregold Tanza)**:
+   - Verified that `WALTERMART GENERAL TRIAS` (`CPWMJV36`) and `PUREGOLD TANZA` (`CPPGJV14`) belong to `CG-FG1-0004`, which is **100% FILLED** by active deployed employee `JUAPHEL DELFINA` (`2019-08946`).
+   - In addition, Waltermart General Trias has active stationary merchandiser `RAMMEL VILLA` (`2021-09665`).
+   - Both stationary and roving allocations for these stores are fully staffed, correctly resulting in 0 open vacancies.
+5. **Verification**:
+   - ADR fresh check: `npm run check:adr` (ADR_MIRROR_STATUS: FRESH).
+   - SQL contracts check: `npm run check:sql` (passed across 696 migrations).
+   - Unit tests: passed all 263 unit tests across 14 test suites (`npm test`).
+   - ESLint: 0 errors, 0 warnings (`npm run lint`).
+   - Secrets: 0 credential leaks (`npm run check:secrets`).
+   - Database Migration: pushed `20262606000171_align_coverage_groups_required_headcount.sql` to Staging (`qqiiznmqxfoamqytjica`) with 0 errors via `npm run db:push:staging`.
+   - Build: Next.js 16.2.4 (Turbopack) production build passed cleanly in 17.7s, TypeScript compiled in 31.3s, all 25 static/dynamic routes prerendered.
+
+### Files
+- `src/components/modals/CreateCoverageGroupModal.tsx` — Case-insensitive non-archived status filter for active coverage groups across Add, Remove, Merge, and Dissolve tabs.
+- `src/lib/queries/vacancy/vacancyListing.ts` — Guarded `requiredHc` derivation against 0-headcount false suppression for active roving groups.
+- `src/app/(dashboard)/plantilla/page.tsx` — Filtered out occupied physical slots from Vacancy multi-slot expansion, guaranteeing single-roster accuracy.
+- `supabase/migrations/20262606000171_align_coverage_groups_required_headcount.sql` — Aligned active coverage group headcount to canonical minimum of 1 on Staging.
+- `docs/state/plantilla_web_state.md` — Documented Rule #27.
+- `.ai/briefing.md` — Prepended task to Last Completed Tasks.
+- `.ai/handoff.md` — Prepended handoff report.
+- `.ai/current_state.md` — Added update log.
+
+---
+
 ## Execution Report — Align Plantilla Vacancy Tab Badge Directly to Total Rendered Slot Count (ohm#align-plantilla-vacancy-tab-badge-to-slot-count)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Locally Tested
 
