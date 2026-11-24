@@ -459,6 +459,28 @@ Per ADR-002 Invariant 2 (`1 Store = 1 VCode`), multiple positions are normalized
 
 ---
 
+## Clean Open Requisition & Zero-Applicant Avail Invariant (`ohm#clean-open-vacancy-and-backout-invariants`)
+
+Resolves the 1/3 capacity progression, Avail metric invariant, and clean-slate return upon candidate backout across Web and Mobile:
+
+1. **Avail Metric (Zero-Applicant Invariant)**:
+   - `Avail` strictly represents open unallocated slots with zero active applicants (`Avail = Open or walang applicant`):
+     $$\text{Avail} = \max(0, \text{hc\_needed} - \text{hired\_count} - \text{pipeline\_count} - \text{hr\_processing\_count})$$
+   - Adding an applicant to screening immediately reduces `Avail` by 1. For a 1/3 requisition (1 hired, 3 needed):
+     - 0 active pipeline applicants $\rightarrow$ `Avail = 2` (renders in Open tab with 2 Available)
+     - 1 active pipeline applicant $\rightarrow$ `Avail = 1` (renders in Open tab with 1 Available)
+     - 2 active pipeline applicants $\rightarrow$ `Avail = 0` (capacity exhausted; leaves Open tab)
+2. **Strict Position Intake Lock**:
+   - `AddApplicantModal` and `endorseApplicant` prevent adding another applicant to a position or requisition that is `Full` (`availableSlots <= 0`), preventing over-endorsement until an active candidate backs out.
+3. **Clean Return to Open Tab on Backout (Anti-Ghost Applicant Lock)**:
+   - When a candidate backs out or fails, they route to the **Failed / Backout Tab** (`p_status = 'Failed'`).
+   - The store requisition returns to the **Open Tab** clean with zero applicants (`clean malinis at walang nakalagay na applicant`). Ghost applicants (such as `CRUZ, JAMES PAUL` on `TEST011`) are permanently prevented by:
+     - Automated trigger `trg_applicants_terminal_archival` on `public.applicants` auto-archiving (`is_archived = true`, `archived_at = now()`) and decoupling `slot_id = NULL` on terminal status transitions (`backout`, `failed`, `rejected`, `did_not_report`, `withdrew`).
+     - Surgical filtering in `public.get_web_vacancy_detail` excluding terminal dropouts from `pipeline_summary`.
+     - Frontend queries and capacity calculators strictly filtering out terminal candidates across all case variants.
+
+---
+
 > [!NOTE]
 > **Historical Assessment & Implementation Phases Archive:**
 > Historical pre-implementation assessments and phase checklists have been archived to [`docs/state/archive/vacancy_web_state_historical.md`](archive/vacancy_web_state_historical.md) to keep this live specification token-optimized.

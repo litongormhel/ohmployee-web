@@ -1,5 +1,46 @@
 # AI Handoff
 
+## Execution Report — Enforce Clean Open Requisition on Backout, Auto-Archival Trigger, Zero-Applicant Avail & Multi-Position Parity (ohm#clean-open-vacancy-and-backout-invariants)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
+
+### What Was Built
+1. **Clean Open Requisition Invariant upon Backout (Anti-Ghost Applicant Lock)**:
+   - Added rule to ADR-002 / `02_vacancy.md` ("Clean Open Requisition Invariant upon Backout / Anti-Ghost Applicant Lock"):
+     - When an applicant backs out or fails (`status IN ('backout', 'failed', 'rejected', 'did_not_report', 'withdrew')`), they are routed exclusively to the **Failed / Backout Tab** (`p_status = 'Failed'`).
+     - The linked store requisition returns to the **Open Tab** clean with zero applicants (`clean malinis at walang nakalagay na applicant`). Under no circumstances may a backed-out, failed, or terminal applicant linger, display, or occupy headcount in the Open requisition's active applicant roster or detail view.
+2. **Automated Archival Trigger & Slot Decoupling (`20262606000177_clean_open_vacancy_and_applicant_terminal_archival.sql`)**:
+   - Created database trigger `trg_applicants_terminal_archival` on `public.applicants` auto-archiving (`is_archived = true`, `archived_at = now()`) and decoupling `slot_id = NULL` on terminal status transitions (`backout`, `failed`, `rejected`, `did_not_report`, `withdrew`).
+   - Surgically filtered `get_web_vacancy_detail` to exclude dropouts from `pipeline_summary`.
+   - Reconciled historical dropouts (including James Cruz on `TEST011`).
+3. **Avail Metric & Zero-Applicant Invariant**:
+   - Codified $\text{Avail} = \max(0, \text{hc\_needed} - \text{hired\_count} - \text{pipeline\_count} - \text{hr\_processing\_count})$.
+   - Adding a candidate to screening immediately drops `Avail`. Full positions strictly block new candidate intake until a candidate backs out.
+4. **Multi-Position Sourcing Parity**:
+   - Added position selector with slot availability badges and hired/pipeline counters to `AddApplicantModal`.
+   - Persisted `vacancy_requirement_id` to `applicants`.
+   - Threaded requirement IDs into `MarkHiredModal` / `confirm_applicant_onboard`.
+5. **Verification**:
+   - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`).
+   - 264/264 unit tests passed (`npm test`).
+   - 0 ESLint errors/warnings (`npm run lint`).
+   - 0 SQL contract errors (`npm run check:sql`).
+   - Clean Next.js 16.2.4 Turbopack build (`npm run build`).
+
+### Files
+- `supabase/migrations/20262606000177_clean_open_vacancy_and_applicant_terminal_archival.sql` — Auto-archival trigger and terminal filtering on `get_web_vacancy_detail`.
+- `docs/architecture/_mirror/adr/02_vacancy.md` — Codified Clean Open Requisition Invariant and Zero-Applicant Avail definition.
+- `docs/state/vacancy_web_state.md` — Updated Vacancy state specifications.
+- `src/components/vacancy/AddApplicantModal.tsx` — Multi-position requirement selector and intake lock.
+- `src/components/vacancy/MarkHiredModal.tsx` — Requirement ID forwarder.
+- `src/components/vacancy/VacancyDetailDrawer.tsx` — Requirement ID threading and terminal candidate exclusion.
+- `src/lib/queries/vacancy/types.ts` & `vacancyListing.ts` & `vacancyMutations.ts` — Query normalizers and mutations.
+- `src/lib/queries/__tests__/multi_position_vacancy_intake.test.mjs` — Comprehensive unit tests.
+- `.ai/briefing.md` — Prepending task to Last Completed Tasks.
+- `.ai/current_state.md` — Added update log.
+- `.ai/handoff.md` — Prepended handoff report.
+
+---
+
 ## Execution Report — Simplify Vacancy Detail Modal, Relocate Header Actions, Add Aging Color Coding & Clean Decimal Formatting (ohm#simplify-vacancy-detail-modal-and-aging-colors)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
 

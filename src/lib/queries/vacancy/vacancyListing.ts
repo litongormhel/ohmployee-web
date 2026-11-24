@@ -3274,46 +3274,9 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
 
   // Enrich itemized requirements if available
   try {
-    const { data: reqData } = await supabase
-      .from("vacancy_requirements")
-      .select("id, vacancy_id, position_id, employment_type, hc_needed, hc_filled")
-      .eq("vacancy_id", normalized.vacancyId)
-      .order("hc_needed", { ascending: false });
-
-    if (reqData && reqData.length > 0) {
-      const posIds = (reqData as Array<Record<string, unknown>>)
-        .map((r) => asString(r.position_id))
-        .filter(Boolean);
-      const posMap = new Map<string, string>();
-      if (posIds.length > 0) {
-        try {
-          const { data: posData } = await supabase
-            .from("positions")
-            .select("id, position_name")
-            .in("id", posIds);
-          if (posData) {
-            for (const p of posData as Array<Record<string, unknown>>) {
-              const pid = asString(p.id);
-              const pname = asString(p.position_name);
-              if (pid && pname) posMap.set(pid, pname);
-            }
-          }
-        } catch {
-          // Graceful fallback
-        }
-      }
-
-      normalized.requirements = (reqData as Array<Record<string, unknown>>).map((r) => {
-        const pid = asString(r.position_id);
-        return {
-          id: asString(r.id) || "",
-          positionName: (pid ? posMap.get(pid) : null) || normalized.position_title || "Position",
-          employmentType: asString(r.employment_type) || normalized.employmentType,
-          hcNeeded: asNumber(r.hc_needed) || 1,
-          hcFilled: asNumber(r.hc_filled) || 0,
-          pipelineCount: normalized.activeApplicantCount || 0,
-        };
-      });
+    const itemizedReqs = await fetchVacancyRequirements(normalized.vacancyId);
+    if (itemizedReqs && itemizedReqs.length > 0) {
+      normalized.requirements = itemizedReqs;
     }
   } catch {
     // Graceful fallback
@@ -3547,7 +3510,7 @@ export async function fetchVacancyRequirements(
         .from("applicants")
         .select("vacancy_requirement_id")
         .in("vacancy_requirement_id", reqIds)
-        .not("status", "in", '("Backout","Failed","Rejected","Did Not Report","confirmed_onboard","hired")')
+        .not("status", "in", '("Backout","backout","Failed","failed","Rejected","rejected","Did Not Report","did not report","confirmed_onboard","Confirmed Onboard","hired","Hired")')
         .eq("is_archived", false);
 
       if (!appsError && Array.isArray(appsData)) {
@@ -3568,13 +3531,18 @@ export async function fetchVacancyRequirements(
     const pid = asString(r.position_id);
     const hcNeeded = asNumber(r.hc_needed) || 1;
     const hcFilled = asNumber(r.hc_filled) || 0;
+    const pipeCount = pipelineCounts.get(rid) || 0;
+    const availableSlots = Math.max(0, hcNeeded - hcFilled - pipeCount);
+    const isFull = availableSlots <= 0;
     return {
       id: rid,
       positionName: (pid ? posMap.get(pid) : null) || "Position",
       employmentType: asString(r.employment_type) || "Stationary",
       hcNeeded,
       hcFilled,
-      pipelineCount: pipelineCounts.get(rid) || 0,
+      pipelineCount: pipeCount,
+      availableSlots,
+      isFull,
     };
   });
 }

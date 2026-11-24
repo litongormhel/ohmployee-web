@@ -241,7 +241,7 @@ export async function endorseApplicant(
   // 1. Verify vacancy exists and get its status
   const { data: vac, error: vacError } = await supabase
     .from("vacancies")
-    .select("id, vcode, status, deleted_at, is_archived, has_pending_closure")
+    .select("id, vcode, status, deleted_at, is_archived, has_pending_closure, required_headcount")
     .eq("vcode", vcode)
     .maybeSingle();
 
@@ -272,7 +272,7 @@ export async function endorseApplicant(
     );
   }
 
-  // 2. Insert applicant record (matching mobile VacancyService.addApplicant direct insert)
+  // 2. Capacity Guard & Requirement Resolution (Avail = Zero-Applicant Invariant)
   let targetRequirementId = params.vacancyRequirementId?.trim() || null;
   if (!targetRequirementId && vac.id) {
     try {
@@ -286,6 +286,64 @@ export async function endorseApplicant(
       }
     } catch {
       // Non-blocking fallback
+    }
+  }
+
+  if (targetRequirementId) {
+    try {
+      const { data: targetReq } = await supabase
+        .from("vacancy_requirements")
+        .select("id, hc_needed, hc_filled")
+        .eq("id", targetRequirementId)
+        .maybeSingle();
+
+      if (targetReq) {
+        const hcNeeded = Number(targetReq.hc_needed) || 1;
+        const hcFilled = Number(targetReq.hc_filled) || 0;
+
+        const { count: pipeCount } = await supabase
+          .from("applicants")
+          .select("id", { count: "exact", head: true })
+          .eq("vacancy_requirement_id", targetRequirementId)
+          .not("status", "in", '("Backout","backout","Failed","failed","Rejected","rejected","Did Not Report","did not report","confirmed_onboard","Confirmed Onboard","hired","Hired")')
+          .eq("is_archived", false);
+
+        const currentPipe = pipeCount || 0;
+        const available = Math.max(0, hcNeeded - hcFilled - currentPipe);
+        if (available <= 0) {
+          throw new VacancyDataError(
+            "validation",
+            "This position requirement is already filled. Cannot add another applicant unless an active candidate backs out.",
+          );
+        }
+      }
+    } catch (e) {
+      if (e instanceof VacancyDataError) throw e;
+      console.error("[PostgREST Schema Error] endorseApplicant requirement capacity check:", e);
+    }
+  } else {
+    try {
+      const { count: totalPipeCount } = await supabase
+        .from("applicants")
+        .select("id", { count: "exact", head: true })
+        .eq("vacancy_vcode", vcode)
+        .not("status", "in", '("Backout","backout","Failed","failed","Rejected","rejected","Did Not Report","did not report","confirmed_onboard","Confirmed Onboard","hired","Hired")')
+        .eq("is_archived", false);
+
+      const reqHc = Number(vac.required_headcount) || 1;
+      const hired = Number((vac as Record<string, unknown>).hc_filled ?? (vac as Record<string, unknown>).confirmed_onboard_count) || 0;
+      const totalPipe = totalPipeCount || 0;
+      const totalAvailable = Math.max(0, reqHc - hired - totalPipe);
+
+      if (totalAvailable <= 0) {
+        throw new VacancyDataError(
+          "validation",
+          `Vacancy ${vcode} is already fully allocated (${reqHc}/${reqHc} filled or in pipeline). Cannot add another applicant unless an active candidate backs out.`,
+        );
+      }
+    } catch (e) {
+      if (e instanceof VacancyDataError) throw e;
+      console.error("[PostgREST Schema Error] endorseApplicant vacancy capacity check:", e);
     }
   }
 

@@ -83,14 +83,39 @@ function AddApplicantModalContent({
 
   // Derive effective requirement without triggering setState inside useEffect
   const effectiveRequirementId = useMemo(() => {
-    if (userSelectedRequirementId) return userSelectedRequirementId;
-    if (requirements.length === 1) return requirements[0].id;
+    if (userSelectedRequirementId) {
+      const selectedReq = requirements.find((r) => r.id === userSelectedRequirementId);
+      if (selectedReq) {
+        const pipe = selectedReq.pipelineCount ?? 0;
+        const avail = Math.max(0, selectedReq.hcNeeded - selectedReq.hcFilled - pipe);
+        if (avail > 0) return userSelectedRequirementId;
+      }
+    }
+    if (requirements.length === 1) {
+      const single = requirements[0];
+      const pipe = single.pipelineCount ?? 0;
+      const avail = Math.max(0, single.hcNeeded - single.hcFilled - pipe);
+      return avail > 0 ? single.id : null;
+    }
     if (requirements.length > 1) {
-      const nonFull = requirements.filter((r) => r.hcFilled < r.hcNeeded);
+      const nonFull = requirements.filter((r) => {
+        const pipe = r.pipelineCount ?? 0;
+        const avail = Math.max(0, r.hcNeeded - r.hcFilled - pipe);
+        return avail > 0;
+      });
       if (nonFull.length === 1) return nonFull[0].id;
     }
     return null;
   }, [userSelectedRequirementId, requirements]);
+
+  const isAllRequirementsFull = useMemo(() => {
+    if (!requirements || requirements.length === 0) return false;
+    return requirements.every((r) => {
+      const pipe = r.pipelineCount ?? 0;
+      const avail = Math.max(0, r.hcNeeded - r.hcFilled - pipe);
+      return avail <= 0;
+    });
+  }, [requirements]);
 
   // Form State initialized fresh on mount
   const [firstName, setFirstName] = useState("");
@@ -133,6 +158,8 @@ function AddApplicantModalContent({
     isMiddleNameValid &&
     isLastNameValid &&
     isContactValid &&
+    !isAllRequirementsFull &&
+    (!requirements || requirements.length === 0 || !!effectiveRequirementId) &&
     !endorseMutation.isPending;
 
   const handleContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -167,9 +194,24 @@ function AddApplicantModalContent({
       return;
     }
 
-    if (requirements.length > 1 && !effectiveRequirementId) {
-      setFormError("Please select which position requirement this candidate fills.");
-      return;
+    if (requirements.length > 0) {
+      if (!effectiveRequirementId) {
+        setFormError(
+          isAllRequirementsFull
+            ? "All position requirements are filled. Candidate endorsement is blocked until an active applicant backs out."
+            : "Please select which position requirement this candidate fills."
+        );
+        return;
+      }
+      const chosen = requirements.find((r) => r.id === effectiveRequirementId);
+      if (chosen) {
+        const pipe = chosen.pipelineCount ?? 0;
+        const avail = Math.max(0, chosen.hcNeeded - chosen.hcFilled - pipe);
+        if (avail <= 0) {
+          setFormError(`Position "${chosen.positionName}" is already full (0 available slots). Cannot add another applicant unless an active applicant backs out.`);
+          return;
+        }
+      }
     }
 
     endorseMutation.mutate(
@@ -256,11 +298,20 @@ function AddApplicantModalContent({
                   Choose the position this applicant fills
                 </span>
               </div>
+
+              {isAllRequirementsFull && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-xs">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                  <span>All position requirements are currently filled (0 available slots). No additional applicant can be added unless an active candidate backs out.</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {requirements.map((req) => {
-                  const isFull = req.hcFilled >= req.hcNeeded;
+                  const pipeCount = req.pipelineCount ?? 0;
+                  const available = Math.max(0, req.hcNeeded - req.hcFilled - pipeCount);
+                  const isFull = available <= 0;
                   const isSelected = effectiveRequirementId === req.id;
-                  const available = Math.max(0, req.hcNeeded - req.hcFilled);
                   return (
                     <button
                       key={req.id}
@@ -303,7 +354,9 @@ function AddApplicantModalContent({
                       <div className="mt-1 flex items-center gap-1.5 text-[11px] text-text-secondary">
                         <span>Hired: <strong>{req.hcFilled}/{req.hcNeeded}</strong></span>
                         <span className="text-text-muted">•</span>
-                        <span>Pipeline: <strong>{req.pipelineCount}</strong></span>
+                        <span>Pipe: <strong>{pipeCount}</strong></span>
+                        <span className="text-text-muted">•</span>
+                        <span>Avail: <strong>{available}</strong></span>
                       </div>
                     </button>
                   );

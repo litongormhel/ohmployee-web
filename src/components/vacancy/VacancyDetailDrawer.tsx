@@ -617,6 +617,12 @@ export function VacancyDetailDrawer({
                   isAvailable:
                     userCanAddApplicant &&
                     !isPendingClosure &&
+                    Math.max(
+                      0,
+                      (detail.headcount ?? 1) -
+                        (detail.confirmedOnboardCount ?? 0) -
+                        (detail.activeApplicantCount ?? 0),
+                    ) > 0 &&
                     (detail.rowCapabilities?.canUpdateApplicantStatus === true ||
                       detail.derivedStatus?.toLowerCase() === "open" ||
                       detail.activeApplicantCount === 0),
@@ -732,7 +738,7 @@ export function VacancyDetailDrawer({
             const hiredCount = detail.confirmedOnboardCount ?? 0;
             const totalHc = detail.headcount ?? 1;
             const pipelineCount = detail.activeApplicantCount ?? 0;
-            const availableSlots = Math.max(0, totalHc - hiredCount);
+            const availableSlots = Math.max(0, totalHc - hiredCount - pipelineCount);
             const agingColors = getAgingColorClasses(detail.agingDays);
 
             // Multi-store resolution
@@ -826,7 +832,8 @@ export function VacancyDetailDrawer({
                         Position Breakdown
                       </span>
                       {detail.requirements.map((req, idx) => {
-                        const avail = Math.max(0, req.hcNeeded - req.hcFilled);
+                        const pipe = req.pipelineCount ?? 0;
+                        const avail = Math.max(0, req.hcNeeded - req.hcFilled - pipe);
                         return (
                           <div key={req.id || `req-${idx}`} className="flex items-center justify-between text-xs py-0.5">
                             <span className="font-medium text-text-primary truncate max-w-[220px]">
@@ -834,7 +841,7 @@ export function VacancyDetailDrawer({
                             </span>
                             <span className="text-[11px] text-text-secondary">
                               Hired: <strong className="text-text-primary">{formatHcNumber(req.hcFilled)}/{formatHcNumber(req.hcNeeded)}</strong> &bull; Pipe:{" "}
-                              <strong className="text-text-primary">{formatHcNumber(req.pipelineCount)}</strong> &bull; Avail:{" "}
+                              <strong className="text-text-primary">{formatHcNumber(pipe)}</strong> &bull; Avail:{" "}
                               <strong className="text-text-primary">{formatHcNumber(avail)}</strong>
                             </span>
                           </div>

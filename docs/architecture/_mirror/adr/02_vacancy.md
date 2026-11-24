@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Vacancy. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/02_vacancy.md
-source_commit: 2ad3464 2026-11-24T14:22:04+08:00
-source_sha256: f57ac0932777e581ea8da1cad75419ce1347c255157e7fb53cd3cd4ae7739063
-synced_at: 2026-11-24T11:47:36.149Z
+source_commit: e9a7944 2026-11-24T22:06:19+08:00
+source_sha256: 395b76e80da48c2292620c3cac570c59d9300f891c3d94efe4c2a22cce571cfc
+synced_at: 2026-11-24T14:06:23.029Z
 -->
 # Vacancy Module Architecture
 
@@ -27,14 +27,25 @@ synced_at: 2026-11-24T11:47:36.149Z
 - **Approved Closure Slot Inactivation**: Only upon administrative approval (`handle_closure_approval` / `review_vacancy_closure_request(p_status = 'Approved')`) is the physical slot closed (`slot_status = 'closed'`), the vacancy archived (`is_archived = true`), and the headcount permanently removed from Open capacity. Closed vacancies never show in Open or Pipeline.
 
 #### Operational Capacity Contract (Single-Slot vs. Multi-Slot Behavioral Matrix)
-To eliminate operational ambiguity between Open and Pipeline queues across Web and Mobile:
+To eliminate operational ambiguity between Open, Pipeline, and Available capacity across Web and Mobile:
 
-1. **Single-Slot Vacancies (`required_headcount = 1`)**:
-   - **Unassigned (`0/1`)**: Appears in the **Open Tab** (`remaining_open = 1`).
-   - **Applicant Endorsed / Undergoing Screening (`1/1 in Pipeline`)**: The moment an applicant is added or enters screening (`For Interview / Intro`, `For Medical`, etc.), that single slot is under active processing. It **leaves the Open Tab** (`remaining_open = 1 - 1 = 0`) and moves to the **Pipeline Tab**.
-2. **Multi-Slot Vacancies (`required_headcount > 1`, e.g. `3` Headcount)**:
-   - **Partially Sourced (`1/3` or `2/3`)**: As long as unallocated capacity remains (`remaining_open > 0`), the requisition **MUST REMAIN in the Open Tab** displaying the remaining open slots (e.g. `1 Available` when 2 of 3 slots are in pipeline or hired). Simultaneously, the active applicants appear in the **Pipeline Tab**.
-   - **Fully Allocated (`3/3`)**: Once all slots are occupied by active pipeline candidates, confirmed onboards, or active hires (`hired_count + pipeline_count + hr_processing_count >= hc_needed`), the requisition has zero unallocated demand (`remaining_open = 0`) and **completely leaves the Open Tab**.
+1. **Avail Definition (Zero-Applicant Invariant)**:
+   - **`Avail` strictly represents unallocated open capacity with zero applicants (`Avail = Open or walang applicant`)**:
+     $$\text{Avail} = \max(0, \text{hc\_needed} - \text{hired\_count} - \text{pipeline\_count} - \text{hr\_processing\_count})$$
+   - The moment an applicant is endorsed into a requisition (or into a specific `vacancy_requirement_id` position line item), that headcount slot is under active recruitment screening. It is **no longer available** (`Avail` drops by 1).
+   - If a requisition or position requirement has $\text{hc\_needed} = 1$ and 1 applicant is endorsed into the pipeline, $\text{Avail} = 0$ and the position is marked **`Full`**.
+   - **Strict Intake Lock**: Users are prohibited from adding another applicant to a position once it is full ("hindi na sya pwede malagyan unless the applicant backout").
+   - **Applicant Backout Reopening**: When an active candidate backs out, they exit the active pipeline count and the slot immediately reopens ($\text{Avail}$ increments by 1), lifting the `Full` lock.
+
+2. **Single-Slot Vacancies (`required_headcount = 1`)**:
+   - **Unassigned (`0/1`)**: Appears in the **Open Tab** (`remaining_open = 1`, `Avail = 1`).
+   - **Applicant Endorsed / Undergoing Screening (`1/1 in Pipeline`)**: The moment an applicant is added or enters screening (`For Interview / Intro`, `For Medical`, etc.), that single slot is under active processing. It **leaves the Open Tab** (`remaining_open = 1 - 1 = 0`, `Avail = 0`) and moves to the **Pipeline Tab**.
+3. **Multi-Slot Vacancies (`required_headcount > 1`, e.g. `3` Headcount)**:
+   - **Partially Sourced (`1/3` Hired, Total = 3)**:
+     - When $\text{pipeline} = 0$: $\text{Avail} = 3 - 1 - 0 = 2$ (2 open slots with zero applicants). Appears in Open Tab with `2 Available`.
+     - When 1 applicant is added: $\text{Avail} = 3 - 1 - 1 = 1$ (1 open slot with zero applicants). Appears in Open Tab with `1 Available`.
+     - When 2 applicants are added: $\text{Avail} = 3 - 1 - 2 = 0$ (all slots allocated). Completely leaves the Open Tab.
+   - **Fully Allocated**: Once all slots are occupied by active pipeline candidates, confirmed onboards, or active hires ($\text{hired\_count} + \text{pipeline\_count} + \text{hr\_processing\_count} \ge \text{hc\_needed}$), the requisition has zero unallocated demand ($\text{Avail} = 0$) and **completely leaves the Open Tab**.
 
 ### Standard Five Status Tabs Architecture & Candidate-Level Pipeline Expansion
 
@@ -77,6 +88,22 @@ To eliminate operational ambiguity between Open and Pipeline queues across Web a
      - The linked plantilla slot is immediately released to `open` via `fn_set_slot_status(slot_id, 'open', 'BACKOUT')`.
      - Database trigger `trg_reopen_vacancy_on_slot_open` restores `vacancies.status = 'Open'`, and because unallocated capacity increases (`remaining_open > 0`), the store **immediately reappears in the Open Tab** ready for new candidate endorsement.
      - **Aging Continuity Invariant (Anti-Reset Lock)**: Reopening the vacancy MUST NOT reset its aging clock (`aging_days`) to the backout date or `CURRENT_DATE`. The requisition's aging strictly maintains unbroken continuity from the original date the position became vacant (`vacant_date` / separation date of the previous employee / initial headcount requisition creation). Failed recruitments and candidate dropouts during screening or HR Emploc onboarding never wipe out the accumulated vacancy duration.
+
+### Clean Open Requisition Invariant upon Backout (Anti-Ghost Applicant Lock)
+
+**Status: ACCEPTED.** Codifies the clean-slate operational invariant for store requisitions upon candidate dropout or backout:
+
+1. **Clean Return to Open Tab**: When an applicant backs out or fails (`status IN ('backout', 'failed', 'rejected', 'did_not_report', 'withdrew')`):
+   - The applicant is routed exclusively to the **Failed / Backout Tab** (`p_status = 'Failed'`).
+   - The linked store requisition returns to the **Open Tab** in a **completely clean state with zero applicants** (`clean malinis at walang nakalagay na applicant`). Under no circumstances may a backed-out, failed, or terminal applicant linger, display, or occupy headcount in the Open requisition's active applicant roster or detail view.
+2. **Automated Archival Trigger & Slot Decoupling (`trg_applicants_terminal_archival`)**:
+   - Any insertion or status transition of an applicant into a terminal status (`backout`, `failed`, `rejected`, `did_not_report`, `withdrew`) automatically triggers:
+     - Archival: `is_archived = true` and `archived_at = CURRENT_TIMESTAMP`
+     - Physical slot decoupling: `slot_id = NULL` (releasing the slot back to `open` for new intake).
+3. **Active Pipeline Roster Terminal Filtering**:
+   - Operational detail endpoints and RPCs (such as `get_web_vacancy_detail`) must strictly exclude terminal dropouts from active applicant rosters (`pipeline_summary` subquery filters `WHERE a.status NOT IN ('Backout', 'Failed', 'Rejected', 'Did Not Report', 'Withdrew') AND coalesce(a.is_archived, false) = false`).
+   - Prevents ghost applicants (e.g. `CRUZ, JAMES PAUL` on `TEST011`) from appearing as active candidates on open store requisitions.
+
 2. **In-Flight Closure Request Routing**:
    - When Operations submits a vacancy closure request (`has_pending_closure = true`, `closure_request_status = 'Pending'`):
      - The requisition **immediately vacates the Open and Pipeline tabs** (Rule 4 closure priority).

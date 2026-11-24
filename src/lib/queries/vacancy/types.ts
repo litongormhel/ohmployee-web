@@ -159,6 +159,8 @@ export type VacancyRequirementItem = {
   hcNeeded: number;
   hcFilled: number;
   pipelineCount: number;
+  availableSlots?: number;
+  isFull?: boolean;
 };
 
 export type VacancyDetailItem = {
