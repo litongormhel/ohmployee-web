@@ -29,25 +29,72 @@ BEGIN
   SELECT id INTO v_created_by FROM public.users_profile LIMIT 1;
 
   IF v_batac_store_id IS NOT NULL THEN
-    -- Remove duplicate slot ordinal > 1 FIRST to avoid uq_plantilla_slots_active_occupant conflict
-    DELETE FROM public.slot_history
-    WHERE slot_id IN (
-      SELECT id FROM public.plantilla_slots
-      WHERE store_id = v_batac_store_id AND slot_ordinal > 1
-    );
-
-    DELETE FROM public.plantilla_slots
-    WHERE store_id = v_batac_store_id AND slot_ordinal > 1;
-
-    -- Bind slot ordinal 1 to Rommel Abogado if Rommel exists
+    -- Step 1A: Vacate Rommel Abogado from ANY other slot he currently occupies anywhere
+    -- in the database FIRST to avoid uq_plantilla_slots_active_occupant unique constraint collision
     IF v_rommel_id IS NOT NULL THEN
       UPDATE public.plantilla_slots
-      SET slot_status = 'occupied',
-          current_occupant_plantilla_id = v_rommel_id,
+      SET slot_status = 'open',
+          current_occupant_plantilla_id = NULL,
           updated_at = NOW()
-      WHERE store_id = v_batac_store_id AND slot_ordinal = 1;
+      WHERE current_occupant_plantilla_id = v_rommel_id;
+    END IF;
 
-      -- Insert the active store allocation for Rommel Abogado on Batac Ilocos if not already active
+    -- Step 1B: Safely close any duplicate slots on Batac Ilocos (ordinal > 1) if present
+    UPDATE public.plantilla_slots
+    SET slot_status = 'closed',
+        current_occupant_plantilla_id = NULL,
+        closure_reason_code = 'HC_REDUCTION',
+        closed_at = NOW(),
+        updated_at = NOW()
+    WHERE store_id = v_batac_store_id AND slot_ordinal > 1;
+
+    -- Step 1C: Bind slot ordinal 1 on Batac Ilocos to Rommel Abogado
+    IF v_rommel_id IS NOT NULL THEN
+      IF EXISTS (SELECT 1 FROM public.plantilla_slots WHERE store_id = v_batac_store_id AND slot_ordinal = 1) THEN
+        UPDATE public.plantilla_slots
+        SET slot_status = 'occupied',
+            current_occupant_plantilla_id = v_rommel_id,
+            updated_at = NOW()
+        WHERE store_id = v_batac_store_id AND slot_ordinal = 1;
+      ELSE
+        INSERT INTO public.plantilla_slots (
+          account_id,
+          group_id,
+          store_id,
+          position,
+          employment_type,
+          is_roving,
+          slot_ordinal,
+          slot_status,
+          current_occupant_plantilla_id,
+          legacy_vcode,
+          created_at,
+          updated_at
+        ) VALUES (
+          v_alturas_acc_id,
+          v_alturas_grp_id,
+          v_batac_store_id,
+          'MERCHANDISER',
+          'stationary',
+          false,
+          1,
+          'occupied',
+          v_rommel_id,
+          'VCBPIG1_0165',
+          NOW(),
+          NOW()
+        );
+      END IF;
+
+      -- Step 1D: Deactivate any stale previous store allocations for Rommel outside Batac Ilocos
+      UPDATE public.employee_store_allocations
+      SET is_active = false,
+          effective_end = COALESCE(effective_end, '2026-11-05'::date)
+      WHERE plantilla_id = v_rommel_id
+        AND store_id != v_batac_store_id
+        AND is_active = true;
+
+      -- Step 1E: Insert or activate store allocation for Rommel Abogado on Batac Ilocos
       IF NOT EXISTS (
         SELECT 1 FROM public.employee_store_allocations
         WHERE plantilla_id = v_rommel_id
