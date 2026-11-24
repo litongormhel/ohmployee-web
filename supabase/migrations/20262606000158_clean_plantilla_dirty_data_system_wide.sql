@@ -13,12 +13,83 @@ UPDATE public.vacancy_edit_locks SET is_override_active = true WHERE id = 1;
 
 DO $$
 DECLARE
+  v_banko_acc_id uuid;
   v_rommel_id uuid;
   v_batac_store_id uuid;
   v_alturas_acc_id uuid;
   v_alturas_grp_id uuid;
   v_created_by uuid;
 BEGIN
+  -- -------------------------------------------------------------------------
+  -- 0. BANKO: Remediate lingering test pipeline & align vacancies (Option 1)
+  -- -------------------------------------------------------------------------
+  SELECT id INTO v_banko_acc_id FROM public.accounts WHERE account_name ILIKE '%BANKO%' LIMIT 1;
+
+  -- Back out ghost test applicant Cruz, James Paul in hr_emploc & applicants if still active
+  UPDATE public.hr_emploc
+  SET status = 'Backout',
+      deleted_at = COALESCE(deleted_at, NOW()),
+      backout_at = COALESCE(backout_at, NOW()),
+      backout_reason_code = 'UAT_CLEANUP',
+      backout_details = 'UAT test data cleanup per Option 1',
+      updated_at = NOW()
+  WHERE (vcode = 'TEST011' OR applicant_name ILIKE '%CRUZ, JAMES PAUL%')
+    AND status <> 'Backout'
+    AND (account_id = v_banko_acc_id OR account_id = 'f26cc270-bac3-4a5b-b656-1bad68619a73');
+
+  UPDATE public.applicants
+  SET status = 'Backout',
+      backout_date = COALESCE(backout_date, CURRENT_DATE),
+      backout_reason_code = 'UAT_CLEANUP',
+      backout_details = 'UAT test data cleanup per Option 1',
+      updated_at = NOW()
+  WHERE (vacancy_vcode = 'TEST011' OR (last_name ILIKE '%CRUZ%' AND first_name ILIKE '%JAMES%'))
+    AND status <> 'Backout';
+
+  -- Release slot ordinal 1 on TEST011 (SUPER 11) to open
+  UPDATE public.plantilla_slots
+  SET slot_status = 'open',
+      current_occupant_plantilla_id = NULL,
+      updated_at = NOW()
+  WHERE legacy_vcode = 'TEST011'
+    AND slot_ordinal = 1
+    AND (slot_status <> 'open' OR current_occupant_plantilla_id IS NOT NULL);
+
+  -- Remove duplicate slot ordinal > 1 on TEST011
+  DELETE FROM public.slot_history
+  WHERE slot_id IN (
+    SELECT id FROM public.plantilla_slots
+    WHERE legacy_vcode = 'TEST011' AND slot_ordinal > 1
+  );
+
+  DELETE FROM public.plantilla_slots
+  WHERE legacy_vcode = 'TEST011' AND slot_ordinal > 1;
+
+  -- Reopen and unarchive TEST011 (SUPER 11) and TEST009 (SUPER 9) vacancies
+  UPDATE public.vacancies
+  SET status = 'Open',
+      is_archived = false,
+      archived_at = NULL,
+      archive_reason = NULL,
+      required_headcount = 1.0000,
+      updated_at = NOW()
+  WHERE vcode IN ('TEST011', 'TEST009')
+    AND (is_archived = true OR status <> 'Open');
+
+  -- Safely archive empty orphan test stores in BANKO
+  UPDATE public.stores
+  SET is_active = false,
+      status = 'archived',
+      is_archived = true,
+      archived_at = COALESCE(archived_at, NOW()),
+      updated_at = NOW()
+  WHERE (account_id = v_banko_acc_id OR account_id = 'f26cc270-bac3-4a5b-b656-1bad68619a73')
+    AND (
+      vcode IN ('PG-DAU-001', 'PG-SF-001', 'PG-SF-002', 'PG-SF-003')
+      OR store_name IN ('SM BALBALAN', 'SM TABUK')
+    )
+    AND (is_active = true OR is_archived = false);
+
   -- -------------------------------------------------------------------------
   -- 1. ALTURAS: Align Batac Ilocos (VCBPIG1_0165) & Rommel Abogado (2023-20605)
   -- -------------------------------------------------------------------------
