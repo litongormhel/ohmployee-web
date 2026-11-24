@@ -274,6 +274,9 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
         row["Avg Days to Fill"] = (r.avgDaysToFill ?? 0).toFixed(1);
       } else if (reportId === "emploc_late_update") {
         row["Late Updates"] = r.lateCount ?? 0;
+      } else if (reportId === "backout_terminated_report") {
+        row["Back-Outs"] = r.backoutCount ?? 0;
+        row["Terminated"] = r.terminatedCount ?? 0;
       }
       row["Total Count"] = r.totalCount;
       row["Affected Stores"] = r.affectedStoreCount;
@@ -297,6 +300,9 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
         row["Avg Days to Fill"] = (r.avgDaysToFill ?? 0).toFixed(1);
       } else if (reportId === "emploc_late_update") {
         row["Late Updates"] = r.lateCount ?? 0;
+      } else if (reportId === "backout_terminated_report") {
+        row["Back-Outs"] = r.backoutCount ?? 0;
+        row["Terminated"] = r.terminatedCount ?? 0;
       }
       row["Total Count"] = r.totalCount;
       row["Affected Stores"] = r.affectedStoreCount;
@@ -713,6 +719,15 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
                           {row.lateCount ?? 0}
                         </span>
+                      ) : reportId === "backout_terminated_report" ? (
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-text-primary">
+                            {row.totalCount}
+                          </span>
+                          <span className="text-[11px] text-text-muted">
+                            {row.backoutCount ?? 0} back-outs • {row.terminatedCount ?? 0} term
+                          </span>
+                        </div>
                       ) : (
                         <span className="font-semibold text-text-primary">
                           {row.totalCount}

@@ -96,7 +96,27 @@ This document captures the current stable architecture and navigation contract f
   - `QaRunHistoryTable.tsx`: Historical test run table displaying run ID, agent name, status, duration, steps badge, and isolation status.
   - `QaFindingsViewer.tsx`: Defect inspection list displaying finding code, severity badge, category, details, and actionable remediation callouts.
 
-## Switch Role & Acting Sessions (More > Admin Tools > Switch Role)
+## Reports Module (`/reports`)
+- **Overview**: Standard operational and analytical workforce reporting cockpit providing group/account aggregated metrics, timeline filters, interactive drilldowns, and CSV/XLSX export capabilities.
+- **RPC & Database Contracts**:
+  1. `public.fn_get_attrition_details(p_account_id uuid, p_start_date date, p_end_date date)`:
+     - Returns individual employee drilldown records for attrition analysis (`plantilla_id`, `employee_number`, `employee_name`, `store_name`, `position`, `date_of_separation`, `deactivation_reason`, `separation_status`, `remarks`).
+     - Reason Waterfall: Resolves `deactivation_reason` using `COALESCE(NULLIF(TRIM(p.deactivation_reason), ''), NULLIF(TRIM(p.remarks), ''), p.separation_status, 'Separated')`.
+     - Supports `p_start_date IS NULL` and `p_end_date IS NULL` for all-time historical separation queries.
+     - Preserves ADR Rule 5 ordering: `ORDER BY COALESCE(p.date_of_separation, p.deactivated_at::date, p.created_at::date) DESC, p.full_name ASC`.
+  2. `public.report_terminated_by_group(p_start_date date DEFAULT NULL, p_end_date date DEFAULT NULL, p_group_id uuid DEFAULT NULL, p_account_id uuid DEFAULT NULL)`:
+     - Aggregates involuntary separations across groups and accounts.
+     - Status Filter: Strictly includes `p.separation_status IN ('Terminated', 'End of Contract', 'Endo', 'Others')` (or `p.deactivation_reason ILIKE '%terminat%'`).
+     - Date Filter: Evaluates `COALESCE(p.date_of_separation, p.deactivated_at::date)`.
+  3. `public.report_backout_by_group(p_start_date date DEFAULT NULL, p_end_date date DEFAULT NULL, p_group_id uuid DEFAULT NULL, p_account_id uuid DEFAULT NULL)`:
+     - Aggregates candidate and onboarded employee dropouts across groups and accounts.
+     - Candidate Deduplication & Inclusion: Captures both post-offer `hr_emploc` dropouts (independent of `deleted_at`, since `public.tag_backout` sets `deleted_at = now()`) and pre-onboarding pipeline dropouts from `public.applicants` (`status ILIKE '%backout%'`), deduplicated via `LEFT JOIN hr_emploc ON hr_emploc.applicant_id = a.id WHERE hr_emploc.id IS NULL`.
+     - Date Filter: Evaluates `COALESCE(h.backout_date::date, h.updated_at::date)` and `a.updated_at::date`.
+  4. `public.report_backout_terminated_by_group(p_start_date date DEFAULT NULL, p_end_date date DEFAULT NULL, p_group_id uuid DEFAULT NULL, p_account_id uuid DEFAULT NULL)`:
+     - Combined headcount loss report unifying candidate back-outs and employee terminations.
+     - CTE Qualification: Avoids PL/pgSQL variable collisions (`ERROR: 42702`) by explicitly alias-qualifying column projections in `UNION ALL`.
+     - UI Contract (`ReportDetailView.tsx`): Displays combined total count with secondary breakdown badge (`{total} ({backout} back-outs • {term} term)`) and exports dedicated `Back-Outs` and `Terminated` columns in CSV/XLSX.
+
 - **Modal Entry**: `SwitchRoleModal` triggered from `/more?tab=admin_tools` tile (`switch_role`) or `targetModal === "switch_role"`.
 - **Database Engine**:
   - `public.start_acting_session(p_acting_role, p_group_ids, p_account_ids, p_reason)`: Verified against caller's physical `users_profile` record (`role_level >= 100` or `ohmpayatt@proton.me`), eliminating self-lockout when switching across roles without stopping. Terminates existing active session before inserting new active record in `public.acting_sessions`.

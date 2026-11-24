@@ -45,6 +45,7 @@ export interface AttritionDetailEmployee {
   separationDate: string | null;
   reason: string;
   separationStatus: string | null;
+  remarks?: string | null;
 }
 
 export interface AttritionDetailResult {
@@ -321,8 +322,17 @@ export async function fetchAttritionDetails(
         : empNameRaw;
     const storeName = String(r.store_name ?? "Unknown Store");
     const pos = String(r.position ?? "Staff");
-    const reason = String(r.deactivation_reason ?? "Not specified");
-    const separationStatus = r.separation_status ? String(r.separation_status) : null;
+    const rawReason = String(r.deactivation_reason ?? "").trim();
+    const rawRemarks = String(r.remarks ?? "").trim();
+    const separationStatus = r.separation_status ? String(r.separation_status).trim() : null;
+    const reason =
+      rawReason && rawReason !== "Not specified"
+        ? rawReason
+        : rawRemarks && rawRemarks !== "—"
+        ? rawRemarks
+        : separationStatus
+        ? separationStatus
+        : "Not specified";
 
     const sepDateStr = r.date_of_separation ? String(r.date_of_separation) : null;
     const deacAtStr = r.deactivated_at ? String(r.deactivated_at) : null;
@@ -337,6 +347,7 @@ export async function fetchAttritionDetails(
       separationDate: effectiveSepDate,
       reason,
       separationStatus,
+      remarks: rawRemarks || null,
     });
 
     storeCounts[storeName] = (storeCounts[storeName] ?? 0) + 1;

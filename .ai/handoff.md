@@ -1,5 +1,57 @@
 # AI Handoff
 
+## Execution Report — Fix Reports Defects: Attrition Reasons, Terminated Roster, Back-Out Pipeline, and Combined Report Error (ohm#fix-reports-attrition-terminated-backout)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified & Complete
+
+### What Was Built
+1. **User Request Alignment**:
+   - The user reported 4 defects in the Reports module (`/reports`):
+     - `-attrition report reason/details not specified`
+     - `-terminated not appearing`
+     - `-back out not appearing`
+     - `-back out & terminated combined failed to load report data`
+2. **Forensic Root Cause Analysis**:
+   - **Defect 1 (`reason/details not specified`)**: In `public.fn_get_attrition_details`, the query selected `p.deactivation_reason::text`, which was `NULL` or empty for almost all separated personnel; operational separation remarks were captured in `plantilla.remarks` and `plantilla.separation_status`.
+   - **Defect 2 (`terminated not appearing`)**: In `public.report_terminated_by_group`, the status condition was hardcoded to `p.separation_status IN ('Endo', 'Others')`, completely excluding employees tagged `'Terminated'` (e.g. Joey Payad, Arvin Mark Abandia, Mark Romeo Abasola) and `'End of Contract'`.
+   - **Defect 3 (`back out not appearing`)**: In `public.report_backout_by_group`, the query filtered on `h.deleted_at IS NULL AND h.backout_date IS NOT NULL`. Because `public.tag_backout` sets `deleted_at = now()`, all backout records were excluded (returning 0 events). Furthermore, 192 pre-onboarding applicant dropouts (`status ILIKE '%backout%'`) in `public.applicants` were omitted.
+   - **Defect 4 (`combined failed to load report data`)**: In `public.report_backout_terminated_by_group`, CTE `combined` had `SELECT account_id, store_id FROM backouts UNION ALL SELECT account_id, store_id FROM terminated`. In PL/pgSQL, `RETURNS TABLE (account_id uuid, ...)` introduces an in-scope variable named `account_id`, causing PostgreSQL `ERROR: 42702: column reference "account_id" is ambiguous`.
+3. **Database Migration (`supabase/migrations/20262606000161_fix_reports_attrition_terminated_backout.sql`)**:
+   - Generated auto-numbered migration via `npm run db:new fix_reports_attrition_terminated_backout`.
+   - `public.fn_get_attrition_details`: Implemented reason waterfall `COALESCE(NULLIF(TRIM(p.deactivation_reason), ''), NULLIF(TRIM(p.remarks), ''), p.separation_status, 'Separated')`; exposed `separation_status` and `remarks`; supported `p_start_date IS NULL` for all-time historical separation queries.
+   - `public.report_terminated_by_group`: Expanded status filter to `p.separation_status IN ('Terminated', 'End of Contract', 'Endo', 'Others')` and `p.deactivation_reason ILIKE '%terminat%'`; evaluated `COALESCE(p.date_of_separation, p.deactivated_at::date)`; supported default null date parameters.
+   - `public.report_backout_by_group`: Removed `deleted_at IS NULL` filter; unioned candidate dropouts from `public.applicants` deduplicated against `hr_emploc.applicant_id`; evaluated `COALESCE(h.backout_date::date, h.updated_at::date)` and `a.updated_at::date`.
+   - `public.report_backout_terminated_by_group`: Qualified column projections `b.account_id, b.store_id` and `t.account_id, t.store_id` in CTE `combined`, eliminating PL/pgSQL variable ambiguity.
+4. **Web Frontend Enhancements**:
+   - `src/lib/queries/reports.ts`: Updated `AttritionDetailEmployee` interface to include `remarks?: string | null`; enhanced `fetchAttritionDetails` with waterfall fallback `rawReason -> rawRemarks -> sepStatus -> "Not specified"`.
+   - `src/components/reports/ReportDetailView.tsx`: For `backout_terminated_report`, enriched table metric cell to render total events alongside breakdown (`{row.totalCount} ({row.backoutCount} back-outs • {row.terminatedCount} term)`); added `Back-Outs` and `Terminated` columns to CSV/XLSX export.
+5. **Verification & Testing**:
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 686 migrations.
+   - `npm test`: Passed 257/257 unit tests.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run check:secrets`: 0 credential leaks detected.
+   - `npm run build`: Clean Next.js 16.2.4 Turbopack build.
+   - `npm run db:push:staging`: Dry-run verified and pushed live to Staging (`qqiiznmqxfoamqytjica`).
+   - `pg_get_functiondef` live diff: Verified all 4 updated functions on remote Staging database.
+   - `npm run check:migrations`: Confirmed Staging (655) vs Prod (654) with 1 migration pending promotion.
+
+### Files
+- `supabase/migrations/20262606000161_fix_reports_attrition_terminated_backout.sql`
+- `src/lib/queries/reports.ts`
+- `src/components/reports/ReportDetailView.tsx`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+- `.ai/current_state.md`
+- `docs/state/more_state.md`
+
+### Validation
+- `npm run check:adr` -> `ADR_MIRROR_STATUS: FRESH` (exit code 0)
+- `npm test` -> 257/257 passed (exit code 0)
+- `npm run lint` -> 0 errors / 0 warnings (exit code 0)
+- `npm run check:sql` -> OK (exit code 0)
+- `npm run check:migrations` -> 1 pending migration (exit code 0)
+
+---
+
 ## Execution Report — Fix Web HR Emploc Summary Overload Conflict & Cross-Platform Parity (ohm#fix-web-hr-emploc-summary-duplicate-overload)
 **Date:** 2026-11-23 | **Branch:** `main` | **Status:** Verified & Complete
 
