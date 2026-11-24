@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Vacancy. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/02_vacancy.md
-source_commit: 6597a97 2026-11-24T22:45:26+08:00
-source_sha256: 233ecac3cecf8546b9d89d93a8cdc49bcc8bc449029e42708d9d411ece83ad92
-synced_at: 2026-11-24T14:45:46.178Z
+source_commit: 8df2f62 2026-11-24T23:07:07+08:00
+source_sha256: 109b75472e2beff82c4572ca53c26b5cbb4544af46017de36830cdd9789c7cdd
+synced_at: 2026-11-24T15:07:23.821Z
 -->
 # Vacancy Module Architecture
 
@@ -54,9 +54,29 @@ To eliminate operational ambiguity between Open, Pipeline, and Available capacit
 1. **Tab 1: Open** (`p_status = 'Open'`): Active store requisitions with remaining unallocated capacity (`(hc_needed - hired_count - pipeline_count - hr_processing_count) > 0`), displaying remaining unfilled slots.
 2. **Tab 2: Pipeline** (`p_status = 'Pipeline'`): Active candidates undergoing recruitment screening.
    - **Candidate-Level Expansion Invariant (`ohm#p6k2v9q4`)**: In the Pipeline tab, requisitions expand into **1 Row per Candidate** (**per tao ang bilang**). A 3-headcount requisition with 2 active applicants renders as 2 distinct actionable rows displaying each candidate's full name, contact details, stage, and aging. The tab badge strictly reflects total active candidates, guaranteeing 1:1 parity with the rendered roster.
-3. **Tab 3: Hired** (`p_status = 'Hired'`): Requisitions where candidates reached confirmed onboard status (`confirmed_onboard_count >= required_headcount`) or active Plantilla deployment.
+3. **Tab 3: Hired** (`p_status = 'Hired'`): Requisitions where recruitment is fulfilled because candidates reached confirmed onboard status (`confirmed_onboard_count >= required_headcount`), are active in HR Emploc onboarding, or are deployed in active Plantilla.
 4. **Tab 4: Closure** (`p_status = 'Closure'`): Requisitions with pending store closure or headcount reduction requests awaiting administrative approval (`has_pending_closure = true`).
 5. **Tab 5: Failed / Backout** (`p_status = 'Failed'`): Historical roster of candidates who dropped out, backed out, failed medical/ops evaluation, or did not report.
+
+### Authoritative Waterfall Priority Order of Vacancy Tabs & Derived Status
+
+To eliminate ambiguity across database views (`vw_vacancy_list`), RPCs (`list_web_vacancies`, `get_web_vacancy_summary`), and client applications, every requisition evaluates against a strict top-down waterfall:
+
+1. **Priority 1: Archived / Closed (`Archived`)**:
+   - Condition: `is_archived = true OR status IN ('Closed', 'Archived')`
+   - Evaluation: Hard terminal state. Strictly excluded from all active operational queues.
+2. **Priority 2: For Closure (`Closure Tab`)**:
+   - Condition: `has_pending_closure = true OR closure_request_status = 'Pending' OR status IN ('closure', 'for_closure') OR EXISTS (pending closure request)`
+   - Evaluation: Highest active operational priority. **Immediately vacates Open and Pipeline tabs**, regardless of available slots or active applicants.
+3. **Priority 3: Hired (`Hired Tab`)**:
+   - Condition: `(active_plantilla_count + confirmed_onboard_count) >= required_headcount AND active_applicant_count = 0`
+   - Evaluation: Requisition is fully fulfilled by active Plantilla personnel or confirmed onboard candidates (in HR Emploc). Strictly vacates Open and Pipeline tabs.
+4. **Priority 4: Open (`Open Tab`)**:
+   - Condition: `Avail = (hc_total - hc_filled - hr_processing_count - active_applicant_count) > 0`
+   - Evaluation: Unallocated slots exist with zero applicants. Only requisitions with genuine unfilled demand appear here.
+5. **Priority 5: Pipeline (`Pipeline Tab`)**:
+   - Condition: `active_applicant_count > 0`
+   - Evaluation: Active screening candidates exist in recruitment pipeline. Expands to 1 row per candidate.
 
 ### Strict Applicant Closure Lock Invariant (`ohm#c3m8v1k4` — 2026-11-12)
 
@@ -133,12 +153,14 @@ To eliminate operational ambiguity between Open, Pipeline, and Available capacit
 
 **Known gaps** for Dashboard/CENCOM consumers of this rule are tracked in the "Dashboard & CENCOM" section below, not here — this section is Vacancy's own authoritative implementation only.
 
-### vw_slot_derived_vacancy_shadow / Standardized Open Visibility Filter
+### vw_slot_derived_vacancy_shadow & vw_vacancy_list Layered Authority
 
 This is the original 2026-07-30 decision this ADR started from, preserved here as Rule 4's Vacancy-specific detail:
 
-1. **Derived Logic as Single Source of Truth**: All layers (API, service queries, repository methods, dashboard aggregations, movement targets, and UI screens) MUST rely EXCLUSIVELY on derived vacancy state from `vw_slot_derived_vacancy_shadow`.
-2. **Standardized Open Visibility Filter**: A vacancy is defined as "Open" if and only if `open_count > 0` (or `vacancy_tab = 'Open'`) — the base-line filter that Vacancy's tab logic further refines with the pipeline subtraction above.
+1. **Layered Single Source of Truth**:
+   - **Low-Level Capacity Engine (`vw_slot_derived_vacancy_shadow`)**: The database-level single source of truth for raw slot counts, unallocated capacity calculations, and physical slot state.
+   - **Authoritative Presentation & RPC View (`vw_vacancy_list`)**: The authoritative presentation layer that wraps slot capacity with organizational scoping, store hierarchy (accounts, stores, groups), HRCO user assignments, and candidate lifecycle fields. High-level UI screens, RPCs (`list_web_vacancies`, `get_web_vacancy_summary`), and detail drawers consume `vw_vacancy_list` directly.
+2. **Standardized Open Visibility Filter**: A vacancy is defined as "Open" if and only if `remaining_open_capacity > 0` (or `vacancy_tab = 'Open'`) — the base-line filter that Vacancy's tab logic further refines with the pipeline subtraction above.
 3. **Deprecation of Legacy Visibility Flags**: Base table fields `closed_at`, `status`, and `is_active` MUST NOT determine vacancy visibility, filtering, or counting in any query or endpoint.
 4. **Backward Compatibility**: `closed_at` and `status` remain on `vacancies` for audit and historical record tracking only.
 

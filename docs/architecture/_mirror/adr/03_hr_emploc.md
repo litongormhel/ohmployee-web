@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-HREmploc. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/03_hr_emploc.md
-source_commit: 0eb4407 2026-11-23T23:02:59+08:00
-source_sha256: 6ad979a1f2233262522bd6f80434b2a4216b1ca563085861ae699bf05173d8bb
-synced_at: 2026-11-24T14:45:46.354Z
+source_commit: 8df2f62 2026-11-24T23:07:07+08:00
+source_sha256: 023b59f68aa11b3941b4705dbaef7a20393dd6694617227683fa4fa3b59cb14a
+synced_at: 2026-11-24T15:07:23.993Z
 -->
 # HR Emploc Module Architecture (Onboarding Compliance & Import Lifecycle)
 
@@ -48,9 +48,9 @@ HR Emploc Import shall always require a valid Plantilla Slot identified by a VCo
 
 HR Emploc Import must never: create Plantilla Slots, create Vacancy records, increase Required HC, or bypass the Plantilla lifecycle. Its sole responsibility is to occupy an existing open slot and advance the employee into the HR Emploc stage.
 
-### Rule 3 — VCode Is the Source of Truth
+### Rule 3 — Slot Authority via VCode (Plantilla Slot is the Source of Truth, Referenced by VCode)
 
-HR Emploc Import shall always require a valid Plantilla Slot identified by a VCode. Approval occupies the existing Plantilla Slot and preserves the VCode throughout the employee lifecycle. Every HR Emploc Import row references exactly one VCode. That VCode resolves the Plantilla Slot, Group, Account, Store, and Position. All attributes must be validated against the Plantilla Slot — never derived from manually uploaded column values. Every HR Emploc record must remain linked to a valid Plantilla Slot through its assigned VCode. HR Emploc records without a corresponding Plantilla Slot are prohibited. Historical implementations may have allowed HR Emploc records without linked Plantilla Slots — this behavior is deprecated and must not be reintroduced.
+HR Emploc Import shall always require a valid Plantilla Slot identified by a VCode. Approval occupies the existing Plantilla Slot and preserves the VCode throughout the employee lifecycle. Physical rows in `public.plantilla_slots` remain the actual authoritative source of truth for workforce demand and slot capacity; the VCode serves as the canonical human-readable reference linking the store requisition to its underlying plantilla slot(s). Every HR Emploc Import row references exactly one VCode. That VCode resolves the Plantilla Slot, Group, Account, Store, and Position. All attributes must be validated against the Plantilla Slot — never derived from manually uploaded column values. Every HR Emploc record must remain linked to a valid Plantilla Slot through its assigned VCode. HR Emploc records without a corresponding Plantilla Slot are prohibited. Historical implementations may have allowed HR Emploc records without linked Plantilla Slots — this behavior is deprecated and must not be reintroduced.
 
 ### Rule 4 — Valid Slot States for Import
 

@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Core. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/00_core_invariants.md
-source_commit: 6597a97 2026-11-24T22:45:26+08:00
-source_sha256: af1935f7c7eba1ce06e47101f8bd378daf8c1a0468d9eed1980a8b903916058e
-synced_at: 2026-11-24T14:45:45.829Z
+source_commit: 8df2f62 2026-11-24T23:07:07+08:00
+source_sha256: b9f06af42d09e9c672df002ecd83354244a3dc9246f60f11c45a796703102b96
+synced_at: 2026-11-24T15:07:23.472Z
 -->
 # ADR Architecture — Core Cross-Module Invariants
 
@@ -23,7 +23,13 @@ This document contains the core, non-negotiable cross-module invariants that gov
 
 ## Core Cross-Module Invariants
 
-These four rules are binding across every module that touches slot state, hired-headcount derivation, or denormalized counters. Documented once here — not duplicated per module. Do not revert any rule without equally explicit re-verification and an update to this document.
+These core cross-module rules are binding across every module that touches slot state, hired-headcount derivation, or denormalized counters. Documented once here — not duplicated per module. Do not revert any rule without equally explicit re-verification and an update to this document.
+
+> [!NOTE]
+> **Module-Specific Rules from Original ADR-001:**
+> In the modular Hub-and-Spoke structure, module-specific rules are housed directly in their authoritative module specifications:
+> - **Rule 4 — Standardized Open Visibility Filter:** Documented in [`docs/architecture/adr/02_vacancy.md`](02_vacancy.md) § Standardized Open Visibility Filter & Waterfall Priority.
+> - **Rule 5 — In-Database Ordering Contract:** Documented in [`docs/architecture/adr/01_plantilla.md`](01_plantilla.md) § Rule 5 — Ordering Contract.
 
 ### Rule 1 — Slot Authority
 
@@ -35,17 +41,31 @@ The 5 SA-gated admin/QA bulk archive functions (`fn_archive_*`, `fn_qa_*`, `fn_r
 
 **Backout releases the slot in the same transaction:** `tag_backout` resolves the linked plantilla slot (`hr_emploc.slot_id`, else unambiguous single-`hr_processing`-slot fallback on the vcode) and releases it → open via `fn_set_slot_status(reason 'BACKOUT')`; blocked release is FATAL (22023). Slots occupied by a different employee are never released. Reason codes `BACKOUT`/`HC_READD` are seeded into `slot_reason_codes`; `slot_history.reason_code` is FK-checked. Matrix extension: `closed`/`hc_reduced`→`open` only with reason `HC_READD`/`COVERAGE_STORE_REMOVED`/`COVERAGE_GROUP_DISSOLVED`.
 
-### Rule 2 — Hired HC Source
+### Rule 2 — Hired HC Source & Dual Context Delineation
 
 **Module scope:** Cross-module derived read. Source of truth lives in Plantilla; consumed by Vacancy, Dashboard, CENCOM, HR Emploc, and Onboarding.
 
-`hired_count` derives STRICTLY from `plantilla.status = 'Active'` per VCode, filtered to active occupants only. No other source (applicant status, `hc_filled`, view fallbacks) may contribute to a Hired count. A Confirmed-Onboard applicant not yet in Plantilla counts nowhere — its slot sits `hr_processing`, not hired. When an employee is tagged Inactive (Resigned, AWOL, Terminated, Endo, Backout, etc.), `hired_count` drops immediately and the slot/vacancy reopens. *(Anti-Dual-Existence Clarification: In Plantilla employee rosters, only `plantilla.status = 'Active'` counts as deployed employees. However, within Vacancy queue classification, a requisition whose confirmed onboards in HR Emploc + active plantilla meet `required_headcount` evaluates to `'Hired'` tab to permanently prevent zero-capacity requisitions from lingering in Open).*
+To permanently eliminate cross-module ambiguity, the system strictly delineates between **Plantilla Active Personnel** and **Vacancy Recruitment Fulfillment**:
+
+1. **Company & Plantilla Headcount (`hired_count`)**:
+   - `hired_count` and `active_plantilla_count` derive STRICTLY from `plantilla.status = 'Active'` per VCode, filtered to active deployed occupants only.
+   - No other source (applicant status, `hc_filled`, view fallbacks) may contribute to Plantilla deployed headcount.
+   - A candidate undergoing onboarding in HR Emploc sits in `plantilla_slots.slot_status = 'hr_processing'`. When an employee is tagged Inactive (Resigned, AWOL, Terminated, Endo, Backout, etc.), `hired_count` drops immediately and the slot/vacancy reopens.
+2. **Vacancy Module Queue Classification (`derived_status = 'Hired'`)**:
+   - Within the Vacancy module, a store requisition evaluates to **Tab 3 (`Hired`)** the moment its candidates reach **Confirmed Onboard** (`confirmed_onboard_count >= required_headcount`) or are deployed in Active Plantilla (`(active_plantilla_count + confirmed_onboard_count) >= required_headcount`).
+   - This signifies that **recruitment demand is 100% fulfilled** (the candidate has passed screening and is in HR Emploc onboarding compliance), ensuring the requisition cleanly vacates the Open Tab and permanently prevents zero-capacity requisitions from lingering in Open (Cross-Module Dual-Existence Prohibition Invariant).
 
 ### Rule 3 — Lifecycle Sync
 
 **Module scope:** Cross-module (Applicant / Vacancy / Plantilla / HR Emploc / Onboarding).
 
 An applicant/vacancy status change (hire, backout, separation) must never leave its corresponding `plantilla_slots` row dangling. This is enforced as a backstop, not just a convention: a deferred CONSTRAINT TRIGGER (`trg_applicant_terminal_slot_sync`) on `applicants` fails the transaction at COMMIT if a move into Backout/Withdrawn/Separated leaves its slot unclaimed (`hr_processing`) or still occupied/filled by that applicant's plantilla row.
+
+### Rule 4 — Standardized Vacancy Open Visibility Filter
+*(Housed in `docs/architecture/adr/02_vacancy.md` § Standardized Open Visibility Filter & Waterfall Priority)*
+
+### Rule 5 — Stable In-Database Ordering Contract
+*(Housed in `docs/architecture/adr/01_plantilla.md` § Rule 5 — Ordering Contract)*
 
 ### Rule 6 — Denormalized Writes
 

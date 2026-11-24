@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — Clarify 5 ADR Cross-Module Invariants, Delineate Hired Terminology, Codify Vacancy Waterfall Priority & Sync Mirrors (ohm#clarify-adr-invariants-and-priority-waterfall)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Committed in Mobile Source of Truth & Mirrors Synced
+
+### What Was Done
+1. **Source of Truth ADR Clarifications (`D:\Projects\OHMployee`)**:
+   - **Fix 1 (Rule Numbering Gap in `00_core_invariants.md`)**: Updated the intro note to clarify that the modular structure extracts Rule 4 (Open Visibility Filter) into `02_vacancy.md` and Rule 5 (Ordering Contract) into `01_plantilla.md`, and inserted explicit cross-reference pointers between Rule 3 and Rule 6.
+   - **Fix 2 (Delineation of "Hired" Terminology)**: Updated Rule 2 in `00_core_invariants.md` and `02_vacancy.md` to strictly distinguish between **Plantilla Active Personnel** (`plantilla.status = 'Active'`) and **Vacancy Recruitment Fulfillment** (`derived_status = 'Hired'` upon reaching Confirmed Onboard in HR Emploc), eliminating the semantic collision that previously caused zero-capacity vacancies to fall through to Open.
+   - **Fix 3 (Slot Authority via VCode in `03_hr_emploc.md`)**: Renamed Rule 3 to *"Slot Authority via VCode (Plantilla Slot is the Source of Truth, Referenced by VCode)"* and codified that physical rows in `public.plantilla_slots` are the true authoritative source of truth for workforce demand, while the VCode is the human-readable linking identifier.
+   - **Fix 4 (Authoritative Waterfall Priority Order in `02_vacancy.md`)**: Codified the strict top-down status evaluation waterfall:
+     1. Priority 1: Archived / Closed (`Archived`)
+     2. Priority 2: For Closure (`Closure Tab`) — overrides Open & Pipeline
+     3. Priority 3: Hired (`Hired Tab`) — fulfilled by Confirmed Onboard (in HR Emploc) or Active Plantilla
+     4. Priority 4: Open (`Open Tab`) — unallocated slots exist with zero applicants
+     5. Priority 5: Pipeline (`Pipeline Tab`) — active screening candidates exist
+   - **Fix 5 (Layered Authority in `02_vacancy.md`)**: Delineated `vw_slot_derived_vacancy_shadow` as the low-level database slot calculation engine, and `vw_vacancy_list` as the authoritative presentation and RPC view serving web and mobile interfaces.
+   - Committed changes to mobile repo: `8df2f62`.
+2. **Web Repository Mirror Synchronization (`ohmployee-web`)**:
+   - Ran `npm run sync:adr` (`scripts/adr-mirror.mjs sync`), syncing all mirrors to `8df2f62`.
+   - Verified `npm run check:adr` reports `ADR_MIRROR_STATUS: FRESH`.
+3. **Verification**:
+   - 264/264 unit tests passed (`npm test`).
+   - 0 ESLint errors/warnings (`npm run lint`).
+   - 0 secret leaks (`check:secrets`).
+   - 0 SQL contract errors (`check:sql`).
+
+### Files Changed
+- `docs/architecture/_mirror/adr/00_core_invariants.md`
+- `docs/architecture/_mirror/adr/02_vacancy.md`
+- `docs/architecture/_mirror/adr/03_hr_emploc.md`
+- `docs/architecture/_mirror/adr/README.md`
+- `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Codify Cross-Module Dual-Existence Prohibition Invariant in ADR and Sync Mirrors (ohm#codify-dual-existence-prohibition-in-adr)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Committed in Mobile Source of Truth & Mirrors Synced
 
