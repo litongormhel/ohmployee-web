@@ -98,6 +98,10 @@ This document captures the current stable architecture and navigation contract f
 
 ## Reports Module (`/reports`)
 - **Overview**: Standard operational and analytical workforce reporting cockpit providing group/account aggregated metrics, timeline filters, interactive drilldowns, and CSV/XLSX export capabilities.
+- **Reports Catalog Architecture (`ReportsCatalogTab.tsx`)**:
+  - Compact High-Density Grid: Re-architected from oversized ~190px cards to sleek, horizontal ~70px cards (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5`), achieving a 62% reduction in vertical footprint while preserving full keyboard accessibility and touch targets.
+  - Giant Hero Banner Removed: Eliminated redundant 180px hero banner to bring all 13 reports immediately above the fold below `AdminPageHeader`.
+  - Filter & Search Toolbar: Integrated category filter chips (`All Reports [13]`, `Separation [6]`, `Velocity [3]`, `Operations [4]`) and real-time live search input with quick clear `(×)` action.
 - **RPC & Database Contracts**:
   1. `public.fn_get_attrition_details(p_account_id uuid, p_start_date date, p_end_date date)`:
      - Returns individual employee drilldown records for attrition analysis (`plantilla_id`, `employee_number`, `employee_name`, `store_name`, `position`, `date_of_separation`, `deactivation_reason`, `separation_status`, `remarks`).
