@@ -449,4 +449,22 @@ Enforced strict role-level alignment for the Data Team (Head Admin L90 and Encod
 7. **Database Migration (`supabase/migrations/20262606000153_align_data_team_rbac_permissions.sql`)**:
    - Synchronized `role_permission_definitions_compat` and base matrix table `role_permission_matrix` on Staging (`qqiiznmqxfoamqytjica`) for all 6 affected definitions across Head Admin and Encoder roles.
 
+---
+
+## Deprecation of Dormant RBAC Definitions (`ohm#deprecate-dormant-rbac-definitions`)
+
+Per user direction, permanently cleaned up dormant/orphaned RBAC definitions that have no active workflow, direct form, or operational UI:
+1. **`vacancy.create` (`('vacancy', 'vacancy', 'create')`)**:
+   - Deprecated in migration 168. Vacancies in OHMployee strictly originate via Headcount Requests, Plantilla Attrition Backfills, or Batch Imports per ADR-001/002.
+2. **`hr_emploc.create` (`('hr_emploc', 'hr_emploc', 'create')`)**:
+   - Deprecated in migration 169. Employees are never created from a blank form; they are born via ATS onboarding (`confirm_applicant_onboard` -> `fn_sync_slot_to_hr_processing`) or bulk spreadsheet import.
+3. **`plantilla_slot.add_applicant` (`('plantilla', 'plantilla_slot', 'add_applicant')`)**:
+   - Deprecated in migration 169. Applicant slot entry is strictly governed by the ATS recruitment pipeline (`applicant.create`) and Emploc slot transfer (`plantilla_slot.transfer`).
+4. **`vacancy.edit` (`('vacancy', 'vacancy', 'edit')`)**:
+   - Deprecated in migration 169. Core vacancy attributes (store, position, account) are defined by the underlying Plantilla slot and Headcount Request; no manual direct vacancy editing dialog exists.
+5. **Database Migration (`supabase/migrations/20262606000169_deprecate_dormant_rbac_definitions.sql`)**:
+   - Safely unlinked foreign key references in `role_permission_audit_logs.permission_definition_id` (setting to `NULL` while preserving denormalized module/resource/action keys for historical audit compliance).
+   - Removed definitions from `role_permission_overrides`, `role_permission_matrix`, and `role_permission_definitions`.
+
+
 

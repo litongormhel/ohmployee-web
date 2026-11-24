@@ -442,9 +442,9 @@ When confirming an applicant onboard (`Confirm Onboarding / Mark Hired` via `con
 
 ## RBAC Dynamic Capability Enforcement & Closure Review RPC (`ohm#fix-rbac-dynamic-overrides-and-vacancy-closure`)
 
-1. **Dormant `vacancy.create` Deprecation**:
-   - `vacancy.create` was an orphaned rule seeded in early RBAC migrations. Vacancies in OHMployee strictly originate through Headcount Requests, Plantilla Attrition Backfills, or Batch Imports per ADR-001/002.
-   - Permanently deleted `('vacancy', 'vacancy', 'create')` from `role_permission_definitions`, `role_permission_matrix`, and `role_permission_overrides`, reducing Vacancy RBAC rules from 16 to 15.
+1. **Dormant `vacancy.create` and `vacancy.edit` Deprecation**:
+   - `vacancy.create` and `vacancy.edit` were orphaned rules seeded in early RBAC migrations. Vacancies in OHMployee strictly originate through Headcount Requests, Plantilla Attrition Backfills, or Batch Imports per ADR-001/002. Core attributes are derived from the underlying Plantilla slot; direct vacancy editing does not exist.
+   - Permanently deleted `('vacancy', 'vacancy', 'create')` (migration 168) and `('vacancy', 'vacancy', 'edit')` (migration 169) from `role_permission_definitions`, `role_permission_matrix`, and `role_permission_overrides`, reducing Vacancy RBAC rules from 16 to 14.
 2. **Dynamic Effective Permissions Integration**:
    - `get_web_current_user_context()` joins `role_permission_overrides` against `role_permission_matrix` with Super Admin immunity (`role_name = 'Super Admin' -> true`), ensuring custom toggles in `/rbac` (e.g. revoking `vacancy.approve_closure` on Head Admin) immediately take effect.
    - `normalizeCapabilities` in `src/lib/auth.ts` extracts canonical string keys (`${resource_key}.${action_key}` and `${action_key}`) so frontend components receive populated capability arrays.

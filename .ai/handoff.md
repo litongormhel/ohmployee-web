@@ -1,5 +1,40 @@
 # AI Handoff
 
+## Execution Report — Deprecate Dormant hr_emploc.create, plantilla_slot.add_applicant, and vacancy.edit RBAC Definitions (ohm#deprecate-dormant-rbac-definitions)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Staging Deployed
+
+### What Was Built
+1. **User Request Alignment**:
+   - User inquiry: *"also ano ano ung mag function na dormant na?"* (What other functions/permissions are dormant?).
+   - User directive: *"I like your reco alisin sa web yan para di ko na makita"* (Remove them so they no longer clutter the RBAC matrix and system catalog).
+2. **Investigation Findings**:
+   - Analyzed the active application workflows vs. `role_permission_definitions`:
+     - **`hr_emploc.create` (`('hr_emploc', 'hr_emploc', 'create')`)**: In OHMployee, employees are never created via a blank manual form. They are born strictly via ATS onboarding pipeline (`confirm_applicant_onboard` -> `fn_sync_slot_to_hr_processing`) or bulk spreadsheet import. There is no manual employee creation UI or direct insert endpoint.
+     - **`plantilla_slot.add_applicant` (`('plantilla', 'plantilla_slot', 'add_applicant')`)**: An early placeholder definition. Applicant slot entry is strictly governed by the ATS recruitment pipeline (`applicant.create`) and Emploc slot transfer (`plantilla_slot.transfer`). Direct applicant addition to plantilla slots without an ATS vacancy does not exist.
+     - **`vacancy.edit` (`('vacancy', 'vacancy', 'edit')`)**: Vacancies in OHMployee derive their core store, position, and account properties directly from the underlying Plantilla slot and approved Headcount Request. No manual direct vacancy editing form/modal exists in the web app.
+3. **Database Migration & FK Protection**:
+   - Created `supabase/migrations/20262606000169_deprecate_dormant_rbac_definitions.sql`.
+   - **FK Integrity Safeguard**: `public.role_permission_audit_logs.permission_definition_id` has a foreign key constraint referencing `role_permission_definitions(id)`. Part 1 of the migration sets `permission_definition_id = NULL` for the targeted IDs, preserving historical audit log records (whose denormalized `module_key`, `resource_key`, and `action_key` columns retain the complete historical trail).
+   - **Matrix & Override Cleanup**: Part 2 deletes active records from `role_permission_overrides`, `role_permission_matrix`, and `role_permission_definitions` for the 3 keys.
+   - Pushed cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging` with 0 errors.
+4. **Verification**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 credential leaks.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 694 migrations.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run build`: Clean Next.js 16.2.4 Turbopack production build.
+   - Migration Counter: Staging: 663 migrations | Prod: 661 migrations (2 migrations pending on Prod: 168 and 169).
+
+### Files
+- `supabase/migrations/20262606000169_deprecate_dormant_rbac_definitions.sql` — Database migration deprecating dormant definitions with audit log FK protection.
+- `docs/state/web_auth_rbac_state.md` — Documented deprecation of dormant definitions and architectural reasons.
+- `docs/state/vacancy_web_state.md` — Updated Vacancy RBAC rules count (16 -> 14).
+- `.ai/briefing.md` — Updated recent completed tasks list.
+- `.ai/handoff.md` — Prepended execution report.
+
+---
+
 ## Execution Report — Deprecate Dormant Vacancy Create, Enforce Dynamic RBAC Overrides, & Secure Closure Review RPC (ohm#fix-rbac-dynamic-overrides-and-vacancy-closure)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Staging Deployed
 
