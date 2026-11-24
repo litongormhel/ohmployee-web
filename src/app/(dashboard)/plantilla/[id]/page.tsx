@@ -1199,7 +1199,7 @@ function PlantillaEmployeeDetailContent() {
                                 {store.storeName}
                               </h4>
                               {store.vcode && (
-                                <span className="font-mono text-xs font-bold text-brand-primary bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800 px-2 py-0.5 rounded">
+                                <span className="font-mono text-xs font-bold text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-950/60 border border-brand-200 dark:border-brand-800 px-2 py-0.5 rounded">
                                   {store.vcode}
                                 </span>
                               )}

@@ -717,9 +717,15 @@
   /* Brand ramp */
   --color-brand-50: #eef2ff;
   --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
   --color-brand-500: #2b4fd6;
   --color-brand-600: #2240b0;
   --color-brand-700: #1a318a;
+  --color-brand-800: #1e2a78;
+  --color-brand-900: #17205a;
+  --color-brand-950: #0c1033;
 
   /* Border radii tiers (8 / 10 / 12) */
   --radius-xs: 4px;
