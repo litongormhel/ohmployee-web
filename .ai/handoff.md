@@ -1,5 +1,51 @@
 # AI Handoff
 
+## Execution Report — Hard Delete Inactive Test Account ALING NENA STORE & Child Artifacts (ohm#hard-delete-aling-nena-store)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified & Live on Staging
+
+### What Was Built
+1. **User Request Alignment**:
+   - User request: `hard delete this account : ALING NENA STORE`.
+2. **Forensic Database Inspection (Staging `qqiiznmqxfoamqytjica`)**:
+   - Target Account: `ALING NENA STORE` (`id: f60c15d4-5611-4632-b82b-802c81aec713`, `status: Inactive`, `is_active: false`).
+   - Plantilla rows: 0.
+   - Vacancies: 0.
+   - Plantilla slots: 0.
+   - User scopes: 0.
+   - Employee store allocations: 0.
+   - Child Foreign Key Dependencies Identified:
+     - 5 rejected test import batches in `public.plantilla_import_batches` (`selected_account_id = f60c15d4...`).
+     - 25 test import rows in `public.plantilla_import_rows` under the 5 rejected batches.
+     - 1 approved test request in `public.new_store_requests` (`0c04fc0b-9c39-4973-a1ee-6e9bbfdbe31e`).
+     - 1 archived child store in `public.stores` (`518bdc0c-118a-42d3-9140-e99b501fcb21`).
+3. **Surgical Deletion Sequence (`20262606000163_clean_hard_delete_aling_nena_store.sql`)**:
+   - §1. Delete child `plantilla_import_rows` (25 rows).
+   - §2. Delete rejected `plantilla_import_batches` (5 batches).
+   - §3. Delete `new_store_requests` (1 record).
+   - §4. Delete child store `ALING NENA` (`518bdc0c-118a-42d3-9140-e99b501fcb21`).
+   - §5. Hard delete `public.accounts` record (`f60c15d4-5611-4632-b82b-802c81aec713`).
+4. **Verification & Post-Execution Sanity**:
+   - Dry-run validation passed cleanly with 0 errors via `npm run db:push:staging`.
+   - Applied migration `20262606000163_clean_hard_delete_aling_nena_store.sql` to Staging (`qqiiznmqxfoamqytjica`).
+   - Executed live SQL count check across `accounts`, `stores`, `plantilla_import_batches`, and `new_store_requests`: confirmed **0 records remaining** across all tables.
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 credential leaks.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 688 migrations.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm test`: 257/257 unit tests passed.
+
+### Files
+- `supabase/migrations/20262606000163_clean_hard_delete_aling_nena_store.sql`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Production Delta
+- Staging (`qqiiznmqxfoamqytjica`): 657 migrations
+- Production (`rwxelulyapjgaarlwkus`): 656 migrations
+- Pending on Prod: `20262606000163_clean_hard_delete_aling_nena_store.sql`
+
+---
+
 ## Execution Report — Comprehensive Audit & Fix across All Operational & Data Integrity Reports (ohm#audit-and-fix-all-operational-reports)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified & Live on Staging
 
