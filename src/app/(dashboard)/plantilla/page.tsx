@@ -653,6 +653,27 @@ function PlantillaPageContent() {
     staleTime: 60000,
   });
 
+  // Query pending closure vacancy codes under current account so vacancies reflect Vacancy - Closure stage
+  const pendingClosureVcodesQuery = useQuery({
+    queryKey: ["plantilla", "pending-closure-vcodes", accountId],
+    queryFn: async () => {
+      if (!accountId) return new Set<string>();
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("vacancies")
+        .select("vcode")
+        .eq("account_id", accountId)
+        .or("has_pending_closure.eq.true,closure_request_status.eq.Pending");
+      const set = new Set<string>();
+      (data ?? []).forEach((r) => {
+        if (r.vcode) set.add(r.vcode.trim().toUpperCase());
+      });
+      return set;
+    },
+    enabled: !!accountId && isAccountAuthorized,
+    staleTime: 60000,
+  });
+
   // Store staffing query for Store Capacity Table
   const storeStaffingQuery = useQuery({
     queryKey: ["plantilla", "store-staffing-capacity", accountId],
@@ -846,6 +867,7 @@ function PlantillaPageContent() {
     });
 
     const closedVcodes = closedVcodesQuery.data ?? new Set<string>();
+    const pendingClosureVcodes = pendingClosureVcodesQuery.data ?? new Set<string>();
     const synthesized: VacancyListItem[] = [];
     inactiveEmployees.forEach((emp) => {
       const vk = (emp.vcode || "").trim().toUpperCase();
@@ -861,6 +883,7 @@ function PlantillaPageContent() {
 
       if (!isOccupiedByActive && !alreadyInVacancies) {
         seenVcodes.add(vk);
+        const isPendingClosure = pendingClosureVcodes.has(vk);
         synthesized.push({
           id: `vac-inactive-${emp.id}`,
           vcode: emp.vcode || `VC-${emp.id.substring(0, 8).toUpperCase()}`,
@@ -876,13 +899,13 @@ function PlantillaPageContent() {
           department: null,
           employmentType: emp.assignmentType || "Stationary",
           vacancyStatus: "Open",
-          pipelineStatus: "Vacancy - Open",
-          derivedStatus: "Open",
+          pipelineStatus: isPendingClosure ? "Vacancy - Closure" : "Vacancy - Open",
+          derivedStatus: isPendingClosure ? "For Closure" : "Open",
           activeApplicantCount: 0,
           confirmedOnboardCount: 0,
           hasRecentHire: false,
-          hasPendingClosure: false,
-          closureRequestStatus: null,
+          hasPendingClosure: isPendingClosure,
+          closureRequestStatus: isPendingClosure ? "Pending" : null,
           vacantDate: emp.separationDate || new Date().toISOString().substring(0, 10),
           agingDays: null,
           agingBucket: null,
@@ -899,16 +922,26 @@ function PlantillaPageContent() {
           hcDisplay: "0/1",
           lastActivityAt: null,
           remarks: emp.separationRemarks || emp.remarks || null,
-          stageBadge: "Vacancy - Open",
+          stageBadge: isPendingClosure ? "Vacancy - Closure" : "Vacancy - Open",
           rowCapabilities: {
             canViewDetail: true,
             canApprove: false,
             canUpdateApplicantStatus: true,
-            canRequestClosure: true,
+            canRequestClosure: !isPendingClosure,
             raw: {},
           },
           totalCount: 1,
         });
+      }
+    });
+
+    filtered.forEach((v) => {
+      const vk = (v.vcode || "").trim().toUpperCase();
+      if (vk && pendingClosureVcodes.has(vk)) {
+        v.hasPendingClosure = true;
+        v.closureRequestStatus = "Pending";
+        v.pipelineStatus = "Vacancy - Closure";
+        v.stageBadge = "Vacancy - Closure";
       }
     });
 
@@ -918,6 +951,7 @@ function PlantillaPageContent() {
     activeOccupiedVcodes,
     inactiveEmployees,
     closedVcodesQuery.data,
+    pendingClosureVcodesQuery.data,
     storeLookupMap,
     accountId,
     selectedAccount?.name,
@@ -946,7 +980,7 @@ function PlantillaPageContent() {
     return allVacancies.filter((v) => {
       const stage = resolveVacancyWorkflowStage(v);
       if (vacancySubFilter === "open") {
-        if (stage !== "Vacancy - Open" && stage !== "Vacancy - Pipeline") return false;
+        if (stage !== "Vacancy - Open" && stage !== "Vacancy - Pipeline" && stage !== "Vacancy - Closure") return false;
       } else if (vacancySubFilter === "pipeline") {
         if (!isHrPipelineWorkflowStage(stage)) return false;
       }

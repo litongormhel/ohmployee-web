@@ -17,7 +17,9 @@ export type DisplayView = "table" | "cards";
 export type VacancyWorkflowStage =
   | "Vacancy - Open"
   | "Vacancy - Pipeline"
+  | "Vacancy - Closure"
   | "HR Emploc - Pending"
+  | "HR Emploc - For Emploc"
   | "HR Emploc - Correction"
   | "HR Emploc - Ready"
   | "HR Emploc - Review";
@@ -198,20 +200,42 @@ export function formatDate(value: string | null | undefined): string {
 export function resolveVacancyWorkflowStage(v: VacancyListItem): VacancyWorkflowStage {
   const badgeRaw = (v.stageBadge || "").trim();
   const pipeRaw = (v.pipelineStatus || "").trim();
-  const target = (badgeRaw || pipeRaw).toLowerCase();
+  const vacRaw = (v.vacancyStatus || "").trim();
+  const target = `${badgeRaw} ${pipeRaw} ${vacRaw}`.toLowerCase();
 
+  // 1. Vacancy - Closure (takes precedence if pending closure or closure stage)
+  const isClosure =
+    v.hasPendingClosure === true ||
+    (v.closureRequestStatus || "").toLowerCase() === "pending" ||
+    target.includes("closure") ||
+    target.includes("for closure");
+
+  if (isClosure) {
+    return "Vacancy - Closure";
+  }
+
+  // 2. HR Emploc Stages
   if (target.includes("correction")) {
     return "HR Emploc - Correction";
   }
   if (target.includes("review")) {
     return "HR Emploc - Review";
   }
+  if (target.includes("for emploc") || target.includes("for_emploc")) {
+    return "HR Emploc - For Emploc";
+  }
   if (target.includes("ready") || target.includes("complete")) {
     return "HR Emploc - Ready";
   }
-  if (target.includes("emploc") || target.includes("onboard")) {
+  if (
+    target.includes("hr emploc") ||
+    target.includes("emploc") ||
+    target.includes("onboard")
+  ) {
     return "HR Emploc - Pending";
   }
+
+  // 3. Vacancy - Pipeline
   if (target.includes("pipeline")) {
     return "Vacancy - Pipeline";
   }
@@ -227,12 +251,14 @@ export function resolveVacancyWorkflowStage(v: VacancyListItem): VacancyWorkflow
     return "Vacancy - Pipeline";
   }
 
+  // 4. Vacancy - Open
   return "Vacancy - Open";
 }
 
 export function isHrPipelineWorkflowStage(stage: VacancyWorkflowStage): boolean {
   return (
     stage === "HR Emploc - Pending" ||
+    stage === "HR Emploc - For Emploc" ||
     stage === "HR Emploc - Correction" ||
     stage === "HR Emploc - Ready" ||
     stage === "HR Emploc - Review"
@@ -270,10 +296,22 @@ export function renderVacancyStatusBadge(stage: VacancyWorkflowStage) {
           Vacancy - Pipeline
         </span>
       );
+    case "Vacancy - Closure":
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800">
+          Vacancy - Closure
+        </span>
+      );
     case "HR Emploc - Pending":
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
           HR Emploc - Pending
+        </span>
+      );
+    case "HR Emploc - For Emploc":
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800">
+          HR Emploc - For Emploc
         </span>
       );
     case "HR Emploc - Correction":

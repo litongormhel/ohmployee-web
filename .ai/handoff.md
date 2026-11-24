@@ -1,5 +1,59 @@
 # AI Handoff
 
+## Execution Report — Standardize Plantilla Vacancy Stage Badges & Pending Closure Capacity Preservation (ohm#standardize-plantilla-vacancy-stages-and-pending-closure)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean
+
+### What Was Built
+1. **User Request Alignment**:
+   - User questions:
+     1. "Why Pipeline = 1?"
+     2. "Also this CPPGJV19 is cg with CPSAJV27 but wala sya sa Plantilla"
+     3. "IF NASA pending for closure pa lang sya dapat nandon pa din sya sa bilang. mawawala lang sya pag approved na. Can we add this to ADR?"
+     4. "also dito sa Stage dapat clear kung nasaan e.g Vacancy - Closure dapat lahat ng Stage if nasaang Tab sya nanjan dapat ganito: Vacancy - Open, Vacancy - Pipeline, Vacancy - Closure, HR Emploc - Pending, HR Emploc - For Emploc, HR Emploc - Correction, HR Emploc - Review"
+2. **Forensic Root Cause Analysis**:
+   - **Pipeline = 1 vs Pipeline (0)**:
+     - `v_account_allocation_kpi` computes `pipeline_count` from `hr_emploc WHERE status <> ALL (ARRAY['Moved to Plantilla', 'Backout']) AND deleted_at IS NULL`.
+     - In FOREVER OFFICE, candidate `AL, JAMES N/A` (`vcode: CPSAJV27`) has active onboarding status `Pending Emploc` in `hr_emploc`, which increments `pipeline_count` to 1 on the Account Card.
+     - In Vacancy Management (`/vacancy`), the Pipeline tab displays active ATS screening candidates (`public.applicants`), where James AL is already `Confirmed Onboard` / `is_archived = true`, so ATS pipeline count is 0.
+   - **CPPGJV19 vs CPSAJV27 in Plantilla**:
+     - `CPPGJV19` (Puregold Noveleta Oasis) appeared in Plantilla's Vacancy tab because separated employee `BACULI, EURIE FERAER` (`status: Inactive`, separated `2026-11-12`, remarks `"Incomplete Docs"`) vacated the slot, and `plantilla/page.tsx` dynamically synthesizes open vacancies for unfilled inactive records.
+     - `CPSAJV27` was missing from Plantilla because: (a) employee `AL, JAMES N/A` in `public.plantilla` has `is_deleted = true` (status `Deactivated`), which is excluded by `v_plantilla_safe`; (b) `CG-FG1-0005` had `required_headcount = 0`, causing `vacancyListing.ts:2186` to suppress `CPSAJV27`; (c) slot `09b9192d...` is in `slot_status = 'hr_processing'`.
+3. **Architectural Remediation**:
+   - **Stage Badge Standardization**:
+     - `src/components/plantilla/directory/types.tsx`:
+       - Added `"Vacancy - Closure"` and `"HR Emploc - For Emploc"` to `VacancyWorkflowStage` type union.
+       - Updated `resolveVacancyWorkflowStage` to evaluate pending closure first (`hasPendingClosure`, `closureRequestStatus === 'Pending'`, or target includes `'closure'`), followed by `HR Emploc - Correction`, `HR Emploc - Review`, `HR Emploc - For Emploc`, `HR Emploc - Ready`, `HR Emploc - Pending`, `Vacancy - Pipeline`, and default `Vacancy - Open`.
+       - Updated `isHrPipelineWorkflowStage` to include `"HR Emploc - For Emploc"`.
+       - Updated `renderVacancyStatusBadge` with badge styles for `"Vacancy - Closure"` (rose/red border & background) and `"HR Emploc - For Emploc"` (indigo border & background).
+     - `src/lib/queries/vacancy/vacancyListing.ts`:
+       - Updated enrichment loop to evaluate `isClosure` and assign `row.stageBadge = "Vacancy - Closure"` and `row.pipelineStatus = "Vacancy - Closure"`.
+       - Handled `"for emploc"` in emploc status mapping to assign `"HR Emploc - For Emploc"`.
+       - Updated `finalRows` under `currentTab === "open"` to preserve `"Vacancy - Closure"` if `isClosure` is true.
+   - **Pending Closure Capacity Preservation**:
+     - `src/app/(dashboard)/plantilla/page.tsx`:
+       - Added `pendingClosureVcodesQuery` querying `vacancies` for `has_pending_closure = true OR closure_request_status = 'Pending'`.
+       - Enriched synthesized inactive vacancies and existing vacancies to set `hasPendingClosure: true`, `closureRequestStatus: 'Pending'`, and `stageBadge: 'Vacancy - Closure'`.
+       - Preserved `Vacancy - Closure` within the Open tab (`vacancySubFilter === "open"`), ensuring pending closure requisitions remain counted and visible until administrative approval.
+   - **Documentation & State Specifications**:
+     - `docs/state/plantilla_web_state.md`: Updated Tab 3 specification to reflect `Vacancy - Closure` and `HR Emploc - For Emploc` canonical stage badges.
+4. **Verification**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 credential leaks.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 690 migrations.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run build`: Clean Next.js 16.2.4 Turbopack production build with all 22 routes compiled.
+
+### Files
+- `src/components/plantilla/directory/types.tsx`
+- `src/lib/queries/vacancy/vacancyListing.ts`
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Enforce Default Light Mode for All Roles & Fix Auto Dark Mode on Login (ohm#default-light-theme-all-roles)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified & Live on Staging
 

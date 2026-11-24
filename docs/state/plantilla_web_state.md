@@ -97,9 +97,11 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
    - **Detailed Stage Status Labels**:
      - *Open / Unassigned Group*:
        - `Vacancy - Open`: For vacant slots with no applicant assigned or attached (neutral gray badge).
+       - `Vacancy - Closure`: For requisitions flagged with a pending closure request (rose badge). While pending approval, the requisition remains counted in Open capacity.
      - *HR Pipeline Group*:
        - `Vacancy - Pipeline`: Initial candidate recruitment pipeline state (blue badge).
        - `HR Emploc - Pending`: When candidate is in pending employee-location/onboarding stage (`hr_status = 'Pending'` or `'Pending Emploc'`, amber badge).
+       - `HR Emploc - For Emploc`: When candidate is queued for Emploc processing (`hr_status = 'For Emploc'`, indigo badge).
        - `HR Emploc - Correction`: When details require correction (`hr_status = 'For Correction'`, red badge).
        - `HR Emploc - Ready`: When ready for final processing/onboarding (`hr_status = 'Complete'` or `'Ready for Plantilla'`, emerald badge).
        - `HR Emploc - Review`: Under review by HR/Ops (`hr_status = 'For Review'`, purple badge).
@@ -108,7 +110,7 @@ When `Employee View` is active, the interface renders the **6 Status Sub-Tabs** 
      2. `Store Branch / Anchor Branch`: Clean branch name with subtle `Roving` badge if roving.
      3. `Area & City`: Store location pill.
      4. `Applicant`: Candidate name synced live from Vacancy/HR Emploc (empty state: muted `—`).
-     5. `Stage`: Stage badge (`Vacancy - Open`, `Vacancy - Pipeline`, `HR Emploc - Pending`, `HR Emploc - Correction`, `HR Emploc - Ready`, `HR Emploc - Review`).
+     5. `Stage`: Stage badge (`Vacancy - Open`, `Vacancy - Pipeline`, `Vacancy - Closure`, `HR Emploc - Pending`, `HR Emploc - For Emploc`, `HR Emploc - Correction`, `HR Emploc - Ready`, `HR Emploc - Review`).
      6. `Aging`: Aging days (`Xd`) calculated from Effective Vacancy Date (`vacantDate`).
      7. `Position`: Position title.
      8. `Slot`: Dynamic capacity badge: In Plantilla Vacancy, member stores maintain **1:1 rows per store** (`consolidateCoverageGroups: false`), displaying each store's dedicated `VCode` and branch name with `Roving` badge. Roving slots render fractional roving capacity `${rovingSlotShare} Vacant` (e.g. `0.5 Vacant` for 2 stores, `0.33 Vacant` for 3 stores). For stationary multi-headcount requisitions, renders `${remainingCapacity} Vacant (${hcFilled}/${hcTotal})` or `${remainingCapacity || 1} Vacant` for single-slot lines.

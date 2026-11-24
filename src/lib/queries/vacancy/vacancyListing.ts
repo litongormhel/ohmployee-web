@@ -1875,14 +1875,25 @@ export async function listVacancies(params: VacancyListParams) {
       }
 
       for (const row of rows) {
+        const isClosure =
+          row.hasPendingClosure === true ||
+          (row.closureRequestStatus || "").toLowerCase() === "pending" ||
+          (row.pipelineStatus || "").toLowerCase().includes("closure");
+
         if (currentTab === "open") {
           // Open tab: Store requisition level, applicant fields cleared.
           row.applicantId = null;
           row.applicantName = null;
           row.contactNumber = null;
-          row.stageBadge = "Vacancy - Open";
-          row.pipelineStatus = "Vacancy - Open";
+          row.stageBadge = isClosure ? "Vacancy - Closure" : "Vacancy - Open";
+          row.pipelineStatus = isClosure ? "Vacancy - Closure" : "Vacancy - Open";
         } else {
+          if (isClosure) {
+            row.stageBadge = "Vacancy - Closure";
+            row.pipelineStatus = "Vacancy - Closure";
+            continue;
+          }
+
           const vcodeKey = (row.vcode || "").trim().toUpperCase();
           const emploc = emplocByVcode.get(vcodeKey);
           const actives = activeByVcode.get(vcodeKey);
@@ -1901,6 +1912,8 @@ export async function listVacancies(params: VacancyListParams) {
               row.stageBadge = "HR Emploc - Correction";
             } else if (hrSt.includes("review") || st.includes("review")) {
               row.stageBadge = "HR Emploc - Review";
+            } else if (hrSt.includes("for emploc") || st.includes("for emploc") || st === "for emploc" || hrSt === "for emploc") {
+              row.stageBadge = "HR Emploc - For Emploc";
             } else if (hrSt.includes("complete") || hrSt.includes("ready") || st.includes("ready")) {
               row.stageBadge = "HR Emploc - Ready";
             } else {
