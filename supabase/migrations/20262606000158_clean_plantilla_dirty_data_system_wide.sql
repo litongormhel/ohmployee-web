@@ -12,65 +12,87 @@
 UPDATE public.vacancy_edit_locks SET is_override_active = true WHERE id = 1;
 
 DO $$
+DECLARE
+  v_rommel_id uuid;
+  v_batac_store_id uuid;
+  v_alturas_acc_id uuid;
+  v_alturas_grp_id uuid;
+  v_created_by uuid;
 BEGIN
   -- -------------------------------------------------------------------------
   -- 1. ALTURAS: Align Batac Ilocos (VCBPIG1_0165) & Rommel Abogado (2023-20605)
   -- -------------------------------------------------------------------------
-  -- Remove duplicate slot ordinal 2 FIRST to avoid uq_plantilla_slots_active_occupant conflict
-  DELETE FROM public.slot_history WHERE slot_id = '298e075f-285b-4e68-8d98-f045f6e884b8';
-  DELETE FROM public.plantilla_slots WHERE id = '298e075f-285b-4e68-8d98-f045f6e884b8';
+  -- Dynamically resolve Rommel Abogado by employee_no (surrogate IDs vary across Staging and Prod)
+  SELECT id INTO v_rommel_id FROM public.plantilla WHERE employee_no = '2023-20605' LIMIT 1;
+  SELECT id, account_id, group_id INTO v_batac_store_id, v_alturas_acc_id, v_alturas_grp_id
+  FROM public.stores WHERE vcode = 'VCBPIG1_0165' LIMIT 1;
+  SELECT id INTO v_created_by FROM public.users_profile LIMIT 1;
 
-  -- Bind slot ordinal 1 to Rommel Abogado
-  UPDATE public.plantilla_slots
-  SET slot_status = 'occupied',
-      current_occupant_plantilla_id = 'ae65a38a-34a5-46f9-b8fb-f7bcadaf8fd1',
-      updated_at = NOW()
-  WHERE id = 'd0af1a89-3e02-41b6-9580-c5fd50cc65fa';
-
-  -- Insert the active store allocation for Rommel Abogado on Batac Ilocos if not already active
-  IF NOT EXISTS (
-    SELECT 1 FROM public.employee_store_allocations
-    WHERE plantilla_id = 'ae65a38a-34a5-46f9-b8fb-f7bcadaf8fd1'
-      AND store_id = '3ce6612b-a866-4ac3-b7f9-cae509ba3d87'
-      AND is_active = true
-  ) THEN
-    INSERT INTO public.employee_store_allocations (
-      plantilla_id,
-      employee_no,
-      roving_group_id,
-      store_id,
-      vcode,
-      store_name,
-      account_id,
-      group_id,
-      filled_hc,
-      active_store_count,
-      effective_start,
-      effective_end,
-      is_active,
-      schedule_days,
-      schedule_time,
-      created_at,
-      created_by
-    ) VALUES (
-      'ae65a38a-34a5-46f9-b8fb-f7bcadaf8fd1',
-      '2023-20605',
-      NULL,
-      '3ce6612b-a866-4ac3-b7f9-cae509ba3d87',
-      'VCBPIG1_0165',
-      'BATAC ILOCOS',
-      '3126b9a8-29a6-4917-8b49-82e937d7cf88',
-      '638c038a-ba76-484f-aff8-1947c9a6b0b7',
-      1.0000,
-      1,
-      '2026-11-05',
-      NULL,
-      true,
-      'MON-SAT',
-      '08:00 AM - 05:00 PM',
-      NOW(),
-      'b865eef6-ebac-4bd3-84b5-482c00774565'
+  IF v_batac_store_id IS NOT NULL THEN
+    -- Remove duplicate slot ordinal > 1 FIRST to avoid uq_plantilla_slots_active_occupant conflict
+    DELETE FROM public.slot_history
+    WHERE slot_id IN (
+      SELECT id FROM public.plantilla_slots
+      WHERE store_id = v_batac_store_id AND slot_ordinal > 1
     );
+
+    DELETE FROM public.plantilla_slots
+    WHERE store_id = v_batac_store_id AND slot_ordinal > 1;
+
+    -- Bind slot ordinal 1 to Rommel Abogado if Rommel exists
+    IF v_rommel_id IS NOT NULL THEN
+      UPDATE public.plantilla_slots
+      SET slot_status = 'occupied',
+          current_occupant_plantilla_id = v_rommel_id,
+          updated_at = NOW()
+      WHERE store_id = v_batac_store_id AND slot_ordinal = 1;
+
+      -- Insert the active store allocation for Rommel Abogado on Batac Ilocos if not already active
+      IF NOT EXISTS (
+        SELECT 1 FROM public.employee_store_allocations
+        WHERE plantilla_id = v_rommel_id
+          AND store_id = v_batac_store_id
+          AND is_active = true
+      ) THEN
+        INSERT INTO public.employee_store_allocations (
+          plantilla_id,
+          employee_no,
+          roving_group_id,
+          store_id,
+          vcode,
+          store_name,
+          account_id,
+          group_id,
+          filled_hc,
+          active_store_count,
+          effective_start,
+          effective_end,
+          is_active,
+          schedule_days,
+          schedule_time,
+          created_at,
+          created_by
+        ) VALUES (
+          v_rommel_id,
+          '2023-20605',
+          NULL,
+          v_batac_store_id,
+          'VCBPIG1_0165',
+          'BATAC ILOCOS',
+          v_alturas_acc_id,
+          v_alturas_grp_id,
+          1.0000,
+          1,
+          '2026-11-05',
+          NULL,
+          true,
+          'MON-SAT',
+          '08:00 AM - 05:00 PM',
+          NOW(),
+          v_created_by
+        );
+      END IF;
+    END IF;
   END IF;
 
   -- -------------------------------------------------------------------------
@@ -80,19 +102,22 @@ BEGIN
   UPDATE public.plantilla_slots
   SET slot_status = 'occupied',
       updated_at = NOW()
-  WHERE id = '3a8a9cc6-b8ac-4de2-8e12-a8a6179f48e9';
+  WHERE (legacy_vcode = 'VAC-MNL-099' OR store_id = (SELECT id FROM public.stores WHERE vcode = 'VAC-MNL-099' LIMIT 1))
+    AND slot_status = 'filled';
 
   -- Back out ghost UAT candidate DELA CRUZ, JOHN PAUL DELOS REYES on Festival Mall
   UPDATE public.hr_emploc
   SET status = 'Backout',
       updated_at = NOW()
-  WHERE id = '33da0ac2-8ad8-4d41-b806-41d0ec1c24ae';
+  WHERE (vcode = 'ACT-G5-010' AND applicant_name ILIKE '%DELA CRUZ%')
+     OR id = '33da0ac2-8ad8-4d41-b806-41d0ec1c24ae';
 
   UPDATE public.applicants
   SET status = 'Backout',
       backout_reason = 'UAT test data cleanup (vacancy closed & archived)',
       updated_at = NOW()
-  WHERE id = 'b14c2abc-c3f6-4c3f-a561-22ba2c7128ca';
+  WHERE (vacancy_vcode = 'ACT-G5-010' AND last_name ILIKE '%DELA CRUZ%')
+     OR id = 'b14c2abc-c3f6-4c3f-a561-22ba2c7128ca';
 
   -- Close slot ordinal 1 on ACT-G5-010 (Festival Mall is closed and archived)
   UPDATE public.plantilla_slots
@@ -100,7 +125,8 @@ BEGIN
       closed_at = NOW(),
       closure_reason_code = 'HC_REDUCTION',
       updated_at = NOW()
-  WHERE id = '8eb14b17-b2e2-42c5-8aba-4b93782c08a3';
+  WHERE (legacy_vcode = 'ACT-G5-010' OR store_id = (SELECT id FROM public.stores WHERE vcode = 'ACT-G5-010' LIMIT 1))
+    AND slot_status != 'closed';
 
   -- -------------------------------------------------------------------------
   -- 3. Leftover Slots: Rolled-back batch slots & fulfilled coverage store slot
