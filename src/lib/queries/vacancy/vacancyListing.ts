@@ -1800,7 +1800,7 @@ export async function listVacancies(params: VacancyListParams) {
   // Enrich applicant details based on active applicants, HR Emploc onboarding state, and Plantilla occupancy:
   const allVcodes = Array.from(new Set(rows.map((r) => r.vcode).filter(Boolean)));
   const activeByVcode = new Map<string, Array<Record<string, unknown>>>();
-  const emplocByVcode = new Map<string, Record<string, unknown>>();
+  const emplocsByVcode = new Map<string, Array<Record<string, unknown>>>();
   const occupiedVcodeCountMap = new Map<string, number>();
 
   if (allVcodes.length > 0) {
@@ -1814,7 +1814,7 @@ export async function listVacancies(params: VacancyListParams) {
           .order("created_at", { ascending: false }),
         supabase
           .from("hr_emploc")
-          .select("id, vcode, applicant_id, applicant_name, status, hr_status, hired_date, employee_no, ops_remarks, hr_remarks, employee_lookup_remarks, correction_reason, created_at, updated_at")
+          .select("id, vcode, applicant_id, applicant_name, status, hr_status, hired_date, employee_no, ops_remarks, hr_remarks, employee_lookup_remarks, correction_reason, created_at, updated_at, slot_id")
           .in("vcode", allVcodes)
           .is("deleted_at", null)
           .neq("status", "Moved to Plantilla")
@@ -1843,12 +1843,13 @@ export async function listVacancies(params: VacancyListParams) {
         }
       }
 
-      // 2. Index active HR Emploc onboarding records by VCode
+      // 2. Index active HR Emploc onboarding records by VCode (multi-applicant preserving array)
       if (emplocData && Array.isArray(emplocData)) {
         for (const emp of emplocData) {
           const vk = (asString(emp.vcode) || "").trim().toUpperCase();
-          if (vk && !emplocByVcode.has(vk)) {
-            emplocByVcode.set(vk, emp as Record<string, unknown>);
+          if (vk) {
+            if (!emplocsByVcode.has(vk)) emplocsByVcode.set(vk, []);
+            emplocsByVcode.get(vk)!.push(emp as Record<string, unknown>);
           }
         }
       }
@@ -1880,6 +1881,126 @@ export async function listVacancies(params: VacancyListParams) {
           (row.closureRequestStatus || "").toLowerCase() === "pending" ||
           (row.pipelineStatus || "").toLowerCase().includes("closure");
 
+        const vcodeKey = (row.vcode || "").trim().toUpperCase();
+        const emplocs = emplocsByVcode.get(vcodeKey) ?? [];
+        const actives = activeByVcode.get(vcodeKey) ?? [];
+
+        // Build composite candidate list for this VCode preserving both HR Emploc and recruitment candidates
+        const allCandidatesForVcode: ActiveApplicantItem[] = [];
+        const seenCandidateIds = new Set<string>();
+        const seenCandidateNames = new Set<string>();
+
+        // 1. Emploc onboarding candidates
+        for (const emp of emplocs) {
+          const candId = asString(emp.applicant_id) || asString(emp.id) || "";
+          const rawName = asString(emp.applicant_name) || "Onboarding Candidate";
+          const parsed = parseCandidateFullName(rawName);
+          const fName = parsed.firstName || null;
+          const lName = parsed.lastName || null;
+          const mName = parsed.middleName || null;
+          const formattedName = formatPersonName(fName, lName, mName, rawName);
+
+          const hrSt = (asString(emp.hr_status) || "").toLowerCase().trim();
+          const st = (asString(emp.status) || "").toLowerCase().trim();
+          let stageBadge = "HR Emploc - Pending";
+          if (hrSt.includes("correction") || st.includes("correction")) {
+            stageBadge = "HR Emploc - Correction";
+          } else if (hrSt.includes("review") || st.includes("review")) {
+            stageBadge = "HR Emploc - Review";
+          } else if (hrSt.includes("for emploc") || st.includes("for emploc") || st === "for emploc" || hrSt === "for emploc") {
+            stageBadge = "HR Emploc - For Emploc";
+          } else if (hrSt.includes("complete") || hrSt.includes("ready") || st.includes("ready")) {
+            stageBadge = "HR Emploc - Ready";
+          }
+
+          const hrRem = asString(emp.hr_remarks)?.trim() || null;
+          const opsRem = asString(emp.ops_remarks)?.trim() || null;
+          let issueRem: string | null = null;
+          if (emp.correction_reason) {
+            const cr = emp.correction_reason;
+            if (Array.isArray(cr) && cr.length > 0) {
+              const first = asObject(cr[0]);
+              issueRem = asString(first.comment ?? first.label ?? first.code)?.trim() || null;
+            } else if (typeof cr === "object" && cr !== null) {
+              const crObj = asObject(cr);
+              issueRem = asString(crObj.comment ?? crObj.reason ?? crObj.label)?.trim() || null;
+            }
+          }
+          const lookupRem = asString(emp.employee_lookup_remarks)?.trim() || null;
+          const latestEmplocRemarks = hrRem || issueRem || opsRem || lookupRem || null;
+
+          if (candId) seenCandidateIds.add(candId);
+          seenCandidateNames.add(formattedName.toLowerCase());
+
+          allCandidatesForVcode.push({
+            applicantId: candId,
+            displayName: formattedName,
+            firstName: fName,
+            lastName: lName,
+            middleName: mName,
+            contactNumber: null,
+            statusLabel: stageBadge,
+            onboardDate: asString(emp.hired_date),
+            updatedAt: asString(emp.updated_at ?? emp.created_at),
+            recruiterName: null,
+            deployedByName: null,
+            remarks: latestEmplocRemarks,
+            slotId: asString(emp.slot_id),
+          });
+        }
+
+        // 2. Active recruitment pipeline candidates (not yet in emploc)
+        for (const act of actives) {
+          const actId = asString(act.id) || "";
+          let lName = asString(act.last_name);
+          let fName = asString(act.first_name);
+          let mName = asString(act.middle_name);
+          const fFull = asString(act.full_name);
+          if ((!lName || !fName) && fFull) {
+            const parsed = parseCandidateFullName(fFull, { firstName: fName, lastName: lName, middleName: mName });
+            lName = lName || parsed.lastName || null;
+            fName = fName || parsed.firstName || null;
+            mName = mName || parsed.middleName || null;
+          }
+          const formattedName = formatPersonName(fName, lName, mName, fFull || "Candidate");
+
+          if (actId && seenCandidateIds.has(actId)) continue;
+          if (seenCandidateNames.has(formattedName.toLowerCase())) continue;
+
+          if (actId) seenCandidateIds.add(actId);
+          seenCandidateNames.add(formattedName.toLowerCase());
+
+          const appSt = (asString(act.status) || "").toLowerCase().trim();
+          const stageBadge = (appSt.includes("onboard") || appSt.includes("emploc"))
+            ? "HR Emploc - Pending"
+            : "Vacancy - Pipeline";
+
+          const appOpsRem = asString(act.ops_remarks)?.trim() || null;
+          const appRecRem = asString(act.recruitment_remarks)?.trim() || null;
+          const appRem = asString(act.remarks)?.trim() || null;
+          const latestAppRemarks = appOpsRem || appRecRem || appRem || null;
+
+          allCandidatesForVcode.push({
+            applicantId: actId,
+            displayName: formattedName,
+            firstName: fName,
+            lastName: lName,
+            middleName: mName,
+            contactNumber: asString(act.contact_number),
+            statusLabel: stageBadge,
+            onboardDate: asString(act.hired_date),
+            updatedAt: asString(act.updated_at ?? act.created_at),
+            recruiterName: null,
+            deployedByName: null,
+            remarks: latestAppRemarks,
+          });
+        }
+
+        // Attach candidate lists and counts
+        row.activeApplicantsList = allCandidatesForVcode;
+        row.activeApplicantCount = allCandidatesForVcode.length;
+        row.hrProcessingCount = emplocs.length;
+
         if (currentTab === "open") {
           // Open tab: Store requisition level, applicant fields cleared.
           row.applicantId = null;
@@ -1894,96 +2015,19 @@ export async function listVacancies(params: VacancyListParams) {
             continue;
           }
 
-          const vcodeKey = (row.vcode || "").trim().toUpperCase();
-          const emploc = emplocByVcode.get(vcodeKey);
-          const actives = activeByVcode.get(vcodeKey);
-          const active = actives && actives[0];
-
-          if (emploc) {
-            // Priority 1: Applicant is in HR Emploc onboarding workflow
-            row.applicantId = asString(emploc.applicant_id) || asString(emploc.id);
-            row.applicantName = asString(emploc.applicant_name) || row.applicantName;
-            row.hiredDate = row.hiredDate || asString(emploc.hired_date);
-
-            const hrSt = (asString(emploc.hr_status) || "").toLowerCase().trim();
-            const st = (asString(emploc.status) || "").toLowerCase().trim();
-
-            if (hrSt.includes("correction") || st.includes("correction")) {
-              row.stageBadge = "HR Emploc - Correction";
-            } else if (hrSt.includes("review") || st.includes("review")) {
-              row.stageBadge = "HR Emploc - Review";
-            } else if (hrSt.includes("for emploc") || st.includes("for emploc") || st === "for emploc" || hrSt === "for emploc") {
-              row.stageBadge = "HR Emploc - For Emploc";
-            } else if (hrSt.includes("complete") || hrSt.includes("ready") || st.includes("ready")) {
-              row.stageBadge = "HR Emploc - Ready";
-            } else {
-              row.stageBadge = "HR Emploc - Pending";
-            }
-            row.pipelineStatus = row.stageBadge;
-
-            // Resolve latest remarks for HR Emploc
-            const hrRem = asString(emploc.hr_remarks)?.trim() || null;
-            const opsRem = asString(emploc.ops_remarks)?.trim() || null;
-            let issueRem: string | null = null;
-            if (emploc.correction_reason) {
-              const cr = emploc.correction_reason;
-              if (Array.isArray(cr) && cr.length > 0) {
-                const first = asObject(cr[0]);
-                issueRem = asString(first.comment ?? first.label ?? first.code)?.trim() || null;
-              } else if (typeof cr === "object" && cr !== null) {
-                const crObj = asObject(cr);
-                issueRem = asString(crObj.comment ?? crObj.reason ?? crObj.label)?.trim() || null;
-              }
-            }
-            const lookupRem = asString(emploc.employee_lookup_remarks)?.trim() || null;
-            // If in HR Emploc and has an issue, hr_remarks or issue reason takes priority, then ops_remarks
-            const latestEmplocRemarks = hrRem || issueRem || opsRem || lookupRem || null;
-            row.hrRemarks = hrRem;
-            row.opsRemarks = opsRem;
-            row.remarks = latestEmplocRemarks || row.remarks || null;
-          } else if (active) {
-            // Priority 2: Candidate in initial recruitment pipeline
-            row.applicantId = asString(active.id);
-            row.contactNumber = row.contactNumber || asString(active.contact_number);
-            row.hiredDate = row.hiredDate || asString(active.hired_date);
-            let lName = asString(active.last_name);
-            let fName = asString(active.first_name);
-            let mName = asString(active.middle_name);
-            const fFull = asString(active.full_name);
-            if ((!lName || !fName) && fFull) {
-              const parsed = parseCandidateFullName(fFull, {
-                firstName: fName,
-                lastName: lName,
-                middleName: mName,
-              });
-              lName = lName || parsed.lastName || null;
-              fName = fName || parsed.firstName || null;
-              mName = mName || parsed.middleName || null;
-            }
-            row.applicantLastName = lName;
-            row.applicantFirstName = fName;
-            row.applicantMiddleName = mName;
-            row.applicantName = formatPersonName(fName, lName, mName, fFull || row.applicantName);
-
-            const appSt = (asString(active.status) || "").toLowerCase().trim();
-            if (appSt.includes("onboard") || appSt.includes("emploc")) {
-              row.stageBadge = "HR Emploc - Pending";
-            } else {
-              row.stageBadge = "Vacancy - Pipeline";
-            }
-            row.pipelineStatus = row.stageBadge;
-
-            // Resolve latest remarks for ATS Pipeline applicant: Ops / Recruitment remarks
-            const appOpsRem = asString(active.ops_remarks)?.trim() || null;
-            const appRecRem = asString(active.recruitment_remarks)?.trim() || null;
-            const appRem = asString(active.remarks)?.trim() || null;
-            const latestAppRemarks = appOpsRem || appRecRem || appRem || null;
-
-            row.opsRemarks = appOpsRem;
-            row.recruitmentRemarks = appRecRem;
-            row.remarks = latestAppRemarks || row.remarks || null;
+          if (allCandidatesForVcode.length > 0) {
+            const primary = allCandidatesForVcode[0];
+            row.applicantId = primary.applicantId;
+            row.applicantName = primary.displayName;
+            row.applicantFirstName = primary.firstName;
+            row.applicantLastName = primary.lastName;
+            row.applicantMiddleName = primary.middleName;
+            row.contactNumber = row.contactNumber || primary.contactNumber;
+            row.hiredDate = row.hiredDate || primary.onboardDate;
+            row.stageBadge = primary.statusLabel;
+            row.pipelineStatus = primary.statusLabel;
+            row.remarks = primary.remarks || row.remarks;
           } else {
-            // Priority 3: Vacant slot with no applicant attached
             row.applicantId = null;
             row.applicantName = null;
             row.stageBadge = "Vacancy - Open";

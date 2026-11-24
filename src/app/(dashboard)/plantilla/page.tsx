@@ -945,7 +945,67 @@ function PlantillaPageContent() {
       }
     });
 
-    return [...filtered, ...synthesized];
+    // Expand multi-slot / multi-candidate vacancies to 1 row per physical slot (ADR-002 Invariants 1 & 5, Rule 8)
+    const expanded: VacancyListItem[] = [];
+    filtered.forEach((v) => {
+      const totalSlots = Math.max(v.hcTotal ?? 1, v.activeApplicantsList?.length ?? 1);
+      const filledSlots = v.hcFilled ?? 0;
+      const unfilledSlotsCount = Math.max(1, totalSlots - filledSlots);
+      const candidates = v.activeApplicantsList ?? [];
+
+      if (unfilledSlotsCount > 1 || candidates.length > 1) {
+        for (let i = 0; i < unfilledSlotsCount; i++) {
+          const cand = candidates[i];
+          if (cand) {
+            expanded.push({
+              ...v,
+              id: `${v.id}-slot-${i + 1}`,
+              parentVacancyId: v.id,
+              applicantId: cand.applicantId,
+              applicantName: cand.displayName,
+              applicantFirstName: cand.firstName,
+              applicantLastName: cand.lastName,
+              applicantMiddleName: cand.middleName,
+              contactNumber: cand.contactNumber || v.contactNumber,
+              stageBadge: cand.statusLabel,
+              pipelineStatus: cand.statusLabel,
+              remarks: cand.remarks || v.remarks,
+              slotOrdinal: i + 1,
+              headcount: 1,
+              hcTotal: 1,
+              hcFilled: 0,
+              hcDisplay: "0/1",
+            });
+          } else {
+            expanded.push({
+              ...v,
+              id: `${v.id}-slot-${i + 1}`,
+              parentVacancyId: v.id,
+              applicantId: null,
+              applicantName: null,
+              applicantFirstName: null,
+              applicantLastName: null,
+              applicantMiddleName: null,
+              stageBadge: v.hasPendingClosure ? "Vacancy - Closure" : "Vacancy - Open",
+              pipelineStatus: v.hasPendingClosure ? "Vacancy - Closure" : "Vacancy - Open",
+              remarks: "—",
+              slotOrdinal: i + 1,
+              headcount: 1,
+              hcTotal: 1,
+              hcFilled: 0,
+              hcDisplay: "0/1",
+            });
+          }
+        }
+      } else {
+        expanded.push({
+          ...v,
+          slotOrdinal: 1,
+        });
+      }
+    });
+
+    return [...expanded, ...synthesized];
   }, [
     vacancyListQuery.data?.data,
     activeOccupiedVcodes,
@@ -1447,7 +1507,15 @@ function PlantillaPageContent() {
   const floatingCount = floatingEmployees.length;
   const deactivationCount = deactivationEmployees.length;
   const inactiveCount = inactiveEmployees.length;
-  const vacancyCount = allVacancies.length > 0 ? allVacancies.length : (summaryData?.vacant ?? 0);
+  const uniqueVacancyCodesCount = useMemo(() => {
+    const set = new Set<string>();
+    allVacancies.forEach((v) => {
+      const k = (v.vcode || v.cgCode || v.parentVacancyId || v.id).trim().toUpperCase();
+      if (k) set.add(k);
+    });
+    return set.size;
+  }, [allVacancies]);
+  const vacancyCount = uniqueVacancyCodesCount > 0 ? uniqueVacancyCodesCount : (summaryData?.vacant ?? 0);
 
   // Active view pagination
   const currentTabRows =
@@ -2028,7 +2096,7 @@ function PlantillaPageContent() {
                 ) : displayView === "table" ? (
                   <StoreVacancyTable
                     rows={paginatedRows as VacancyListItem[]}
-                    onSelectVacancy={(v) => setSelectedVacancyId(v.id)}
+                    onSelectVacancy={(v) => setSelectedVacancyId(v.parentVacancyId || v.id.replace(/-slot-\d+$/, ""))}
                   />
                 ) : (
                   <div className="flex-1 min-h-0 overflow-y-auto pr-1">
@@ -2037,7 +2105,7 @@ function PlantillaPageContent() {
                         <VacancyCard
                           key={row.id}
                           row={row}
-                          onSelect={() => setSelectedVacancyId(row.id)}
+                          onSelect={() => setSelectedVacancyId(row.parentVacancyId || row.id.replace(/-slot-\d+$/, ""))}
                           storeLookupMap={storeLookupMap}
                         />
                       ))}

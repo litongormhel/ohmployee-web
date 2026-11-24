@@ -88,6 +88,7 @@ Recommended columns:
 - Owner/requester or approver, if available and web-safe.
 - Last activity.
 - Row-level action affordance only when capabilities allow.
+- Headcount (HC) column displays official hired capacity (`hc_filled / hc_total`, e.g. `0/3`) per ADR-001 Rule 2, accompanied by a dynamic in-process indicator when candidate sourcing is active (`● N/Total in process (X open)`), providing immediate clarity on pipeline progression without misrepresenting un-deployed candidates as official active Plantilla employees.
 
 The table supports loading, empty, retryable error, blocked/read-denied, selected-row, and paginated states. Empty states are real no-record states, not mocked data.
 

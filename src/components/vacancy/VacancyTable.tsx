@@ -639,11 +639,31 @@ export function VacancyTable({
                         </td>
 
                         {/* 9. HC (Omitted in Pipeline tab where 1 row = 1 candidate) */}
-                        {status !== "pipeline" && (
-                          <td className="border-b border-table-rule px-4 py-2.5 font-mono text-sm text-table-text-sub">
-                            {row.hcDisplay || `${row.confirmedOnboardCount ?? row.hcFilled ?? 0}/${row.headcount ?? row.hcTotal ?? 1}`}
-                          </td>
-                        )}
+                        {status !== "pipeline" && (() => {
+                          const quota = row.headcount ?? row.hcTotal ?? 1;
+                          const hired = row.confirmedOnboardCount ?? row.hcFilled ?? 0;
+                          const inProcess =
+                            (row.activeApplicantsList && row.activeApplicantsList.length > 0)
+                              ? row.activeApplicantsList.length
+                              : ((row.activeApplicantCount ?? 0) + (row.hrProcessingCount ?? 0));
+                          const remainingOpen = Math.max(0, quota - hired - inProcess);
+
+                          return (
+                            <td className="border-b border-table-rule px-4 py-2.5 text-xs text-table-text-sub">
+                              <div className="flex flex-col gap-0.5">
+                                <div className="font-mono text-sm font-medium text-table-text-primary">
+                                  {row.hcDisplay || `${hired}/${quota}`}
+                                </div>
+                                {status === "open" && inProcess > 0 && quota > 1 && (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-sans font-medium text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                    {inProcess}/{quota} in process ({remainingOpen} open)
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })()}
 
                         {/* 10. ACTIONS */}
                         <td className="border-b border-table-rule px-4 py-2.5 text-right">

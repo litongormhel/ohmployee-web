@@ -108,9 +108,12 @@ export type VacancyListItem = {
   hcFilled?: number;
   hcTotal?: number;
   hcDisplay?: string;
+  slotOrdinal?: number | null;
+  parentVacancyId?: string | null;
   slotFraction?: string | null;
   slotShare?: number | null;
   hrProcessingCount?: number;
+  activeApplicantsList?: ActiveApplicantItem[];
   lastActivityAt: string | null;
   rowCapabilities: VacancyRowCapabilities;
   profileEditCount?: number | null;
@@ -128,7 +131,10 @@ export type ActiveApplicantItem = {
   onboardDate: string | null;
   updatedAt: string | null;
   recruiterName: string | null;
-  deployedByName: string | null;
+  remarks?: string | null;
+  slotId?: string | null;
+  slotOrdinal?: number | null;
+  deployedByName?: string | null;
   profileEditCount?: number | null;
   createdAt?: string | null;
   agingDays?: number | null;
@@ -195,7 +201,7 @@ export type VacancyDetailItem = {
   hasReliever: boolean;
   hrcoRemarks: string | null;
   recruiterName: string | null;
-  deployedByName: string | null;
+  deployedByName?: string | null;
   hasPenalty: boolean;
   penaltyExposure: number;
   penaltyAmount: number | null;

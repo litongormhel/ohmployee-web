@@ -316,7 +316,7 @@ export function VacancyCard({
   const rovingSlotShare = row.slotShare ?? (isRoving && assignedCount > 1 ? Math.round((1.0 / assignedCount) * 100) / 100 : null);
   const slotDisplay = isRoving && rovingSlotShare != null
     ? rovingSlotShare
-    : remainingCapacity;
+    : (row.slotOrdinal != null ? row.slotOrdinal : remainingCapacity);
   const remarksDisplay = (
     row.remarks ||
     row.opsRemarks ||
