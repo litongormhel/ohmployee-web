@@ -427,6 +427,18 @@ Recommended implementation style:
 
 ---
 
+## Multi-Slot VCode Onboarding & Slot-Resolution Discipline (`ohm#fix-multi-slot-vcode-onboarding-collision`)
+
+When confirming an applicant onboard (`Confirm Onboarding / Mark Hired` via `confirm_applicant_onboard` and `fn_sync_slot_to_hr_processing`):
+1. **Unowned Slot Resolution Invariant**: On multi-headcount / multi-slot VCodes, slot selection must never execute an unconstrained `LIMIT 1` query. Slot resolution must:
+   - Honor `p_slot_id` (or `applicants.slot_id`) if already bound.
+   - If resolving an open slot, select only from slots with `slot_status IN ('pipeline', 'open')`, `closed_at IS NULL`, and `current_occupant_plantilla_id IS NULL`.
+   - Strictly exclude any slot that is already owned by an active record in `hr_emploc` (`NOT EXISTS (SELECT 1 FROM hr_emploc WHERE slot_id = plantilla_slots.id AND deleted_at IS NULL)`).
+   - Order candidate slots by `pipeline` first (already reserved for applicant), followed by `slot_ordinal ASC`.
+2. **Coherent Linkage**: `confirm_applicant_onboard` synchronizes the resolved slot ID to both `hr_emploc.slot_id` and `applicants.slot_id`, permanently preventing duplicate assignment collisions against `uq_hr_emploc_one_active_per_slot`.
+
+---
+
 > [!NOTE]
 > **Historical Assessment & Implementation Phases Archive:**
 > Historical pre-implementation assessments and phase checklists have been archived to [`docs/state/archive/vacancy_web_state_historical.md`](archive/vacancy_web_state_historical.md) to keep this live specification token-optimized.
