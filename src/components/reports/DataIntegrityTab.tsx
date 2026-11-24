@@ -125,18 +125,17 @@ export function DataIntegrityTab() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-4 animate-in fade-in duration-150">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-danger bg-danger-subtle px-2 py-0.5 rounded border border-danger-border">
-              Data Audit & Compliance
+              Data Audit &amp; Compliance
             </span>
-            <span className="text-xs text-text-muted">Port of DataIntegrityReportScreen</span>
           </div>
-          <h2 className="text-xl font-bold text-text-primary mt-0.5 tracking-tight">
-            Workforce Data Integrity & Delay Audit
+          <h2 className="text-lg font-bold text-text-primary mt-0.5 tracking-tight">
+            Workforce Data Integrity &amp; Delay Audit
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
             Identify delayed status updates, stale ghost occupancies, unlinked applicants, and workforce data drift across accounts.
@@ -147,7 +146,7 @@ export function DataIntegrityTab() {
           <button
             onClick={() => refetch()}
             disabled={isLoading || isRefetching}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-brand-primary" : ""}`} />
             Refresh
@@ -155,7 +154,7 @@ export function DataIntegrityTab() {
           <button
             onClick={handleExportSummaryXlsx}
             disabled={isLoading || !summary}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer disabled:opacity-50"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
             Export XLSX
@@ -163,7 +162,7 @@ export function DataIntegrityTab() {
           <button
             onClick={handleExportSummaryCsv}
             disabled={isLoading || !summary}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer disabled:opacity-50"
           >
             <Download className="w-3.5 h-3.5" />
             CSV
@@ -172,54 +171,54 @@ export function DataIntegrityTab() {
       </div>
 
       {/* KPI Cards Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
           <div className="text-[11px] font-semibold text-danger flex items-center justify-between">
             <span>Critical Issues</span>
-            <ShieldAlert className="w-4 h-4 text-danger" />
+            <ShieldAlert className="w-3.5 h-3.5 text-danger" />
           </div>
-          <div className="text-2xl font-bold text-danger mt-1">
+          <div className="text-lg font-bold text-danger mt-0.5">
             {criticalIssues}
           </div>
-          <div className="text-[11px] text-danger/80 mt-0.5">Requires immediate remediation</div>
+          <div className="text-[10px] text-danger/80 mt-0.5">Requires immediate remediation</div>
         </div>
 
-        <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+        <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
           <div className="text-[11px] font-semibold text-text-secondary flex items-center justify-between">
             <span>High Risk Issues</span>
-            <AlertTriangle className="w-4 h-4 text-text-secondary" />
+            <AlertTriangle className="w-3.5 h-3.5 text-text-secondary" />
           </div>
-          <div className="text-2xl font-bold text-text-primary mt-1">
+          <div className="text-lg font-bold text-text-primary mt-0.5">
             {highRiskIssues}
           </div>
-          <div className="text-[11px] text-text-muted mt-0.5">SLA delayed submissions</div>
+          <div className="text-[10px] text-text-muted mt-0.5">SLA delayed submissions</div>
         </div>
 
-        <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+        <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
           <div className="text-[11px] font-semibold text-text-muted flex items-center justify-between">
             <span>Total Findings</span>
-            <ShieldCheck className="w-4 h-4 text-brand-primary" />
+            <ShieldCheck className="w-3.5 h-3.5 text-brand-primary" />
           </div>
-          <div className="text-2xl font-bold text-text-primary mt-1">
+          <div className="text-lg font-bold text-text-primary mt-0.5">
             {totalFindings}
           </div>
-          <div className="text-[11px] text-text-muted mt-0.5">Cumulative anomalies flagged</div>
+          <div className="text-[10px] text-text-muted mt-0.5">Cumulative anomalies flagged</div>
         </div>
 
-        <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+        <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
           <div className="text-[11px] font-semibold text-text-muted flex items-center justify-between">
             <span>Affected Stores</span>
-            <Store className="w-4 h-4 text-brand-primary" />
+            <Store className="w-3.5 h-3.5 text-brand-primary" />
           </div>
-          <div className="text-2xl font-bold text-text-primary mt-1">
+          <div className="text-lg font-bold text-text-primary mt-0.5">
             {affectedStores}
           </div>
-          <div className="text-[11px] text-text-muted mt-0.5">Branches with open anomalies</div>
+          <div className="text-[10px] text-text-muted mt-0.5">Branches with open anomalies</div>
         </div>
       </div>
 
       {/* Scope Filter Strip */}
-      <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <div>
           <select
             value={selectedGroupId}
@@ -256,53 +255,53 @@ export function DataIntegrityTab() {
 
       {/* 4 Section Cards Grid */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-24 text-text-muted">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-primary mb-2" />
+        <div className="flex flex-col items-center justify-center py-20 text-text-muted">
+          <Loader2 className="w-6 h-6 animate-spin text-brand-primary mb-2" />
           <p className="text-xs font-medium">Scanning workforce database for integrity anomalies...</p>
         </div>
       ) : error ? (
-        <div className="p-8 text-center rounded-xl border border-danger-border bg-danger-subtle">
-          <p className="text-sm font-semibold text-danger">Failed to load data integrity report</p>
-          <p className="text-xs text-text-muted mt-1">{String(error)}</p>
+        <div className="p-6 text-center rounded-lg border border-danger-border bg-danger-subtle">
+          <p className="text-xs font-semibold text-danger">Failed to load data integrity report</p>
+          <p className="text-[11px] text-text-muted mt-1">{String(error)}</p>
           <button
             onClick={() => refetch()}
-            className="mt-4 px-4 py-1.5 text-xs font-semibold text-danger bg-surface-base border border-danger-border rounded-lg hover:bg-danger-subtle transition cursor-pointer"
+            className="mt-3 px-3 py-1 text-xs font-semibold text-danger bg-surface-base border border-danger-border rounded-md hover:bg-danger-subtle transition cursor-pointer"
           >
             Retry Scan
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {/* Section 1: Late HR Updates */}
-          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
+          <div className="p-4 rounded-lg border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
-                  <Clock className="w-5 h-5" />
+                <div className="p-1.5 rounded-md bg-surface-subtle text-text-secondary border border-border-default">
+                  <Clock className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   SLA Compliance
                 </span>
               </div>
-              <h3 className="text-base font-bold text-text-primary mt-3">
+              <h3 className="text-sm font-bold text-text-primary mt-2">
                 Late HR Emploc Updates
               </h3>
-              <p className="text-xs text-text-secondary mt-1">
+              <p className="text-xs text-text-secondary mt-0.5">
                 Employee location requests submitted or processed beyond the allowable SLA threshold.
               </p>
 
-              <div className="grid grid-cols-3 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
+              <div className="grid grid-cols-3 gap-2 mt-3 p-2.5 rounded-md bg-surface-muted/60 border border-border-subtle">
                 <div>
                   <div className="text-[10px] font-semibold text-text-muted">Findings</div>
-                  <div className="text-base font-bold text-text-primary mt-0.5">{lateHr.totalFindings}</div>
+                  <div className="text-sm font-bold text-text-primary mt-0.5">{lateHr.totalFindings}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold text-text-muted">Stores</div>
-                  <div className="text-base font-bold text-text-primary mt-0.5">{lateHr.affectedStores}</div>
+                  <div className="text-sm font-bold text-text-primary mt-0.5">{lateHr.affectedStores}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold text-text-muted">Worst Delay</div>
-                  <div className="text-base font-bold text-danger mt-0.5">
+                  <div className="text-sm font-bold text-danger mt-0.5">
                     {lateHr.worstDelay ? `${lateHr.worstDelay}d` : "—"}
                   </div>
                 </div>
@@ -313,7 +312,7 @@ export function DataIntegrityTab() {
               onClick={() =>
                 setActiveSection({ key: "late_hr", title: "Late HR Updates" })
               }
-              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-lg transition cursor-pointer"
+              className="mt-3 w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-md transition cursor-pointer"
             >
               <span>Audit Late HR Finding Rows</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -321,35 +320,35 @@ export function DataIntegrityTab() {
           </div>
 
           {/* Section 2: Vacancy Creation Delay */}
-          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
+          <div className="p-4 rounded-lg border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
-                  <AlertTriangle className="w-5 h-5" />
+                <div className="p-1.5 rounded-md bg-surface-subtle text-text-secondary border border-border-default">
+                  <AlertTriangle className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Requisition Delay
                 </span>
               </div>
-              <h3 className="text-base font-bold text-text-primary mt-3">
+              <h3 className="text-sm font-bold text-text-primary mt-2">
                 Vacancy Creation Delay
               </h3>
-              <p className="text-xs text-text-secondary mt-1">
+              <p className="text-xs text-text-secondary mt-0.5">
                 Vacancies initiated late following official employee separation or departure dates.
               </p>
 
-              <div className="grid grid-cols-3 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
+              <div className="grid grid-cols-3 gap-2 mt-3 p-2.5 rounded-md bg-surface-muted/60 border border-border-subtle">
                 <div>
                   <div className="text-[10px] font-semibold text-text-muted">Findings</div>
-                  <div className="text-base font-bold text-text-primary mt-0.5">{vacDelay.totalFindings}</div>
+                  <div className="text-sm font-bold text-text-primary mt-0.5">{vacDelay.totalFindings}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold text-text-muted">Stores</div>
-                  <div className="text-base font-bold text-text-primary mt-0.5">{vacDelay.affectedStores}</div>
+                  <div className="text-sm font-bold text-text-primary mt-0.5">{vacDelay.affectedStores}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold text-text-muted">Worst Delay</div>
-                  <div className="text-base font-bold text-danger mt-0.5">
+                  <div className="text-sm font-bold text-danger mt-0.5">
                     {vacDelay.worstDelay ? `${vacDelay.worstDelay}d` : "—"}
                   </div>
                 </div>
@@ -363,7 +362,7 @@ export function DataIntegrityTab() {
                   title: "Vacancy Creation Delay",
                 })
               }
-              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-lg transition cursor-pointer"
+              className="mt-3 w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-md transition cursor-pointer"
             >
               <span>Audit Vacancy Delay Rows</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -371,31 +370,31 @@ export function DataIntegrityTab() {
           </div>
 
           {/* Section 3: Ghost Occupancy */}
-          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
+          <div className="p-4 rounded-lg border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
-                  <Ghost className="w-5 h-5" />
+                <div className="p-1.5 rounded-md bg-surface-subtle text-text-secondary border border-border-default">
+                  <Ghost className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-danger-subtle text-danger border border-danger-border">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-danger-subtle text-danger border border-danger-border">
                   Plantilla Ghost
                 </span>
               </div>
-              <h3 className="text-base font-bold text-text-primary mt-3">
+              <h3 className="text-sm font-bold text-text-primary mt-2">
                 Ghost Occupancy Anomaly
               </h3>
-              <p className="text-xs text-text-secondary mt-1">
+              <p className="text-xs text-text-secondary mt-0.5">
                 Slots occupied by separated personnel or records lacking authentic payroll activity.
               </p>
 
-              <div className="grid grid-cols-2 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
+              <div className="grid grid-cols-2 gap-2 mt-3 p-2.5 rounded-md bg-surface-muted/60 border border-border-subtle">
                 <div>
                   <div className="text-[10px] font-semibold text-text-muted">Ghost Findings</div>
-                  <div className="text-base font-bold text-danger mt-0.5">{ghost.totalFindings}</div>
+                  <div className="text-sm font-bold text-danger mt-0.5">{ghost.totalFindings}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold text-text-muted">Affected Stores</div>
-                  <div className="text-base font-bold text-text-primary mt-0.5">{ghost.affectedStores}</div>
+                  <div className="text-sm font-bold text-text-primary mt-0.5">{ghost.affectedStores}</div>
                 </div>
               </div>
             </div>
@@ -407,7 +406,7 @@ export function DataIntegrityTab() {
                   title: "Ghost Occupancy",
                 })
               }
-              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-lg transition cursor-pointer"
+              className="mt-3 w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-md transition cursor-pointer"
             >
               <span>Audit Ghost Occupancy Rows</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -415,31 +414,31 @@ export function DataIntegrityTab() {
           </div>
 
           {/* Section 4: Pipeline Without Vacancy */}
-          <div className="p-6 rounded-xl border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
+          <div className="p-4 rounded-lg border border-border-default bg-surface-base shadow-2xs hover:border-border-strong hover:shadow-md transition flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <div className="p-2.5 rounded-lg bg-surface-subtle text-text-secondary border border-border-default">
-                  <GitFork className="w-5 h-5" />
+                <div className="p-1.5 rounded-md bg-surface-subtle text-text-secondary border border-border-default">
+                  <GitFork className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface-subtle text-text-secondary border border-border-default">
                   Unlinked Pipeline
                 </span>
               </div>
-              <h3 className="text-base font-bold text-text-primary mt-3">
+              <h3 className="text-sm font-bold text-text-primary mt-2">
                 Pipeline Without Vacancy
               </h3>
-              <p className="text-xs text-text-secondary mt-1">
+              <p className="text-xs text-text-secondary mt-0.5">
                 Applicants progressing in recruitment pipeline without a valid authorized VCode slot.
               </p>
 
-              <div className="grid grid-cols-2 gap-2 mt-4 p-3 rounded-lg bg-surface-muted/60 border border-border-subtle">
+              <div className="grid grid-cols-2 gap-2 mt-3 p-2.5 rounded-md bg-surface-muted/60 border border-border-subtle">
                 <div>
                   <div className="text-[10px] font-semibold text-text-muted">Unlinked Records</div>
-                  <div className="text-base font-bold text-text-primary mt-0.5">{pipe.totalFindings}</div>
+                  <div className="text-sm font-bold text-text-primary mt-0.5">{pipe.totalFindings}</div>
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold text-text-muted">Affected Stores</div>
-                  <div className="text-base font-bold text-text-primary mt-0.5">{pipe.affectedStores}</div>
+                  <div className="text-sm font-bold text-text-primary mt-0.5">{pipe.affectedStores}</div>
                 </div>
               </div>
             </div>
@@ -451,7 +450,7 @@ export function DataIntegrityTab() {
                   title: "Pipeline Without Vacancy",
                 })
               }
-              className="mt-5 w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-lg transition cursor-pointer"
+              className="mt-3 w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-md transition cursor-pointer"
             >
               <span>Audit Unlinked Pipeline Rows</span>
               <ArrowRight className="w-3.5 h-3.5" />

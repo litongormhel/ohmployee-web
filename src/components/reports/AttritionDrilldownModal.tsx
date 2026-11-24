@@ -244,36 +244,36 @@ export function AttritionDrilldownModal({
               </div>
             ) : (
               <div className="overflow-x-auto border border-border-subtle rounded-lg">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-[10px] tracking-wider font-semibold">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-[11px] font-semibold">
                     <tr>
-                      <th className="py-2.5 px-3">Employee</th>
-                      <th className="py-2.5 px-3">Position</th>
-                      <th className="py-2.5 px-3">Store Branch</th>
-                      <th className="py-2.5 px-3">Separation Date</th>
-                      <th className="py-2.5 px-3">Reason / Details</th>
-                      <th className="py-2.5 px-3 text-right">Status</th>
+                      <th className="py-2 px-3">Employee</th>
+                      <th className="py-2 px-3">Position</th>
+                      <th className="py-2 px-3">Store Branch</th>
+                      <th className="py-2 px-3">Separation Date</th>
+                      <th className="py-2 px-3">Reason / Details</th>
+                      <th className="py-2 px-3 text-right">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-subtle font-medium">
                     {paginatedEmployees.map((emp) => (
                       <tr key={emp.id || `${emp.employeeName}-${emp.storeName}`} className="hover:bg-surface-hover/50 transition">
-                        <td className="py-2.5 px-3">
+                        <td className="py-2 px-3">
                           <div className="font-semibold text-text-primary">{emp.employeeName}</div>
                           {emp.employeeNo && (
                             <div className="text-[10px] text-text-muted font-mono">#{emp.employeeNo}</div>
                           )}
                         </td>
-                        <td className="py-2.5 px-3 text-text-secondary">{emp.position}</td>
-                        <td className="py-2.5 px-3 text-text-secondary">{emp.storeName}</td>
-                        <td className="py-2.5 px-3 text-text-secondary font-mono text-sm">
+                        <td className="py-2 px-3 text-text-secondary">{emp.position}</td>
+                        <td className="py-2 px-3 text-text-secondary">{emp.storeName}</td>
+                        <td className="py-2 px-3 text-text-secondary font-mono text-xs">
                           {emp.separationDate ? emp.separationDate.substring(0, 10) : "—"}
                         </td>
-                        <td className="py-2.5 px-3 text-text-secondary max-w-xs truncate" title={emp.reason}>
+                        <td className="py-2 px-3 text-text-secondary max-w-xs truncate" title={emp.reason}>
                           {emp.reason}
                         </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-subtle text-text-secondary border border-border-default">
+                        <td className="py-2 px-3 text-right">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-surface-subtle text-text-secondary border border-border-default">
                             {emp.separationStatus || "Separated"}
                           </span>
                         </td>
@@ -289,24 +289,24 @@ export function AttritionDrilldownModal({
             </div>
           ) : (
             <div className="overflow-x-auto border border-border-subtle rounded-lg">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-[10px] tracking-wider font-semibold">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-[11px] font-semibold">
                   <tr>
-                    <th className="py-2.5 px-3">Store Branch</th>
-                    <th className="py-2.5 px-3">Location / Area</th>
-                    <th className="py-2.5 px-3 text-right">Separated Headcount</th>
+                    <th className="py-2 px-3">Store Branch</th>
+                    <th className="py-2 px-3">Location / Area</th>
+                    <th className="py-2 px-3 text-right">Separated Headcount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle font-medium">
                   {paginatedStores.map((store) => (
                     <tr key={store.storeName} className="hover:bg-surface-hover/50 transition">
-                      <td className="py-2.5 px-3 font-semibold text-text-primary flex items-center gap-2">
+                      <td className="py-2 px-3 font-semibold text-text-primary flex items-center gap-2">
                         <Store className="w-3.5 h-3.5 text-text-muted shrink-0" />
                         {store.storeName}
                       </td>
-                      <td className="py-2.5 px-3 text-text-secondary">{store.location}</td>
-                      <td className="py-2.5 px-3 text-right">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
+                      <td className="py-2 px-3 text-text-secondary">{store.location}</td>
+                      <td className="py-2 px-3 text-right">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
                           {store.separatedCount}
                         </span>
                       </td>

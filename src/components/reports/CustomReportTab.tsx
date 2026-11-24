@@ -389,18 +389,17 @@ export function CustomReportTab() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-4 animate-in fade-in duration-150">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
               Query Builder
             </span>
-            <span className="text-xs text-text-muted">Port of CustomReportScreen</span>
           </div>
-          <h2 className="text-xl font-bold text-text-primary mt-0.5 tracking-tight">
-            Custom Report Builder & Data Exporter
+          <h2 className="text-lg font-bold text-text-primary mt-0.5 tracking-tight">
+            Custom Report Builder &amp; Data Exporter
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
             Configure custom data sources, toggle columns, scope filters, and export high-density workforce datasets to XLSX/CSV.
@@ -414,7 +413,7 @@ export function CustomReportTab() {
                 type="button"
                 onClick={handleExportXlsx}
                 disabled={!filteredResults.length}
-                className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-primary bg-surface hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-text-primary bg-surface hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer disabled:opacity-50"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
                 Export XLSX
@@ -423,7 +422,7 @@ export function CustomReportTab() {
                 type="button"
                 onClick={handleExportCsv}
                 disabled={!filteredResults.length}
-                className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer disabled:opacity-50"
               >
                 <Download className="w-3.5 h-3.5" />
                 CSV
@@ -434,12 +433,12 @@ export function CustomReportTab() {
       </div>
 
       {/* 1. Report Data Source Selector */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <label className="text-xs font-bold text-text-primary flex items-center gap-1.5">
           <Layers className="w-3.5 h-3.5 text-brand-600" />
           1. Select Primary Data Source
         </label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {(Object.keys(SOURCES) as CustomReportSource[]).map((src) => {
             const config = SOURCES[src];
             const isSelected = selectedSource === src;
@@ -448,14 +447,14 @@ export function CustomReportTab() {
                 type="button"
                 key={src}
                 onClick={() => handleSourceChange(src)}
-                className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                className={`p-2.5 rounded-lg border text-left transition cursor-pointer flex flex-col justify-between ${
                   isSelected
                     ? "border-brand-primary bg-surface-selected shadow-2xs ring-1 ring-brand-primary"
                     : "border-border-default bg-surface-base hover:border-border-strong"
                 }`}
               >
                 <div className="text-xs font-bold text-text-primary">{config.label}</div>
-                <div className="text-xs text-text-secondary mt-1 line-clamp-2">
+                <div className="text-[11px] text-text-secondary mt-0.5 line-clamp-2">
                   {config.description}
                 </div>
               </button>
@@ -465,18 +464,18 @@ export function CustomReportTab() {
       </div>
 
       {/* 2. Scope & Condition Filters */}
-      <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
+      <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs space-y-2.5">
+        <div className="flex items-center justify-between pb-1.5 border-b border-border-subtle">
           <label className="text-xs font-bold text-text-primary flex items-center gap-1.5">
             <Filter className="w-3.5 h-3.5 text-brand-600" />
-            2. Scope & Condition Filters
+            2. Scope &amp; Condition Filters
           </label>
-          <span className="text-[11px] text-text-muted">
+          <span className="text-[10px] text-text-muted">
             Configuring filters for: <strong className="text-text-primary">{activeConfig.label}</strong>
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           {activeConfig.hasGroupAccount && (
             <>
               <div>
@@ -521,7 +520,7 @@ export function CustomReportTab() {
           )}
 
           {activeConfig.hasDateRange && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div>
                 <label className="block text-[11px] font-semibold text-text-secondary mb-1">
                   Date Range &amp; Cut-off
@@ -559,7 +558,7 @@ export function CustomReportTab() {
                     <option value="custom">Custom Date Range...</option>
                   </optgroup>
                 </select>
-                <span className="text-[10px] text-text-muted mt-1 block">
+                <span className="text-[10px] text-text-muted mt-0.5 block">
                   Active window: {computedDateRange.start} to {computedDateRange.end}
                 </span>
               </div>
@@ -623,21 +622,21 @@ export function CustomReportTab() {
       </div>
 
       {/* 3. Column Selection Strip */}
-      <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
+      <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs space-y-2">
+        <div className="flex items-center justify-between pb-1.5 border-b border-border-subtle">
           <label className="text-xs font-bold text-text-primary flex items-center gap-1.5">
             <CheckSquare className="w-3.5 h-3.5 text-brand-600" />
             3. Choose Columns to Include ({selectedColumns.length} of {activeConfig.columns.length})
           </label>
           <button
             onClick={() => setSelectedColumns(activeConfig.columns.map((c) => c.key))}
-            className="text-[11px] font-semibold text-brand-600 hover:text-brand-700 cursor-pointer"
+            className="text-[10px] font-semibold text-brand-600 hover:text-brand-700 cursor-pointer"
           >
             Select All
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {activeConfig.columns.map((col) => {
             const isChecked = selectedColumns.includes(col.key);
             return (
@@ -645,7 +644,7 @@ export function CustomReportTab() {
                 type="button"
                 key={col.key}
                 onClick={() => toggleColumn(col.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition cursor-pointer ${
                   isChecked
                     ? "bg-brand-50 border-brand-300 text-brand-800"
                     : "bg-surface-base border-border-default text-text-muted hover:border-border-strong"
@@ -670,22 +669,22 @@ export function CustomReportTab() {
             type="button"
             onClick={handleGenerate}
             disabled={isGenerating || isDateInvalid}
-            className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition cursor-pointer shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition cursor-pointer shadow-sm"
           >
             {isGenerating ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 Generating Custom Report...
               </>
             ) : (
               <>
-                <Play className="w-4 h-4 fill-white" />
+                <Play className="w-3.5 h-3.5 fill-white" />
                 Execute &amp; Generate Preview
               </>
             )}
           </button>
           {isDateInvalid && (
-            <p className="text-[11px] text-danger-text font-medium">
+            <p className="text-[10px] text-danger-text font-medium">
               Please correct the date range before executing preview.
             </p>
           )}
@@ -700,24 +699,24 @@ export function CustomReportTab() {
 
       {/* Error Message */}
       {genError && (
-        <div className="p-4 rounded-xl border border-danger-border bg-danger-subtle text-danger-text text-xs">
+        <div className="p-3 rounded-lg border border-danger-border bg-danger-subtle text-danger-text text-xs">
           Failed to generate custom report preview: {genError}
         </div>
       )}
 
       {/* 5. Results Preview Table */}
       {hasGenerated && (
-        <div className="rounded-xl border border-border-default bg-surface-base shadow-2xs overflow-hidden space-y-0">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-border-subtle bg-surface-muted/40">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="flex items-center gap-2">
-                <Table className="w-4 h-4 text-brand-600" />
+        <div className="rounded-lg border border-border-default bg-surface-base shadow-2xs overflow-hidden space-y-0">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 py-2 border-b border-border-subtle bg-surface-muted/40">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <Table className="w-3.5 h-3.5 text-brand-600" />
                 <span className="text-xs font-bold text-text-primary">
                   Report Preview ({filteredResults.length} Rows)
                 </span>
               </div>
               {activeConfig.hasDateRange && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-semibold text-brand-700 bg-brand-50 border border-brand-200 rounded-md">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold text-brand-700 bg-brand-50 border border-brand-200 rounded">
                   <Calendar className="w-3 h-3 text-brand-600" />
                   <span>{activeRangeLabel}:</span>
                   <span className="font-mono text-[10px] text-brand-800">
@@ -737,24 +736,24 @@ export function CustomReportTab() {
                   setSearchQuery(e.target.value);
                   setPage(1);
                 }}
-                className="h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 w-52 sm:w-64"
+                className="h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 w-48 sm:w-60"
               />
             </div>
           </div>
 
           {filteredResults.length === 0 ? (
-            <div className="py-20 text-center text-text-muted text-xs">
+            <div className="py-16 text-center text-text-muted text-xs">
               No rows matched your search filter or data source criteria.
             </div>
           ) : (
             <div className="overflow-x-auto max-h-[500px]">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-sm font-semibold sticky top-0 z-10 shadow-2xs">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-[11px] font-semibold sticky top-0 z-10 shadow-2xs">
                   <tr>
                     {activeConfig.columns
                       .filter((c) => selectedColumns.includes(c.key))
                       .map((c) => (
-                        <th key={c.key} className="py-2.5 px-3 whitespace-nowrap">
+                        <th key={c.key} className="py-2 px-3 whitespace-nowrap">
                           {c.label}
                         </th>
                       ))}
@@ -771,7 +770,7 @@ export function CustomReportTab() {
                             val = `${(val * 100).toFixed(1)}%`;
                           }
                           return (
-                            <td key={c.key} className="py-2.5 px-3 text-text-secondary whitespace-nowrap">
+                            <td key={c.key} className="py-2 px-3 text-text-secondary whitespace-nowrap">
                               {String(val ?? "—")}
                             </td>
                           );
@@ -785,7 +784,7 @@ export function CustomReportTab() {
 
           {/* Table Footer & Pagination */}
           <div className="flex flex-col border-t border-border-subtle bg-surface-muted/30">
-            <div className="flex items-center justify-between px-4 py-2.5 text-xs text-text-muted border-b border-border-subtle/50">
+            <div className="flex items-center justify-between px-3 py-2 text-xs text-text-muted border-b border-border-subtle/50">
               <span>
                 Generated {filteredResults.length} records • Ready for XLSX / CSV export
               </span>

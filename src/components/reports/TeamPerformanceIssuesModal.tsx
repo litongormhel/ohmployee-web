@@ -210,35 +210,35 @@ export function TeamPerformanceIssuesModal({
             </div>
           ) : (
             <div className="overflow-x-auto border border-border-subtle rounded-lg">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-sm font-semibold">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-[11px] font-semibold">
                   <tr>
-                    <th className="py-2.5 px-3">Issue Category</th>
-                    <th className="py-2.5 px-3">Label</th>
-                    <th className="py-2.5 px-3">Detail &amp; Scope</th>
-                    <th className="py-2.5 px-3">Store Branch</th>
-                    <th className="py-2.5 px-3">Entity</th>
-                    <th className="py-2.5 px-3 text-right">Impact</th>
+                    <th className="py-2 px-3">Issue Category</th>
+                    <th className="py-2 px-3">Label</th>
+                    <th className="py-2 px-3">Detail &amp; Scope</th>
+                    <th className="py-2 px-3">Store Branch</th>
+                    <th className="py-2 px-3">Entity</th>
+                    <th className="py-2 px-3 text-right">Impact</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle font-medium">
                   {paginatedIssues.map((issue, idx) => (
                     <tr key={idx} className="hover:bg-surface-hover/50 transition">
-                      <td className="py-2.5 px-3">
+                      <td className="py-2 px-3">
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-subtle text-text-secondary border border-border-default">
                           {issue.issueCategory}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-semibold text-text-primary">
+                      <td className="py-2 px-3 font-semibold text-text-primary">
                         {issue.issueLabel}
                       </td>
-                      <td className="py-2.5 px-3 text-text-secondary max-w-sm" title={issue.issueDetail}>
+                      <td className="py-2 px-3 text-text-secondary max-w-sm" title={issue.issueDetail}>
                         {issue.issueDetail}
                       </td>
-                      <td className="py-2.5 px-3 text-text-secondary">
+                      <td className="py-2 px-3 text-text-secondary">
                         {issue.storeName || "—"}
                       </td>
-                      <td className="py-2.5 px-3 text-text-secondary">
+                      <td className="py-2 px-3 text-text-secondary">
                         {issue.employeeName ? (
                           <span className="text-text-primary font-medium">{issue.employeeName}</span>
                         ) : issue.vcode ? (
@@ -249,7 +249,7 @@ export function TeamPerformanceIssuesModal({
                           "—"
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-right">
+                      <td className="py-2 px-3 text-right">
                         {issue.daysImpacted != null ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-danger-subtle text-danger-text border border-danger-border">
                             {issue.daysImpacted}d delayed

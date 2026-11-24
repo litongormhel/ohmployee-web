@@ -102,6 +102,13 @@ This document captures the current stable architecture and navigation contract f
   - Compact High-Density Grid: Re-architected from oversized ~190px cards to sleek, horizontal ~70px cards (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5`), achieving a 62% reduction in vertical footprint while preserving full keyboard accessibility and touch targets.
   - Giant Hero Banner Removed: Eliminated redundant 180px hero banner to bring all 13 reports immediately above the fold below `AdminPageHeader`.
   - Filter & Search Toolbar: Integrated category filter chips (`All Reports [13]`, `Separation [6]`, `Velocity [3]`, `Operations [4]`) and real-time live search input with quick clear `(×)` action.
+- **Universal Reports Sub-pages & Drilldown Modals High-Density Polish**:
+  - `ReportDetailView.tsx`: Compacted KPI summary cards from `p-4 text-2xl` to `p-3 text-lg font-bold`, tightened filter bar to `p-3 rounded-lg`, standardized table cells to `py-2 px-3 text-xs` with `bg-table-header text-[11px] font-semibold text-text-secondary`, and removed debug header text.
+  - `FloatingStaffTab.tsx`: Tightened bucket buttons and KPI cards to `p-3 text-lg font-bold`, compacted filter strip, standardized table cells to `py-2 px-3 text-xs`, and removed Flutter port string.
+  - `TeamPerformanceTab.tsx`: Tightened scorecard KPIs and filter strip to `p-3 rounded-lg`, tightened leaderboard cells to `py-2 px-3 text-xs`, and removed Flutter port string.
+  - `DataIntegrityTab.tsx`: Tightened KPI summary cards, compacted the 4 audit category cards from `p-6` to `p-4` with compact trigger buttons, and removed Flutter port string.
+  - `CustomReportTab.tsx`: Tightened primary source selector cards to `p-2.5 rounded-lg`, compacted filter and column selector strips to `p-3 rounded-lg`, standardized preview table to `text-xs py-2 px-3`, and removed Flutter port string.
+  - Drilldown Modals (`AttritionDrilldownModal.tsx`, `TeamPerformanceIssuesModal.tsx`, `DataIntegrityDetailModal.tsx`): Standardized all drilldown modal data tables to `text-xs py-2 px-3` with `bg-table-header` and semantic borders, achieving 100% design token harmony across the entire Reports module.
 - **RPC & Database Contracts**:
   1. `public.fn_get_attrition_details(p_account_id uuid, p_start_date date, p_end_date date)`:
      - Returns individual employee drilldown records for attrition analysis (`plantilla_id`, `employee_number`, `employee_name`, `store_name`, `position`, `date_of_separation`, `deactivation_reason`, `separation_status`, `remarks`).

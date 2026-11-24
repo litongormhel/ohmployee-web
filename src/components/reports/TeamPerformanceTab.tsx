@@ -120,18 +120,17 @@ export function TeamPerformanceTab() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-4 animate-in fade-in duration-150">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-text-secondary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
               Operational Discipline
             </span>
-            <span className="text-xs text-text-muted">Port of TeamPerformanceReportScreen</span>
           </div>
-          <h2 className="text-xl font-bold text-text-primary mt-0.5 tracking-tight">
-            Team Performance & SLA Compliance Scorecards
+          <h2 className="text-lg font-bold text-text-primary mt-0.5 tracking-tight">
+            Team Performance &amp; SLA Compliance Scorecards
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
             Operational discipline rankings by group and account, tracking SLA fulfillment, vacancy turnaround, and HR compliance.
@@ -142,7 +141,7 @@ export function TeamPerformanceTab() {
           <button
             onClick={() => refetch()}
             disabled={isLoading || isRefetching}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-brand-primary" : ""}`} />
             Refresh
@@ -150,7 +149,7 @@ export function TeamPerformanceTab() {
           <button
             onClick={handleExportXlsx}
             disabled={isLoading || !filteredLeaderboard.length}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer disabled:opacity-50"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
             Export XLSX
@@ -158,7 +157,7 @@ export function TeamPerformanceTab() {
           <button
             onClick={handleExportCsv}
             disabled={isLoading || !filteredLeaderboard.length}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer disabled:opacity-50"
           >
             <Download className="w-3.5 h-3.5" />
             CSV
@@ -167,61 +166,61 @@ export function TeamPerformanceTab() {
       </div>
 
       {/* KPI Cards Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
           <div className="text-[11px] font-semibold text-text-muted flex items-center justify-between">
             <span>Average Team Score</span>
-            <Award className="w-4 h-4 text-brand-primary" />
+            <Award className="w-3.5 h-3.5 text-brand-primary" />
           </div>
-          <div className="text-2xl font-bold text-brand-primary mt-1">
+          <div className="text-lg font-bold text-brand-primary mt-0.5">
             {kpis.averageScore.toFixed(1)}
           </div>
-          <div className="text-[11px] text-text-muted mt-0.5">Scale: 0 to 100 points</div>
+          <div className="text-[10px] text-text-muted mt-0.5">Scale: 0 to 100 points</div>
         </div>
 
-        <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+        <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
           <div className="text-[11px] font-semibold text-text-secondary flex items-center justify-between">
             <span>Top Performing</span>
-            <TrendingUp className="w-4 h-4 text-text-primary" />
+            <TrendingUp className="w-3.5 h-3.5 text-text-primary" />
           </div>
-          <div className="text-base font-bold text-text-primary mt-1 truncate" title={kpis.bestGroupName || "—"}>
+          <div className="text-sm font-bold text-text-primary mt-0.5 truncate" title={kpis.bestGroupName || "—"}>
             {kpis.bestGroupName || "Top Group"}
           </div>
-          <div className="text-[11px] text-text-muted mt-0.5">
+          <div className="text-[10px] text-text-muted mt-0.5">
             Score: {kpis.bestGroupScore != null ? kpis.bestGroupScore.toFixed(1) : "—"}
           </div>
         </div>
 
-        <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+        <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
           <div className="text-[11px] font-semibold text-text-secondary flex items-center justify-between">
             <span>Needs Attention</span>
-            <TrendingDown className="w-4 h-4 text-text-secondary" />
+            <TrendingDown className="w-3.5 h-3.5 text-text-secondary" />
           </div>
-          <div className="text-base font-bold text-text-primary mt-1 truncate" title={kpis.lowestGroupName || "—"}>
+          <div className="text-sm font-bold text-text-primary mt-0.5 truncate" title={kpis.lowestGroupName || "—"}>
             {kpis.lowestGroupName || "Lowest Group"}
           </div>
-          <div className="text-[11px] text-text-muted mt-0.5">
+          <div className="text-[10px] text-text-muted mt-0.5">
             Score: {kpis.lowestGroupScore != null ? kpis.lowestGroupScore.toFixed(1) : "—"}
           </div>
         </div>
 
-        <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+        <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
           <div className="text-[11px] font-semibold text-danger flex items-center justify-between">
             <span>Critical Accounts</span>
-            <AlertTriangle className="w-4 h-4 text-danger" />
+            <AlertTriangle className="w-3.5 h-3.5 text-danger" />
           </div>
-          <div className="text-2xl font-bold text-danger mt-1">
+          <div className="text-lg font-bold text-danger mt-0.5">
             {kpis.criticalCount}
           </div>
-          <div className="text-[11px] text-danger/80 mt-0.5">Score under 70 points</div>
+          <div className="text-[10px] text-danger/80 mt-0.5">Score under 70 points</div>
         </div>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs space-y-3">
+      <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs space-y-2.5">
         {/* Severity Filter Chips */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold text-text-muted mr-1">Severity:</span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] font-semibold text-text-muted mr-1">Severity:</span>
           {(
             [
               ["all", "All Tiers"],
@@ -237,7 +236,7 @@ export function TeamPerformanceTab() {
                 setSeverityFilter(key);
                 setPage(1);
               }}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition cursor-pointer ${
+              className={`px-2 py-0.5 text-xs font-medium rounded-md transition cursor-pointer ${
                 severityFilter === key
                   ? "bg-brand-subtle text-brand-primary border border-brand-border font-semibold"
                   : "text-text-secondary hover:bg-surface-hover border border-transparent"
@@ -249,7 +248,7 @@ export function TeamPerformanceTab() {
         </div>
 
         {/* Dropdowns & Search */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-border-subtle">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-border-subtle">
           <div>
             <select
               value={selectedGroupId}
@@ -304,40 +303,40 @@ export function TeamPerformanceTab() {
       </div>
 
       {/* Leaderboard Table */}
-      <div className="rounded-xl border border-border-default bg-surface-base shadow-2xs overflow-hidden">
+      <div className="rounded-lg border border-border-default bg-surface-base shadow-2xs overflow-hidden">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-24 text-text-muted">
-            <Loader2 className="w-8 h-8 animate-spin text-brand-primary mb-2" />
+          <div className="flex flex-col items-center justify-center py-20 text-text-muted">
+            <Loader2 className="w-6 h-6 animate-spin text-brand-primary mb-2" />
             <p className="text-xs font-medium">Computing team performance rankings...</p>
           </div>
         ) : error ? (
-          <div className="p-8 text-center">
-            <p className="text-sm font-semibold text-danger">Failed to load performance scorecards</p>
-            <p className="text-xs text-text-muted mt-1">{String(error)}</p>
+          <div className="p-6 text-center">
+            <p className="text-xs font-semibold text-danger">Failed to load performance scorecards</p>
+            <p className="text-[11px] text-text-muted mt-1">{String(error)}</p>
             <button
               onClick={() => refetch()}
-              className="mt-4 px-4 py-1.5 text-xs font-semibold text-brand-primary bg-brand-subtle border border-brand-border rounded-lg hover:bg-brand-subtle/80 transition cursor-pointer"
+              className="mt-3 px-3 py-1 text-xs font-semibold text-brand-primary bg-brand-subtle border border-brand-border rounded-md hover:bg-brand-subtle/80 transition cursor-pointer"
             >
               Retry Query
             </button>
           </div>
         ) : filteredLeaderboard.length === 0 ? (
-          <div className="py-20 text-center text-text-muted text-xs">
+          <div className="py-16 text-center text-text-muted text-xs">
             No team performance rankings found for the active filter scope.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-sm font-semibold">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-[11px] font-semibold">
                 <tr>
-                  <th className="py-3 px-4 w-12 text-center whitespace-nowrap">Rank</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Account scope</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Performance score</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap">MFR rate</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap">Aged vacancies</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap">Late HR</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Coordinator</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap">Actions</th>
+                  <th className="py-2 px-3 w-12 text-center whitespace-nowrap">Rank</th>
+                  <th className="py-2 px-3 whitespace-nowrap">Account scope</th>
+                  <th className="py-2 px-3 whitespace-nowrap">Performance score</th>
+                  <th className="py-2 px-3 text-center whitespace-nowrap">MFR rate</th>
+                  <th className="py-2 px-3 text-center whitespace-nowrap">Aged vacancies</th>
+                  <th className="py-2 px-3 text-center whitespace-nowrap">Late HR</th>
+                  <th className="py-2 px-3 whitespace-nowrap">Coordinator</th>
+                  <th className="py-2 px-3 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle font-medium text-text-primary">
@@ -349,52 +348,52 @@ export function TeamPerformanceTab() {
 
                   return (
                     <tr key={entry.accountId} className="hover:bg-surface-hover/50 transition">
-                      <td className="py-3 px-4 text-center font-bold text-text-secondary text-sm">
+                      <td className="py-2 px-3 text-center font-bold text-text-secondary text-xs">
                         #{(safePage - 1) * pageSize + idx + 1}
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-text-primary text-sm">{entry.accountName}</div>
-                        <div className="text-xs text-text-muted">{entry.groupName}</div>
+                      <td className="py-2 px-3">
+                        <div className="font-semibold text-text-primary text-xs">{entry.accountName}</div>
+                        <div className="text-[10px] text-text-muted">{entry.groupName}</div>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-text-primary text-sm w-10">
+                      <td className="py-2 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-text-primary text-xs w-8">
                             {entry.score.toFixed(1)}
                           </span>
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${badgeColor}`}
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${badgeColor}`}
                           >
                             {entry.severity}
                           </span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="font-semibold text-text-primary text-sm">
+                      <td className="py-2 px-3 text-center">
+                        <span className="font-semibold text-text-primary text-xs">
                           {(entry.mfr * 100).toFixed(1)}%
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2 px-3 text-center">
                         {entry.agedVacancies > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-surface-subtle text-text-primary border border-border-default">
                             {entry.agedVacancies}
                           </span>
                         ) : (
-                          <span className="text-text-muted text-sm">0</span>
+                          <span className="text-text-muted text-xs">0</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2 px-3 text-center">
                         {entry.lateHrUpdates > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-danger-subtle text-danger border border-danger-border">
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-danger-subtle text-danger border border-danger-border">
                             {entry.lateHrUpdates}
                           </span>
                         ) : (
-                          <span className="text-text-muted text-sm">0</span>
+                          <span className="text-text-muted text-xs">0</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-text-secondary text-sm">
+                      <td className="py-2 px-3 text-text-secondary text-xs">
                         {entry.hrcoName || "—"}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-2 px-3 text-right">
                         <button
                           onClick={() =>
                             setDrilldownAccount({
@@ -403,7 +402,7 @@ export function TeamPerformanceTab() {
                               group: entry.groupName,
                             })
                           }
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-md transition cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-brand-primary bg-brand-subtle hover:bg-brand-subtle/80 border border-brand-border rounded-md transition cursor-pointer"
                         >
                           Audit Issues
                           <ChevronRight className="w-3 h-3" />

@@ -137,15 +137,14 @@ export function FloatingStaffTab() {
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-text-secondary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
               Operational Staffing
             </span>
-            <span className="text-xs text-text-muted">Port of FloatingReportScreen</span>
           </div>
-          <h2 className="text-xl font-bold text-text-primary mt-0.5 tracking-tight">
+          <h2 className="text-lg font-bold text-text-primary mt-0.5 tracking-tight">
             Floating Staff Monitoring & Aging
           </h2>
           <p className="text-xs text-text-secondary mt-0.5">
@@ -157,7 +156,7 @@ export function FloatingStaffTab() {
           <button
             onClick={() => refetch()}
             disabled={isLoading || isRefetching}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-7 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-brand-primary" : ""}`} />
             Refresh
@@ -165,7 +164,7 @@ export function FloatingStaffTab() {
           <button
             onClick={handleExportXlsx}
             disabled={isLoading || !filteredRows.length}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-7 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
             Export XLSX
@@ -173,7 +172,7 @@ export function FloatingStaffTab() {
           <button
             onClick={handleExportCsv}
             disabled={isLoading || !filteredRows.length}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-7 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
             <Download className="w-3.5 h-3.5" />
             CSV
@@ -182,13 +181,13 @@ export function FloatingStaffTab() {
       </div>
 
       {/* KPI Cards Strip (Clickable Bucket Filters) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <button
           onClick={() => {
             setActiveBucket("all");
             setPage(1);
           }}
-          className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
+          className={`p-3 rounded-lg border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "all"
               ? "border-brand-default bg-brand-subtle ring-2 ring-brand-default/20"
               : "border-border-default bg-surface-base hover:border-border-strong"
@@ -197,8 +196,8 @@ export function FloatingStaffTab() {
           <div className="text-[11px] font-semibold text-text-muted">
             Total Floating Staff
           </div>
-          <div className="text-2xl font-bold text-text-primary mt-1">{total}</div>
-          <div className="text-[11px] text-text-muted mt-0.5">Across all accounts</div>
+          <div className="text-lg font-bold text-text-primary mt-0.5">{total}</div>
+          <div className="text-[10px] text-text-muted">Across all accounts</div>
         </button>
 
         <button
@@ -206,7 +205,7 @@ export function FloatingStaffTab() {
             setActiveBucket("under30");
             setPage(1);
           }}
-          className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
+          className={`p-3 rounded-lg border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "under30"
               ? "border-brand-default bg-brand-subtle ring-2 ring-brand-default/20"
               : "border-border-default bg-surface-base hover:border-border-strong"
@@ -216,8 +215,8 @@ export function FloatingStaffTab() {
             <span>&lt; 30 Days</span>
             <span className="w-2 h-2 rounded-full bg-border-strong" />
           </div>
-          <div className="text-2xl font-bold text-text-primary mt-1">{under30}</div>
-          <div className="text-[11px] text-text-muted mt-0.5">Fresh floating status</div>
+          <div className="text-lg font-bold text-text-primary mt-0.5">{under30}</div>
+          <div className="text-[10px] text-text-muted">Fresh floating status</div>
         </button>
 
         <button
@@ -225,7 +224,7 @@ export function FloatingStaffTab() {
             setActiveBucket("between30And60");
             setPage(1);
           }}
-          className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
+          className={`p-3 rounded-lg border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "between30And60"
               ? "border-brand-default bg-brand-subtle ring-2 ring-brand-default/20"
               : "border-border-default bg-surface-base hover:border-border-strong"
@@ -235,8 +234,8 @@ export function FloatingStaffTab() {
             <span>30–60 Days</span>
             <span className="w-2 h-2 rounded-full bg-border-strong" />
           </div>
-          <div className="text-2xl font-bold text-text-primary mt-1">{between30And60}</div>
-          <div className="text-[11px] text-text-muted mt-0.5">Moderate aging warning</div>
+          <div className="text-lg font-bold text-text-primary mt-0.5">{between30And60}</div>
+          <div className="text-[10px] text-text-muted">Moderate aging warning</div>
         </button>
 
         <button
@@ -244,7 +243,7 @@ export function FloatingStaffTab() {
             setActiveBucket("over60");
             setPage(1);
           }}
-          className={`p-4 rounded-xl border text-left transition cursor-pointer shadow-2xs ${
+          className={`p-3 rounded-lg border text-left transition cursor-pointer shadow-2xs ${
             activeBucket === "over60"
               ? "border-danger bg-danger-subtle ring-2 ring-danger/20"
               : "border-border-default bg-surface-base hover:border-danger/40"
@@ -254,13 +253,13 @@ export function FloatingStaffTab() {
             <span>&gt; 60 Days</span>
             <span className="w-2 h-2 rounded-full bg-danger" />
           </div>
-          <div className="text-2xl font-bold text-danger mt-1">{over60}</div>
-          <div className="text-[11px] text-danger/80 mt-0.5">Critical stagnation risk</div>
+          <div className="text-lg font-bold text-danger mt-0.5">{over60}</div>
+          <div className="text-[10px] text-danger/80">Critical stagnation risk</div>
         </button>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <div>
           <select
             value={selectedGroupId}
@@ -269,7 +268,7 @@ export function FloatingStaffTab() {
               setSelectedAccountId("");
               setPage(1);
             }}
-            className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
+            className="w-full h-7 px-2 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
           >
             <option value="">All Groups</option>
             {groups.map((g) => (
@@ -287,7 +286,7 @@ export function FloatingStaffTab() {
               setSelectedAccountId(e.target.value);
               setPage(1);
             }}
-            className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
+            className="w-full h-7 px-2 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default cursor-pointer text-text-primary"
           >
             <option value="">All Accounts</option>
             {filteredAccounts.map((a) => (
@@ -299,7 +298,7 @@ export function FloatingStaffTab() {
         </div>
 
         <div className="relative">
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-text-muted pointer-events-none" />
+          <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-text-muted pointer-events-none" />
           <input
             type="text"
             placeholder="Search employee, no, store, position..."
@@ -308,7 +307,7 @@ export function FloatingStaffTab() {
               setSearchQuery(e.target.value);
               setPage(1);
             }}
-            className="w-full h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default text-text-primary"
+            className="w-full h-7 pl-7 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-default focus:ring-1 focus:ring-brand-default text-text-primary"
           />
         </div>
 
@@ -332,14 +331,14 @@ export function FloatingStaffTab() {
                     }
                     setPage(1);
                   }}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border transition cursor-pointer shrink-0 ${
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition cursor-pointer shrink-0 ${
                     isSelected
                       ? "bg-brand-subtle border-brand-border text-brand-primary font-semibold"
                       : "bg-surface-muted/60 border-border-subtle text-text-secondary hover:bg-surface-hover"
                   }`}
                 >
                   <span>{item.account}</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-surface-base border border-border-subtle font-bold">
+                  <span className="text-[9px] px-1 py-0.2 rounded-full bg-surface-base border border-border-subtle font-bold">
                     {item.count}
                   </span>
                 </button>
@@ -373,16 +372,16 @@ export function FloatingStaffTab() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-sm font-semibold">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-xs font-semibold">
                 <tr>
-                  <th className="py-3 px-4 whitespace-nowrap">Employee</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Position</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Account / group</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Last store branch</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Floating since</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Duration & aging</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap">Status</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Employee</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Position</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Account / group</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Last store branch</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Floating since</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Duration & aging</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle font-medium text-text-primary">
@@ -390,26 +389,26 @@ export function FloatingStaffTab() {
                   const bucket = getBucket(r.daysFloating);
                   return (
                     <tr key={r.plantillaId} className="hover:bg-surface-hover/50 transition">
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-text-primary text-sm">{r.employeeName}</div>
-                        <div className="text-xs font-mono text-text-muted">
+                      <td className="py-2.5 px-3">
+                        <div className="font-semibold text-text-primary text-xs">{r.employeeName}</div>
+                        <div className="text-[10px] font-mono text-text-muted">
                           {r.employeeNo ? `#${r.employeeNo}` : "No Emp #"}
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-text-secondary text-sm">{r.position || "Staff"}</td>
-                      <td className="py-3 px-4">
-                        <div className="font-medium text-text-primary text-sm">{r.accountName}</div>
-                        <div className="text-xs text-text-muted">{r.groupName}</div>
+                      <td className="py-2.5 px-3 text-text-secondary text-xs">{r.position || "Staff"}</td>
+                      <td className="py-2.5 px-3">
+                        <div className="font-medium text-text-primary text-xs">{r.accountName}</div>
+                        <div className="text-[10px] text-text-muted">{r.groupName}</div>
                       </td>
-                      <td className="py-3 px-4 text-text-secondary text-sm">
+                      <td className="py-2.5 px-3 text-text-secondary text-xs">
                         {r.storeName || "Unassigned"}
                       </td>
-                      <td className="py-3 px-4 font-mono text-sm text-text-secondary">
+                      <td className="py-2.5 px-3 font-mono text-xs text-text-secondary">
                         {r.floatingSince ? r.floatingSince.substring(0, 10) : "—"}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-3">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${
                             bucket === "over60"
                               ? "bg-danger-subtle text-danger border-danger-border"
                               : "bg-surface-subtle text-text-primary border-border-default"
@@ -418,8 +417,8 @@ export function FloatingStaffTab() {
                           {r.daysFloating} days
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-surface-subtle text-text-secondary border border-border-default">
+                      <td className="py-2.5 px-3 text-right">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-subtle text-text-secondary border border-border-default">
                           {r.employmentType || "Stationary"}
                         </span>
                       </td>

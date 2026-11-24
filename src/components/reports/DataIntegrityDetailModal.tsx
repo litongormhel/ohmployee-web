@@ -178,28 +178,28 @@ export function DataIntegrityDetailModal({
             </div>
           ) : (
             <div className="overflow-x-auto border border-border-subtle rounded-lg">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-surface-muted border-b border-border-subtle text-text-secondary text-[10px] tracking-wider font-semibold">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-[11px] font-semibold">
                   <tr>
-                    <th className="py-2.5 px-3">Store Branch</th>
-                    <th className="py-2.5 px-3">Account &amp; Group</th>
-                    <th className="py-2.5 px-3">Subject / Entity</th>
-                    <th className="py-2.5 px-3">Issue Type</th>
-                    <th className="py-2.5 px-3">Effective Date</th>
-                    <th className="py-2.5 px-3 text-right">Delay / Impact</th>
+                    <th className="py-2 px-3">Store Branch</th>
+                    <th className="py-2 px-3">Account &amp; Group</th>
+                    <th className="py-2 px-3">Subject / Entity</th>
+                    <th className="py-2 px-3">Issue Type</th>
+                    <th className="py-2 px-3">Effective Date</th>
+                    <th className="py-2 px-3 text-right">Delay / Impact</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle font-medium">
                   {paginatedRows.map((r, idx) => (
                     <tr key={idx} className="hover:bg-surface-hover/50 transition">
-                      <td className="py-2.5 px-3 font-semibold text-text-primary">
+                      <td className="py-2 px-3 font-semibold text-text-primary">
                         {r.storeName}
                       </td>
-                      <td className="py-2.5 px-3">
+                      <td className="py-2 px-3">
                         <div className="text-text-primary font-medium">{r.accountName}</div>
                         <div className="text-[10px] text-text-muted">{r.groupName}</div>
                       </td>
-                      <td className="py-2.5 px-3">
+                      <td className="py-2 px-3">
                         <div className="text-text-primary font-semibold">
                           {r.employeeName || r.applicantName || "—"}
                         </div>
@@ -210,15 +210,15 @@ export function DataIntegrityDetailModal({
                           <div className="text-[10px] font-mono text-brand-600">{r.vcode}</div>
                         )}
                       </td>
-                      <td className="py-2.5 px-3">
+                      <td className="py-2 px-3">
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-danger-subtle text-danger-text border border-danger-border">
                           {r.issueType}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-sm text-text-secondary">
+                      <td className="py-2 px-3 font-mono text-xs text-text-secondary">
                         {r.effectiveDate ? r.effectiveDate.substring(0, 10) : r.detectedDate ? r.detectedDate.substring(0, 10) : "—"}
                       </td>
-                      <td className="py-2.5 px-3 text-right">
+                      <td className="py-2 px-3 text-right">
                         {r.daysImpacted != null ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-surface-subtle text-text-secondary border border-border-default">
                             {r.daysImpacted} days

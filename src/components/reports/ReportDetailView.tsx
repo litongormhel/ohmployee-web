@@ -317,12 +317,12 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* Top Breadcrumb & Action Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-subtle">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border-subtle">
+        <div className="flex items-center gap-2.5">
           {onBack && (
             <button
               onClick={onBack}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-text-secondary hover:text-text-primary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-text-secondary hover:text-text-primary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer shadow-2xs"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Catalog
@@ -330,12 +330,11 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
           )}
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
+              <span className="text-[10px] font-bold text-brand-primary bg-surface-subtle px-2 py-0.5 rounded border border-border-default">
                 {meta.category}
               </span>
-              <span className="text-xs text-text-muted">Universal Report Detail</span>
             </div>
-            <h2 className="text-xl font-bold text-text-primary mt-0.5 tracking-tight">
+            <h2 className="text-lg font-bold text-text-primary mt-0.5 tracking-tight">
               {meta.title}
             </h2>
           </div>
@@ -345,17 +344,17 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
           <button
             onClick={() => refetch()}
             disabled={isLoading || isRefetching}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-7 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
             title="Refresh Report Data"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-brand-600" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-brand-primary" : ""}`} />
             Refresh
           </button>
           <button
             type="button"
             onClick={handleExportXlsx}
             disabled={isLoading || !filteredAndSortedRows.length}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-primary bg-surface hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-7 px-2.5 text-xs font-semibold text-text-primary bg-surface hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
             Export XLSX
@@ -364,7 +363,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
             type="button"
             onClick={handleExportCsv}
             disabled={isLoading || !filteredAndSortedRows.length}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 h-7 px-2.5 text-xs font-semibold text-text-secondary bg-surface-base hover:bg-surface-hover border border-border-default rounded-lg transition cursor-pointer disabled:opacity-50"
           >
             <Download className="w-3.5 h-3.5" />
             CSV
@@ -373,163 +372,163 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
       </div>
 
       {/* KPI Cards Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {reportId === "attrition_report" ? (
           <>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Overall Attrition
               </div>
-              <div className="text-2xl font-bold text-pct-low mt-1">
+              <div className="text-lg font-bold text-pct-low mt-0.5">
                 {overallAttritionRate}%
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Weighted separation rate</div>
+              <div className="text-[10px] text-text-muted">Weighted separation rate</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Total Separations
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {totalEvents}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Employees departed</div>
+              <div className="text-[10px] text-text-muted">Employees departed</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Affected Stores
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {totalStores}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Store locations impacted</div>
+              <div className="text-[10px] text-text-muted">Store locations impacted</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Reporting Accounts
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {filteredAndSortedRows.length}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Active client accounts</div>
+              <div className="text-[10px] text-text-muted">Active client accounts</div>
             </div>
           </>
         ) : reportId === "time_to_fill" ? (
           <>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Avg Days to Fill
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {avgTimeToFill}d
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Requisition turnaround</div>
+              <div className="text-[10px] text-text-muted">Requisition turnaround</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Total Filled Vacancies
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {totalEvents}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Confirmed deployments</div>
+              <div className="text-[10px] text-text-muted">Confirmed deployments</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Stores Staffed
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {totalStores}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Store branches with hires</div>
+              <div className="text-[10px] text-text-muted">Store branches with hires</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Active Accounts
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {filteredAndSortedRows.length}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Accounts with fill velocity</div>
+              <div className="text-[10px] text-text-muted">Accounts with fill velocity</div>
             </div>
           </>
         ) : reportId === "emploc_late_update" ? (
           <>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Late HR Updates
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {totalLateUpdates}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">SLA delayed submissions</div>
+              <div className="text-[10px] text-text-muted">SLA delayed submissions</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Total HR Requests
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {totalEvents}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Total Emploc movements</div>
+              <div className="text-[10px] text-text-muted">Total Emploc movements</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Stores Impacted
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {totalStores}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Stores with updates</div>
+              <div className="text-[10px] text-text-muted">Stores with updates</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Accounts Monitored
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {filteredAndSortedRows.length}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Audited for compliance</div>
+              <div className="text-[10px] text-text-muted">Audited for compliance</div>
             </div>
           </>
         ) : (
           <>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Total Events
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {totalEvents}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Cumulative incidents</div>
+              <div className="text-[10px] text-text-muted">Cumulative incidents</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Affected Stores
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {totalStores}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Store locations involved</div>
+              <div className="text-[10px] text-text-muted">Store locations involved</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Active Accounts
               </div>
-              <div className="text-2xl font-bold text-text-primary mt-1">
+              <div className="text-lg font-bold text-text-primary mt-0.5">
                 {filteredAndSortedRows.length}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Reporting account rows</div>
+              <div className="text-[10px] text-text-muted">Reporting account rows</div>
             </div>
-            <div className="p-4 rounded-xl border border-border-default bg-surface-base shadow-2xs">
+            <div className="p-3 rounded-lg border border-border-default bg-surface-base shadow-2xs">
               <div className="text-[11px] font-semibold text-text-muted">
                 Scope Filter
               </div>
-              <div className="text-sm font-bold text-brand-700 mt-2 truncate">
+              <div className="text-xs font-bold text-brand-primary mt-1 truncate">
                 {selectedGroupId
                   ? groups.find((g) => g.id === selectedGroupId)?.name || "Filtered Group"
                   : "All Groups"}
               </div>
-              <div className="text-[11px] text-text-muted mt-0.5">
+              <div className="text-[10px] text-text-muted truncate">
                 {selectedAccountId
                   ? accounts.find((a) => a.id === selectedAccountId)?.name || "Filtered Account"
                   : "All Accounts"}
@@ -540,8 +539,8 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
       </div>
 
       {/* Comprehensive Filter Bar */}
-      <div className="p-4 rounded-xl border border-border-default bg-surface-base space-y-3 shadow-2xs">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="p-3 rounded-lg border border-border-default bg-surface-base space-y-2.5 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
           {/* Date Range Presets */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-xs font-semibold text-text-muted mr-1 flex items-center gap-1">
@@ -564,10 +563,10 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                   setCustomEnd("");
                   setPage(1);
                 }}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition cursor-pointer ${
+                className={`px-2 py-0.5 text-xs font-medium rounded-md transition cursor-pointer ${
                   datePreset === key && !customStart
-                    ? "bg-brand-50 text-brand-700 border border-brand-200 font-semibold"
-                    : "text-text-secondary hover:bg-surface-hover border border-transparent"
+                    ? "bg-brand-primary text-white font-semibold shadow-2xs"
+                    : "text-text-secondary hover:bg-surface-hover bg-surface-subtle border border-border-subtle"
                 }`}
               >
                 {label}
@@ -592,9 +591,9 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                   setSortType(key);
                   setPage(1);
                 }}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition cursor-pointer ${
+                className={`px-2 py-0.5 text-xs font-medium rounded-md transition cursor-pointer ${
                   sortType === key
-                    ? "bg-surface-subtle text-text-primary border border-border-default font-semibold"
+                    ? "bg-surface-subtle text-text-primary border border-border-default font-semibold shadow-2xs"
                     : "text-text-secondary hover:bg-surface-hover border border-transparent"
                 }`}
               >
@@ -605,7 +604,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
         </div>
 
         {/* Second Row: Dropdowns & Search */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-border-subtle">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-border-subtle">
           <div className="relative">
             <select
               value={selectedGroupId}
@@ -614,7 +613,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                 setSelectedAccountId("");
                 setPage(1);
               }}
-              className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer"
+              className="w-full h-7 px-2 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-primary cursor-pointer text-text-primary"
             >
               <option value="">All Groups (Company-Wide)</option>
               {groups.map((g) => (
@@ -632,7 +631,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                 setSelectedAccountId(e.target.value);
                 setPage(1);
               }}
-              className="w-full h-8 px-2.5 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500 cursor-pointer"
+              className="w-full h-7 px-2 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-primary cursor-pointer text-text-primary"
             >
               <option value="">All Accounts</option>
               {filteredAccounts.map((a) => (
@@ -644,7 +643,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
           </div>
 
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-text-muted pointer-events-none" />
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-text-muted pointer-events-none" />
             <input
               type="text"
               placeholder="Search by account or group name..."
@@ -653,7 +652,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                 setSearchQuery(e.target.value);
                 setPage(1);
               }}
-              className="w-full h-8 pl-8 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-500"
+              className="w-full h-7 pl-7 pr-3 text-xs bg-surface-base border border-border-default rounded-md focus:outline-hidden focus:border-brand-primary text-text-primary"
             />
           </div>
         </div>
@@ -683,15 +682,15 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-sm font-semibold">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-table-header border-b border-table-rule-section text-text-secondary text-xs font-semibold">
                 <tr>
-                  <th className="py-3 px-4 whitespace-nowrap">Group scope</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Account name</th>
-                  <th className="py-3 px-4 whitespace-nowrap">{meta.metricLabel}</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap">Total events</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap">Stores affected</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap">Actions</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Group scope</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Account name</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">{meta.metricLabel}</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Total events</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">Stores affected</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle font-medium">
@@ -700,23 +699,23 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                     key={`${row.groupId}-${row.accountId}`}
                     className="hover:bg-surface-hover/50 transition"
                   >
-                    <td className="py-3 px-4 text-text-secondary">
+                    <td className="py-2.5 px-3 text-text-secondary">
                       {row.groupName}
                     </td>
-                    <td className="py-3 px-4 font-semibold text-text-primary">
+                    <td className="py-2.5 px-3 font-semibold text-text-primary">
                       {row.accountName}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-2.5 px-3">
                       {reportId === "attrition_report" ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-subtle text-text-primary border border-border-default">
                           {(row.attritionRate ?? 0).toFixed(2)}%
                         </span>
                       ) : reportId === "time_to_fill" ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-subtle text-text-primary border border-border-default">
                           {(row.avgDaysToFill ?? 0).toFixed(1)} days
                         </span>
                       ) : reportId === "emploc_late_update" ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-subtle text-text-primary border border-border-default">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-surface-subtle text-text-primary border border-border-default">
                           {row.lateCount ?? 0}
                         </span>
                       ) : reportId === "backout_terminated_report" ? (
@@ -724,7 +723,7 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                           <span className="font-semibold text-text-primary">
                             {row.totalCount}
                           </span>
-                          <span className="text-[11px] text-text-muted">
+                          <span className="text-[10px] text-text-muted">
                             {row.backoutCount ?? 0} back-outs • {row.terminatedCount ?? 0} term
                           </span>
                         </div>
@@ -734,19 +733,19 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-center text-text-secondary font-mono">
+                    <td className="py-2.5 px-3 text-center text-text-secondary font-mono">
                       {row.totalCount}
                     </td>
-                    <td className="py-3 px-4 text-center text-text-secondary">
+                    <td className="py-2.5 px-3 text-center text-text-secondary">
                       {row.affectedStoreCount}
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-2.5 px-3 text-right">
                       {reportId === "attrition_report" ? (
                         <button
                           onClick={() =>
                             setDrilldownAccount({ id: row.accountId, name: row.accountName })
                           }
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-md transition cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold text-brand-primary bg-surface-subtle hover:bg-surface-hover border border-border-default rounded-md transition cursor-pointer"
                         >
                           <Users className="w-3 h-3" />
                           View Separated Staff
