@@ -240,7 +240,10 @@ export function UpdateScheduleModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const resetAll = () => {
-    setSelectedDayoffs([]);
+    // Retain at least 1 designated Rest Day per DOLE Article 91 (default SUN or employee's first rest day)
+    const defaultRestDays = parseDayoffString(initialDayoff);
+    const preservedRestDay: DayCode[] = defaultRestDays.length > 0 ? [defaultRestDays[0]] : ["SUN"];
+    setSelectedDayoffs(preservedRestDay);
     setAllocations((curr) =>
       curr.map((alloc) => ({
         ...alloc,
@@ -313,7 +316,7 @@ export function UpdateScheduleModal({
       let updated: DayCode[];
       if (prev.includes(day)) {
         if (prev.length === 1) {
-          setRestDayNotice("Employee must have at least one designated Rest Day per week.");
+          setRestDayNotice("Employee must have at least one designated Rest Day per week (DOLE Article 91).");
           return prev;
         }
         updated = prev.filter((d) => d !== day);
@@ -427,11 +430,14 @@ export function UpdateScheduleModal({
   const unassignedGapsCount = unassignedDutyDays.length;
 
   const totalHc = allocations.reduce((sum, a) => sum + (a.allocationPercent || 0), 0);
+  const hasRestDay = selectedDayoffs.length >= 1;
   const isHcValid = Math.abs(totalHc - 100) <= 2;
 
   const statusText =
     timeErrorsCount > 0
       ? `${timeErrorsCount} time error${timeErrorsCount > 1 ? "s" : ""} to fix`
+      : !hasRestDay
+      ? `At least 1 Rest Day is required (DOLE Art. 91)`
       : overlappingDays.length > 0
       ? `${overlappingDays.length} overlapping day${overlappingDays.length > 1 ? "s" : ""} to resolve · ${fmtH(totalWeeklyHours)}/week`
       : unassignedGapsCount > 0
@@ -439,7 +445,7 @@ export function UpdateScheduleModal({
       : `Ready to save · ${fmtH(totalWeeklyHours)}/week`;
 
   const statusColor =
-    timeErrorsCount > 0
+    timeErrorsCount > 0 || !hasRestDay
       ? "#a3141f"
       : overlappingDays.length > 0
       ? "#b45309"
@@ -447,7 +453,7 @@ export function UpdateScheduleModal({
       ? "#8a4300"
       : "#0b6b3a";
 
-  const canSave = timeErrorsCount === 0 && isHcValid && !isSubmitting;
+  const canSave = timeErrorsCount === 0 && isHcValid && hasRestDay && !isSubmitting;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1002,7 +1008,7 @@ export function UpdateScheduleModal({
             <span className="font-semibold text-[#1b1f28] dark:text-slate-200">
               Total Headcount Share:{" "}
               <span className={`font-mono font-bold ${isHcValid ? "text-[#0b6b3a]" : "text-[#a3141f]"}`}>
-                {(totalHc / 100).toFixed(2)} HC
+                {isHcValid ? `${Math.round(totalHc / 100)} HC` : `${(totalHc / 100).toFixed(2)} HC`}
               </span>
             </span>
             <span className="text-[#5a6272] dark:text-slate-400">

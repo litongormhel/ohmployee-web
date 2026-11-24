@@ -455,15 +455,18 @@ function PlantillaEmployeeDetailContent() {
   ]);
 
   const totalAllocation = useMemo(() => {
-    return displayStores
-      .reduce((sum, s) => {
-        const val =
-          s.allocationPercent != null
-            ? s.allocationPercent / 100
-            : 1 / displayStores.length;
-        return sum + val;
-      }, 0)
-      .toFixed(2);
+    if (!displayStores.length) return "0.00";
+    const rawSum = displayStores.reduce((sum, s) => {
+      const val =
+        s.allocationPercent != null
+          ? s.allocationPercent / 100
+          : 1 / displayStores.length;
+      return sum + val;
+    }, 0);
+    if (Math.abs(rawSum - 1) <= 0.02) {
+      return (1).toFixed(2);
+    }
+    return rawSum.toFixed(2);
   }, [displayStores]);
 
   // Check for roving store schedule conflicts (overlapping days across assigned stores)
