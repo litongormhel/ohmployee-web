@@ -53,6 +53,13 @@ The backend-backed context includes:
 
 This context is currently fetched once in the dashboard shell wrapper and passed to shell components as presentation data. Client components may consume the already-loaded context, but they should not independently decide authority.
 
+### PL/pgSQL Output Variable Shadowing Protection in `get_web_current_user_context`
+- In PL/pgSQL functions declaring `RETURNS TABLE (...)`, output columns (`is_active`, `status`, `email`, etc.) become variables in scope throughout the function body.
+- Queries inside the function must either:
+  1. Qualify all table columns with explicit table aliases (e.g. `act.is_active = true`), or
+  2. Encapsulate sub-lookups in separate helper functions (e.g. `SELECT * INTO v_acting_session FROM public.get_active_acting_session();`), which is the canonical standard for switch-role acting session checks.
+- Unqualified column references matching return column names trigger error `42702: column reference is ambiguous` and crash the web authentication bootstrap.
+
 ### RBAC Boundary
 
 - Backend/RLS/RPC: authoritative permission checks, record visibility, mutations, workflow rules, and scope filtering.

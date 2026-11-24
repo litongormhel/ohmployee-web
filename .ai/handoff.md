@@ -1,5 +1,51 @@
 # AI Handoff
 
+## Execution Report — Fix Ambiguous is_active Column Reference in get_web_current_user_context (ohm#fix-get-web-current-user-context-ambiguity)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Staging Deployed
+
+### What Was Built
+1. **User Incident & Forensic Diagnosis**:
+   - User reported: *"fix this now. Im using super admin"* with screenshot showing:
+     `Access check unavailable` / `OHMployee Web could not verify your access` / `Access state: rpc failure`.
+   - Forensic tracing of `src/lib/auth.ts`: `loadCurrentUserContext()` invokes `supabase.rpc("get_web_current_user_context")`. If this RPC returns a PostgreSQL error, it catches and maps the failure to `reason: "rpc_failure"`, blocking dashboard access.
+   - Live query simulation on Staging database (`qqiiznmqxfoamqytjica`): Calling `public.get_web_current_user_context()` under `auth.uid()` of Super Admin (`71d245b9-10b1-42b9-ad9e-253f999daf6d`, `ohmpayatt@proton.me`) failed with:
+     ```text
+     ERROR: 42702: column reference "is_active" is ambiguous
+     DETAIL: It could refer to either a PL/pgSQL variable or a table column.
+     QUERY: SELECT * FROM public.acting_sessions WHERE user_id = v_profile_id AND is_active = TRUE AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY created_at DESC LIMIT 1
+     CONTEXT: PL/pgSQL function get_web_current_user_context() line 108 at SQL statement
+     ```
+   - **Root Cause Mechanism**:
+     In PL/pgSQL functions returning `TABLE (...)`, every column name declared in the `RETURNS TABLE` clause (including `is_active boolean`) is automatically instantiated as an in-scope PL/pgSQL output variable.
+     In migration `20262606000168`, lines 160-167 introduced a direct query against `public.acting_sessions` containing unqualified `is_active = TRUE`. The PostgreSQL query planner could not disambiguate between table column `acting_sessions.is_active` and the function's output variable `is_active`, crashing on every authenticated session bootstrap.
+2. **Database Migration & Canonical Helper Restoration**:
+   - Authored migration `supabase/migrations/20262606000170_fix_get_web_current_user_context_acting_session_ambiguity.sql` generated via `npm run db:new`.
+   - Restored the canonical, existing security-definer helper:
+     ```sql
+     -- Check Active Acting Session (Switch-Role Parity via canonical helper)
+     SELECT * INTO v_acting_session FROM public.get_active_acting_session();
+     ```
+     This encapsulates the `acting_sessions` lookup in a separate SQL function where `user_id = auth.uid() AND s.is_active = true`, completely eliminating variable shadowing and column ambiguity.
+   - Validated migration pre-push via `npm run check:sql` and dry-run, then applied live to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging`.
+3. **Verification**:
+   - **Live Staging RPC Execution**: Executed `SELECT auth_user_id, profile_id, email, full_name, role_name, access_status FROM public.get_web_current_user_context();` against live Staging as Super Admin (`ohmpayatt@proton.me`), Head Admin (`atlg5@ohmployee.com`), Encoder (`g2en@ohmployee.com`), and HRCO (`g1hrcoaj@ohmployee.com`). All 4 roles returned `access_status: 'allowed'` with 0 errors.
+   - **Live Function Definition Diff**: Confirmed `pg_get_functiondef` contains `get_active_acting_session()`.
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 credential leaks.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 695 migrations.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - Migration Counter: Staging: 664 migrations | Prod: 661 migrations (3 migrations pending on Prod: 168, 169, 170).
+
+### Files
+- `supabase/migrations/20262606000170_fix_get_web_current_user_context_acting_session_ambiguity.sql` — Migration eliminating variable shadowing and restoring `get_active_acting_session()` in `get_web_current_user_context()`.
+- `.ai/briefing.md` — Prepended prompt to Last Completed Tasks.
+- `.ai/handoff.md` — Prepended handoff report.
+- `docs/state/web_auth_rbac_state.md` — Documented PL/pgSQL column shadowing protection in current user context RPC.
+- `.ai/current_state.md` — Added update log.
+
+---
+
 ## Execution Report — Deprecate Dormant hr_emploc.create, plantilla_slot.add_applicant, and vacancy.edit RBAC Definitions (ohm#deprecate-dormant-rbac-definitions)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Staging Deployed
 
