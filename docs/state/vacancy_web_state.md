@@ -499,6 +499,22 @@ Enforces ADR-001 Rule 4 and ADR-002 capacity rules preventing requisitions whose
    - `slot_stats` in `vw_vacancy_list` removes the `is_roving = false` exclusion, ensuring roving slots in `hr_processing` are accurately counted.
    - `hr_emploc_stats` queries active onboarding records directly from `public.hr_emploc`, guaranteeing that pool vacancies with unpopulated slot foreign keys are safely counted in `hr_processing_count`.
 
+## Seed Vacancy Closed Slot Reason & Fix Closure Approval (`ohm#fix-vacancy-closure-slot-reason-fkey-violation`)
+
+Root-caused and resolved foreign key constraint violation on `plantilla_slots_closure_reason_fkey` during Vacancy Closure Approval ([IMG_4427.jpg], [20262606000179_seed_vacancy_closed_slot_reason_and_fix_closure_approval.sql](file:///D:/Projects/ohmployee-web/supabase/migrations/20262606000179_seed_vacancy_closed_slot_reason_and_fix_closure_approval.sql)):
+
+1. **Root Cause Forensic Diagnosis (`IMG_4427.jpg`)**:
+   - In `VacancyClosureDataTable.tsx` (`handleConfirmApprove`), approving a vacancy closure request triggers `review_vacancy_closure_request`, which updates `public.vacancy_closure_requests SET status = 'Approved'`.
+   - This fires database trigger `on_closure_reviewed` -> `public.handle_closure_approval()`.
+   - In `handle_closure_approval()`, remaining open/pipeline slots in `public.plantilla_slots` are updated to `slot_status = 'closed'` with `closure_reason_code` determined by a CASE statement: if the reason is not store closure (`LOWER(reason) LIKE '%store closed%'`), it falls back to `ELSE 'VACANCY_CLOSED'`.
+   - However, `plantilla_slots.closure_reason_code` has a strict foreign key constraint `plantilla_slots_closure_reason_fkey` referencing `public.slot_reason_codes(code)`.
+   - Because code `'VACANCY_CLOSED'` was never seeded into `public.slot_reason_codes`, any closure request with operational or non-store-closure reasons (such as `"Operational Restructuring"`, `"Headcount Allocation Cancelled by Client"`, etc.) threw SQLSTATE `23503: insert or update on table "plantilla_slots" violates foreign key constraint "plantilla_slots_closure_reason_fkey"`.
+2. **Database Migration & Hardening**:
+   - **Master Lookup Seed**: Seeded `'VACANCY_CLOSED'` (`'Vacancy Closed'`, `'Slot closed and decommissioned due to approved vacancy closure request.'`, `is_active = true`, `sort_order = 92`) into `public.slot_reason_codes`.
+   - **RPC Hardening**: Surgically updated `public.handle_closure_approval()` to set `closed_at = NOW()`, resolve `closed_by` from `public.users_profile` via `auth.uid()` or reviewer name, map headcount reduction reasons to `'HC_REDUCTION'`, and map all remaining approved closures to `'VACANCY_CLOSED'`.
+3. **Verification**:
+   - Migration applied to Staging (`qqiiznmqxfoamqytjica`), verified `pg_get_functiondef` live matching, tested approving pending requisition closure `a2741731-0042-42eb-b523-748dee421a7a` (`TEST005`) with 100% success (all 3 slots closed with `VACANCY_CLOSED`, vacancy archived and marked `Closed`), passed all 264 unit tests (`npm test`), 0 ESLint errors/warnings (`npm run lint`), 0 secret leaks (`check:secrets`), 0 SQL contract violations (`check:sql`), and clean Turbopack build (`npm run build`).
+
 ---
 
 > [!NOTE]
