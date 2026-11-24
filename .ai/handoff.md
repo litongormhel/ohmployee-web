@@ -1,5 +1,38 @@
 # AI Handoff
 
+## Execution Report — Synchronize pnpm-lock.yaml and package-lock.json with package.json for Vercel Frozen Lockfile CI Deployments (ohm#sync-pnpm-lockfile-for-vercel-ci)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Frozen Lockfile CI Validated & Locally Tested
+
+### Objective & Changes Delivered
+1. **Root Cause Resolution for Vercel Deployment Failure**:
+   - Vercel detects `packageManager: "pnpm@10.29.3"` in `package.json` and executes `pnpm install --frozen-lockfile`.
+   - In commit `1f7b2cb` (`ohm#sec-cleanup-xlsx-and-legacy-edge-fns`), `xlsx@0.18.5` was uninstalled from `package.json`, but `pnpm-lock.yaml` was left desynchronized with `xlsx` and its subdependencies (`adler-32`, `cfb`, `codepage`, `frac`, `ssf`, `wmf`, `word`) still lingering in the lockfile.
+   - Consequently, Vercel deployments failed during the install step with:
+     `ERR_PNPM_OUTDATED_LOCKFILE: Cannot install with "frozen-lockfile" because pnpm-lock.yaml is not up to date with <ROOT>/package.json (* 1 dependencies were removed: xlsx@^0.18.5)`
+2. **Lockfile Synchronization**:
+   - Executed `pnpm install --lockfile-only` to prune `xlsx@0.18.5` and its 7 transitive dependencies from `pnpm-lock.yaml`.
+   - Executed `npm install --package-lock-only` to ensure `package-lock.json` is equally synchronized with `package.json`.
+   - Verified via `pnpm install --frozen-lockfile` in an isolated clean environment:
+     `Lockfile is up to date, resolution step is skipped`
+     `Packages: +463`
+     `Done in 41.2s using pnpm v10.29.3`
+3. **Full System Quality & Invariants Verification**:
+   - `npm test`: 263/263 unit tests passed across 14 test suites.
+   - `npm run lint`: 0 ESLint errors, 0 warnings.
+   - `npm run check:secrets`: 0 credential/secret leaks detected.
+   - `npm run check:sql`: 0 SQL contract violations across 28 core tables & 19 cross-module RPC contracts.
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run build`: Clean Next.js 16.2.4 (Turbopack) production build generated.
+
+### Files Changed
+- `pnpm-lock.yaml` — Pruned `xlsx@^0.18.5` and 7 subdependencies (`adler-32`, `cfb`, `codepage`, `frac`, `ssf`, `wmf`, `word`), restoring 100% frozen-lockfile parity with `package.json`.
+- `package-lock.json` — Pruned `xlsx` references and synchronized npm lockfile tree.
+- `.ai/briefing.md` — Prepended completed task to Last Completed Tasks (retaining strictly 5).
+- `.ai/handoff.md` — Prepended this execution report.
+- `.ai/current_state.md` — Logged update in Recent Updates.
+
+---
+
 ## Execution Report — Enforce CGCode Strict Monotonicity & Dissolution Retirement Invariant (ohm#enforce-cgcode-strict-monotonicity-and-dissolution-retirement)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
 
