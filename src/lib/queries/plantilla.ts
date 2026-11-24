@@ -3276,10 +3276,8 @@ export async function updatePlantillaSchedule(params: UpdatePlantillaSchedulePar
               storeName: a.storeName || null,
               vcode: a.vcode || null,
               scheduleDays:
-                a.scheduleDays && a.scheduleDays.trim()
+                a.scheduleDays !== undefined && a.scheduleDays !== null
                   ? a.scheduleDays.trim()
-                  : params.storeAllocations!.length === 1
-                  ? params.scheduleDays || null
                   : null,
               scheduleTime:
                 a.scheduleTime && a.scheduleTime.trim()

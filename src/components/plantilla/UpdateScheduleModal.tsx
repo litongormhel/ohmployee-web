@@ -222,7 +222,7 @@ export function UpdateScheduleModal({
         storeId: null,
         storeName: "Primary Store Assignment",
         vcode: "",
-        scheduleDays: initialScheduleDays || "MON-SAT",
+        scheduleDays: initialScheduleDays ?? "",
         scheduleTime: initialScheduleTime || "08:00 AM - 05:00 PM",
         allocationPercent: 100,
       },
@@ -239,8 +239,13 @@ export function UpdateScheduleModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const resetAll = () => {
-    setSelectedDayoffs(parseDayoffString(initialDayoff));
-    setAllocations(defaultAllocations);
+    setSelectedDayoffs([]);
+    setAllocations((curr) =>
+      curr.map((alloc) => ({
+        ...alloc,
+        scheduleDays: "",
+      }))
+    );
     setExpandedStoreIdx(0);
     setRestDayNotice(null);
     setErrorMessage(null);
@@ -398,7 +403,7 @@ export function UpdateScheduleModal({
     setErrorMessage(null);
 
     try {
-      const primaryScheduleDays = allocations[0]?.scheduleDays || "MON-SAT";
+      const primaryScheduleDays = allocations[0]?.scheduleDays?.trim() || "";
       const primaryScheduleTime = allocations[0]?.scheduleTime || "08:00 AM - 05:00 PM";
       const dayoffString = selectedDayoffs.join(", ");
 
@@ -406,7 +411,7 @@ export function UpdateScheduleModal({
         storeId: a.storeId,
         storeName: a.storeName,
         vcode: a.vcode,
-        scheduleDays: a.scheduleDays,
+        scheduleDays: a.scheduleDays?.trim() || "",
         scheduleTime: a.scheduleTime || "08:00 AM - 05:00 PM",
         allocationPercent: a.allocationPercent,
       }));
@@ -892,6 +897,7 @@ export function UpdateScheduleModal({
           <button
             type="button"
             onClick={resetAll}
+            title="Clear all schedule"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#cfd4dc] dark:border-slate-700 hover:bg-[#f6f7f9] dark:hover:bg-slate-800 text-[#5a6272] dark:text-slate-300 transition cursor-pointer self-start sm:self-auto"
           >
             <RotateCcw className="w-3.5 h-3.5" />
