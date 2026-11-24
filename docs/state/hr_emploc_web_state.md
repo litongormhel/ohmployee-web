@@ -541,6 +541,16 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
   - Pushed live to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging`.
 - **Verification**: Verified via `pg_proc` that exactly 1 function definition exists. Verified live PostgREST RPC call returns HTTP 200 with accurate counts (`pending_count: 7, for_emploc_count: 2, correction_count: 2, review_count: 3, ready_count: 10, sla_breached_count: 13`).
 
+## System-Wide HR Emploc Dirty Data Cleanup — Migration 20262606000160 (ohm#clean-hr-emploc-dirty-data-system-wide)
+- **Queue Leak Resolution**: Fixed operational Correction queue leak on `DELA CRUZ, JOHN PAUL DELOS REYES` (`33da0ac2-8ad8-4d41-b806-41d0ec1c24ae`, ACTISERVE, `ACT-G5-010`, Festival Mall). Candidate had `status = 'Backout'` but lingered with `hr_status = 'For Correction'`. Updated `hr_status = 'Rejected'`, correctly removing the backed-out candidate from the active Correction queue.
+- **Slot Status Alignment for Active Onboarding**: Realigned slot `09b9192d-f6c9-489e-b5d8-7b9957d1d9dd` (FOREVER OFFICE, `CPSAJV27`, PUERGOLD GENERAL TRIAS) from `open` to `hr_processing`, matching the active onboarding state of candidate `AL, JAMES N/A`.
+- **Roving Slot Provisioning (ADR-003 Rule 3 Enforcement)**: Provisioned physical roving slots (`store_id IS NULL`, `is_roving = true`, `slot_status = 'hr_processing'`) and linked `hr_emploc.slot_id` for 3 active roving candidates previously missing physical slot linkages:
+  1. `CHI, JOHN REY LIM` (BOUNTY, `COM-00005`, COMMANDO)
+  2. `UY, ANNA ROLDAN` (ACTISERVE, `BUN-GHQ-00015`, Bundler)
+  3. `REID, JAMES CRUZ` (Moses HQ, `SEA-00006`, RELIEVER)
+- **Verification**: Verified 100% health on Staging (`qqiiznmqxfoamqytjica`): 0 active candidates with null slots, 0 slot status mismatches, 1 legitimate correction ticket, 6 pending, 2 for emploc, 3 review, 7 deployed.
+
+
 
 
 
