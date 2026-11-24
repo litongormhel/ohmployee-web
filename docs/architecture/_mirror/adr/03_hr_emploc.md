@@ -3,7 +3,7 @@ ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-HREmploc. Edit in mobile repo, th
 source: OHMployee/docs/architecture/adr/03_hr_emploc.md
 source_commit: 0eb4407 2026-11-23T23:02:59+08:00
 source_sha256: 6ad979a1f2233262522bd6f80434b2a4216b1ca563085861ae699bf05173d8bb
-synced_at: 2026-11-24T11:30:15.089Z
+synced_at: 2026-11-24T11:47:36.328Z
 -->
 # HR Emploc Module Architecture (Onboarding Compliance & Import Lifecycle)
 

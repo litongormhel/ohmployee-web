@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — Enforce CGCode Strict Monotonicity & Dissolution Retirement Invariant (ohm#enforce-cgcode-strict-monotonicity-and-dissolution-retirement)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
+
+### What Was Built
+1. **User Requirement & Architecture Invariant**:
+   - User inquiry: *"But I'm talking about the CG code creation. And then, once the CG code is dissolved, then, then I'm bringing back to CG group, you can't use the old CG code. So it's always a new CG code. Right? And then let's add this to ADR."*
+   - Codified in ADR-002 Invariant 3 in mobile source repo (`D:\Projects\OHMployee\docs\architecture\adr\01_plantilla.md`, commit `268420c`) and synchronized web mirrors (`npm run sync:adr`):
+     - **Permanent Retirement on Dissolution**: When a Coverage Group is dissolved via `dissolve_coverage_group`, merged, or archived, its `CGCODE` is permanently retired (`archived_at = now()`).
+     - **Strict Non-Recycling Rule**: If the member stores, employees, or cluster footprint are subsequently brought back together into a Coverage Group (re-clustered, reformed, or re-uploaded), the system is **STRICTLY PROHIBITED** from reusing, recycling, or resurrecting the old `CGCODE`.
+     - A fresh, strictly sequential, monotonically incremental `CGCODE` (e.g. `CG-FG1-0007` $\rightarrow$ `CG-FG1-0008`) MUST ALWAYS be minted.
+     - **Audit & Separation Integrity**: Preserves immutable historical audit logs, ensures employee separation and movement history unambiguously reflect exact group tenure, prevents foreign key or reporting ambiguity in CENCOM / analytics, and eliminates cache collisions across Web and Mobile.
+2. **Database Hardening (`20262606000173_enforce_cgcode_strict_monotonicity_and_dissolution_retirement.sql`)**:
+   - **Section 1 (Permanent Global Table Uniqueness)**: Created permanent unique index `uq_coverage_groups_account_code_permanent` on `public.coverage_groups (account_id, coverage_code)` without any `archived_at IS NULL` condition, guaranteeing that even at the physical PostgreSQL constraint level, duplicate `coverage_code`s can NEVER exist within an account.
+   - **Section 2 (`public.fn_generate_cgcode_for_account` Hardening)**: Updated the existence probe loop to check across ALL historical coverage groups for that account (`WHERE account_id = p_account_id AND coverage_code = v_cgcode`), eliminating the `AND archived_at IS NULL` bypass. Dissolved and archived codes will always trigger a sequence increment, guaranteeing zero recycling of old codes.
+   - **Section 3 (Sequence Monotonicity Verification)**: Verified that all sequence counters in `public.cgcode_sequences` are strictly ahead of the maximum historical numeric suffix across active and archived records.
+3. **Live Database Verification on Staging (`qqiiznmqxfoamqytjica`)**:
+   - Applied migration cleanly with 0 errors via `npm run db:push:staging`.
+   - Verified live `pg_get_functiondef` for `fn_generate_cgcode_for_account` matching migration file byte-for-byte.
+   - Verified index `uq_coverage_groups_account_code_permanent` active on `public.coverage_groups`.
+4. **Quality & Test Verification**:
+   - ADR fresh check: `npm run check:adr` (ADR_MIRROR_STATUS: FRESH).
+   - Unit tests: passed 263/263 unit tests across 14 test suites (`npm test`).
+   - ESLint: 0 errors, 0 warnings (`npm run lint`).
+   - Secrets check: 0 credential leaks (`node scripts/check-secrets.mjs`).
+   - SQL Contracts: 0 errors across 28 core tables & 19 cross-module RPC contracts (`node scripts/check-sql-contracts.mjs`).
+
+### Files
+- `supabase/migrations/20262606000173_enforce_cgcode_strict_monotonicity_and_dissolution_retirement.sql` — Database migration enforcing permanent table uniqueness and updating `fn_generate_cgcode_for_account`.
+- `docs/architecture/_mirror/adr/01_plantilla.md` — Synced ADR-002 Invariant 3 from mobile source repo.
+- `docs/state/plantilla_web_state.md` — Documented Rule #28 Strict Monotonicity & Dissolution Retirement Invariant.
+- `.ai/briefing.md` — Prepended task to Last Completed Tasks.
+- `.ai/current_state.md` — Added update log.
+- `.ai/handoff.md` — Prepended handoff report.
+
+---
+
 ## Execution Report — Universal Automatic Coverage Group Provisioning and Historical Backtrack (ohm#auto-roving-coverage-group-provisioning-and-backtrack)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
 

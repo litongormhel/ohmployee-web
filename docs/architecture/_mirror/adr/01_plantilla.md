@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Plantilla. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/01_plantilla.md
-source_commit: 54bd136 2026-11-24T19:30:07+08:00
-source_sha256: 05c1375cea4486c7cf22462d154d42274e278a83159b9a7f6255903c606ffa76
-synced_at: 2026-11-24T11:30:14.733Z
+source_commit: 268420c 2026-11-24T19:47:28+08:00
+source_sha256: 72cad782d139a8f65b5457b274e49a7582a0ccbdd5384e588f77c0ca8899ed44
+synced_at: 2026-11-24T11:47:35.976Z
 -->
 # Plantilla Module Architecture & Headcount Governance
 
@@ -37,6 +37,12 @@ Every store permanently retains its individual `VCODE` even when grouped into a 
 - A `CGCODE` is a roving group overlay across multiple stores (e.g., 5 stores grouped under 1 unique `CGCODE`).
 - The underlying `VCODE`s of those 5 stores are NEVER deleted, mutated, or removed, because any store can revert to `stationary` deployment later on.
 - **Mandatory CGCode for All Roving Personnel**: All roving personnel deployed across $N \ge 2$ stores are strictly bound to a `CGCODE`. Roving personnel must never be deployed or imported as independent/unassigned roving without a parent Coverage Group overlay.
+- **CGCode Strict Monotonicity & Dissolution Retirement Invariant (Permanent Non-Recycling Rule)**: Every minted Coverage Group Code (`CGCODE`, format `CG-<AccountInitial><GroupCode>-NNNN`) is permanently unique and monotonic for all time within its account.
+  - **Dissolution Retirement**: When a Coverage Group is dissolved via `dissolve_coverage_group`, merged into another group, or archived, its `CGCODE` is permanently retired (`coverage_groups.archived_at = now()`).
+  - **Zero-Recycling / Re-clustering Rule**: If the member stores, personnel, or roving cluster footprint are subsequently brought back together into a Coverage Group (re-clustered, reformed, or re-uploaded), the system is **STRICTLY PROHIBITED** from reusing, recycling, or resurrecting the old `CGCODE`.
+  - A fresh, strictly sequential, monotonically incremental `CGCODE` (e.g., `CG-FG1-0007` $\rightarrow$ `CG-FG1-0008`) MUST ALWAYS be minted.
+  - **Audit & Separation Integrity**: Permanent monotonicity preserves historical audit integrity, ensures employee movement and separation logs unambiguously reflect exact group tenure, prevents foreign key or reporting ambiguity in CENCOM / analytics, and eliminates cache collision across Web and Mobile.
+  - **Database Level Guarantee**: `fn_generate_cgcode_for_account` probes against ALL historical coverage groups for that account (both active and archived, omitting any `archived_at IS NULL` bypass), and `public.coverage_groups` enforces permanent account-level uniqueness across all time (`account_id, coverage_code`).
 
 ### Invariant 4 — Auto-Computed `EMPLOYMENT_TYPE`, Fractional `REQUIRED_HC` ($1/N$) & Universal Automatic Coverage Group (`CGCODE`) Provisioning
 `EMPLOYMENT_TYPE` and `REQUIRED_HC` are removed from required Excel spreadsheet inputs and are computed directly by the database:
