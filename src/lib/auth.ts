@@ -129,18 +129,35 @@ function normalizeStringArray(value: unknown) {
 }
 
 
-function normalizeCapabilities(value: unknown) {
+function normalizeCapabilities(value: unknown): Record<string, string[]> | null {
   if (!value || Array.isArray(value) || typeof value !== "object") {
     return null;
   }
 
   return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([key, capabilities]) => [
-      key,
-      Array.isArray(capabilities)
-        ? capabilities.filter((item): item is string => typeof item === "string")
-        : [],
-    ]),
+    Object.entries(value as Record<string, unknown>).map(([key, capabilities]) => {
+      if (!Array.isArray(capabilities)) return [key, []];
+      const stringKeys: string[] = [];
+      for (const item of capabilities) {
+        if (typeof item === "string") {
+          stringKeys.push(item);
+        } else if (item && typeof item === "object") {
+          const capObj = item as Record<string, unknown>;
+          if (typeof capObj.capability_key === "string") {
+            stringKeys.push(capObj.capability_key);
+          } else if (
+            typeof capObj.resource_key === "string" &&
+            typeof capObj.action_key === "string"
+          ) {
+            stringKeys.push(`${capObj.resource_key}.${capObj.action_key}`);
+          }
+          if (typeof capObj.action_key === "string") {
+            stringKeys.push(capObj.action_key);
+          }
+        }
+      }
+      return [key, Array.from(new Set(stringKeys))];
+    }),
   );
 }
 

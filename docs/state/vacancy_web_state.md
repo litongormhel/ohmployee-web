@@ -440,6 +440,24 @@ When confirming an applicant onboard (`Confirm Onboarding / Mark Hired` via `con
 
 ---
 
+## RBAC Dynamic Capability Enforcement & Closure Review RPC (`ohm#fix-rbac-dynamic-overrides-and-vacancy-closure`)
+
+1. **Dormant `vacancy.create` Deprecation**:
+   - `vacancy.create` was an orphaned rule seeded in early RBAC migrations. Vacancies in OHMployee strictly originate through Headcount Requests, Plantilla Attrition Backfills, or Batch Imports per ADR-001/002.
+   - Permanently deleted `('vacancy', 'vacancy', 'create')` from `role_permission_definitions`, `role_permission_matrix`, and `role_permission_overrides`, reducing Vacancy RBAC rules from 16 to 15.
+2. **Dynamic Effective Permissions Integration**:
+   - `get_web_current_user_context()` joins `role_permission_overrides` against `role_permission_matrix` with Super Admin immunity (`role_name = 'Super Admin' -> true`), ensuring custom toggles in `/rbac` (e.g. revoking `vacancy.approve_closure` on Head Admin) immediately take effect.
+   - `normalizeCapabilities` in `src/lib/auth.ts` extracts canonical string keys (`${resource_key}.${action_key}` and `${action_key}`) so frontend components receive populated capability arrays.
+   - `canReviewVacancyClosures`, `canRequestVacancyClosure`, `canAddApplicant`, and `canPerformDrawerAction` in `src/lib/rbac.ts` consult `currentUser.moduleCapabilities` first before falling back to static role levels.
+3. **Closure Review RPC & RLS Guard**:
+   - Gated review mutations through `public.review_vacancy_closure_request` and `public.approve_all_vacancy_closure_requests`, checking `public.fn_current_user_can('vacancy', 'vacancy', 'approve_closure')`.
+   - Re-asserted `closure_req_update_encoder_plus` RLS policy on `public.vacancy_closure_requests` requiring `fn_current_user_can('vacancy', 'vacancy', 'approve_closure')` for updates.
+4. **Historical Closure PostgREST Join Fix**:
+   - Fixed `fetchVacancyClosureRequests` (`src/lib/queries/requests.ts`) by applying `vacancies:vacancies!vacancy_vcode!left` (explicit LEFT JOIN) so closed/archived vacancies do not drop approved closure records in `Approvals Center -> Vacancy Closures` (`/approvals?tab=vacancy_closures`).
+   - Added descriptive link in `/vacancy?status=closure` queue banner pointing directly to the Approvals Center historical log.
+
+---
+
 > [!NOTE]
 > **Historical Assessment & Implementation Phases Archive:**
 > Historical pre-implementation assessments and phase checklists have been archived to [`docs/state/archive/vacancy_web_state_historical.md`](archive/vacancy_web_state_historical.md) to keep this live specification token-optimized.

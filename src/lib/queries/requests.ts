@@ -1913,7 +1913,7 @@ export async function fetchVacancyClosureRequests(
       reviewed_at,
       reviewer_remarks,
       created_at,
-      vacancies:vacancies!vacancy_vcode (
+      vacancies:vacancies!vacancy_vcode!left (
         store_name,
         store_branch,
         position,

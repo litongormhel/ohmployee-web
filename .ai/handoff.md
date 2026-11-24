@@ -1,5 +1,64 @@
 # AI Handoff
 
+## Execution Report — Deprecate Dormant Vacancy Create, Enforce Dynamic RBAC Overrides, & Secure Closure Review RPC (ohm#fix-rbac-dynamic-overrides-and-vacancy-closure)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Staging Deployed
+
+### What Was Built
+1. **User Request Alignment**:
+   - User inquiry 1: "check this vs sa db natin kung match ba ang nandito sa Web. Why theres a Vacancy Create? Yeah Vacancy Create is dormant na eh. Bakit nanjan pa?"
+   - User issue 2: "Wait. Tried to disabled Vacancy Approve Closure to Head Admin then save but still nakapag approve sya in Vacancy > Closure, success but wala sa history of approved."
+   - User directive: "yes. Lahat ng toggle should be working".
+2. **Investigation Findings**:
+   - **Dormant `vacancy.create`**: Orphaned rule seeded in early RBAC migrations. Vacancies in OHMployee strictly originate through Headcount Requests, Plantilla Attrition Backfills, or Batch Imports per ADR-001/002.
+   - **4-Layer RBAC Disconnect**:
+     - *Layer 1 (DB)*: `get_web_current_user_context()` queried `role_permission_matrix m WHERE m.is_allowed = TRUE` without joining `role_permission_overrides o`. Custom toggles saved in `/rbac` were never reflected in `module_capabilities`.
+     - *Layer 2 (Frontend Normalizer)*: `normalizeCapabilities` in `src/lib/auth.ts` filtered with `typeof item === "string"`, whereas Postgres returned JSON capability objects, wiping out capabilities into empty arrays (`[]`).
+     - *Layer 3 (Frontend RBAC Gate)*: `canReviewVacancyClosures` and `canPerformDrawerAction` hardcoded `hasFullAccess` (`role_level >= 90`), treating Head Admin as always allowed regardless of matrix overrides.
+     - *Layer 4 (Backend Mutation)*: `reviewClosureRequest` performed a raw `supabase.from("vacancy_closure_requests").update(...)` where RLS policy `closure_req_update_encoder_plus` permitted anyone with `i_have_full_access() >= 90`, bypassing `fn_current_user_can()`.
+   - **Approved Closure Disappearance**:
+     - `fetchVacancyClosureRequests` in `src/lib/queries/requests.ts` performed an inner join `vacancies:vacancies!vacancy_vcode`. Upon closure approval, the `handle_closure_approval` trigger set `status = 'Closed', is_archived = true` on the vacancy, causing PostgREST to drop the approved closure request from `/approvals?tab=vacancy_closures` -> "Approved".
+3. **Implementation & Fixes**:
+   - `supabase/migrations/20262606000168_rbac_dynamic_effective_overrides_and_closure_rpc.sql`:
+     - Cleaned up dormant `vacancy.create` definition from `role_permission_overrides`, `role_permission_matrix`, and `role_permission_definitions`.
+     - Updated `get_web_current_user_context()` to resolve dynamic effective permissions: joining active `role_permission_overrides` with Super Admin immunity (`role_name = 'Super Admin' -> true`), and emitting `ep.resource_key || '.' || ep.action_key` as `capability_key`.
+     - Authored `public.review_vacancy_closure_request` and `public.approve_all_vacancy_closure_requests` with strict permission check via `fn_current_user_can('vacancy', 'vacancy', 'approve_closure')`.
+     - Re-asserted `closure_req_update_encoder_plus` RLS policy requiring `fn_current_user_can('vacancy', 'vacancy', 'approve_closure')` for table updates.
+     - Applied and verified against Staging (`qqiiznmqxfoamqytjica`) with 0 errors via `npm run db:push:staging`.
+   - `src/lib/auth.ts`:
+     - Rewrote `normalizeCapabilities` to parse capability objects and string keys into unique arrays of `${resource_key}.${action_key}` and `${action_key}`.
+   - `src/lib/rbac.ts`:
+     - Added `checkUserCapability` helper.
+     - Updated `canReviewVacancyClosures`, `canRequestVacancyClosure`, `canAddApplicant`, `canManageApplicantPipeline`, and `canPerformDrawerAction` to check `currentUser.moduleCapabilities` first, with safe fallback to static role levels for unit tests and unauthenticated callers.
+   - `src/lib/queries/vacancy/vacancyClosures.ts`:
+     - Updated `reviewClosureRequest` to call `review_vacancy_closure_request` RPC with `access_denied` error handling.
+   - `src/lib/queries/requests.ts`:
+     - Fixed `fetchVacancyClosureRequests` by using explicit left join `vacancies:vacancies!vacancy_vcode!left`.
+   - `src/app/(dashboard)/vacancy/page.tsx`:
+     - Updated Closure tab banner to clarify that historical/approved closures are logged in `Approvals Center -> Vacancy Closures` (`/approvals?tab=vacancy_closures`).
+   - `docs/state/vacancy_web_state.md`:
+     - Updated architecture specification with the dynamic RBAC overrides, closure RPC, and left-join invariants.
+4. **Verification**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 credential leaks.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 693 migrations.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run build`: Clean Next.js 16.2.4 Turbopack production build.
+   - `npm run db:push:staging`: Successfully applied migration `20262606000168` on Staging (`qqiiznmqxfoamqytjica`).
+   - Read-only Migration Counter: Staging: 662 migrations | Prod: 661 migrations (1 migration pending on Prod).
+
+### Files
+- `supabase/migrations/20262606000168_rbac_dynamic_effective_overrides_and_closure_rpc.sql`
+- `src/app/(dashboard)/vacancy/page.tsx`
+- `src/lib/auth.ts`
+- `src/lib/queries/requests.ts`
+- `src/lib/queries/vacancy/vacancyClosures.ts`
+- `src/lib/rbac.ts`
+- `docs/state/vacancy_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+
 ## Execution Report — Remove Admin Tools Sign-Up Top Banner & Fix Light Mode Action Button Contrast (ohm#remove-signup-banner-and-fix-lightmode-button)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean
 

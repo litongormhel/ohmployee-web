@@ -80,21 +80,41 @@ export async function reviewClosureRequest(
 ) {
   const supabase = createClient();
 
-  const { error } = await supabase
-    .from("vacancy_closure_requests")
-    .update({
-      status: params.status,
-      reviewed_by: params.reviewedBy,
-      reviewed_at: new Date().toISOString(),
-      reviewer_remarks: params.remarks || null,
-    })
-    .eq("id", params.requestId);
+  const { data, error } = await supabase.rpc("review_vacancy_closure_request", {
+    p_request_id: params.requestId,
+    p_status: params.status,
+    p_reviewed_by: params.reviewedBy,
+    p_remarks: params.remarks || null,
+  });
 
   if (error) {
+    if (error.code === "PGRST202") {
+      const { error: updateError } = await supabase
+        .from("vacancy_closure_requests")
+        .update({
+          status: params.status,
+          reviewed_by: params.reviewedBy,
+          reviewed_at: new Date().toISOString(),
+          reviewer_remarks: params.remarks || null,
+        })
+        .eq("id", params.requestId);
+
+      if (updateError) {
+        throw new VacancyDataError("generic", updateError.message);
+      }
+      return { success: true };
+    }
+
+    if (error.code === "42501") {
+      throw new VacancyDataError(
+        "access_denied",
+        "You do not have permission to review vacancy closures.",
+      );
+    }
     throw new VacancyDataError("generic", error.message);
   }
 
-  return { success: true };
+  return { success: true, ...((data as Record<string, unknown>) || {}) };
 }
 
 export function useReviewClosureRequest() {

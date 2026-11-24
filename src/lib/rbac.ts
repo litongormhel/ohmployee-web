@@ -40,6 +40,7 @@ export type RoleIdentifiable = {
   email?: string | null;
   allowedModuleKeys?: string[];
   moduleAccess?: Record<string, { visible: boolean; reason?: string }>;
+  moduleCapabilities?: Record<string, string[]>;
 };
 
 /**
@@ -202,11 +203,42 @@ export function isOpsTeam(userOrRole?: RoleIdentifiable | string | null): boolea
 }
 
 /**
+ * Dynamic matrix capability checker.
+ * Returns true/false if dynamic moduleCapabilities are available on the user object,
+ * or null if no dynamic capabilities are present (falling back to static role rules).
+ */
+export function checkUserCapability(
+  userOrRole: RoleIdentifiable | string | null | undefined,
+  moduleKey: string,
+  capabilityKey: string
+): boolean | null {
+  if (!userOrRole || typeof userOrRole === "string") return null;
+  // Super Admin (100) unconditionally owns all capabilities
+  if (isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100) return true;
+
+  if (userOrRole.moduleCapabilities && typeof userOrRole.moduleCapabilities === "object") {
+    const list = userOrRole.moduleCapabilities[moduleKey];
+    if (Array.isArray(list)) {
+      const parts = capabilityKey.split(".");
+      const actionKey = parts.length > 1 ? parts[1] : capabilityKey;
+      return list.includes(capabilityKey) || list.includes(actionKey);
+    }
+    return false;
+  }
+  return null;
+}
+
+/**
  * Can add applicant to an open vacancy.
  * Allowed: Super Admin, Head Admin, OM, HRCO, ATL, TL, Encoder, HR Personnel, Recruitment.
  * Denied: Backoffice Personnel, Viewer.
  */
 export function canAddApplicant(userOrRole?: RoleIdentifiable | string | null): boolean {
+  if (isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100) return true;
+
+  const dyn = checkUserCapability(userOrRole, "vacancy", "applicant.create");
+  if (dyn !== null) return dyn;
+
   if (hasFullAccess(userOrRole)) return true;
   const role = normalizeRole(extractRoleString(userOrRole));
   if (!role || role === AppRole.VIEWER || role === AppRole.BACKOFFICE_PERSONNEL) {
@@ -241,6 +273,16 @@ export const canEditApplicantProfileOnce = canEditApplicantProfile;
  * Restricted strictly to Super Admin, Head Admin, and Encoder.
  */
 export function canReviewVacancyClosures(userOrRole?: RoleIdentifiable | string | null): boolean {
+  if (isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100) return true;
+
+  // Dynamic check: consult vacancy and approvals module capabilities
+  const dynVac = checkUserCapability(userOrRole, "vacancy", "vacancy.approve_closure");
+  const dynApp = checkUserCapability(userOrRole, "approvals", "vacancy.approve_closure");
+  if (dynVac !== null || dynApp !== null) {
+    return Boolean(dynVac || dynApp);
+  }
+
+  // Static fallback for unit tests or unauthenticated callers
   if (hasFullAccess(userOrRole)) return true;
   const role = normalizeRole(extractRoleString(userOrRole));
   return role === AppRole.ENCODER || getRoleLevel(userOrRole) === 30;
@@ -252,6 +294,11 @@ export function canReviewVacancyClosures(userOrRole?: RoleIdentifiable | string 
  * Denied: HR Personnel, Recruitment, Backoffice Personnel, Viewer.
  */
 export function canRequestVacancyClosure(userOrRole?: RoleIdentifiable | string | null): boolean {
+  if (isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100) return true;
+
+  const dyn = checkUserCapability(userOrRole, "vacancy", "vacancy.close");
+  if (dyn !== null) return dyn;
+
   if (hasFullAccess(userOrRole)) return true;
   const role = normalizeRole(extractRoleString(userOrRole));
   return isOpsTeam(userOrRole) || role === AppRole.ENCODER || getRoleLevel(userOrRole) === 30;
@@ -572,6 +619,35 @@ export const DRAWER_ACTION_RULES: Record<DrawerActionItem, number[]> = {
   "Manage Permission Matrix Overrides": [100],
 };
 
+const DRAWER_ACTION_CAPABILITY_MAP: Partial<
+  Record<DrawerActionItem, { module: string; capability: string }>
+> = {
+  "Edit Applicant Profile (Once)": {
+    module: "vacancy",
+    capability: "applicant.edit_profile_once",
+  },
+  "Edit Hired Date": {
+    module: "vacancy",
+    capability: "applicant.edit_hired_date",
+  },
+  "Vacancy Roster XLSX Bulk Import": {
+    module: "vacancy",
+    capability: "vacancy.import",
+  },
+  "HR Emploc XLSX Bulk Import": {
+    module: "hr_emploc",
+    capability: "emploc.import",
+  },
+  "Plantilla Structure XLSX Import": {
+    module: "plantilla",
+    capability: "plantilla.import",
+  },
+  "Manage Permission Matrix Overrides": {
+    module: "settings",
+    capability: "role_permission.manage",
+  },
+};
+
 /**
  * Checks whether the given user/role is allowed to perform a specific drawer action or mutation.
  */
@@ -582,6 +658,13 @@ export function canPerformDrawerAction(
   if (!userOrRole) return false;
   // Administrative Universal Immunity: Super Admin (100) unconditionally owns all actions
   if (isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100) return true;
+
+  // Consult dynamic matrix capability if mapped
+  const mapping = DRAWER_ACTION_CAPABILITY_MAP[actionItem];
+  if (mapping) {
+    const dyn = checkUserCapability(userOrRole, mapping.module, mapping.capability);
+    if (dyn !== null) return dyn;
+  }
 
   const level = getRoleLevel(userOrRole);
   const allowedLevels = DRAWER_ACTION_RULES[actionItem];

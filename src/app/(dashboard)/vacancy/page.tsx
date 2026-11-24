@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
   Archive,
@@ -958,9 +959,16 @@ export default function VacancyPage() {
       {status === "closure" && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border-default bg-surface-muted px-4 py-2.5 text-xs text-text-secondary">
           <div className="flex items-center gap-2">
-            <Archive className="h-4 w-4 text-text-muted" />
+            <Archive className="h-4 w-4 text-text-muted shrink-0" />
             <span>
-              <strong>Closure Queue:</strong> Requisitions flagged for cessation or slot cancellation.
+              <strong>Closure Queue:</strong> Pending requisitions flagged for cessation or slot cancellation. Historical / approved closures are logged in{" "}
+              <Link
+                href="/approvals?tab=vacancy_closures"
+                className="font-semibold text-brand-600 underline hover:text-brand-500"
+              >
+                Approvals Center &rarr; Vacancy Closures
+              </Link>
+              .
             </span>
           </div>
           {canReviewClosures && (
