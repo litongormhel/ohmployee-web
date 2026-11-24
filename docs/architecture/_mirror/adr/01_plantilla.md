@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Plantilla. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/01_plantilla.md
-source_commit: 0eb4407 2026-11-23T23:02:59+08:00
-source_sha256: 18e2776e4a661c51f36d2cfde9a92804bc68406499d8b3e4cf8f7f7d9b913469
-synced_at: 2026-11-24T06:22:13.630Z
+source_commit: 0eb4407 2026-11-23T23:02:59+08:00 +uncommitted-changes
+source_sha256: 7c5879d02f1fd61615a4dab214e68eeeb91b2e3eeca390f60a04adcb496db180
+synced_at: 2026-11-24T09:04:13.367Z
 -->
 # Plantilla Module Architecture & Headcount Governance
 
@@ -201,5 +201,21 @@ The Plantilla module operates under **Dual Views** driven by a segmented view to
    - **Day 3+ Past EDR (Breached)**: Renders critical red badge (`Breached ({d}d) • OM Escalated`) and escalates to the Operations Manager as an operational SLA breach.
 2. **Moses HQ Reliever Integration**: Temporary store coverage is fulfilled by assigning available pool employees (`availability_status = 'Available'`) via `workforce_assignments` linking `covered_plantilla_id`.
 3. **Reliever Auto-Release**: When the regular employee returns to duty (`Return to Active`), the database trigger / mutation automatically terminates the temporary reliever assignment, returning the reliever to available pool status without leaving orphaned assignments.
+
+### Multi-Slot & Multi-Position Granularity Invariant (`ohm#multi-slot-multi-position-granularity` — 2026-11-24)
+
+**Status: ACCEPTED & LOCKED (Option A Standard).** Enforces strict slot-level granularity and independent position resolution for Plantilla Tab 3 (Vacancy):
+
+1. **Strict 1 Row = 1 Slot Granularity (Zero-Collapse Rule):**
+   - In Plantilla Tab 3 (Vacancy), every physical slot in a multi-slot store requisition (`required_headcount > 1`) strictly renders as a distinct, independent row (`1 Row = 1 Physical Slot / Tao`).
+   - **Anti-Table Jitter Lock (No Merging When Empty)**: Unallocated slots with zero active applicants are NEVER collapsed or merged into a single summary store row. This guarantees:
+     - Zero table layout jumping / jitter when candidates are endorsed or dropped.
+     - Zero pagination displacement (predictable row distribution across pages).
+     - 100% parity between rendered table rows and the total slots counter in the tab badge (`Vacancy X (Y slots)`).
+2. **Multi-Position Independence per Store:**
+   - When a store requires multiple distinct roles (e.g. 2 Cashiers + 1 Bundler under the same store/VCode), each slot row independently reflects its exact physical `position` (`plantilla_slots.position` or `hr_emploc.position`), rather than collapsing to a single store-level default.
+   - Filtering by `Position` strictly targets individual slot capabilities without breaking or omitting multi-position stores.
+3. **Sequential Slot Ordinal Identity:**
+   - Each rendered slot row displays its distinct sequential slot indicator (`Slot 1`, `Slot 2`, `Slot 3`), enabling direct operational clarity for recruiters, HR coordinators, and store managers.
 
 ---

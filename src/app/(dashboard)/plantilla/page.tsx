@@ -945,21 +945,26 @@ function PlantillaPageContent() {
       }
     });
 
-    // Expand multi-slot / multi-candidate vacancies to 1 row per physical slot (ADR-002 Invariants 1 & 5, Rule 8)
+    // Expand multi-slot / multi-candidate vacancies to 1 row per physical slot (ADR-002 Invariants 1 & 5, Rule 8, Rule 26 Option A Standard)
     const expanded: VacancyListItem[] = [];
     filtered.forEach((v) => {
-      const totalSlots = Math.max(v.hcTotal ?? 1, v.activeApplicantsList?.length ?? 1);
+      const candidates = v.activeApplicantsList ?? [];
+      const physicalSlots = v.slotsList ?? [];
+      const totalSlots = Math.max(v.hcTotal ?? 1, v.headcount ?? 1, physicalSlots.length, candidates.length, 1);
       const filledSlots = v.hcFilled ?? 0;
       const unfilledSlotsCount = Math.max(1, totalSlots - filledSlots);
-      const candidates = v.activeApplicantsList ?? [];
 
-      if (unfilledSlotsCount > 1 || candidates.length > 1) {
+      if (unfilledSlotsCount > 1 || candidates.length > 1 || physicalSlots.length > 1) {
         for (let i = 0; i < unfilledSlotsCount; i++) {
           const cand = candidates[i];
+          const physicalSlot = physicalSlots[i];
+          const slotOrd = physicalSlot?.slotOrdinal ?? (i + 1);
+          const slotPos = cand?.position || physicalSlot?.position || v.position_title;
+
           if (cand) {
             expanded.push({
               ...v,
-              id: `${v.id}-slot-${i + 1}`,
+              id: `${v.id}-slot-${slotOrd}`,
               parentVacancyId: v.id,
               applicantId: cand.applicantId,
               applicantName: cand.displayName,
@@ -970,7 +975,8 @@ function PlantillaPageContent() {
               stageBadge: cand.statusLabel,
               pipelineStatus: cand.statusLabel,
               remarks: cand.remarks || v.remarks,
-              slotOrdinal: i + 1,
+              slotOrdinal: slotOrd,
+              position_title: slotPos,
               headcount: 1,
               hcTotal: 1,
               hcFilled: 0,
@@ -979,7 +985,7 @@ function PlantillaPageContent() {
           } else {
             expanded.push({
               ...v,
-              id: `${v.id}-slot-${i + 1}`,
+              id: `${v.id}-slot-${slotOrd}`,
               parentVacancyId: v.id,
               applicantId: null,
               applicantName: null,
@@ -989,7 +995,8 @@ function PlantillaPageContent() {
               stageBadge: v.hasPendingClosure ? "Vacancy - Closure" : "Vacancy - Open",
               pipelineStatus: v.hasPendingClosure ? "Vacancy - Closure" : "Vacancy - Open",
               remarks: "—",
-              slotOrdinal: i + 1,
+              slotOrdinal: slotOrd,
+              position_title: slotPos,
               headcount: 1,
               hcTotal: 1,
               hcFilled: 0,
@@ -998,9 +1005,14 @@ function PlantillaPageContent() {
           }
         }
       } else {
+        const cand = candidates[0];
+        const physicalSlot = physicalSlots[0];
+        const slotOrd = physicalSlot?.slotOrdinal ?? 1;
+        const slotPos = cand?.position || physicalSlot?.position || v.position_title;
         expanded.push({
           ...v,
-          slotOrdinal: 1,
+          slotOrdinal: slotOrd,
+          position_title: slotPos,
         });
       }
     });

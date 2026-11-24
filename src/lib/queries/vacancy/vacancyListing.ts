@@ -1805,7 +1805,7 @@ export async function listVacancies(params: VacancyListParams) {
 
   if (allVcodes.length > 0) {
     try {
-      const [applicantsRes, emplocRes, plantillaRes] = await Promise.all([
+      const [applicantsRes, emplocRes, plantillaRes, slotsRes] = await Promise.all([
         supabase
           .from("applicants")
           .select("id, vacancy_vcode, first_name, last_name, middle_name, full_name, contact_number, status, hired_date, backout_reason, backout_date, recruitment_remarks, ops_remarks, remarks, created_at, updated_at")
@@ -1814,7 +1814,7 @@ export async function listVacancies(params: VacancyListParams) {
           .order("created_at", { ascending: false }),
         supabase
           .from("hr_emploc")
-          .select("id, vcode, applicant_id, applicant_name, status, hr_status, hired_date, employee_no, ops_remarks, hr_remarks, employee_lookup_remarks, correction_reason, created_at, updated_at, slot_id")
+          .select("id, vcode, applicant_id, applicant_name, status, hr_status, hired_date, employee_no, ops_remarks, hr_remarks, employee_lookup_remarks, correction_reason, created_at, updated_at, slot_id, position")
           .in("vcode", allVcodes)
           .is("deleted_at", null)
           .neq("status", "Moved to Plantilla")
@@ -1827,11 +1827,35 @@ export async function listVacancies(params: VacancyListParams) {
           .is("date_of_separation", null)
           .is("deactivated_at", null)
           .or("is_deleted.is.null,is_deleted.eq.false"),
+        supabase
+          .from("plantilla_slots")
+          .select("id, legacy_vcode, store_id, position, slot_ordinal, slot_status, current_occupant_plantilla_id")
+          .in("legacy_vcode", allVcodes)
+          .neq("slot_status", "closed")
+          .order("slot_ordinal", { ascending: true }),
       ]);
 
       const applicantsData = applicantsRes.data;
       const emplocData = emplocRes.data;
       const plantillaData = plantillaRes.data;
+      const slotsData = slotsRes.data;
+
+      // 0. Index physical slots by VCode
+      const slotsByVcode = new Map<string, Array<{ slotId: string; slotOrdinal: number; position: string; slotStatus: string }>>();
+      if (slotsData && Array.isArray(slotsData)) {
+        for (const slot of slotsData) {
+          const vk = (asString(slot.legacy_vcode) || "").trim().toUpperCase();
+          if (vk) {
+            if (!slotsByVcode.has(vk)) slotsByVcode.set(vk, []);
+            slotsByVcode.get(vk)!.push({
+              slotId: asString(slot.id) || "",
+              slotOrdinal: asNumber(slot.slot_ordinal) ?? 1,
+              position: asString(slot.position) || "",
+              slotStatus: asString(slot.slot_status) || "open",
+            });
+          }
+        }
+      }
 
       // 1. Tally active Plantilla occupants per VCode
       if (plantillaData && Array.isArray(plantillaData)) {
@@ -1884,6 +1908,7 @@ export async function listVacancies(params: VacancyListParams) {
         const vcodeKey = (row.vcode || "").trim().toUpperCase();
         const emplocs = emplocsByVcode.get(vcodeKey) ?? [];
         const actives = activeByVcode.get(vcodeKey) ?? [];
+        const slotsForVcode = slotsByVcode.get(vcodeKey) ?? [];
 
         // Build composite candidate list for this VCode preserving both HR Emploc and recruitment candidates
         const allCandidatesForVcode: ActiveApplicantItem[] = [];
@@ -1932,6 +1957,10 @@ export async function listVacancies(params: VacancyListParams) {
           if (candId) seenCandidateIds.add(candId);
           seenCandidateNames.add(formattedName.toLowerCase());
 
+          const slotId = asString(emp.slot_id);
+          const matchedSlot = slotId ? slotsForVcode.find((s) => s.slotId === slotId) : null;
+          const pos = asString(emp.position) || matchedSlot?.position || null;
+
           allCandidatesForVcode.push({
             applicantId: candId,
             displayName: formattedName,
@@ -1945,7 +1974,9 @@ export async function listVacancies(params: VacancyListParams) {
             recruiterName: null,
             deployedByName: null,
             remarks: latestEmplocRemarks,
-            slotId: asString(emp.slot_id),
+            slotId,
+            slotOrdinal: matchedSlot?.slotOrdinal ?? null,
+            position: pos,
           });
         }
 
@@ -1997,6 +2028,7 @@ export async function listVacancies(params: VacancyListParams) {
         }
 
         // Attach candidate lists and counts
+        row.slotsList = slotsForVcode;
         row.activeApplicantsList = allCandidatesForVcode;
         row.activeApplicantCount = allCandidatesForVcode.length;
         row.hrProcessingCount = emplocs.length;

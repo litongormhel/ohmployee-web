@@ -440,6 +440,15 @@ When confirming an applicant onboard (`Confirm Onboarding / Mark Hired` via `con
 
 ---
 
+## Option A Multi-Slot & Multi-Position Granularity Standard (`ohm#multi-slot-multi-position-granularity`)
+
+In Plantilla Tab 3 (Vacancy), every physical slot in a multi-slot store requisition (`required_headcount > 1`) strictly renders as a distinct, solo row (`1 Row = 1 Physical Slot / Tao`):
+1. **Anti-Table Jitter Lock (Zero-Collapse Rule)**: Unallocated slots with zero active applicants are NEVER merged or collapsed into a single summary store row. Prevents layout jumping, pagination shifting, and preserves 100% parity between rendered table rows and the tab badge (`Vacancy X (Y slots)`).
+2. **Multi-Position Independence**: When multiple positions exist under the same store/VCode (e.g. 2 Cashiers + 1 Bundler), each slot independently reflects its physical position (`plantilla_slots.position` or `hr_emploc.position`), allowing precise position filtering.
+3. **Sequential Slot Ordinal Identity**: Each slot row displays its distinct sequential slot indicator (`Slot 1`, `Slot 2`, `Slot 3`).
+
+---
+
 ## RBAC Dynamic Capability Enforcement & Closure Review RPC (`ohm#fix-rbac-dynamic-overrides-and-vacancy-closure`)
 
 1. **Dormant `vacancy.create` and `vacancy.edit` Deprecation**:

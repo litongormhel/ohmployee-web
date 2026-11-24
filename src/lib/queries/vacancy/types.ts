@@ -113,6 +113,7 @@ export type VacancyListItem = {
   slotFraction?: string | null;
   slotShare?: number | null;
   hrProcessingCount?: number;
+  slotsList?: Array<{ slotId: string; slotOrdinal: number; position: string; slotStatus: string }>;
   activeApplicantsList?: ActiveApplicantItem[];
   lastActivityAt: string | null;
   rowCapabilities: VacancyRowCapabilities;
@@ -138,6 +139,7 @@ export type ActiveApplicantItem = {
   profileEditCount?: number | null;
   createdAt?: string | null;
   agingDays?: number | null;
+  position?: string | null;
 };
 
 export type ActivityHistoryItem = {
