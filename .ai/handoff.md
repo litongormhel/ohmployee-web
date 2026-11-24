@@ -36,6 +36,8 @@
        - Preserved `Vacancy - Closure` within the Open tab (`vacancySubFilter === "open"`), ensuring pending closure requisitions remain counted and visible until administrative approval.
    - **Documentation & State Specifications**:
      - `docs/state/plantilla_web_state.md`: Updated Tab 3 specification to reflect `Vacancy - Closure` and `HR Emploc - For Emploc` canonical stage badges.
+     - `OHMployee/docs/architecture/adr/02_vacancy.md`: Formally committed the approved Rule 4 Pending Closure Capacity Retention Invariant in the mobile repo (`2ad3464`).
+     - `docs/architecture/_mirror/adr/02_vacancy.md`: Synchronized mirror from `0eb4407` → `2ad3464` via `npm run sync:adr`.
 4. **Verification**:
    - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
    - `npm run check:secrets`: 0 credential leaks.
@@ -49,6 +51,15 @@
 - `src/lib/queries/vacancy/vacancyListing.ts`
 - `src/app/(dashboard)/plantilla/page.tsx`
 - `docs/state/plantilla_web_state.md`
+- `docs/architecture/_mirror/adr/02_vacancy.md`
+- `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md`
+- `docs/architecture/_mirror/adr/00_core_invariants.md`
+- `docs/architecture/_mirror/adr/01_plantilla.md`
+- `docs/architecture/_mirror/adr/03_hr_emploc.md`
+- `docs/architecture/_mirror/adr/04_approvals_requisitions.md`
+- `docs/architecture/_mirror/adr/05_more_module.md`
+- `docs/architecture/_mirror/adr/06_dashboard_cencom.md`
+- `docs/architecture/_mirror/adr/README.md`
 - `.ai/briefing.md`
 - `.ai/handoff.md`
 

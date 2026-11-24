@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Vacancy. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/02_vacancy.md
-source_commit: 0eb4407 2026-11-23T23:02:59+08:00
-source_sha256: bea6eae0a7883d775be910802d4c187884d138f68ba8adec52a6cf87351360b5
-synced_at: 2026-11-23T15:03:07.722Z
+source_commit: 2ad3464 2026-11-24T14:22:04+08:00
+source_sha256: f57ac0932777e581ea8da1cad75419ce1347c255157e7fb53cd3cd4ae7739063
+synced_at: 2026-11-24T06:22:13.808Z
 -->
 # Vacancy Module Architecture
 
@@ -22,7 +22,9 @@ synced_at: 2026-11-23T15:03:07.722Z
 
 > Open tab: visible iff `(hc_needed - hired_count - pipeline_count - hr_processing_count) > 0`, shown with that value. Pipeline tab: visible iff `pipeline_count > 0`, independent of Open. A vacancy may appear in Open, Pipeline, both, or neither.
 
-Closure still takes unconditional priority over both — a vacancy with a closed slot or pending closure request never shows in Open or Pipeline.
+**Closure Lifecycle & Pending Capacity Retention Invariant:**
+- **Pending Closure Stays Counted in Open Capacity**: While a requisition has a pending closure request (`has_pending_closure = true` / `closure_request_status = 'Pending'`), its authorized capacity remains active. It MUST remain visible in the Open Tab (rendered under Stage badge `Vacancy - Closure`) and continue contributing to unfilled capacity counts until official administrative approval. Endorsement of new applicants while a closure request is pending is hard-locked.
+- **Approved Closure Slot Inactivation**: Only upon administrative approval (`handle_closure_approval` / `review_vacancy_closure_request(p_status = 'Approved')`) is the physical slot closed (`slot_status = 'closed'`), the vacancy archived (`is_archived = true`), and the headcount permanently removed from Open capacity. Closed vacancies never show in Open or Pipeline.
 
 #### Operational Capacity Contract (Single-Slot vs. Multi-Slot Behavioral Matrix)
 To eliminate operational ambiguity between Open and Pipeline queues across Web and Mobile:
