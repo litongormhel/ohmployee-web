@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Plantilla. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/01_plantilla.md
-source_commit: 0eb4407 2026-11-23T23:02:59+08:00 +uncommitted-changes
-source_sha256: 7c5879d02f1fd61615a4dab214e68eeeb91b2e3eeca390f60a04adcb496db180
-synced_at: 2026-11-24T09:04:13.367Z
+source_commit: 54bd136 2026-11-24T19:30:07+08:00
+source_sha256: 05c1375cea4486c7cf22462d154d42274e278a83159b9a7f6255903c606ffa76
+synced_at: 2026-11-24T11:30:14.733Z
 -->
 # Plantilla Module Architecture & Headcount Governance
 
@@ -32,21 +32,22 @@ Within an Account, 1 `STORE_NAME` maps 1:1 to 1 `VCODE`.
 - Same `STORE_NAME` with a different `VCODE` within the Account is hard-blocked.
 - Same `VCODE` with a different `STORE_NAME` within the Account is hard-blocked.
 
-### Invariant 3 — `CGCODE` (Coverage Group) Coexistence with Permanent `VCODE`
+### Invariant 3 — `CGCODE` (Coverage Group) Coexistence with Permanent `VCODE` & Universal Roving Binding
 Every store permanently retains its individual `VCODE` even when grouped into a roving Coverage Group (`CGCODE`).
 - A `CGCODE` is a roving group overlay across multiple stores (e.g., 5 stores grouped under 1 unique `CGCODE`).
 - The underlying `VCODE`s of those 5 stores are NEVER deleted, mutated, or removed, because any store can revert to `stationary` deployment later on.
+- **Mandatory CGCode for All Roving Personnel**: All roving personnel deployed across $N \ge 2$ stores are strictly bound to a `CGCODE`. Roving personnel must never be deployed or imported as independent/unassigned roving without a parent Coverage Group overlay.
 
-### Invariant 4 — Auto-Computed `EMPLOYMENT_TYPE` & Fractional `REQUIRED_HC` ($1/N$)
+### Invariant 4 — Auto-Computed `EMPLOYMENT_TYPE`, Fractional `REQUIRED_HC` ($1/N$) & Universal Automatic Coverage Group (`CGCODE`) Provisioning
 `EMPLOYMENT_TYPE` and `REQUIRED_HC` are removed from required Excel spreadsheet inputs and are computed directly by the database:
 - **Vacant Row** (`EMPLOYEE_NO` blank): Defaults to `stationary` employment type and `1.00` required headcount.
 - **Assigned Employee** (`EMPLOYEE_NO` present): Distinct stores ($N$) assigned to that `EMPLOYEE_NO` across the batch and active allocations are evaluated:
   - If $N = 1 \implies$ `stationary` (`1.00` HC).
   - If $N > 1 \implies$ `roving`, and each assigned store is allocated fractional headcount $1 / N$ (e.g., 5 stores $\implies 0.20$ HC per store).
-  - Standard roving employee assignments ($N \ge 2$) evaluate to `validation_status = 'valid'` with fractional HC $1/N$ and a neutral advisory info note (`Roving · N stores · X.XX HC`). Valid roving assignments are NOT demoted to `flagged`.
+  - Standard roving employee assignments ($N \ge 2$) evaluate to `validation_status = 'valid'` with fractional HC $1/N$ and a neutral advisory info note (`Roving · N stores · X.XX HC · Auto-assigned Coverage Group`). Valid roving assignments are NOT demoted to `flagged`.
   - Batch-blocking errors (e.g. `multiple_vcodes_per_store`) are promoted to `validation_status = 'blocked'`. Purely informational notes remain `valid`. Submission no longer produces batches in `pending_review` status. Batches without blocking errors land directly in `pending_approval`.
   - Pre-upload dry-run validation RPC (`validate_plantilla_baseline_import`) acts as the single source of truth for file validation. If any row is blocked (`blocked_rows > 0`), the entire file is blocked from submission at Upload & Preview. Server-side `submit_plantilla_baseline_import` re-validates the payload and hard-refuses (`RAISE EXCEPTION`) if `blocked_rows > 0`.
-  - Data Team can attach or request a Coverage Group (`CGCODE`) overlay subsequently.
+  - **Universal Automatic Coverage Group (`CGCODE`) Provisioning Invariant**: Regardless of origin (whether initiated via Headcount Request / Coverage Request, Plantilla Baseline Import, HR Emploc Onboarding Deployment, or Store Movement/Transfer), whenever an employee or requisition is assigned across $N \ge 2$ distinct stores (Roving deployment), the system MUST automatically provision or resolve a Coverage Group (`CGCODE`) overlay for that store footprint. Roving employees must never exist as independent or unattached roving without an assigned `CGCODE`. At import approval commit time (`approve_plantilla_import_batch`), any roving employee with $N \ge 2$ stores automatically creates a `coverage_groups` record (if one for that exact store footprint does not already exist) with an auto-generated `coverage_code`, inserts member stores into `coverage_group_stores` (with the primary store designated as anchor and fractional HC share $1/N$), provisions occupied coverage slots, and links `plantilla.coverage_group_id` atomically.
 
 ### Invariant 5 — Multi-Batch Existing `VCODE` Rule & Slot Provisioning
 When uploading Plantilla batches, if a row's `VCODE` already exists in the database:

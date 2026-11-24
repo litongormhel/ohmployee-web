@@ -1,5 +1,62 @@
 # AI Handoff
 
+## Execution Report — Universal Automatic Coverage Group Provisioning and Historical Backtrack (ohm#auto-roving-coverage-group-provisioning-and-backtrack)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
+
+### What Was Built
+1. **User Requirement & Investigation Diagnosis**:
+   - User inquiry: *"Investigate this. Bakit wala syang CGCode? All roving must have a CGCode and dapat makikita sya as Coverage Group not independent kasi in [Screenshot 3] KUNG makikita mo walang nakalagay na Already in CG just like Puregold General Trias"* + *"1. Either by request or via Import dapat automatically nag ccreate sya ng cgcode regardless kung saan sya galing. Put this in ADR 2. FIX ALL stores na dapat merong cgcode. Mag backtrack tayo sa lahat kahit na upload pa yan last June."*
+   - Target Employee: `DELA CRUZ JR, JESSIE GALERO` (`employee_no: 2021-09660`, `plantilla_id: 4dde6cd3-ec31-44ef-b219-c1d7cf6169fe`, Account: `FOREVER OFFICE` / `d0533fbc-3cce-4d0a-a619-ad0539dbc66d`).
+   - Forensic Diagnosis:
+     - Baseline imports (`approve_plantilla_import_batch`) previously computed `deployment_type = 'Roving'` and set fractional HC $1/N$ on `employee_store_allocations`, but never auto-created `coverage_groups` or `coverage_group_stores`, leaving `coverage_group_id = NULL` and `coverage_code = 'Not assigned'`.
+     - In `CreateCoverageGroupModal`, `get_coverage_group_eligible_stores()` checks active rows in `coverage_group_stores`. Because `PUREGOLD CENTENIAL KAWIT` was not in an active group, it had `already_grouped_code = NULL` (no `"Already in CG"` badge).
+2. **Architecture Lock Codified (ADR-002 Invariants 3 & 4)**:
+   - Source ADR updated in mobile repo: `D:\Projects\OHMployee\docs\architecture\adr\01_plantilla.md`.
+   - Committed in mobile repo (`54bd136 docs(adr): codify universal automatic coverage group provisioning (Invariants 3 & 4)`).
+   - Synced to web mirror (`npm run sync:adr`), verified fresh (`npm run check:adr` -> `ADR_MIRROR_STATUS: FRESH`).
+   - Invariant 3 & 4 rule: Any roving employee ($N \ge 2$) strictly requires an official Coverage Group Code (`CGCODE`), regardless of whether they originated via Baseline Batch Import or Operational Requisition. Under no circumstances may a roving employee linger as independent or unassigned.
+3. **Database Migration (`20262606000172_auto_roving_coverage_group_provisioning_and_backtrack.sql`)**:
+   - **Section 0 (Foreign Key Trigger Hardening)**: Altered `trg_ensure_import_roving_group_for_allocation` to fire `BEFORE INSERT OR UPDATE` on `employee_store_allocations`, ensuring updating `roving_group_id` satisfies FK constraint `employee_store_allocations_roving_group_fkey`.
+   - **Section 1 (Historical Backtrack Loop)**:
+     - Scanned all historical active roving employees ($N \ge 2$ stores) across all accounts dating back to June imports.
+     - Grouped employees by `(account_id, store_id_list)` so co-roving employees sharing the exact same store footprint attach to the same Coverage Group (incrementing `required_headcount`).
+     - Minted official account-scoped sequential CGCodes (`CG-<PREFIX>-<SEQ>`, e.g. `CG-FG1-0007`) or joined existing matching footprints.
+     - Inserted member store edges into `public.coverage_group_stores` with 1 anchor store (`is_anchor = true`) and equal fractional `hc_share = 1/N`.
+     - Inserted occupied slot into `public.coverage_slots` (`slot_status = 'active'`, `slot_ordinal = N`).
+     - Updated `public.plantilla`: bound `coverage_slot_id`, set `roving_assignment_id = NULL` (satisfying mutex constraint `plantilla_roving_coverage_mutex_chk`), and set `status = 'Active'`.
+     - Linked stores in `public.plantilla_store_links` where `vcode` is present.
+   - **Section 2 (`public.approve_plantilla_import_batch` Hardening)**:
+     - Updated batch import approval RPC so all future roving employees ($N \ge 2$) automatically mint or join Coverage Groups, create store edges in `coverage_group_stores`, provision occupied slots in `coverage_slots`, bind `plantilla.coverage_slot_id`, and update `already_grouped_code`.
+4. **Live Database Verification on Staging (`qqiiznmqxfoamqytjica`)**:
+   - Applied migration cleanly with 0 errors via `npm run db:push:staging`.
+   - **Target Record Verified**:
+     - `DELA CRUZ JR, JESSIE GALERO` (`2021-09660`): `coverage_code = "CG-FG1-0007"`, `coverage_group_id = "320065df-7630-49df-a2a3-5b151405ca9c"`, `coverage_slot_id = "86c47150-fc9a-4e90-b848-296220b043da"`, `slot_ordinal = 1`, `deployment_type = "Roving"`.
+     - Member stores: `PUREGOLD CENTENIAL KAWIT` (anchor, 0.50 HC, `already_grouped_code = "CG-FG1-0007"`) and `EMILUS TANZA` (0.50 HC, `already_grouped_code = "CG-FG1-0007"`).
+     - In `CreateCoverageGroupModal`, `PUREGOLD CENTENIAL KAWIT` and `EMILUS TANZA` now display badge `Already in CG-FG1-0007`.
+   - **System-Wide Historical Backtrack Verified**:
+     - 48 active roving employees across historical accounts backfilled with official CGCodes:
+       - `MARIZ`: `CG-MG1-0004` to `CG-MG1-0017` (14 roving groups).
+       - `KAMBAK`: `CG-KG3-0002` to `CG-KG3-0013` (12 roving groups).
+       - `BANCON`: `CG-BG2-0001` to `CG-BG2-0004` (4 roving groups).
+       - `SUPER 8`: `CG-SG1-0001` to `CG-SG1-0008` (8 roving groups).
+       - `FOREVER OFFICE`: `CG-FG1-0007` (Jessie Dela Cruz).
+5. **Quality & Test Verification**:
+   - ADR fresh check: `npm run check:adr` (ADR_MIRROR_STATUS: FRESH).
+   - Unit tests: passed 263/263 unit tests across 14 test suites (`npm test`).
+   - ESLint: 0 errors, 0 warnings (`npm run lint`).
+   - Secrets check: 0 credential leaks (`node scripts/check-secrets.mjs`).
+   - SQL Contracts: 0 errors across 28 core tables & 19 cross-module RPC contracts (`node scripts/check-sql-contracts.mjs`).
+
+### Files
+- `supabase/migrations/20262606000172_auto_roving_coverage_group_provisioning_and_backtrack.sql` — Migration auto-provisioning Coverage Groups on import and historically backtracking all roving employees.
+- `docs/architecture/_mirror/adr/01_plantilla.md` — Synced ADR-002 Invariants 3 & 4 from mobile source repo.
+- `docs/state/plantilla_web_state.md` — Added Rule #28: Universal Automatic Coverage Group Provisioning & Historical Backtrack.
+- `.ai/briefing.md` — Prepended task to Last Completed Tasks.
+- `.ai/current_state.md` — Added update log.
+- `.ai/handoff.md` — Prepended handoff report.
+
+---
+
 ## Execution Report — Fix Coverage Group Dropdown Visibility Across Operations and Resolve Roving Vacancy Suppression (ohm#fix-coverage-group-dropdown-visibility-and-vacancy-suppression)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated & Locally Tested
 
