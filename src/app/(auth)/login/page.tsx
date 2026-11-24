@@ -1,6 +1,6 @@
 // app/(auth)/login/page.tsx
 'use client'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -17,6 +17,11 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const isConfigured = isSupabaseConfigured()
+  const configError = !isConfigured
+    ? 'Supabase client is not configured: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are missing in this environment. Please configure them in Vercel Project Settings > Environment Variables.'
+    : null
+
   useEffect(() => {
     // Ensure login view defaults to light mode and clears stale system theme
     try {
@@ -31,6 +36,7 @@ export default function LoginPage() {
 
     async function redirectAuthenticatedUser() {
       try {
+        if (!isSupabaseConfigured()) return
         const supabase = createClient()
         const { data, error } = await supabase.auth.getSession()
 
@@ -58,22 +64,31 @@ export default function LoginPage() {
     event.preventDefault()
     setIsSubmitting(true)
     setError('')
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setIsSubmitting(false)
-      return setError(error.message)
-    }
 
-    // Reset theme to light mode and clear stale query cache on new login
     try {
-      localStorage.setItem('ohmployee_theme_mode', 'light')
-      window.dispatchEvent(new Event('ohmployee-theme-change'))
-      queryClient.clear()
-    } catch {}
+      const supabase = createClient()
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) {
+        setIsSubmitting(false)
+        return setError(signInError.message)
+      }
 
-    router.replace('/vacancy')
-    router.refresh()
+      // Reset theme to light mode and clear stale query cache on new login
+      try {
+        localStorage.setItem('ohmployee_theme_mode', 'light')
+        window.dispatchEvent(new Event('ohmployee-theme-change'))
+        queryClient.clear()
+      } catch {}
+
+      router.replace('/vacancy')
+      router.refresh()
+    } catch (err) {
+      setIsSubmitting(false)
+      const message =
+        err instanceof Error ? err.message : 'An unexpected error occurred during sign in.'
+      console.error('[login] Sign in failure:', err)
+      setError(message)
+    }
   }
 
   return (
@@ -103,6 +118,16 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-surface-base border border-border-default rounded-2xl shadow-xl p-8 space-y-6 backdrop-blur-md">
+          {configError && (
+            <div className="flex items-start gap-3 rounded-lg border border-status-danger-border bg-status-danger-bg p-3.5 text-sm text-status-danger-text">
+              <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold">Configuration Error</p>
+                <p className="text-xs leading-relaxed">{configError}</p>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="flex items-center gap-3 rounded-lg border border-status-danger-border bg-status-danger-bg p-3.5 text-sm text-status-danger-text">
               <AlertCircle className="h-5 w-5 shrink-0" />
@@ -167,7 +192,7 @@ export default function LoginPage() {
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || Boolean(configError)}
                 className="w-full h-11 inline-flex items-center justify-center rounded-lg bg-brand-600 text-white font-medium text-sm transition-all hover:bg-brand-700 active:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50 shadow-md shadow-brand-600/10 cursor-pointer"
               >
                 {isSubmitting ? (

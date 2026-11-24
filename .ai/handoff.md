@@ -1,5 +1,56 @@
 # AI Handoff
 
+## Execution Report — Fix Login Hanging on "Signing In..." and Surface Missing Hosting Env Guard (ohm#fix-login-hanging-and-surface-missing-env-guard)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Locally Tested
+
+### Root Cause Diagnosis
+1. **Hosting Environment Investigation**:
+   - Inspected live production deployment at `https://ohmployee-web.vercel.app`.
+   - Downloaded and analyzed the live client bundle chunks (`/_next/static/chunks/0j_ybxiq3~rlj.js`).
+   - In Next.js App Router (Turbopack), `process.env.NEXT_PUBLIC_*` values are statically inlined during `next build` only if defined in the build environment.
+   - Forensic analysis of chunk `0j_ybxiq3~rlj.js` revealed:
+     ```js
+     let e = g.default.env.NEXT_PUBLIC_SUPABASE_URL?.trim(),
+         t = g.default.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+     if (!e || !t || !isValidHttpUrl(e)) {
+       let e = "[supabase] Missing or invalid NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY. Please verify your environment (.env) configuration.";
+       throw console.error(e), Error(e);
+     }
+     ```
+   - In the deployed Vercel build, `NEXT_PUBLIC_SUPABASE_URL` was compiled as a runtime property lookup `g.default.env.NEXT_PUBLIC_SUPABASE_URL` instead of an inlined string literal because `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` were not defined in Vercel's Environment Variables during the build. In the browser, `g.default.env.NEXT_PUBLIC_SUPABASE_URL` evaluates to `undefined`.
+2. **Frontend Unhandled Promise Rejection & Infinite Spinner Lockup**:
+   - In `src/app/(auth)/login/page.tsx`, `handleLogin` previously invoked `setIsSubmitting(true)` immediately, and then called `const supabase = createClient()` outside of any `try ... catch` block.
+   - When `createClient()` threw `[supabase] Missing or invalid NEXT_PUBLIC_SUPABASE_URL...`, the uncaught exception crashed the event handler.
+   - `setIsSubmitting(false)` was never reached.
+   - `setError(error.message)` was never set.
+   - The submit button was left permanently in its loading state: `<span className="animate-spin..." /> Signing in...` indefinitely.
+
+### What Was Built
+1. **Try-Catch Error Resilience in `LoginPage`**:
+   - In `src/app/(auth)/login/page.tsx`, wrapped `handleLogin` in full `try ... catch` error handling.
+   - If `createClient()` or `supabase.auth.signInWithPassword()` throws, `setIsSubmitting(false)` is reliably invoked, error messages are surfaced in the UI danger banner, and the UI never freezes on "Signing in...".
+2. **Proactive Configuration Alert**:
+   - Added `isConfigured` derivation using `isSupabaseConfigured()`.
+   - If environment credentials are missing in the current hosting environment, an explicit amber/red alert banner renders immediately:
+     `"Configuration Error: Supabase client is not configured: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are missing in this environment. Please configure them in Vercel Project Settings > Environment Variables."`
+   - The submit button is gracefully disabled (`disabled={isSubmitting || Boolean(configError)}`), preventing users from submitting against an unconfigured backend.
+3. **Quality & Verification**:
+   - `npm test`: 263/263 unit tests passed across 14 test suites.
+   - `npm run lint`: 0 ESLint errors, 0 warnings.
+   - `npm run check:secrets`: 0 credential leaks detected.
+   - `npm run check:sql`: 0 SQL contract violations across 28 core tables & 19 cross-module RPC contracts.
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run build`: Clean Next.js 16.2.4 (Turbopack) production build generated.
+
+### Files Changed
+- `src/app/(auth)/login/page.tsx` — Wrapped `handleLogin` in try/catch, derived `isSupabaseConfigured()`, surfaced configuration error banner, and prevented button lockup.
+- `docs/state/web_auth_rbac_state.md` — Updated login page and Supabase client documentation.
+- `.ai/briefing.md` — Prepended completed task to Last Completed Tasks.
+- `.ai/handoff.md` — Prepended execution report.
+- `.ai/current_state.md` — Logged update in Recent Updates.
+
+---
+
 ## Execution Report — Synchronize pnpm-lock.yaml and package-lock.json with package.json for Vercel Frozen Lockfile CI Deployments (ohm#sync-pnpm-lockfile-for-vercel-ci)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Frozen Lockfile CI Validated & Locally Tested
 
