@@ -29,8 +29,8 @@ export interface SignupPayload {
   password: string;
   firstName: string;
   lastName: string;
-  middleName?: string;
-  mobileNumber?: string;
+  middleName: string;
+  mobileNumber: string;
   requestedRoleId: string;
   groupIds: string[];
   accountIds: string[];
@@ -115,7 +115,8 @@ export async function submitAccountRequest(payload: SignupPayload): Promise<void
 
   const normalizedFirst = payload.firstName.trim();
   const normalizedLast = payload.lastName.trim();
-  const normalizedMiddle = payload.middleName?.trim() || "";
+  const normalizedMiddle = payload.middleName.trim();
+  const normalizedMobile = payload.mobileNumber.trim();
   const fullName = [normalizedFirst, normalizedMiddle, normalizedLast]
     .filter(Boolean)
     .join(" ");
@@ -127,12 +128,12 @@ export async function submitAccountRequest(payload: SignupPayload): Promise<void
       data: {
         first_name: normalizedFirst,
         last_name: normalizedLast,
-        middle_name: normalizedMiddle || null,
+        middle_name: normalizedMiddle,
         full_name: fullName,
         requested_role_id: payload.requestedRoleId,
         group_ids: payload.groupIds,
         account_ids: payload.accountIds,
-        mobile_number: payload.mobileNumber?.trim() || null,
+        mobile_number: normalizedMobile,
         notes: payload.notes?.trim() || null,
       },
     },
@@ -149,8 +150,8 @@ export async function submitAccountRequest(payload: SignupPayload): Promise<void
       await supabase.rpc("fn_enrich_account_request", {
         p_last_name: normalizedLast,
         p_first_name: normalizedFirst,
-        p_middle_name: normalizedMiddle || null,
-        p_mobile_number: payload.mobileNumber?.trim() || null,
+        p_middle_name: normalizedMiddle,
+        p_mobile_number: normalizedMobile,
         p_requested_role_id: payload.requestedRoleId,
         p_group_ids: payload.groupIds,
         p_account_ids: payload.accountIds,

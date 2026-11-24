@@ -121,6 +121,23 @@ export default function SignUpPage() {
       return;
     }
 
+    if (!middleName.trim()) {
+      setError("Middle name is required.");
+      return;
+    }
+
+    const normalizedMobile = mobileNumber.trim().replace(/[-\s]/g, "");
+    if (!normalizedMobile) {
+      setError("Mobile number is required.");
+      return;
+    }
+
+    const phMobileRegex = /^09\d{9}$/;
+    if (!phMobileRegex.test(normalizedMobile)) {
+      setError("Mobile number must be a valid 11-digit Philippine mobile number starting with 09 (e.g. 09171234567).");
+      return;
+    }
+
     if (password.length < 6) {
       setError("Password must be at least 6 characters long.");
       return;
@@ -154,8 +171,8 @@ export default function SignUpPage() {
         password,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        middleName: middleName.trim() || undefined,
-        mobileNumber: mobileNumber.trim() || undefined,
+        middleName: middleName.trim(),
+        mobileNumber: normalizedMobile,
         requestedRoleId: selectedRoleId,
         groupIds: selectedGroupIds,
         accountIds: requiresAccounts ? selectedAccountIds : [],
@@ -339,9 +356,10 @@ export default function SignUpPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-text-secondary">
-                        Middle Name <span className="text-text-muted font-normal">(Optional)</span>
+                        Middle Name <span className="text-danger-text">*</span>
                       </label>
                       <input
+                        required
                         type="text"
                         placeholder="Santos"
                         value={middleName}
@@ -352,13 +370,14 @@ export default function SignUpPage() {
 
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-text-secondary">
-                        Mobile Number <span className="text-text-muted font-normal">(Optional)</span>
+                        Mobile Number <span className="text-danger-text">*</span>
                       </label>
                       <div className="relative">
                         <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">
                           <Phone className="h-4 w-4" />
                         </div>
                         <input
+                          required
                           type="tel"
                           placeholder="09171234567"
                           value={mobileNumber}

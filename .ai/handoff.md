@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — Require Middle Name and Mobile Number on Web Account Sign-Up (ohm#require-middle-name-and-mobile-number-on-signup)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean
+
+### What Was Built
+1. **User Request Alignment**:
+   - User request: "Make Middle name and Mobile number required"
+   - User attached screenshot of `/signup` form highlighting `Middle Name (Optional)` and `Mobile Number (Optional)`.
+2. **Form Validation & UI Updates**:
+   - `src/app/(auth)/signup/page.tsx`:
+     - Changed Middle Name label to `Middle Name <span className="text-danger-text">*</span>` and marked input with `required`.
+     - Changed Mobile Number label to `Mobile Number <span className="text-danger-text">*</span>` and marked input with `required`.
+     - Added strict validation checks in `handleSubmit`:
+       - Requires non-empty `middleName.trim()`.
+       - Strips hyphens and spaces from `mobileNumber.trim()` to normalize mobile input (`normalizedMobile`).
+       - Validates normalized mobile format against Philippine mobile number regex `/^09\d{9}$/`.
+     - Passes normalized `middleName` and `normalizedMobile` into `submitAccountRequest`.
+   - `src/lib/queries/signup.ts`:
+     - Updated `SignupPayload` interface: `middleName: string; mobileNumber: string;` strictly required.
+     - Updated `submitAccountRequest` to send normalized `middle_name` and `mobile_number` to `supabase.auth.signUp` metadata and `fn_enrich_account_request`.
+   - `docs/state/web_auth_rbac_state.md`:
+     - Updated `/signup` specification documenting mandatory First Name, Last Name, Middle Name, and Mobile Number fields.
+3. **Verification**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 credential leaks.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 661 migrations.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run build`: Clean Next.js 16.2.4 Turbopack production build.
+
+### Files
+- `src/app/(auth)/signup/page.tsx`
+- `src/lib/queries/signup.ts`
+- `docs/state/web_auth_rbac_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
 ## Execution Report — Add Web Account Sign-Up, Forgot Password, and Admin Tools Governance Toggle (ohm#add-web-account-signup-and-admin-tools-toggle)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean
 
