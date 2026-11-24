@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — Remove Admin Tools Sign-Up Top Banner & Fix Light Mode Action Button Contrast (ohm#remove-signup-banner-and-fix-lightmode-button)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean
+
+### What Was Built
+1. **User Request Alignment**:
+   - User request: "remove this ACCOUNT SIGN-UP: ENABLED sa taas okay na ung nasa baba nya. Also fix this hindi kita ang button kapag naka light mode"
+   - User attached 2 screenshots:
+     - Screenshot 1: Banner card `Account Sign-Up: ENABLED` at the top of Tab 2: Admin Tools in `/more`.
+     - Screenshot 2: `AccountSignupControlModal` in light mode showing the `Disable Account Sign-Up` action button washed out / invisible with white text on an unstyled background.
+2. **Implementation & Fixes**:
+   - `src/app/(dashboard)/more/page.tsx`:
+     - Removed the top banner card (`Quick Registration Status Card` / `Account Sign-Up: ENABLED`) from Tab 2: Admin Tools.
+     - Kept the canonical `Account Sign-Up Control` tile in the command grid below (`visibleAdminTiles`), which cleanly opens the modal on click.
+   - `src/components/more/AccountSignupControlModal.tsx`:
+     - Fixed missing background class `bg-danger-solid` on the Disable button.
+     - Styled with solid, high-contrast Tailwind classes:
+       - Disable button: `bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-rose-600/20`
+       - Enable button: `bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-emerald-600/20`
+     - Guarantees 100% text/icon contrast and visibility in both Light Mode and Dark Mode.
+   - `docs/state/more_state.md`:
+     - Updated Admin Tools documentation reflecting tile-based activation without top banner clutter.
+3. **Verification**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 credential leaks.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 661 migrations.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run build`: Clean Next.js 16.2.4 Turbopack production build.
+
+### Files
+- `src/app/(dashboard)/more/page.tsx`
+- `src/components/more/AccountSignupControlModal.tsx`
+- `docs/state/more_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
 ## Execution Report — Reposition Forgot Password Link Below Password Input on Login Screen (ohm#reposition-forgot-password-link)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean
 

@@ -204,7 +204,7 @@ export function AccountSignupControlModal({
                 type="button"
                 onClick={() => handleToggle(false)}
                 disabled={updateGovMutation.isPending || isLoading}
-                className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-danger-solid hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-md shadow-danger-solid/10 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 disabled:opacity-50 transition-all cursor-pointer shadow-md shadow-rose-600/20 flex items-center justify-center gap-2"
               >
                 {updateGovMutation.isPending ? (
                   <>
