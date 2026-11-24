@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Core. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/00_core_invariants.md
-source_commit: 0eb4407 2026-11-23T23:02:59+08:00
-source_sha256: 3f4f940153e53ea4cac1eabb5c5280329db34718b923f1fdf59dd680cc8e66f4
-synced_at: 2026-11-24T14:06:22.657Z
+source_commit: 6597a97 2026-11-24T22:45:26+08:00
+source_sha256: af1935f7c7eba1ce06e47101f8bd378daf8c1a0468d9eed1980a8b903916058e
+synced_at: 2026-11-24T14:45:45.829Z
 -->
 # ADR Architecture — Core Cross-Module Invariants
 
@@ -39,7 +39,7 @@ The 5 SA-gated admin/QA bulk archive functions (`fn_archive_*`, `fn_qa_*`, `fn_r
 
 **Module scope:** Cross-module derived read. Source of truth lives in Plantilla; consumed by Vacancy, Dashboard, CENCOM, HR Emploc, and Onboarding.
 
-`hired_count` derives STRICTLY from `plantilla.status = 'Active'` per VCode, filtered to active occupants only. No other source (applicant status, `hc_filled`, view fallbacks) may contribute to a Hired count. A Confirmed-Onboard applicant not yet in Plantilla counts nowhere — its slot sits `hr_processing`, not hired. When an employee is tagged Inactive (Resigned, AWOL, Terminated, Endo, Backout, etc.), `hired_count` drops immediately and the slot/vacancy reopens.
+`hired_count` derives STRICTLY from `plantilla.status = 'Active'` per VCode, filtered to active occupants only. No other source (applicant status, `hc_filled`, view fallbacks) may contribute to a Hired count. A Confirmed-Onboard applicant not yet in Plantilla counts nowhere — its slot sits `hr_processing`, not hired. When an employee is tagged Inactive (Resigned, AWOL, Terminated, Endo, Backout, etc.), `hired_count` drops immediately and the slot/vacancy reopens. *(Anti-Dual-Existence Clarification: In Plantilla employee rosters, only `plantilla.status = 'Active'` counts as deployed employees. However, within Vacancy queue classification, a requisition whose confirmed onboards in HR Emploc + active plantilla meet `required_headcount` evaluates to `'Hired'` tab to permanently prevent zero-capacity requisitions from lingering in Open).*
 
 ### Rule 3 — Lifecycle Sync
 

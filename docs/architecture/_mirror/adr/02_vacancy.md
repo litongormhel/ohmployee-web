@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Vacancy. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/02_vacancy.md
-source_commit: e9a7944 2026-11-24T22:06:19+08:00
-source_sha256: 395b76e80da48c2292620c3cac570c59d9300f891c3d94efe4c2a22cce571cfc
-synced_at: 2026-11-24T14:06:23.029Z
+source_commit: 6597a97 2026-11-24T22:45:26+08:00
+source_sha256: 233ecac3cecf8546b9d89d93a8cdc49bcc8bc449029e42708d9d411ece83ad92
+synced_at: 2026-11-24T14:45:46.178Z
 -->
 # Vacancy Module Architecture
 
@@ -111,6 +111,21 @@ To eliminate operational ambiguity between Open, Pipeline, and Available capacit
 3. **Hired Auto-Archive 30-Day Governance**:
    - Fulfilled requisitions / confirmed onboards remain visible in the **Hired Tab** for an operational auditing window of **30 calendar days**.
    - Database sweep function `fn_archive_hired_vacancies` automatically transitions records with `a.hired_at < NOW() - INTERVAL '30 days'` to `is_archived = true`, `status = 'Archived'`, cleanly archiving completed historical hiring cycles while preserving full audit history.
+
+### Cross-Module Dual-Existence Prohibition Invariant (Anti-Dual-Existence Lock)
+
+**Status: ACCEPTED.** A store requisition code (`VCode`) CANNOT simultaneously exist across two operational modules (e.g. Vacancy Open Tab AND HR Emploc) unless the position has remaining unallocated capacity (`required_headcount > 1`):
+
+1. **Single-Slot Vacancies (`required_headcount = 1`)**:
+   - The moment an applicant reaches **Confirmed Onboard** (`applicants.status = 'Confirmed Onboard'`), they transition into **HR Emploc** (`public.hr_emploc` in `Pending Emploc` / `Pending`).
+   - The single available slot is fully consumed (`hr_processing_count = 1`, `remaining_open = 0`).
+   - The requisition **MUST immediately vacate the Open Tab and evaluate to `Hired`** (`derived_status = 'Hired'`), appearing strictly in **Tab 3 (Hired)**.
+   - It is **HARD-BLOCKED** from appearing in the Vacancy Open Tab while active in HR Emploc.
+2. **Multi-Headcount Requisitions (`required_headcount > 1`)**:
+   - A VCode may only appear simultaneously across Vacancy Open and HR Emploc if unfilled capacity remains:
+     $$\text{Remaining Open Capacity} = (\text{hc\_total} - \text{hc\_filled} - \text{hr\_processing\_count} - \text{active\_applicant\_count}) > 0$$
+3. **Plantilla as the Sole Source of Truth Exception**:
+   - Plantilla (`/plantilla`) is the ultimate organizational master record. All slots across the organization (whether deployed in active Plantilla or in onboarding/recruitment) map to Plantilla physical slots (`plantilla_slots`).
 
 **7th revision (`ohm#w8r4n2yj`, 2026-08-04):** added `hr_processing_count` as a third subtraction term. Rationale: a Confirmed-Onboard/HIRED applicant sitting in `plantilla_slots.slot_status = 'hr_processing'` (awaiting Employee Number, before reaching `Plantilla.status = 'Active'`) was previously counted in NEITHER `hired_count` NOR `pipeline_count` — a real population, already exposed as `hr_processing_count` in `vw_slot_derived_vacancy_shadow`, that business confirms is effectively already hired and not truly vacant. No SQL change required — the column already existed in the view; only `VacancyItem.remainingOpenCount` (`models.dart`) and Dashboard's parallel raw-map formula (`dashboard_screen.dart`) were updated.
 

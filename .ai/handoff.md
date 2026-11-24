@@ -1,5 +1,40 @@
 # AI Handoff
 
+## Execution Report — Codify Cross-Module Dual-Existence Prohibition Invariant in ADR and Sync Mirrors (ohm#codify-dual-existence-prohibition-in-adr)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Committed in Mobile Source of Truth & Mirrors Synced
+
+### What Was Done
+1. **Source of Truth ADR Codification (`D:\Projects\OHMployee`)**:
+   - Added `### Cross-Module Dual-Existence Prohibition Invariant (Anti-Dual-Existence Lock)` directly into `docs/architecture/adr/02_vacancy.md`:
+     - Single-slot VCodes (`required_headcount = 1`) cannot exist across Vacancy Open and HR Emploc simultaneously. Once confirmed onboard, the requisition must evaluate to `Hired` and leave Open.
+     - Multi-slot requisitions (`required_headcount > 1`) only appear in Open if unfilled open capacity remains.
+     - Affirmed Plantilla as the ultimate master source of truth.
+   - Updated `docs/architecture/adr/00_core_invariants.md` Rule 2 to add the anti-dual-existence clarification reconciling Plantilla active employee headcount with Vacancy queue `Hired` classification.
+   - Committed changes to mobile repo: `6597a97`.
+2. **Web Repository Mirror Synchronization (`ohmployee-web`)**:
+   - Ran `npm run sync:adr` (`scripts/adr-mirror.mjs sync`), syncing all mirrors to `6597a97`.
+   - Verified `npm run check:adr` reports `ADR_MIRROR_STATUS: FRESH`.
+3. **Verification**:
+   - 264/264 unit tests passed (`npm test`).
+   - 0 ESLint errors/warnings (`npm run lint`).
+   - 0 secret leaks (`check:secrets`).
+   - 0 SQL contract errors (`check:sql`).
+
+### Files Changed
+- `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md`
+- `docs/architecture/_mirror/adr/00_core_invariants.md`
+- `docs/architecture/_mirror/adr/01_plantilla.md`
+- `docs/architecture/_mirror/adr/02_vacancy.md`
+- `docs/architecture/_mirror/adr/03_hr_emploc.md`
+- `docs/architecture/_mirror/adr/04_approvals_requisitions.md`
+- `docs/architecture/_mirror/adr/05_more_module.md`
+- `docs/architecture/_mirror/adr/06_dashboard_cencom.md`
+- `docs/architecture/_mirror/adr/README.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Fix Confirmed Onboard Candidates Lingering in Vacancy Open & Synchronize HR Processing (ohm#fix-vacancy-open-onboard-dual-existence-and-hr-processing-sync)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
 
