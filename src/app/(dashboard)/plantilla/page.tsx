@@ -1044,10 +1044,6 @@ function PlantillaPageContent() {
   const filteredDeactivationEmployees = useMemo(() => deactivationEmployees.filter(filterEmployee), [deactivationEmployees, filterEmployee]);
   const filteredInactiveEmployees = useMemo(() => inactiveEmployees.filter(filterEmployee), [inactiveEmployees, filterEmployee]);
 
-  const totalVacanciesSlots = useMemo(() => {
-    return allVacancies.reduce((sum, v) => sum + getVacancyRemainingCapacity(v), 0);
-  }, [allVacancies]);
-
   const filteredVacancies = useMemo(() => {
     return allVacancies.filter((v) => {
       const stage = resolveVacancyWorkflowStage(v);
@@ -1519,15 +1515,7 @@ function PlantillaPageContent() {
   const floatingCount = floatingEmployees.length;
   const deactivationCount = deactivationEmployees.length;
   const inactiveCount = inactiveEmployees.length;
-  const uniqueVacancyCodesCount = useMemo(() => {
-    const set = new Set<string>();
-    allVacancies.forEach((v) => {
-      const k = (v.vcode || v.cgCode || v.parentVacancyId || v.id).trim().toUpperCase();
-      if (k) set.add(k);
-    });
-    return set.size;
-  }, [allVacancies]);
-  const vacancyCount = uniqueVacancyCodesCount > 0 ? uniqueVacancyCodesCount : (summaryData?.vacant ?? 0);
+  const vacancyCount = allVacancies.length > 0 ? allVacancies.length : (summaryData?.vacant ?? 0);
 
   // Active view pagination
   const currentTabRows =
@@ -1914,7 +1902,6 @@ function PlantillaPageContent() {
               activeCount={activeCount}
               onLeaveCount={onLeaveCount}
               vacancyCount={vacancyCount}
-              totalVacanciesSlots={totalVacanciesSlots}
               floatingCount={floatingCount}
               deactivationCount={deactivationCount}
               inactiveCount={inactiveCount}

@@ -1,5 +1,34 @@
 # AI Handoff
 
+## Execution Report — Align Plantilla Vacancy Tab Badge Directly to Total Rendered Slot Count (ohm#align-plantilla-vacancy-tab-badge-to-slot-count)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Locally Tested
+
+### What Was Built
+1. **User Requirement & Visual Alignment**:
+   - User noted on Plantilla Tab 3: *"so Vacancy should be 5 not 3. Vacancy (5) << this should be the count."*
+   - Under Option A Standard (1 Row = 1 Slot Granularity), every physical slot renders as its own individual table row (5 rows: ACT-G5-002, BUN-GHQ-00015, and 3 rows for VCAG5_0056).
+   - The tab badge previously displayed a composite requisition counter `3 (5 slots)`, which clashed with all sibling tabs that simply render their total item count as a number (`Active 4`, `On-Leave 0`, `Floating 0`, `Deactivation 1`, `Inactive 3`).
+2. **Tab Count & Toolbar Normalization**:
+   - In `src/app/(dashboard)/plantilla/page.tsx`, updated `vacancyCount` to derive directly from `allVacancies.length > 0 ? allVacancies.length : (summaryData?.vacant ?? 0)`.
+   - In `src/components/plantilla/directory/PlantillaFilterToolbar.tsx`, simplified the Vacancy tab badge to render `{vacancyCount}` directly inside the standard pill badge, rendering `5`.
+   - Removed unused intermediate calculations (`uniqueVacancyCodesCount` and `totalVacanciesSlots`).
+3. **Verification**:
+   - Unit tests: passed all 263 unit tests across 14 test suites (`npm test`).
+   - ESLint: 0 errors, 0 warnings (`npm run lint`).
+   - Secrets: 0 credential leaks (`npm run check:secrets`).
+   - SQL Contracts: verified 28 core tables & 19 cross-module RPC contracts across 695 migrations (`npm run check:sql`).
+   - Build: clean Next.js 16.2.4 (Turbopack) production build (`npm run build`).
+
+### Files
+- `src/app/(dashboard)/plantilla/page.tsx` — Derived `vacancyCount` from `allVacancies.length`.
+- `src/components/plantilla/directory/PlantillaFilterToolbar.tsx` — Streamlined badge to render `{vacancyCount}` directly.
+- `docs/state/plantilla_web_state.md` — Updated Rule #25 & Rule #26 documentation.
+- `.ai/briefing.md` — Prepended prompt to Last Completed Tasks.
+- `.ai/handoff.md` — Prepended handoff report.
+- `.ai/current_state.md` — Added update log.
+
+---
+
 ## Execution Report — Implement Multi-Position Vacancy Intake, Disambiguation Parity, and Strict Slot Quota Bounds (ohm#multi-position-vacancy-intake-and-slot-quota-bounds)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Locally Tested
 

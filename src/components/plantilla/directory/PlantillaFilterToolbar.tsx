@@ -25,7 +25,6 @@ export interface PlantillaFilterToolbarProps {
   activeCount: number;
   onLeaveCount: number;
   vacancyCount: number;
-  totalVacanciesSlots: number;
   floatingCount: number;
   deactivationCount: number;
   inactiveCount: number;
@@ -49,7 +48,6 @@ export function PlantillaFilterToolbar({
   activeCount,
   onLeaveCount,
   vacancyCount,
-  totalVacanciesSlots,
   floatingCount,
   deactivationCount,
   inactiveCount,
@@ -145,15 +143,8 @@ export function PlantillaFilterToolbar({
                     ? "bg-brand-button text-white"
                     : "bg-surface-muted text-text-secondary border border-border-default"
                 }`}
-                title={
-                  totalVacanciesSlots > 0 && totalVacanciesSlots !== vacancyCount
-                    ? `${totalVacanciesSlots} slots across ${vacancyCount} requisitions`
-                    : undefined
-                }
               >
-                {totalVacanciesSlots > 0 && totalVacanciesSlots !== vacancyCount
-                  ? `${vacancyCount} (${totalVacanciesSlots} slots)`
-                  : vacancyCount}
+                {vacancyCount}
               </span>
             </button>
 
