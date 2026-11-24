@@ -2,6 +2,7 @@
 'use client'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -134,6 +135,12 @@ export default function LoginPage() {
                 <label className="text-xs font-semibold text-text-secondary">
                   Password
                 </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline transition-colors"
+                >
+                  Forgot password?
+                </Link>
               </div>
               <div className="relative">
                 <div className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted flex items-center justify-center">
@@ -172,6 +179,18 @@ export default function LoginPage() {
                   'Sign In'
                 )}
               </button>
+            </div>
+
+            <div className="text-center pt-2">
+              <span className="text-xs text-text-secondary">
+                Don&apos;t have an account?{' '}
+                <Link
+                  href="/signup"
+                  className="font-semibold text-brand-600 hover:text-brand-700 hover:underline transition-colors"
+                >
+                  Request Account
+                </Link>
+              </span>
             </div>
           </form>
         </div>

@@ -1,5 +1,61 @@
 # AI Handoff
 
+## Execution Report — Add Web Account Sign-Up, Forgot Password, and Admin Tools Governance Toggle (ohm#add-web-account-signup-and-admin-tools-toggle)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean
+
+### What Was Built
+1. **User Request Alignment**:
+   - "ADD account sign-up to web but add mo sa Admin Tools na pwede ko i on or off ang pag sign-up. Also forgot password na din. Make sure that na makakapag sign-up ang mga users"
+   - User attached login screen mockup requiring "Forgot password?" and "Request Account" registration link.
+2. **Backend Architecture & Migration (`20262606000167`)**:
+   - `supabase/migrations/20262606000167_wire_account_registration_governance_and_signup_guard.sql`:
+     - Wired governance control `account_registration` via `fn_check_governance_control('account_registration')` into `handle_new_auth_user()` trigger. When paused, raises `P0001: Account registration is temporarily closed by system administrator.`
+     - Enhanced `public.get_request_account_signup_options()` to return `is_registration_enabled` boolean while preserving all non-admin roles (`role_level < 90`), active groups, and accounts.
+     - Added public read RPC `public.is_account_signup_enabled()` returning boolean, granted to `anon` and `authenticated`.
+     - Validated and pushed cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging` with 0 errors.
+3. **Frontend Implementation**:
+   - `src/lib/queries/signup.ts`:
+     - Implemented `fetchAccountSignupStatus`, `useAccountSignupStatus`, `fetchSignupOptions`, `useSignupOptions`, and `submitAccountRequest` with full metadata payload (`first_name`, `last_name`, `requested_role_id`, `group_ids`, `account_ids`, etc.) matching `handle_new_auth_user()` trigger schema.
+     - Implemented `sendPasswordResetEmail` and `updateUserPassword` using standard Supabase Auth methods.
+   - `src/components/more/AccountSignupControlModal.tsx`:
+     - Super Admin Level 100 control modal allowing 1-click Enable / Disable of public account registration with mandatory audited reason logging via `fn_update_governance_control('account_registration')`.
+   - `src/app/(dashboard)/more/page.tsx`:
+     - Added `account_signup_control` tile to `adminTiles` under Tab 2: Admin Tools.
+     - Added a live **Account Sign-Up Governance Card** at the top of the Admin Tools tab showing real-time status (`ACTIVE / ENABLED` vs `PAUSED / DISABLED`), last updated timestamp, reason, and quick action button.
+   - `src/app/(auth)/login/page.tsx`:
+     - Added "Forgot password?" link next to Password field label.
+     - Added "Don't have an account? Request Account" link below the Sign In button.
+   - `src/app/(auth)/forgot-password/page.tsx`:
+     - Dedicated page allowing users to request password recovery email with OHMployee branding, email format validation, and success state.
+   - `src/app/(auth)/reset-password/page.tsx`:
+     - Dedicated page allowing users to set a new password from Supabase recovery email link with password confirmation, eye toggle, and success screen.
+   - `src/app/(auth)/signup/page.tsx`:
+     - Dedicated page allowing users to submit new account requests.
+     - Reactively checks `is_account_signup_enabled`: if paused, renders a clear pause notice with "Back to Login".
+     - Dynamically populates non-admin roles, groups (multi-select for Recruitment, single for others), and conditional accounts.
+     - Submits account request with metadata, runs non-fatal enrichment, immediately signs out session, and presents clear confirmation screen explaining request is under administrator review.
+4. **Verification**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 credential leaks.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 661 migrations.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run build`: Clean Next.js 16.2.4 Turbopack production build with all routes compiled including `/signup`, `/forgot-password`, `/reset-password`.
+
+### Files Modified / Created
+- `supabase/migrations/20262606000167_wire_account_registration_governance_and_signup_guard.sql`
+- `src/lib/queries/signup.ts`
+- `src/components/more/AccountSignupControlModal.tsx`
+- `src/app/(dashboard)/more/page.tsx`
+- `src/app/(auth)/login/page.tsx`
+- `src/app/(auth)/signup/page.tsx`
+- `src/app/(auth)/forgot-password/page.tsx`
+- `src/app/(auth)/reset-password/page.tsx`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+- `docs/state/more_state.md`
+- `docs/state/web_auth_rbac_state.md`
+
 ## Execution Report — Standardize Plantilla Vacancy Stage Badges & Pending Closure Capacity Preservation (ohm#standardize-plantilla-vacancy-stages-and-pending-closure)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean
 

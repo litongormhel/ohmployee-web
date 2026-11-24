@@ -29,6 +29,7 @@ This document captures the current stable architecture and navigation contract f
      - *OM Access Invariant*: Operations Managers (OM) do not have access to the `data_control` tab, so the `Payroll Review Center` shortcut is surfaced in Overview exclusively for OM. For Head Admin, Encoder, and Super Admin, the entry is accessible canonically under `data_control`.
   2. `admin_tools` (Super Admin Level 100 only):
      - `ohms_safespace`: OHM's Safespace (emergency controls and risk overview).
+     - `account_signup_control`: Public Account Sign-Up Governance Toggle allowing Super Admin to enable or disable public account sign-up and registration (`fn_update_governance_control('account_registration')`). Live banner card displays active state (`ACTIVE / ENABLED` vs `PAUSED / DISABLED`), last updated timestamp, reason, and quick toggle action.
      - `system_diagnostics`: System Diagnostics (health probes, governance controls, freeze breakdown, and PostgREST schema cache reload utility `NOTIFY pgrst, 'reload schema';`).
      - `switch_role`: Role impersonation for development and testing.
      - `qa_center`: QA health metrics, test runs, findings, and scenarios.
