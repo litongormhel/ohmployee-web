@@ -4,10 +4,12 @@ import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -15,6 +17,15 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
+    // Ensure login view defaults to light mode and clears stale system theme
+    try {
+      const stored = localStorage.getItem('ohmployee_theme_mode')
+      if (!stored || stored === 'system') {
+        localStorage.setItem('ohmployee_theme_mode', 'light')
+        window.dispatchEvent(new Event('ohmployee-theme-change'))
+      }
+    } catch {}
+
     let isMounted = true
 
     async function redirectAuthenticatedUser() {
@@ -52,6 +63,14 @@ export default function LoginPage() {
       setIsSubmitting(false)
       return setError(error.message)
     }
+
+    // Reset theme to light mode and clear stale query cache on new login
+    try {
+      localStorage.setItem('ohmployee_theme_mode', 'light')
+      window.dispatchEvent(new Event('ohmployee-theme-change'))
+      queryClient.clear()
+    } catch {}
+
     router.replace('/vacancy')
     router.refresh()
   }

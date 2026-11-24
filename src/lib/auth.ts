@@ -221,6 +221,10 @@ export async function loadCurrentUserContext(): Promise<{
     if (userError || !userData?.user) {
       console.warn("[auth] getUser failed despite active session:", userError);
       try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ohmployee_theme_mode", "light");
+          window.dispatchEvent(new Event("ohmployee-theme-change"));
+        }
         await supabase.auth.signOut();
       } catch {
         // Ignore sign-out failure

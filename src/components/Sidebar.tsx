@@ -80,6 +80,10 @@ export function Sidebar({
   };
 
   const logout = async () => {
+    try {
+      localStorage.setItem("ohmployee_theme_mode", "light");
+      window.dispatchEvent(new Event("ohmployee-theme-change"));
+    } catch {}
     const supabase = createClient();
     await supabase.auth.signOut();
     router.replace("/login");

@@ -316,6 +316,10 @@ function MorePageContent() {
   const handleLogout = useCallback(async () => {
     setIsLoggingOut(true);
     try {
+      try {
+        localStorage.setItem("ohmployee_theme_mode", "light");
+        window.dispatchEvent(new Event("ohmployee-theme-change"));
+      } catch {}
       const supabase = createClient();
       await supabase.auth.signOut();
       router.push("/login");

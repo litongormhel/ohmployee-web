@@ -1,5 +1,58 @@
 # AI Handoff
 
+## Execution Report — Enforce Default Light Mode for All Roles & Fix Auto Dark Mode on Login (ohm#default-light-theme-all-roles)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified & Live on Staging
+
+### What Was Built
+1. **User Request Alignment**:
+   - User report: "Fix auto darkmode in other roles when loging in. Make sure na light mode ang default for all roles."
+2. **Forensic Root Cause Analysis**:
+   - In database table `public.user_settings`, the column definition was created as `theme_mode text NOT NULL DEFAULT 'system'` in migration `20260531000000_app_settings_phase3_backend.sql`, and trigger function `public.handle_create_default_user_settings()` inserted default rows with `theme_mode = 'system'`.
+   - When users logged into operational roles (e.g. HRCO, Operations Manager, Encoder, Recruiter, TL, Viewer), their user profile had `theme_mode = 'system'`.
+   - On devices where the OS / browser had dark mode active (`prefers-color-scheme: dark`), `ThemeProvider` fetched `settings.themeMode = 'system'`, saved `'system'` to `localStorage.ohmployee_theme_mode`, and resolved the theme to Obsidian dark mode (`data-theme="system"`, `data-resolved-theme="dark"`).
+   - Furthermore, when switching accounts or signing out, stale theme keys in `localStorage` and React Query caches persisted across user sessions.
+3. **Architectural Remediation**:
+   - **Database Migration (`20262606000165_default_light_theme_all_roles.sql`)**:
+     - §1: `ALTER TABLE public.user_settings ALTER COLUMN theme_mode SET DEFAULT 'light';`
+     - §2: `UPDATE public.user_settings SET theme_mode = 'light' WHERE theme_mode = 'system' OR theme_mode IS NULL;`
+     - §3: Replaced `public.handle_create_default_user_settings()` to explicitly insert `theme_mode = 'light'` upon user profile provisioning.
+     - §4: Backfilled any missing profile records with `'light'`.
+   - **Client Authentication & State Hygiene**:
+     - `src/app/(auth)/login/page.tsx`: Normalized theme to `'light'` upon login page mount and upon successful authentication, and purged stale React Query caches via `queryClient.clear()`.
+     - `src/components/Sidebar.tsx`, `src/app/(dashboard)/more/page.tsx`, `src/components/DashboardAuthShell.tsx`, `src/lib/auth.ts`: Ensured `localStorage.ohmployee_theme_mode` is reset to `'light'` on sign-out/idle-logout to prevent theme leakage between accounts.
+     - `docs/state/web_design_tokens.md`: Formally documented the Light Mode default contract across all roles.
+4. **Verification & Post-Execution Sanity**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 credential leaks.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 690 migrations.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run build`: Clean Next.js 16.2.4 Turbopack production build with all 22 routes compiled.
+   - Pre-push dry-run validated with 0 errors via `npm run db:push:staging -- --dry-run`.
+   - Applied migration `20262606000165` cleanly to Staging (`qqiiznmqxfoamqytjica`).
+   - Verified live definitions via `pg_get_functiondef` on Staging: `handle_create_default_user_settings` explicitly inserts `'light'`, `user_settings.theme_mode` column default is `'light'::text`, and all 41 user profiles on Staging are confirmed set to `theme_mode: 'light'`.
+
+### Files
+- `supabase/migrations/20262606000165_default_light_theme_all_roles.sql`
+- `src/app/(auth)/login/page.tsx`
+- `src/components/Sidebar.tsx`
+- `src/app/(dashboard)/more/page.tsx`
+- `src/components/DashboardAuthShell.tsx`
+- `src/lib/auth.ts`
+- `docs/state/web_design_tokens.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Production Delta
+- Staging (`qqiiznmqxfoamqytjica`): 659 migrations
+- Production (`rwxelulyapjgaarlwkus`): 656 migrations
+- 3 migrations are not on prod:
+  - `20262606000163_clean_hard_delete_aling_nena_store.sql`
+  - `20262606000164_fix_account_archive_approval_and_rejection_rpcs.sql`
+  - `20262606000165_default_light_theme_all_roles.sql`
+
+---
+
 ## Execution Report — Fix Account Archive Approval & Rejection RPCs and Notifications RLS (ohm#fix-account-archive-reject-and-approval-rpcs)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified & Live on Staging
 

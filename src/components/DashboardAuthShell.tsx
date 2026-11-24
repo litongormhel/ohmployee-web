@@ -120,6 +120,10 @@ function AuthenticatedShell({
   const handleIdleLogout = useCallback(async () => {
     setIdleWarningOpen(false);
     try {
+      try {
+        localStorage.setItem("ohmployee_theme_mode", "light");
+        window.dispatchEvent(new Event("ohmployee-theme-change"));
+      } catch {}
       const supabase = createClient();
       await supabase.auth.signOut();
     } finally {
