@@ -160,7 +160,7 @@ export function UsersTable({
                   {/* User Column: Circular Avatar (Initials) + Full Name + Email below */}
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700 border border-brand-200 shadow-xs">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-bold text-brand-700 border border-brand-200 shadow-xs dark:bg-brand-950/40 dark:text-brand-300 dark:border-brand-800">
                         {initials}
                       </div>
                       <div className="min-w-0">
@@ -192,7 +192,7 @@ export function UsersTable({
                         <span
                           className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                             user.hrcoGlobalVisibility
-                              ? "bg-brand-50 text-brand-700 border border-brand-200"
+                              ? "bg-brand-50 text-brand-700 border border-brand-200 dark:bg-brand-950/40 dark:text-brand-300 dark:border-brand-800"
                               : "bg-surface-subtle text-text-secondary border border-border-default"
                           }`}
                         >
