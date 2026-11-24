@@ -1,5 +1,33 @@
 # AI Handoff
 
+## Execution Report — Reposition Forgot Password Link Below Password Input on Login Screen (ohm#reposition-forgot-password-link)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean
+
+### What Was Built
+1. **User Request Alignment**:
+   - User request: "move forgot password below password"
+   - User attached screenshot of `/login` showing "Forgot password?" to the right of the "Password" label.
+2. **UI & Layout Re-alignment**:
+   - `src/app/(auth)/login/page.tsx`:
+     - Cleaned up the "Password" label row to contain only the label.
+     - Repositioned the `<Link href="/forgot-password">` directly below the password input field (`flex justify-end pt-0.5`).
+     - Aligns with standard login layout between password input and primary Sign In button.
+   - `docs/state/web_auth_rbac_state.md`:
+     - Documented updated login layout with "Forgot password?" below the password input.
+3. **Verification**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 credential leaks.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 661 migrations.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run build`: Clean Next.js 16.2.4 Turbopack production build.
+
+### Files
+- `src/app/(auth)/login/page.tsx`
+- `docs/state/web_auth_rbac_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
 ## Execution Report — Require Middle Name and Mobile Number on Web Account Sign-Up (ohm#require-middle-name-and-mobile-number-on-signup)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean
 

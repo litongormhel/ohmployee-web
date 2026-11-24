@@ -131,17 +131,9 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-text-secondary">
-                  Password
-                </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+              <label className="text-xs font-semibold text-text-secondary">
+                Password
+              </label>
               <div className="relative">
                 <div className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted flex items-center justify-center">
                   <Lock className="h-4.5 w-4.5" />
@@ -161,6 +153,14 @@ export default function LoginPage() {
                 >
                   {showPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
                 </button>
+              </div>
+              <div className="flex justify-end pt-0.5">
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline transition-colors"
+                >
+                  Forgot password?
+                </Link>
               </div>
             </div>
 
