@@ -134,6 +134,7 @@ export default function VacancyPage() {
     groupId?: string | null;
     accountId?: string | null;
     endorsedByName?: string | null;
+    vacancyRequirementId?: string | null;
   } | null>(null);
   const [isFailBackoutModalOpen, setIsFailBackoutModalOpen] = useState(false);
   const [failBackoutTargetCandidate, setFailBackoutTargetCandidate] = useState<{
@@ -443,6 +444,7 @@ export default function VacancyPage() {
       accountName: row.accountName,
       groupName: row.groupName,
       hrcoName: row.hrcoName,
+      vacancyId: row.id,
     });
     setIsAddApplicantModalOpen(true);
   }
@@ -481,6 +483,7 @@ export default function VacancyPage() {
       groupId: row.groupId,
       accountId: row.accountId,
       endorsedByName: row.endorsedByName || row.recruiterName || null,
+      vacancyRequirementId: row.vacancyRequirementId || null,
     });
     setIsMarkHiredModalOpen(true);
   }

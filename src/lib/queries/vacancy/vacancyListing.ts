@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { formatPersonName, parseCandidateFullName } from "@/lib/utils/formatName";
+import { useQuery } from "@tanstack/react-query";
 import {
   type AssignedStoreDetail,
   type VacancyListItem,
@@ -10,6 +11,7 @@ import {
   type VacancySummary,
   type VacancyRpcRow,
   type OccupiedStoreIdentifiers,
+  type VacancyRequirementItem,
   VacancyDataError,
 } from "./types";
 import {
@@ -764,7 +766,8 @@ export async function listVacancies(params: VacancyListParams) {
           profile_edit_count,
           is_archived,
           recruited_by_name,
-          recruited_by_user_id
+          recruited_by_user_id,
+          vacancy_requirement_id
         `)
         .eq("is_archived", false)
         .order("created_at", { ascending: false });
@@ -841,6 +844,39 @@ export async function listVacancies(params: VacancyListParams) {
         );
         const validCandidates = activeCandidates.filter((c) => vacMap.has(asString(c.vacancy_vcode)));
 
+        const candidateReqIds = Array.from(
+          new Set(validCandidates.map((c) => asString(c.vacancy_requirement_id)).filter(Boolean)),
+        ) as string[];
+
+        const candidatePositionMap = new Map<string, string>();
+        if (candidateReqIds.length > 0) {
+          try {
+            const { data: vrRows, error: vrError } = await supabase
+              .from("vacancy_requirements")
+              .select("id, position_id")
+              .in("id", candidateReqIds);
+            if (!vrError && Array.isArray(vrRows)) {
+              const posIds = Array.from(new Set(vrRows.map((r) => asString(r.position_id)).filter(Boolean))) as string[];
+              if (posIds.length > 0) {
+                const { data: posRows } = await supabase
+                  .from("positions")
+                  .select("id, position_name")
+                  .in("id", posIds);
+                const posNameMap = new Map<string, string>();
+                (posRows || []).forEach((p) => {
+                  if (p.id && p.position_name) posNameMap.set(String(p.id), String(p.position_name));
+                });
+                vrRows.forEach((r) => {
+                  const pName = posNameMap.get(asString(r.position_id) || "");
+                  if (r.id && pName) candidatePositionMap.set(String(r.id), pName);
+                });
+              }
+            }
+          } catch (e) {
+            console.error("[PostgREST Schema Error] pipeline candidates position resolution:", e);
+          }
+        }
+
         const pipelineRows: VacancyListItem[] = validCandidates.map((c: Record<string, unknown>, idx: number) => {
           const vcode = asString(c.vacancy_vcode) ?? "Uncoded";
           const vac = vacMap.get(vcode) as Record<string, unknown> | undefined;
@@ -849,7 +885,9 @@ export async function listVacancies(params: VacancyListParams) {
           const mName = asString(c.middle_name);
           const fFull = asString(c.full_name);
           const candidateName = formatPersonName(fName, lName, mName, fFull || "Candidate");
-          const position = asString(vac?.position) ?? "—";
+          const candReqId = asString(c.vacancy_requirement_id);
+          const resolvedPosition = candReqId ? candidatePositionMap.get(candReqId) : null;
+          const position = resolvedPosition ?? asString(vac?.position) ?? "—";
           const loc = [asString(vac?.area_city), asString(vac?.province)].filter(Boolean).join(" • ") || null;
           let storeName = asString(vac?.store_name ?? vac?.store_branch);
           const account = asString(vac?.account);
@@ -925,6 +963,7 @@ export async function listVacancies(params: VacancyListParams) {
             endorsedByName: asString(c.recruited_by_name) || null,
             hiredDate: null,
             stageBadge,
+            vacancyRequirementId: candReqId || null,
             remarks: asString(c.ops_remarks ?? c.recruitment_remarks ?? c.remarks) || null,
             opsRemarks: asString(c.ops_remarks) || null,
             recruitmentRemarks: asString(c.recruitment_remarks) || null,
@@ -1817,7 +1856,6 @@ export async function listVacancies(params: VacancyListParams) {
           .select("id, vcode, applicant_id, applicant_name, status, hr_status, hired_date, employee_no, ops_remarks, hr_remarks, employee_lookup_remarks, correction_reason, created_at, updated_at, slot_id, position")
           .in("vcode", allVcodes)
           .is("deleted_at", null)
-          .neq("status", "Moved to Plantilla")
           .order("created_at", { ascending: false }),
         supabase
           .from("plantilla")
@@ -1831,7 +1869,7 @@ export async function listVacancies(params: VacancyListParams) {
           .from("plantilla_slots")
           .select("id, legacy_vcode, store_id, position, slot_ordinal, slot_status, current_occupant_plantilla_id")
           .in("legacy_vcode", allVcodes)
-          .neq("slot_status", "closed")
+          .in("slot_status", ["open", "pipeline", "hr_processing", "occupied"])
           .order("slot_ordinal", { ascending: true }),
       ]);
 
@@ -1867,9 +1905,20 @@ export async function listVacancies(params: VacancyListParams) {
         }
       }
 
-      // 2. Index active HR Emploc onboarding records by VCode (multi-applicant preserving array)
+      // 2. Index active HR Emploc onboarding records by VCode and track deployed candidate IDs
+      const deployedCandidateIds = new Set<string>();
+      const deployedCandidateNames = new Set<string>();
       if (emplocData && Array.isArray(emplocData)) {
         for (const emp of emplocData) {
+          const empStatus = asString(emp.status);
+          const candId = asString(emp.applicant_id);
+          const rawName = asString(emp.applicant_name);
+          if (empStatus === "Moved to Plantilla") {
+            if (candId) deployedCandidateIds.add(candId);
+            if (rawName) deployedCandidateNames.add(rawName.toLowerCase().trim());
+            continue;
+          }
+
           const vk = (asString(emp.vcode) || "").trim().toUpperCase();
           if (vk) {
             if (!emplocsByVcode.has(vk)) emplocsByVcode.set(vk, []);
@@ -1878,11 +1927,16 @@ export async function listVacancies(params: VacancyListParams) {
         }
       }
 
-      // 3. Index active applicants by VCode
+      // 3. Index active applicants by VCode (excluding deployed / moved-to-plantilla candidates)
       if (applicantsData && Array.isArray(applicantsData)) {
         for (const app of applicantsData) {
           const vcode = (asString(app.vacancy_vcode) || "").trim().toUpperCase();
           if (!vcode) continue;
+          const actId = asString(app.id) || "";
+          const actFullName = asString(app.full_name) || "";
+          if (actId && deployedCandidateIds.has(actId)) continue;
+          if (actFullName && deployedCandidateNames.has(actFullName.toLowerCase().trim())) continue;
+
           const status = (app.status || "").toLowerCase().trim();
           const isNonPipeline =
             status === "backout" ||
@@ -3239,7 +3293,7 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
       if (appIds.length > 0) {
         const { data: appsData } = await supabase
           .from("applicants")
-          .select("id, contact_number, first_name, last_name, middle_name, profile_edit_count, created_at, updated_at")
+          .select("id, contact_number, first_name, last_name, middle_name, profile_edit_count, created_at, updated_at, vacancy_requirement_id")
           .in("id", appIds);
         if (Array.isArray(appsData)) {
           const appMap = new Map(appsData.map((a: Record<string, unknown>) => [asString(a.id), a]));
@@ -3255,6 +3309,15 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
               }
               if (!cand.createdAt && rawApp.created_at) cand.createdAt = asString(rawApp.created_at);
               if (!cand.updatedAt && rawApp.updated_at) cand.updatedAt = asString(rawApp.updated_at);
+              if (rawApp.vacancy_requirement_id) {
+                cand.vacancyRequirementId = asString(rawApp.vacancy_requirement_id);
+                if (normalized.requirements && normalized.requirements.length > 0) {
+                  const matchedReq = normalized.requirements.find((r) => r.id === cand.vacancyRequirementId);
+                  if (matchedReq?.positionName) {
+                    cand.position = matchedReq.positionName;
+                  }
+                }
+              }
             }
 
             if (cand.agingDays === undefined || cand.agingDays === null) {
@@ -3345,4 +3408,136 @@ export async function fetchOccupiedStoreIdentifiers(
   }
 
   return { occupiedStoreIds, occupiedVcodes, occupiedStoreNames };
+}
+
+/**
+ * Fetch itemized position requirements (vacancy_requirements) for a vacancy.
+ * Resolves by either vacancyId (UUID) or vcode.
+ * Joins positions table for human-readable position_name and computes pipeline counts.
+ */
+export async function fetchVacancyRequirements(
+  vacancyIdOrVcode: string,
+): Promise<VacancyRequirementItem[]> {
+  if (!vacancyIdOrVcode || !vacancyIdOrVcode.trim()) return [];
+  const supabase = createClient();
+  const input = vacancyIdOrVcode.trim();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input);
+
+  let targetVacancyId: string | null = isUuid ? input : null;
+
+  if (!targetVacancyId) {
+    const { data: vac, error: vacError } = await supabase
+      .from("vacancies")
+      .select("id")
+      .eq("vcode", input)
+      .maybeSingle();
+
+    if (vacError) {
+      console.error("[PostgREST Schema Error] fetchVacancyRequirements resolve vacancy_id:", vacError);
+      return [];
+    }
+    if (!vac?.id) return [];
+    targetVacancyId = String(vac.id);
+  }
+
+  // 1. Fetch requirements with derived hc_filled from vw_vacancy_requirements (with fallback to table)
+  let reqData: Array<Record<string, unknown>> | null = null;
+  const { data: viewData, error: viewError } = await supabase
+    .from("vw_vacancy_requirements")
+    .select("id, vacancy_id, position_id, employment_type, hc_needed, hc_filled")
+    .eq("vacancy_id", targetVacancyId)
+    .order("hc_needed", { ascending: false });
+
+  if (!viewError && Array.isArray(viewData)) {
+    reqData = viewData;
+  } else {
+    const { data: tblData, error: tblError } = await supabase
+      .from("vacancy_requirements")
+      .select("id, vacancy_id, position_id, employment_type, hc_needed, hc_filled")
+      .eq("vacancy_id", targetVacancyId)
+      .order("hc_needed", { ascending: false });
+    if (tblError) {
+      console.error("[PostgREST Schema Error] fetchVacancyRequirements fallback table:", tblError);
+      return [];
+    }
+    reqData = tblData;
+  }
+
+  if (!reqData || reqData.length === 0) return [];
+
+  // 2. Resolve position names
+  const posIds = Array.from(new Set(reqData.map((r) => asString(r.position_id)).filter(Boolean))) as string[];
+  const posMap = new Map<string, string>();
+  if (posIds.length > 0) {
+    try {
+      const { data: posData, error: posError } = await supabase
+        .from("positions")
+        .select("id, position_name")
+        .in("id", posIds);
+      if (!posError && Array.isArray(posData)) {
+        for (const p of posData) {
+          const pid = asString(p.id);
+          const pname = asString(p.position_name);
+          if (pid && pname) posMap.set(pid, pname);
+        }
+      }
+    } catch (e) {
+      console.error("[PostgREST Schema Error] fetchVacancyRequirements positions join:", e);
+    }
+  }
+
+  // 3. Count active pipeline applicants per requirement
+  const reqIds = reqData.map((r) => asString(r.id)).filter(Boolean) as string[];
+  const pipelineCounts = new Map<string, number>();
+  if (reqIds.length > 0) {
+    try {
+      const { data: appsData, error: appsError } = await supabase
+        .from("applicants")
+        .select("vacancy_requirement_id")
+        .in("vacancy_requirement_id", reqIds)
+        .not("status", "in", '("Backout","Failed","Rejected","Did Not Report","confirmed_onboard","hired")')
+        .eq("is_archived", false);
+
+      if (!appsError && Array.isArray(appsData)) {
+        for (const a of appsData) {
+          const rid = asString(a.vacancy_requirement_id);
+          if (rid) {
+            pipelineCounts.set(rid, (pipelineCounts.get(rid) || 0) + 1);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[PostgREST Schema Error] fetchVacancyRequirements pipeline counts:", e);
+    }
+  }
+
+  return reqData.map((r) => {
+    const rid = asString(r.id) || "";
+    const pid = asString(r.position_id);
+    const hcNeeded = asNumber(r.hc_needed) || 1;
+    const hcFilled = asNumber(r.hc_filled) || 0;
+    return {
+      id: rid,
+      positionName: (pid ? posMap.get(pid) : null) || "Position",
+      employmentType: asString(r.employment_type) || "Stationary",
+      hcNeeded,
+      hcFilled,
+      pipelineCount: pipelineCounts.get(rid) || 0,
+    };
+  });
+}
+
+/**
+ * React hook to fetch position requirements for a vacancy with TanStack Query.
+ */
+export function useVacancyRequirements(
+  vacancyIdOrVcode: string | null | undefined,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ["vacancy", "requirements", vacancyIdOrVcode],
+    queryFn: () => (vacancyIdOrVcode ? fetchVacancyRequirements(vacancyIdOrVcode) : Promise.resolve([])),
+    enabled: Boolean(vacancyIdOrVcode && enabled),
+    staleTime: 30_000,
+  });
 }

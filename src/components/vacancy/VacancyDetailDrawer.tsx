@@ -280,6 +280,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
     groupId?: string | null;
     accountId?: string | null;
     endorsedByName?: string | null;
+    vacancyRequirementId?: string | null;
   } | null>(null);
 
   // RBAC checks
@@ -921,7 +922,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                           contactNumber: candidate.contactNumber,
                                           status: candidate.statusLabel,
                                           vcode: detail.vcode,
-                                          positionTitle: detail.position_title,
+                                          positionTitle: candidate.position || detail.position_title,
+                                          vacancyRequirementId: candidate.vacancyRequirementId || null,
                                           groupId: detail.groupId,
                                           accountId: detail.accountId,
                                           endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
@@ -947,7 +949,8 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                           contactNumber: candidate.contactNumber,
                                           status: candidate.statusLabel,
                                           vcode: detail.vcode,
-                                          positionTitle: detail.position_title,
+                                          positionTitle: candidate.position || detail.position_title,
+                                          vacancyRequirementId: candidate.vacancyRequirementId || null,
                                           groupId: detail.groupId,
                                           accountId: detail.accountId,
                                           endorsedByName: candidate.recruiterName || candidate.deployedByName || null,
@@ -1054,6 +1057,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                       groupId: detail.groupId,
                                       accountId: detail.accountId,
                                       endorsedByName: detail.recruiterName || null,
+                                      vacancyRequirementId: (detail as { vacancyRequirementId?: string | null }).vacancyRequirementId || null,
                                     });
                                     setIsAdvancePipelineModalOpen(true);
                                   }}
@@ -1080,6 +1084,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                                       groupId: detail.groupId,
                                       accountId: detail.accountId,
                                       endorsedByName: detail.recruiterName || null,
+                                      vacancyRequirementId: (detail as { vacancyRequirementId?: string | null }).vacancyRequirementId || null,
                                     });
                                     setIsMarkHiredModalOpen(true);
                                   }}
@@ -1549,6 +1554,7 @@ export function VacancyDetailDrawer({ vacancyId, onClose, isFreezeModeActive = f
                   groupId: detail.groupId,
                   accountId: detail.accountId,
                   endorsedByName: detail.recruiterName || null,
+                  vacancyRequirementId: detail.requirements && detail.requirements.length === 1 ? detail.requirements[0].id : null,
                 }
               }
               onSuccess={() => {

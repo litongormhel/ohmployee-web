@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Loader2, Search, UserCheck, X } from "lucide-react";
-import { useConfirmApplicantOnboard } from "@/lib/queries/vacancy";
+import { useConfirmApplicantOnboard, useVacancyRequirements } from "@/lib/queries/vacancy";
 import { useUsersList } from "@/lib/queries/users";
 import { useCurrentUser } from "@/lib/auth";
 import { formatPersonName, parseCandidateFullName } from "@/lib/utils/formatName";
@@ -96,6 +96,26 @@ function MarkHiredModalContent({
   const [requirementsChecked, setRequirementsChecked] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Position requirements disambiguation (ADR-001/002) for legacy candidates without intake requirement tag
+  const { data: requirements = [] } = useVacancyRequirements(
+    applicant.vacancyRequirementId ? null : applicant.vcode,
+    isOpen,
+  );
+
+  const [userSelectedRequirementId, setUserSelectedRequirementId] = useState<string | null>(null);
+
+  // Derive effective requirement without triggering setState inside useEffect
+  const effectiveRequirementId = useMemo(() => {
+    if (applicant.vacancyRequirementId) return applicant.vacancyRequirementId;
+    if (userSelectedRequirementId) return userSelectedRequirementId;
+    if (requirements.length === 1) return requirements[0].id;
+    if (requirements.length > 1) {
+      const nonFull = requirements.filter((r) => r.hcFilled < r.hcNeeded);
+      if (nonFull.length === 1) return nonFull[0].id;
+    }
+    return null;
+  }, [applicant.vacancyRequirementId, userSelectedRequirementId, requirements]);
+
   // Filter users eligible to endorse: Deployers, HRCOs, Recruitment, OM, Ops, Admins
   // scoped to the vacancy's group or account, or users with global visibility
   const eligibleUsers = useMemo(() => {
@@ -185,6 +205,12 @@ function MarkHiredModalContent({
       return;
     }
 
+    const targetRequirementId = effectiveRequirementId || null;
+    if (requirements.length > 1 && !targetRequirementId) {
+      setErrorMessage("Please select which position requirement this candidate is filling.");
+      return;
+    }
+
     const cleanContact = contactNumber.replace(/[^0-9]/g, "");
     const normalizedContact =
       cleanContact.length === 10 && cleanContact.startsWith("9")
@@ -209,7 +235,7 @@ function MarkHiredModalContent({
         endorsedByDeployerId: resolvedDeployerId || null,
         endorsedByName: endorsedByName.trim() || null,
         remarks: remarks.trim() || null,
-        vacancyRequirementId: applicant.vacancyRequirementId || null,
+        vacancyRequirementId: targetRequirementId || null,
         vcode: applicant.vcode,
       },
       {
@@ -302,6 +328,69 @@ function MarkHiredModalContent({
             />
           </div>
         </div>
+
+        {/* Multi-Position Disambiguation Selector if not pre-tagged at intake */}
+        {requirements.length > 1 && !applicant.vacancyRequirementId && (
+          <div className="space-y-2 p-3 rounded-lg border border-border-default bg-surface-subtle">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                <span>Select Position Requirement</span>
+                <RequiredAsterisk />
+              </span>
+              <span className="text-[11px] text-text-muted">
+                Choose which position this applicant fills
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {requirements.map((req) => {
+                const isFull = req.hcFilled >= req.hcNeeded;
+                const isSelected = effectiveRequirementId === req.id;
+                const available = Math.max(0, req.hcNeeded - req.hcFilled);
+                return (
+                  <button
+                    key={req.id}
+                    type="button"
+                    disabled={isFull}
+                    onClick={() => {
+                      setUserSelectedRequirementId(req.id);
+                      setErrorMessage(null);
+                    }}
+                    className={`flex flex-col p-2.5 rounded-md border text-left transition-all ${
+                      isSelected
+                        ? "border-brand-500 bg-brand-50/70 dark:bg-brand-950/40 ring-1 ring-brand-500 shadow-2xs"
+                        : isFull
+                        ? "opacity-60 bg-surface-muted border-border-subtle cursor-not-allowed"
+                        : "border-border-subtle bg-surface-base hover:border-border-default"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span
+                        className={`text-xs font-bold truncate ${
+                          isSelected
+                            ? "text-brand-700 dark:text-brand-300"
+                            : isFull
+                            ? "text-text-muted line-through"
+                            : "text-text-primary"
+                        }`}
+                      >
+                        {req.positionName}
+                      </span>
+                      {isFull ? (
+                        <span className="text-[10px] font-semibold text-danger-text bg-danger-bg px-1.5 py-0.5 rounded border border-danger-border shrink-0">
+                          Full
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-brand-700 bg-brand-50 border border-brand-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 px-1.5 py-0.5 rounded shrink-0">
+                          {available} Open
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Hired Date & Endorsed By Deployer */}
         <div className="grid grid-cols-2 gap-3">

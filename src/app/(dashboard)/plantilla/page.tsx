@@ -945,17 +945,17 @@ function PlantillaPageContent() {
       }
     });
 
-    // Expand multi-slot / multi-candidate vacancies to 1 row per physical slot (ADR-002 Invariants 1 & 5, Rule 8, Rule 26 Option A Standard)
+    // Expand multi-slot / multi-candidate vacancies to 1 row per approved slot (ADR-002 Invariants 1 & 5, Rule 8, Rule 26 Option A Standard)
     const expanded: VacancyListItem[] = [];
     filtered.forEach((v) => {
       const candidates = v.activeApplicantsList ?? [];
       const physicalSlots = v.slotsList ?? [];
-      const totalSlots = Math.max(v.hcTotal ?? 1, v.headcount ?? 1, physicalSlots.length, candidates.length, 1);
-      const filledSlots = v.hcFilled ?? 0;
-      const unfilledSlotsCount = Math.max(1, totalSlots - filledSlots);
+      // Authorized headcount quota bounds the total slots for this requisition
+      const approvedHc = Math.max(1, Math.trunc(v.hcTotal ?? v.headcount ?? 1));
+      const targetSlotsCount = approvedHc;
 
-      if (unfilledSlotsCount > 1 || candidates.length > 1 || physicalSlots.length > 1) {
-        for (let i = 0; i < unfilledSlotsCount; i++) {
+      if (targetSlotsCount > 1 || candidates.length > 1) {
+        for (let i = 0; i < targetSlotsCount; i++) {
           const cand = candidates[i];
           const physicalSlot = physicalSlots[i];
           const slotOrd = physicalSlot?.slotOrdinal ?? (i + 1);

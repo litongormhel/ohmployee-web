@@ -273,6 +273,22 @@ export async function endorseApplicant(
   }
 
   // 2. Insert applicant record (matching mobile VacancyService.addApplicant direct insert)
+  let targetRequirementId = params.vacancyRequirementId?.trim() || null;
+  if (!targetRequirementId && vac.id) {
+    try {
+      const { data: autoReqs } = await supabase
+        .from("vacancy_requirements")
+        .select("id")
+        .eq("vacancy_id", vac.id)
+        .limit(2);
+      if (autoReqs && autoReqs.length === 1 && autoReqs[0]?.id) {
+        targetRequirementId = String(autoReqs[0].id);
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+  }
+
   const applicantInsertPayload: Record<string, unknown> = {
     vacancy_vcode: vcode,
     first_name: firstName,
@@ -283,6 +299,10 @@ export async function endorseApplicant(
     status: params.status || "New",
     remarks: params.hrcoRemarks?.trim() || null,
   };
+
+  if (targetRequirementId) {
+    applicantInsertPayload.vacancy_requirement_id = targetRequirementId;
+  }
 
   if (params.targetOnboardDate) {
     applicantInsertPayload.interview_date = params.targetOnboardDate;

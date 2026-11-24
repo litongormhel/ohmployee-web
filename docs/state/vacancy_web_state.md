@@ -467,6 +467,23 @@ In Plantilla Tab 3 (Vacancy), every physical slot in a multi-slot store requisit
 
 ---
 
+## Multi-Position Vacancy Intake & Candidate Disambiguation (`ohm#multi-position-vacancy-applicant-intake`)
+
+Stores in OHMployee frequently require multiple positions under a single store requisition (e.g. 2 Merchandisers + 1 Salesman).
+Per ADR-002 Invariant 2 (`1 Store = 1 VCode`), multiple positions are normalized as line items in `public.vacancy_requirements` under that single VCode.
+
+1. **Intake Position Selection Parity**:
+   - In `AddApplicantModal`, requirements are queried via `useVacancyRequirements(vcode)`.
+   - **Single Position**: If exactly 1 requirement exists, or only 1 non-full requirement remains, it is automatically assigned without modal friction.
+   - **Multiple Positions**: If 2+ positions exist under the store, the modal surfaces a dedicated position selector displaying position title, slot availability badge (`N Slots` / `Full`), and hired/pipeline counters (`Hired: N/Needed • Pipeline: X`). Full positions are disabled. Submission is blocked until a position is selected.
+   - `endorseApplicant` persists `vacancy_requirement_id` directly to `public.applicants`.
+2. **Pipeline Candidate Disambiguation**:
+   - `pipelineApplicants` and `fetchVacancyDetail` resolve candidate positions dynamically via `vacancy_requirements` + `positions`, displaying the specific tagged role (`Merchandiser` vs `Salesman`) instead of the general vacancy card header title.
+3. **Mark Hired / Onboarding Linkage**:
+   - `MarkHiredModal` receives `vacancyRequirementId` from the candidate. For legacy candidates lacking an intake tag, it offers a fallback requirement selector so `confirm_applicant_onboard(p_vacancy_requirement_id)` is invoked with the specific position, preventing candidate misallocation.
+
+---
+
 > [!NOTE]
 > **Historical Assessment & Implementation Phases Archive:**
 > Historical pre-implementation assessments and phase checklists have been archived to [`docs/state/archive/vacancy_web_state_historical.md`](archive/vacancy_web_state_historical.md) to keep this live specification token-optimized.

@@ -26,7 +26,6 @@ import {
   formatDate,
   resolveVacancyWorkflowStage,
   renderVacancyStatusBadge,
-  getVacancyRemainingCapacity,
   resolveLeaveDetails,
   getEdrLapseStatus,
   FloatingDoleBadge,
@@ -419,7 +418,7 @@ export function StoreVacancyTable({
                 Position
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
-                Slot
+                HC
               </th>
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Remarks
@@ -448,14 +447,9 @@ export function StoreVacancyTable({
                 row.closureReason ||
                 ""
               ).trim() || "—";
-              const rowHcTotal = row.hcTotal ?? row.headcount ?? 1;
-              const rowHcFilled = row.hcFilled ?? 0;
-              const remainingCapacity = getVacancyRemainingCapacity(row);
               const assignedCount = row.assignedStoreDetails?.length || row.assignedStores?.length || 0;
               const rovingSlotShare = row.slotShare ?? (isRoving && assignedCount > 1 ? Math.round((1.0 / assignedCount) * 100) / 100 : null);
-              const slotDisplay = isRoving && rovingSlotShare != null
-                ? rovingSlotShare
-                : (row.slotOrdinal != null ? row.slotOrdinal : remainingCapacity);
+              const hcDisplay = isRoving && rovingSlotShare != null ? rovingSlotShare : 1;
 
               return (
                 <tr
@@ -520,14 +514,12 @@ export function StoreVacancyTable({
                     <span
                       title={
                         isRoving && rovingSlotShare != null
-                          ? `${slotDisplay} roving slot share across ${assignedCount} stores`
-                          : rowHcTotal > 1
-                          ? `${slotDisplay} open slot${slotDisplay === 1 ? "" : "s"} (${rowHcFilled}/${rowHcTotal} filled)`
-                          : `${slotDisplay} open slot`
+                          ? `${hcDisplay} roving headcount share across ${assignedCount} stores`
+                          : "1 approved headcount"
                       }
                       className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/80 dark:text-red-300 dark:border-red-800 shrink-0"
                     >
-                      {slotDisplay}
+                      {hcDisplay}
                     </span>
                   </td>
                   <td className="px-3.5 py-2 text-[11px] text-text-muted max-w-[200px] truncate" title={remarksText !== "—" ? remarksText : undefined}>

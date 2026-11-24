@@ -1,5 +1,46 @@
 # AI Handoff
 
+## Execution Report — Implement Multi-Position Vacancy Intake, Disambiguation Parity, and Strict Slot Quota Bounds (ohm#multi-position-vacancy-intake-and-slot-quota-bounds)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Locally Tested
+
+### What Was Built
+1. **Multi-Position Vacancy Intake Parity (ADR-002 Invariant 2 & `public.vacancy_requirements`)**:
+   - In stores requiring multiple distinct positions under a single VCode (e.g. 2 Merchandisers + 1 Salesman), positions are normalized as line items in `vacancy_requirements`.
+   - In `AddApplicantModal`, queried requirements via `useVacancyRequirements(vcode)`. For single-position stores (or stores with only 1 non-full position remaining), auto-selected the requirement with zero user friction.
+   - For stores with 2+ positions, rendered high-density interactive cards displaying title, slot availability badge (`N Slots` / `Full`), and hired/pipeline counters (`Hired: N/Needed • Pipeline: X`). Full positions are disabled; submission is blocked until a position is selected.
+   - Threaded `vacancy_requirement_id` into `endorseApplicant` and persisted to `public.applicants`.
+2. **Pipeline Candidate Disambiguation & Onboarding Allocation**:
+   - In `pipelineApplicants` and `fetchVacancyDetail`, dynamically resolved candidate positions via `vacancy_requirements` + `positions`, displaying each candidate's tagged role (`Merchandiser` vs `Salesman`) instead of the general vacancy card header.
+   - In `MarkHiredModal` / `confirm_applicant_onboard`, forwarded `vacancyRequirementId` (with fallback selector for legacy candidates) so onboarding into `hr_emploc` assigns the correct position and slot.
+3. **Plantilla Vacancy Multi-Slot Quota Bounds**:
+   - Addressed user feedback (*"Also bakit dumami ang Aurora it should be 3 rows kasi 3 slots lang sya"*): bounded multi-slot row expansion in `src/app/(dashboard)/plantilla/page.tsx` strictly to approved headcount (`Math.max(1, Math.trunc(v.hcTotal ?? v.headcount ?? 1))`). Decommissioned slots or excess historical entries no longer inflate the roster, guaranteeing that SM Aurora renders exactly 3 rows for 3 approved slots.
+   - In `PlantillaCardViews.tsx` and `PlantillaTableViews.tsx`, renamed the column from "Slot" to "HC" and rendered `1` (or roving fraction) instead of slot ordinal or remaining capacity, aligning visual presentation with authorized headcount.
+4. **Verification**:
+   - Unit tests: passed all 263 unit tests across 14 test suites (`npm test`), including 6 new targeted tests in `multi_position_vacancy_intake.test.mjs`.
+   - ESLint: 0 errors, 0 warnings (`npm run lint`).
+   - Secrets: 0 credential leaks (`npm run check:secrets`).
+   - SQL Contracts: verified 28 core tables & 19 cross-module RPC contracts across 695 migrations (`npm run check:sql`).
+   - Build: Next.js 16.2.4 (Turbopack) production build passed cleanly in 7.5s, TypeScript compiled in 25.2s, and all 25 static/dynamic routes prerendered.
+
+### Files
+- `src/components/vacancy/AddApplicantModal.tsx` — Multi-position requirement selector and validation.
+- `src/components/vacancy/MarkHiredModal.tsx` — Forwarded `vacancyRequirementId` into onboarding.
+- `src/components/vacancy/VacancyDetailDrawer.tsx` — Displayed position badges for pipeline candidates.
+- `src/app/(dashboard)/vacancy/page.tsx` — Threaded requirement contexts to modals.
+- `src/app/(dashboard)/plantilla/page.tsx` — Bounded multi-slot expansion strictly to authorized headcount quota.
+- `src/components/plantilla/directory/PlantillaTableViews.tsx` — Renamed Slot column to HC and aligned headcount display.
+- `src/components/plantilla/directory/PlantillaCardViews.tsx` — Aligned headcount and capacity badges.
+- `src/lib/queries/vacancy/types.ts` — Added `VacancyRequirementItem` and requirement properties.
+- `src/lib/queries/vacancy/vacancyListing.ts` — Added `fetchVacancyRequirements` and `useVacancyRequirements`.
+- `src/lib/queries/vacancy/vacancyMutations.ts` — Persisted `vacancy_requirement_id` in `endorseApplicant`.
+- `src/lib/queries/__tests__/multi_position_vacancy_intake.test.mjs` — Comprehensive unit test suite for multi-position intake.
+- `docs/state/vacancy_web_state.md` — Updated live documentation for multi-position intake and candidate disambiguation.
+- `.ai/briefing.md` — Prepended prompt to Last Completed Tasks.
+- `.ai/handoff.md` — Prepended handoff report.
+- `.ai/current_state.md` — Added update log.
+
+---
+
 ## Execution Report — Fix Ambiguous is_active Column Reference in get_web_current_user_context (ohm#fix-get-web-current-user-context-ambiguity)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Staging Deployed
 

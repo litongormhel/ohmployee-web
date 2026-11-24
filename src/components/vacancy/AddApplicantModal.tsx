@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useId } from "react";
+import { useState, useId, useMemo } from "react";
 import { AlertCircle, CheckCircle, Loader2, UserPlus } from "lucide-react";
-import { useEndorseApplicant } from "@/lib/queries/vacancy";
+import { useEndorseApplicant, useVacancyRequirements, type VacancyRequirementItem } from "@/lib/queries/vacancy";
 import { useCurrentUser } from "@/lib/auth";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
@@ -14,6 +14,8 @@ export interface VacancyContextSummary {
   accountName?: string | null;
   groupName?: string | null;
   hrcoName?: string | null;
+  vacancyId?: string | null;
+  requirements?: VacancyRequirementItem[];
 }
 
 export interface AddApplicantModalProps {
@@ -64,6 +66,31 @@ function AddApplicantModalContent({
 
   const currentUser = useCurrentUser();
   const endorseMutation = useEndorseApplicant();
+
+  // Requirements resolution for multi-position stores (ADR-001/002)
+  const { data: fetchedRequirements, isLoading: isLoadingRequirements } = useVacancyRequirements(
+    vacancy.requirements && vacancy.requirements.length > 0 ? null : (vacancy.vacancyId || vacancy.vcode),
+    isOpen,
+  );
+
+  const requirements = useMemo(() => {
+    return (vacancy.requirements && vacancy.requirements.length > 0)
+      ? vacancy.requirements
+      : (fetchedRequirements || []);
+  }, [vacancy.requirements, fetchedRequirements]);
+
+  const [userSelectedRequirementId, setUserSelectedRequirementId] = useState<string | null>(null);
+
+  // Derive effective requirement without triggering setState inside useEffect
+  const effectiveRequirementId = useMemo(() => {
+    if (userSelectedRequirementId) return userSelectedRequirementId;
+    if (requirements.length === 1) return requirements[0].id;
+    if (requirements.length > 1) {
+      const nonFull = requirements.filter((r) => r.hcFilled < r.hcNeeded);
+      if (nonFull.length === 1) return nonFull[0].id;
+    }
+    return null;
+  }, [userSelectedRequirementId, requirements]);
 
   // Form State initialized fresh on mount
   const [firstName, setFirstName] = useState("");
@@ -140,9 +167,15 @@ function AddApplicantModalContent({
       return;
     }
 
+    if (requirements.length > 1 && !effectiveRequirementId) {
+      setFormError("Please select which position requirement this candidate fills.");
+      return;
+    }
+
     endorseMutation.mutate(
       {
         vcode: vacancy.vcode,
+        vacancyRequirementId: effectiveRequirementId || undefined,
         firstName: trimmedFirstName,
         middleName: trimmedMiddleName,
         lastName: trimmedLastName,
@@ -193,7 +226,11 @@ function AddApplicantModalContent({
             </span>
             <div className="flex flex-wrap items-center gap-1.5 text-text-secondary">
               <span className="font-semibold text-text-primary">
-                {vacancy.positionTitle || "General Staff"}
+                {requirements.length > 1
+                  ? `Multi-Position (${requirements.length} Positions)`
+                  : requirements.length === 1
+                  ? requirements[0].positionName
+                  : vacancy.positionTitle || "General Staff"}
               </span>
               <span className="text-text-muted">•</span>
               <span>{vacancy.storeName || "—"}</span>
@@ -201,6 +238,84 @@ function AddApplicantModalContent({
               <span>{accountGroupText}</span>
             </div>
           </div>
+
+          {/* Multi-Position Requirement Selector */}
+          {isLoadingRequirements && requirements.length === 0 ? (
+            <div className="flex items-center gap-2 p-3 rounded-lg border border-border-subtle bg-surface-subtle text-xs text-text-secondary">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-brand-600" />
+              <span>Checking position requirements...</span>
+            </div>
+          ) : requirements.length > 1 ? (
+            <div className="space-y-2 p-3 rounded-lg border border-border-default bg-surface-subtle">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                  <span>Select Position Requirement</span>
+                  <RequiredAsterisk />
+                </span>
+                <span className="text-[11px] text-text-muted">
+                  Choose the position this applicant fills
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {requirements.map((req) => {
+                  const isFull = req.hcFilled >= req.hcNeeded;
+                  const isSelected = effectiveRequirementId === req.id;
+                  const available = Math.max(0, req.hcNeeded - req.hcFilled);
+                  return (
+                    <button
+                      key={req.id}
+                      type="button"
+                      disabled={isFull}
+                      onClick={() => {
+                        setUserSelectedRequirementId(req.id);
+                        setFormError(null);
+                      }}
+                      className={`flex flex-col p-2.5 rounded-md border text-left transition-all ${
+                        isSelected
+                          ? "border-brand-500 bg-brand-50/70 dark:bg-brand-950/40 ring-1 ring-brand-500 shadow-2xs"
+                          : isFull
+                          ? "opacity-60 bg-surface-muted border-border-subtle cursor-not-allowed"
+                          : "border-border-subtle bg-surface-base hover:border-border-default hover:bg-surface-subtle"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span
+                          className={`text-xs font-bold truncate ${
+                            isSelected
+                              ? "text-brand-700 dark:text-brand-300"
+                              : isFull
+                              ? "text-text-muted line-through"
+                              : "text-text-primary"
+                          }`}
+                        >
+                          {req.positionName}
+                        </span>
+                        {isFull ? (
+                          <span className="text-[10px] font-semibold text-danger-text bg-danger-bg px-1.5 py-0.5 rounded border border-danger-border shrink-0">
+                            Full
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-brand-700 bg-brand-50 border border-brand-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 px-1.5 py-0.5 rounded shrink-0">
+                            {available} {available === 1 ? "Slot" : "Slots"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 flex items-center gap-1.5 text-[11px] text-text-secondary">
+                        <span>Hired: <strong>{req.hcFilled}/{req.hcNeeded}</strong></span>
+                        <span className="text-text-muted">•</span>
+                        <span>Pipeline: <strong>{req.pipelineCount}</strong></span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {submitted && !effectiveRequirementId && (
+                <p className="text-[11px] font-medium text-danger-text">
+                  Please select a position requirement for this candidate.
+                </p>
+              )}
+            </div>
+          ) : null}
 
           {/* Candidate Form Fields */}
           <div className="space-y-3.5">

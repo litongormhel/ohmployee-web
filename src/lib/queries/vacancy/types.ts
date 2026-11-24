@@ -115,6 +115,7 @@ export type VacancyListItem = {
   hrProcessingCount?: number;
   slotsList?: Array<{ slotId: string; slotOrdinal: number; position: string; slotStatus: string }>;
   activeApplicantsList?: ActiveApplicantItem[];
+  vacancyRequirementId?: string | null;
   lastActivityAt: string | null;
   rowCapabilities: VacancyRowCapabilities;
   profileEditCount?: number | null;
@@ -140,6 +141,7 @@ export type ActiveApplicantItem = {
   createdAt?: string | null;
   agingDays?: number | null;
   position?: string | null;
+  vacancyRequirementId?: string | null;
 };
 
 export type ActivityHistoryItem = {
@@ -351,6 +353,7 @@ export type EndorseApplicantParams = {
   onboardDate?: string | null;
   targetDeploymentType?: string | null;
   targetSlotId?: string | null;
+  vacancyRequirementId?: string | null;
 };
 
 export type EndorseApplicantResult = {
