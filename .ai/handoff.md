@@ -1,5 +1,46 @@
 # AI Handoff
 
+## Execution Report — Refactor Vacancy Detail Surface to Multi-Tab Modal & Detailed What/Who/When Activity History Timeline (ohm#vacancy-detail-modal-and-activity-timeline)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
+
+### What Was Built
+1. **User Requirements & Forensic Root Cause Diagnosis**:
+   - User feedback:
+     1. *"This is a [IMG_4424.jpg] not a true activity history dapat mas detailed what happened. What, Who, When ganyan"*
+     2. *"Also can we change it to modal? I think mas okay sya kesa sa drawer. Then per tab sya"*
+   - Forensic Diagnosis of the Generic `"Vacancy updated / By System"` Activity History Defect:
+     - **Frontend Bug (`VacancyDetailDrawer.tsx`)**: `formatActivityHistorySummary` expected raw DML tokens (`INSERT`, `UPDATE`) in `eventLabel` and a module name in `eventDescription`. However, `get_web_vacancy_detail` was returning `'Vacancy Updated'` in `eventLabel` and `'Attributes synchronized'` in `eventDescription`. It fell straight into the default branch (`action.replace(/_/g, " ").toLowerCase()`), rendering `"Vacancy updated"` while completely discarding `item.eventDescription` from the JSX.
+     - **Database RPC Deficit (`get_web_vacancy_detail`)**: The SQL query only grabbed the last 10 rows of `audit_logs`, without deduplicating background trigger writes, without inspecting field-level diffs (`required_headcount`, `vacant_date`, `target_fill_date`, `urgency_level`, `hrco_name`), and completely ignoring `public.applicant_status_history`, `public.applicant_profile_edit_history`, `public.vacancy_closure_requests`, and `public.hr_emploc`.
+2. **Multi-Tab Vacancy Detail Modal (`src/components/vacancy/VacancyDetailDrawer.tsx`)**:
+   - Replaced the narrow right-side `DetailDrawer` with the shared centered `Modal` (`maxWidthClass="max-w-3xl"`).
+   - Preserved the always-visible top header (`VCode`, status badge, position title, and `Account / Group / Store` hierarchy), top 4-column KPI strip (`Hired`, `Pipeline`, `Avail`, `Aging`), and action buttons (`Adjust Quota`, `Request HC Adjustment`, `Request Closure`, `Withdraw Closure`).
+   - Organized the content into 4 dedicated tabs via `SegmentedTabs`:
+     1. **Pipeline & Applicants** (`count: candidateCount`): Active candidate cards with stage badge, aging pill, role badge, contact info, `Edit Details`, `Update Stage / Backout`, `Mark Hired`, and the PII Guard callout.
+     2. **Vacancy Details**: Source, Vacancy Type, Urgency Level, Province/City, Employment Type, Assigned Roving Stores (`CGCode` + Anchor badge), inline `Vacant Since` editor, `Target Fill Date`, `Date Created`, SLA breach warning, and Headcount & Approvals Context.
+     3. **Ownership & Team**: High-density cards for `HRCO Assignee`, `Recruiter`, `Operations Manager (OM)`, `Team Leader (TL)`, `Assistant Team Leader (ATL)`, `Triggered By` / `Deployed By`, `Reliever on Duty`, and `HRCO Remarks`.
+     4. **Activity History** (`count: activityCount`): Dedicated timeline trail rendering each event card with **What** (bold title + detailed sentence of what changed, from what value to what value, and why), **Who** (`Performed by <Actor Name>`), and **When** (formatted date and time `MMM D, YYYY, h:mm AM/PM`).
+3. **Database Migration (`supabase/migrations/20262606000174_friendly_vacancy_activity_history_timeline.sql`)**:
+   - Created `public.get_vacancy_activity_timeline(p_vacancy_id uuid)` aggregating and deduplicating up to 30 chronological events across `vacancies`, `applicants`, `applicant_status_history`, `applicant_profile_edit_history`, `vacancy_closure_requests`, `hr_emploc`, and meaningful field-level `audit_logs` diffs.
+   - Surgically updated `public.get_web_vacancy_detail(p_vacancy_id uuid)` to call `public.get_vacancy_activity_timeline(vd.id)` while preserving all 30 return columns and RBAC/scope guards.
+   - Updated client fallback paths in `src/lib/queries/vacancy/vacancyListing.ts` to invoke `get_vacancy_activity_timeline`.
+4. **Verification**:
+   - ADR fresh check: `npm run check:adr` (`ADR_MIRROR_STATUS: FRESH`).
+   - SQL contracts check: `npm run check:sql` (verified 28 core tables & 19 cross-module RPC contracts across 699 migrations).
+   - Unit tests: `npm test` (263/263 unit tests passed).
+   - Staging migration push: dry-run validated and applied `20262606000174_friendly_vacancy_activity_history_timeline.sql` to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging` with 0 errors.
+   - ESLint: `0` errors, `0` warnings.
+
+### Files
+- `supabase/migrations/20262606000174_friendly_vacancy_activity_history_timeline.sql` — New RPC `get_vacancy_activity_timeline` and surgical update to `get_web_vacancy_detail`.
+- `src/components/vacancy/VacancyDetailDrawer.tsx` — Refactored from slide-over drawer to 4-tab centered Modal with rich What/Who/When Activity History cards.
+- `src/lib/queries/vacancy/vacancyListing.ts` — Hydrated `activityHistory` in fallback detail lookups via `get_vacancy_activity_timeline`.
+- `docs/state/vacancy_web_state.md` — Updated detail surface spec to reflect the 4-tab Modal and detailed Activity History contract.
+- `.ai/briefing.md` — Prepended task to Last Completed Tasks.
+- `.ai/current_state.md` — Added update log.
+- `.ai/handoff.md` — Prepended handoff report.
+
+---
+
 ## Execution Report — Inline Staging Fallback in Next Config and Client for Instant Vercel Auth (ohm#fix-vercel-auth-fallback)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean & Locally Tested
 

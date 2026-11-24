@@ -92,49 +92,24 @@ Recommended columns:
 
 The table supports loading, empty, retryable error, blocked/read-denied, selected-row, and paginated states. Empty states are real no-record states, not mocked data.
 
-### Detail Drawer/Panel UX Structure
+### Detail Modal UX Structure (Multi-Tab Modal & Comprehensive Activity History)
 
-The Vacancy Detail Drawer is a desktop-first, admin-oriented command center surface. When a vacancy is selected from the dense table, the drawer slides in from the right hand side to show the following sections:
+The Vacancy Detail Modal (`VacancyDetailDrawer.tsx`, rendered via centered `Modal` with `maxWidthClass="max-w-3xl"`) is a desktop-first, admin-oriented command center surface. When a vacancy is selected from the dense table, the modal opens with an always-visible top summary and 4 segmented navigation tabs (`SegmentedTabs`):
 
-1. **Compact Desktop Header**:
-   - **VCode Identifier**: Displayed prominently in a large, high-contrast monospaced badge (e.g., `VAC-2026-0042`).
-   - **Position Title**: Displayed as the primary heading (e.g., `Operations Supervisor`).
-   - **Scope Hierarchy Breadcrumbs**: Rendered as `Account / Group / Store` (e.g., `Visayas Region / Cebu Hub / Cebu Store 1`) for location clarity.
-   - **Close Trigger**: A clear top-right dismissal button (supports `Escape` key capture).
-
-2. **Vacancy Summary**:
-   - **Status Badges**: Multi-dimensional display showing `derived_status` (e.g., `Open`, `Pipeline`, `Closed`), raw `vacancy_status`, and `pipeline_status`.
-   - **Urgency Indicator**: High/Medium/Normal urgency badge using existing Mobile Urgency/Priority level taxonomy.
-   - **Deployment/Employment Type**: Highlighting deployment model (e.g., `Full-time`, `Contractor`).
-   - **Department / Business Unit**: Clear alignment label (e.g., `Logistics & Warehousing`).
-
-3. **Operational Metadata**:
-   - **Target Fill Date**: Highlighting the deadline target (`target_fill_date`).
-   - **Requested By**: Identity of the requester (e.g., `requested_by_name`).
-   - **HRCO Assignment**: Active HRCO profile (`hrco_name`).
-   - **Job / Qualifications Placeholder**: Structural display of roles or certifications required.
-
-4. **Pipeline / Applicant Summary**:
-   - **Aggregate Metrics**: Active applicant count (`active_applicant_count`) and confirmed onboard count (`confirmed_onboard_count`).
-   - **Active Candidates Sub-list**: Dense list showing applicant names and their current step/phase (e.g., `For Interview`, `For Requirements`) matching active status filters (`fn_is_active_vacancy_applicant_status`).
-   - **PII Guard Rails**: Strict privacy compliance: no email addresses, mobile numbers, or raw contact details are exposed in this desktop read-only list.
-
-5. **Aging / SLA Section**:
-   - **Aging Days**: Displays `aging_days` and the corresponding `aging_bucket`.
-   - **SLA Alert Thresholds**: Structural indicators linked to CENCOM buckets (`1_15`, `16_30`, `31_60`, `61_120`, `gt121`).
-   - **SLA Breach Warnings**: Highlighting high penalty risk when vacancies fall into long-tail buckets (e.g., `gt121` or `61_120`) using the optional `penalty_exposure` or custom bucket warnings.
-
-6. **Approval / Status Section**:
-   - **Approver Identity & Date**: Detailed metadata of who approved/requested the vacancy slot and when (`approved_by_name`, `approved_at`).
-   - **Original Headcount Reference**: Link/reference to the underlying headcount request ID (`headcount_request_id`).
-   - **Vacancy Reason**: Stated purpose (e.g. `Replacement`, `Expansion`).
-
-7. **Activity / History Placeholder**:
-   - Clean vertical audit timeline showing state transitions, HRCO assignment updates, and candidate status updates.
-
-8. **Capability-Aware Action Area Placeholder**:
-   - Renders disabled action buttons (e.g., `Approve Vacancy`, `Update Applicant Status`, `Request Closure`).
-   - Renders available capabilities (based on `row_capabilities.can_approve`, `row_capabilities.can_update_applicant_status`, and `row_capabilities.can_request_closure`) as "available" / "not exposed" presentation hints, ensuring final validation boundaries in Supabase remain clear.
+1. **Compact Header & Always-Visible Top Strip**:
+   - **Header**: Prominent monospaced `VCode` badge, status badge (`Open`, `Pipeline`, `Pending Clearance`, `Hired`), primary `Position Title`, and `Account / Group / Store` hierarchy subtitle.
+   - **4-Column KPI Strip**: Displays `Hired (hc_filled/hc_total)`, `Pipeline (activeApplicantCount)`, `Avail (availableSlots)`, and `Aging (agingDays + bucket)`, plus active penalty exposure callouts and multi-position breakdowns when applicable.
+   - **Quota & Closure Action Row**: Houses capability-gated quick triggers for `Adjust Quota`, `Request HC Adjustment`, `Request Closure`, and `Withdraw Closure`.
+2. **Tab 1: Pipeline & Applicants (`pipeline`)**:
+   - Displays active and onboarded candidate counts alongside individual candidate cards showing candidate name, tagged role (for multi-position stores), current stage badge, aging pill, contact number, recruiter/onboard date, and inline action buttons (`Edit Details`, `Update Stage / Backout`, `Mark Hired`), plus the PII Guard notice.
+3. **Tab 2: Vacancy Details (`details`)**:
+   - Displays Source, Vacancy Type, Urgency Level, Province/City, Employment Type, Assigned Roving Stores (with `CGCode` and `Anchor` store badges), inline `Vacant Since` date editor, `Target Fill Date`, `Date Created`, SLA breach warning (> 60 days), and Headcount & Approvals Context.
+4. **Tab 3: Ownership & Team (`ownership`)**:
+   - Displays structured assignment cards for `HRCO Assignee`, `Recruiter`, `Operations Manager (OM)`, `Team Leader (TL)`, `Assistant Team Leader (ATL)`, `Triggered By` / `Deployed By`, `Reliever on Duty`, and `HRCO Remarks`.
+5. **Tab 4: Activity History (`history`) — Detailed What, Who, When Timeline**:
+   - Powered by `public.get_vacancy_activity_timeline(p_vacancy_id)` inside `public.get_web_vacancy_detail(p_vacancy_id)` (`20262606000174_friendly_vacancy_activity_history_timeline.sql`).
+   - Aggregates and deduplicates chronological lifecycle events across `vacancies`, `applicants`, `applicant_status_history`, `applicant_profile_edit_history`, `vacancy_closure_requests`, `hr_emploc`, and meaningful field-level `audit_logs` diffs (filtering out no-op background trigger syncs).
+   - Every timeline card explicitly renders **What** (specific event title + full human-readable sentence detailing old $\rightarrow$ new values, candidate names, positions, and reasons/remarks), **Who** (`Performed by <Actor Name>`), and **When** (date + timestamp `MMM D, YYYY, h:mm AM/PM`).
 
 ### Drawer Interaction Behavior
 

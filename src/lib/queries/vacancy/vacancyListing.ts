@@ -2555,7 +2555,29 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
                   deployedByName: asString(match.hired_by),
                 },
               ],
-              activityHistory: [],
+              activityHistory: await (async () => {
+                if (vacRow?.id) {
+                  try {
+                    const { data: tlData } = await supabase.rpc("get_vacancy_activity_timeline", {
+                      p_vacancy_id: String(vacRow.id),
+                    });
+                    if (Array.isArray(tlData)) {
+                      return tlData.map(normalizeActivityHistory);
+                    }
+                  } catch {
+                    // fallback
+                  }
+                }
+                return [
+                  {
+                    eventId: `hired-${asString(match.id) ?? vacancyId}`,
+                    eventLabel: "Candidate Confirmed Onboard",
+                    eventDescription: `${workerName} confirmed onboard for ${pos || asString(vacRow?.position) || "Position"} (${vcode}).`,
+                    createdAt: hiredDate,
+                    profileName: asString(match.hired_by) ?? "HR Team",
+                  },
+                ];
+              })(),
             };
           }
         }
@@ -2767,7 +2789,29 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
               recruiterName: null,
               deployedByName: null,
             })),
-            activityHistory: [],
+            activityHistory: await (async () => {
+              if (vacRow?.id) {
+                try {
+                  const { data: tlData } = await supabase.rpc("get_vacancy_activity_timeline", {
+                    p_vacancy_id: String(vacRow.id),
+                  });
+                  if (Array.isArray(tlData)) {
+                    return tlData.map(normalizeActivityHistory);
+                  }
+                } catch {
+                  // fallback
+                }
+              }
+              return [
+                {
+                  eventId: `vac-init-${asString(vacRow.id) ?? vacancyId}`,
+                  eventLabel: "Vacancy Requisition Created",
+                  eventDescription: `Opened ${asString(vacRow.position) || "Position"} requisition for ${storeName || vcode} (${vcode} • ${reqHc} HC).`,
+                  createdAt: asString(vacRow.created_at ?? vacRow.vacant_date),
+                  profileName: asString(vacRow.hrco_name) ?? "System",
+                },
+              ];
+            })(),
           };
         }
 
@@ -2908,7 +2952,15 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
               recruiterName: null,
               deployedByName: null,
             })),
-            activityHistory: [],
+            activityHistory: [
+              {
+                eventId: `pl-vac-${asString(directPlantilla?.id) ?? vacancyId}`,
+                eventLabel: "Vacancy Requisition Opened (Separation Backfill)",
+                eventDescription: `Requisition ${vcode} opened for ${storeName || vcode} following Plantilla personnel separation.`,
+                createdAt: vacDate,
+                profileName: asString(directPlantilla?.hrco_name) ?? "System",
+              },
+            ],
           };
         }
     } catch {
