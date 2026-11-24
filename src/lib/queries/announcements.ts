@@ -66,7 +66,7 @@ export async function fetchActiveAnnouncements(): Promise<Announcement[]> {
       created_by,
       created_at,
       updated_at,
-      author:users_profile!created_by(full_name, role_name)
+      author:users_profile!created_by(full_name, role)
     `)
     .eq("status", "active")
     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
@@ -74,7 +74,7 @@ export async function fetchActiveAnnouncements(): Promise<Announcement[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("[announcements] Error fetching announcements:", error);
+    console.error("[PostgREST Schema Error] [announcements] Error fetching announcements:", error);
     return [];
   }
 
@@ -91,7 +91,7 @@ export async function fetchActiveAnnouncements(): Promise<Announcement[]> {
     created_by: string;
     created_at: string;
     updated_at: string;
-    author: { full_name: string | null; role_name: string | null } | null;
+    author: { full_name: string | null; role: string | null } | null;
   }
 
   const rows = (data || []) as unknown as QueryAnnouncementRow[];
@@ -110,7 +110,7 @@ export async function fetchActiveAnnouncements(): Promise<Announcement[]> {
     created_at: row.created_at,
     updated_at: row.updated_at,
     author_name: row.author?.full_name || null,
-    author_role: row.author?.role_name || null,
+    author_role: row.author?.role || null,
   }));
 }
 
@@ -184,28 +184,75 @@ export async function acknowledgeUrgentAnnouncement(
  */
 export async function createAnnouncement(
   input: CreateAnnouncementInput,
-  profileId: string
+  profileId?: string | null
 ): Promise<Announcement | null> {
   const supabase = createClient();
 
+  // 1. Try dedicated RPC first
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc("create_announcement", {
+      p_title: input.title.trim(),
+      p_content: input.content.trim(),
+      p_priority: input.priority || "info",
+      p_is_pinned: !!input.is_pinned,
+      p_target_roles: input.target_roles && input.target_roles.length > 0 ? input.target_roles : null,
+      p_target_group_ids: input.target_group_ids && input.target_group_ids.length > 0 ? input.target_group_ids : null,
+      p_expires_at: input.expires_at || null,
+    });
+
+    if (!rpcError && rpcData) {
+      return rpcData as unknown as Announcement;
+    }
+
+    if (rpcError && rpcError.code !== "PGRST202" && !rpcError.message.includes("function create_announcement")) {
+      console.error("[PostgREST Schema Error] [announcements] create_announcement RPC error:", rpcError);
+      throw new Error(rpcError.message || "Failed to create announcement");
+    }
+  } catch (err) {
+    if (err instanceof Error && !err.message.includes("function create_announcement") && !err.message.includes("PGRST202")) {
+      throw err;
+    }
+  }
+
+  // 2. Direct insert fallback
+  let resolvedProfileId = profileId?.trim() || null;
+  if (!resolvedProfileId) {
+    const { data: authData } = await supabase.auth.getUser();
+    if (authData?.user?.id) {
+      const { data: profile } = await supabase
+        .from("users_profile")
+        .select("id")
+        .eq("auth_user_id", authData.user.id)
+        .maybeSingle();
+      if (profile?.id) {
+        resolvedProfileId = profile.id;
+      }
+    }
+  }
+
+  const insertPayload: Record<string, unknown> = {
+    title: input.title.trim(),
+    content: input.content.trim(),
+    priority: input.priority || "info",
+    is_pinned: !!input.is_pinned,
+    status: "active",
+    target_roles: input.target_roles && input.target_roles.length > 0 ? input.target_roles : null,
+    target_group_ids: input.target_group_ids && input.target_group_ids.length > 0 ? input.target_group_ids : null,
+    expires_at: input.expires_at || null,
+  };
+
+  if (resolvedProfileId) {
+    insertPayload.created_by = resolvedProfileId;
+  }
+
   const { data, error } = await supabase
     .from("announcements")
-    .insert({
-      title: input.title.trim(),
-      content: input.content.trim(),
-      priority: input.priority || "info",
-      is_pinned: !!input.is_pinned,
-      status: "active",
-      target_roles: input.target_roles && input.target_roles.length > 0 ? input.target_roles : null,
-      target_group_ids: input.target_group_ids && input.target_group_ids.length > 0 ? input.target_group_ids : null,
-      expires_at: input.expires_at || null,
-      created_by: profileId,
-    })
+    .insert(insertPayload)
     .select()
     .single();
 
   if (error) {
-    console.error("[announcements] Error creating announcement:", error);
+    console.error("[PostgREST Schema Error] [announcements] Error creating announcement:", error);
     throw new Error(error.message || "Failed to create announcement");
   }
 
@@ -224,7 +271,7 @@ export async function archiveAnnouncement(id: string): Promise<boolean> {
     .eq("id", id);
 
   if (error) {
-    console.error("[announcements] Error archiving announcement:", error);
+    console.error("[PostgREST Schema Error] [announcements] Error archiving announcement:", error);
     throw new Error(error.message || "Failed to archive announcement");
   }
 

@@ -21,7 +21,7 @@ import {
 interface CreateAnnouncementModalProps {
   isOpen: boolean;
   onClose: () => void;
-  profileId: string;
+  profileId?: string | null;
   onSuccess?: () => void;
 }
 

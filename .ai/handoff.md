@@ -1,5 +1,54 @@
 # AI Handoff
 
+## Execution Report — Fix Announcement Creation Permissions, PostgREST Schema Mismatch & Publish CENCOM Day Reschedule (ohm#fix-announcement-creation-and-post-cencom-reschedule)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrations Pushed to Staging & Production Build Clean
+
+### What Was Done
+1. **Forensic Root Cause Analysis**:
+   - **PostgreSQL Table Grants Missing (`42501`)**: Table `public.announcements` and `public.announcement_acknowledgements` were created in migration 116 with RLS policies, but `GRANT SELECT, INSERT, UPDATE, DELETE ON ...` was never granted to `authenticated` or `service_role` (only granted to `postgres`). Any authenticated mutation or query failed with `42501: permission denied for table announcements`.
+   - **PostgREST Schema Column Mismatch (`42703`)**: In `src/lib/queries/announcements.ts`, `fetchActiveAnnouncements` selected `author:users_profile!created_by(full_name, role_name)`. The physical table column on `public.users_profile` is `role`, not `role_name`, throwing `42703: column "role_name" does not exist`.
+   - **Missing Profile ID Fallback (`23502`)**: `announcements.created_by` requires a valid `users_profile(id)`. If `currentUser` was loading or `profileId` was omitted, the direct insert failed with a NOT NULL constraint violation.
+   - **Notification Fan-Out Abort Risk**: Background notification dispatch inside `trg_announcement_notify()` lacked isolated exception handling. If a single notification insert had an issue, it would abort the entire announcement transaction.
+2. **Database Hardening (`20262606000180_fix_announcements_grants_and_creator_resolution.sql`)**:
+   - Granted `ALL ON TABLE public.announcements, public.announcement_acknowledgements` to `authenticated` and `service_role`, plus `SELECT ON public.announcements` to `anon`.
+   - Created `public.fn_announcements_resolve_creator()` before-insert trigger auto-resolving `created_by` from `public.users_profile` via `auth.uid()` (with fallback to Super Admin).
+   - Hardened `public.trg_announcement_notify()` with an exception-safe block (`BEGIN ... EXCEPTION WHEN OTHERS THEN RAISE WARNING ... END;`) so notification fan-out delivery warnings never fail announcement creation.
+   - Created dedicated `public.create_announcement(...)` `SECURITY DEFINER` RPC validating `public.i_have_full_access()` and returning the atomic announcement record.
+3. **Frontend & Query Hardening**:
+   - Updated `src/lib/queries/announcements.ts`: Fixed query to select `author:users_profile!created_by(full_name, role)` and map `author_role: row.author?.role || null`.
+   - Enhanced `createAnnouncement`: Invokes dedicated `create_announcement` RPC first with graceful fallback to PostgREST direct insert. Automatically resolves creator profile ID if omitted.
+   - Updated `CreateAnnouncementModal.tsx` & `AnnouncementBannerStrip.tsx`: Made `profileId` optional and allowed `New Announcement` trigger for admin users without blocking on profileId loading.
+4. **Official CENCOM Day Reschedule Announcement Published**:
+   - Published official announcement on Staging (`qqiiznmqxfoamqytjica`):
+     - **Title**: *"CENCOM Day Rescheduled: Moved from Tuesday to Friday"*
+     - **Content**: *"Please be advised that CENCOM (Central Command) Day has been officially rescheduled from Tuesday to Friday. All operational reviews, group allocations, and staffing alignment workflows will now be conducted every Friday. Please adjust your weekly schedules and reporting coordination accordingly."*
+     - **Priority**: `important` (amber warning strip)
+     - **Is Pinned**: `true`
+     - **Target Audience**: All workforce roles (`target_roles = NULL`)
+     - **Status**: `active`
+     - **Author**: `Litong, Ohm` (`Super Admin`)
+     - **Notifications**: Automatically fanned out to active user roles with deep link route `/dashboard`.
+5. **Verification**:
+   - Applied migration cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging`.
+   - Live `pg_get_functiondef` verification passed for `create_announcement`, `fn_announcements_resolve_creator`, and `trg_announcement_notify`.
+   - Verified live database query of published announcement and notification fan-out rows.
+   - 264/264 unit tests passed (`npm test`).
+   - 0 ESLint errors/warnings (`npm run lint`).
+   - 0 secret leaks (`check:secrets`).
+   - 0 SQL contract errors (`check:sql`).
+   - Clean Next.js 16.2.4 Turbopack production build (`npm run build`).
+
+### Files Changed
+- `supabase/migrations/20262606000180_fix_announcements_grants_and_creator_resolution.sql`
+- `src/lib/queries/announcements.ts`
+- `src/components/dashboard/CreateAnnouncementModal.tsx`
+- `src/components/dashboard/AnnouncementBannerStrip.tsx`
+- `docs/state/dashboard_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Clarify 5 ADR Cross-Module Invariants, Delineate Hired Terminology, Codify Vacancy Waterfall Priority & Sync Mirrors (ohm#clarify-adr-invariants-and-priority-waterfall)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Committed in Mobile Source of Truth & Mirrors Synced
 

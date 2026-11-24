@@ -81,7 +81,7 @@ export function AnnouncementBannerStrip({ currentUser }: AnnouncementBannerStrip
           </div>
         </div>
 
-        {isAdmin && profileId && (
+        {isAdmin && (
           <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
