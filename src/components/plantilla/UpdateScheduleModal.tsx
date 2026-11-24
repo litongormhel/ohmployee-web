@@ -10,6 +10,7 @@ import {
   RotateCcw,
   ChevronDown,
   X,
+  Zap,
 } from "lucide-react";
 import { updatePlantillaSchedule, type StoreAllocationInput } from "@/lib/queries/plantilla";
 import { Modal } from "@/components/shared/Modal";
@@ -253,6 +254,58 @@ export function UpdateScheduleModal({
 
   const dismissNotice = () => setRestDayNotice(null);
 
+  // Track all stores assigned per day to detect conflicts/overlaps
+  const dayStoreAssignments = useMemo(() => {
+    const map: Record<DayCode, number[]> = {
+      MON: [],
+      TUE: [],
+      WED: [],
+      THU: [],
+      FRI: [],
+      SAT: [],
+      SUN: [],
+    };
+    allocations.forEach((alloc, idx) => {
+      const set = parseDaysToSet(alloc.scheduleDays);
+      set.forEach((day) => {
+        if (map[day]) map[day].push(idx);
+      });
+    });
+    return map;
+  }, [allocations]);
+
+  const overlappingDays = useMemo(() => {
+    return DAYS_OF_WEEK.filter((d) => (dayStoreAssignments[d]?.length ?? 0) > 1);
+  }, [dayStoreAssignments]);
+
+  // Auto-split non-rest working days evenly across all assigned stores
+  const handleAutoSplitDays = () => {
+    dismissNotice();
+    const workingDays = DAYS_OF_WEEK.filter((d) => !selectedDayoffs.includes(d));
+    if (workingDays.length === 0 || allocations.length <= 1) return;
+
+    const numStores = allocations.length;
+    const baseCount = Math.floor(workingDays.length / numStores);
+    let remainder = workingDays.length % numStores;
+    let dayPointer = 0;
+
+    const updatedAllocations = allocations.map((alloc) => {
+      const countForThisStore = baseCount + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) remainder--;
+
+      const assignedDays = workingDays.slice(dayPointer, dayPointer + countForThisStore);
+      dayPointer += countForThisStore;
+
+      return {
+        ...alloc,
+        scheduleDays: assignedDays.join(", "),
+      };
+    });
+
+    setAllocations(updatedAllocations);
+    setExpandedStoreIdx(0);
+  };
+
   // Toggle Rest Day (Support multi-day rest or single)
   const handleToggleRestDay = (day: DayCode) => {
     dismissNotice();
@@ -383,6 +436,8 @@ export function UpdateScheduleModal({
   const statusText =
     timeErrorsCount > 0
       ? `${timeErrorsCount} time error${timeErrorsCount > 1 ? "s" : ""} to fix`
+      : overlappingDays.length > 0
+      ? `${overlappingDays.length} overlapping day${overlappingDays.length > 1 ? "s" : ""} to resolve · ${fmtH(totalWeeklyHours)}/week`
       : unassignedGapsCount > 0
       ? `${unassignedGapsCount} day${unassignedGapsCount > 1 ? "s" : ""} without a store · ${fmtH(totalWeeklyHours)}/week`
       : `Ready to save · ${fmtH(totalWeeklyHours)}/week`;
@@ -390,6 +445,8 @@ export function UpdateScheduleModal({
   const statusColor =
     timeErrorsCount > 0
       ? "#a3141f"
+      : overlappingDays.length > 0
+      ? "#b45309"
       : unassignedGapsCount > 0
       ? "#8a4300"
       : "#0b6b3a";
@@ -462,6 +519,46 @@ export function UpdateScheduleModal({
           </div>
         )}
 
+        {/* SCHEDULE CONFLICT / OVERLAP BANNER */}
+        {overlappingDays.length > 0 && (
+          <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-900 dark:text-amber-200 text-xs flex items-start justify-between gap-3 animate-in fade-in">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">
+                  Schedule Overlap Detected: {overlappingDays.map((d) => DAY_SHORT_NAMES[d]).join(", ")} {overlappingDays.length === 1 ? "is" : "are"} assigned to multiple stores.
+                </p>
+                <p className="mt-0.5 text-amber-800/80 dark:text-amber-300/80">
+                  This employee cannot be deployed to multiple stores on the same day. Tap day chips below to reassign exclusively, or use Auto-Split to distribute working days evenly.
+                </p>
+                {allocations.length > 1 && (
+                  <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleAutoSplitDays}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition cursor-pointer shadow-xs"
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>
+                        Auto-Split Days Evenly (
+                        {Math.floor(DAYS_OF_WEEK.filter((d) => !selectedDayoffs.includes(d)).length / allocations.length)}–
+                        {Math.ceil(DAYS_OF_WEEK.filter((d) => !selectedDayoffs.includes(d)).length / allocations.length)}d / store)
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetAll}
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 transition cursor-pointer"
+                    >
+                      Clear All (Reset)
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* REST DAY SELECTOR */}
         <div className="bg-[#f8f9fb] dark:bg-slate-900/60 p-3.5 rounded-xl border border-[#dfe2e8] dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
@@ -508,7 +605,9 @@ export function UpdateScheduleModal({
           <div className="grid grid-cols-7 gap-1.5 text-center">
             {DAYS_OF_WEEK.map((day) => {
               const isRest = selectedDayoffs.includes(day);
-              const ownerIdx = storeDayOwner[day];
+              const assignedStoreIndices = dayStoreAssignments[day] || [];
+              const isConflict = assignedStoreIndices.length > 1;
+              const ownerIdx = isConflict ? undefined : storeDayOwner[day];
               const isAssigned = ownerIdx !== undefined;
               const storeColor = isAssigned ? getStoreColor(ownerIdx) : null;
               const storeAlloc = isAssigned ? allocations[ownerIdx] : null;
@@ -526,6 +625,29 @@ export function UpdateScheduleModal({
                     </span>
                     <span className="text-[10px] font-bold text-[#5a6272] dark:text-slate-400 bg-[#e6e8ed] dark:bg-slate-800 px-2 py-0.5 rounded-md">
                       Rest
+                    </span>
+                  </div>
+                );
+              }
+
+              if (isConflict) {
+                return (
+                  <div
+                    key={day}
+                    className="p-2 rounded-xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 transition flex flex-col items-center justify-between min-h-[78px] gap-1 shadow-2xs select-none"
+                    title={`Overlapping assignments: ${assignedStoreIndices.map((i) => allocations[i]?.storeName || `Store ${i + 1}`).join(", ")}`}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                        {day}
+                      </span>
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    </div>
+                    <span className="text-[10px] font-extrabold bg-amber-200 dark:bg-amber-800/60 px-1.5 py-0.5 rounded text-amber-900 dark:text-amber-100 whitespace-nowrap">
+                      {assignedStoreIndices.length} Stores
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                      Overlap
                     </span>
                   </div>
                 );
@@ -620,12 +742,16 @@ export function UpdateScheduleModal({
                 : `${fmtShort(start)} – ${fmtShort(end)}${isOvernight ? " (Overnight)" : ""}`;
               const summaryText = `${dayNames} · ${shiftSummary}`;
 
+              const storeHasOverlap = DAYS_OF_WEEK.some(
+                (d) => currentDaySet.has(d) && (dayStoreAssignments[d]?.length ?? 0) > 1
+              );
+
               return (
                 <div
                   key={idx}
                   className="rounded-[14px] border transition overflow-hidden bg-white dark:bg-slate-900 shadow-2xs"
                   style={{
-                    borderColor: isExpanded ? color.solid : "#dfe2e8",
+                    borderColor: isExpanded ? color.solid : storeHasOverlap ? "#f59e0b" : "#dfe2e8",
                   }}
                 >
                   {/* Card Header (Accordion Toggle) */}
@@ -661,6 +787,12 @@ export function UpdateScheduleModal({
                             }}
                           >
                             {alloc.vcode}
+                          </span>
+                        )}
+                        {storeHasOverlap && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shrink-0">
+                            <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                            <span>Overlapping</span>
                           </span>
                         )}
                       </div>
@@ -710,6 +842,7 @@ export function UpdateScheduleModal({
                               (a, i) => i !== idx && parseDaysToSet(a.scheduleDays).has(day)
                             );
                             const isOther = otherOwnerIdx >= 0;
+                            const isOverlapping = isMine && isOther;
                             const isRest = selectedDayoffs.includes(day);
 
                             let chipBg = "#fff";
@@ -722,6 +855,11 @@ export function UpdateScheduleModal({
                               chipBorder = "#e3e6eb";
                               chipColor = "#5f6675";
                               subText = "Rest";
+                            } else if (isOverlapping) {
+                              chipBg = "#fffbeb";
+                              chipBorder = "#f59e0b";
+                              chipColor = "#b45309";
+                              subText = "⚠️ Overlap";
                             } else if (isMine) {
                               chipBg = color.tint;
                               chipBorder = color.solid;

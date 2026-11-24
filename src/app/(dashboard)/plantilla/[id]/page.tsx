@@ -466,6 +466,31 @@ function PlantillaEmployeeDetailContent() {
       .toFixed(2);
   }, [displayStores]);
 
+  // Check for roving store schedule conflicts (overlapping days across assigned stores)
+  const overlappingScheduleDays = useMemo(() => {
+    if (displayStores.length <= 1) return [];
+    const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
+    const dayCounts: Record<string, number> = {};
+    DAYS.forEach((d) => { dayCounts[d] = 0; });
+
+    displayStores.forEach((st) => {
+      const raw = (st.scheduleDays || "").toUpperCase().trim();
+      if (!raw || raw === "—") return;
+      const set = new Set<string>();
+      if (raw === "MON-SAT") ["MON", "TUE", "WED", "THU", "FRI", "SAT"].forEach((d) => set.add(d));
+      else if (raw === "MON-FRI") ["MON", "TUE", "WED", "THU", "FRI"].forEach((d) => set.add(d));
+      else {
+        const tokens = raw.split(/[,/&\s]+/).map((t) => t.trim()).filter(Boolean);
+        tokens.forEach((t) => {
+          DAYS.forEach((d) => { if (t === d) set.add(d); });
+        });
+      }
+      set.forEach((d) => { dayCounts[d] = (dayCounts[d] || 0) + 1; });
+    });
+
+    return DAYS.filter((d) => dayCounts[d] > 1);
+  }, [displayStores]);
+
   const resolvedCgCode =
     data?.cgCode || (data?.vcode?.startsWith("CG-") ? data.vcode : null);
 
@@ -1106,6 +1131,32 @@ function PlantillaEmployeeDetailContent() {
                     </div>
                   </div>
 
+                  {/* Overlap alert banner */}
+                  {overlappingScheduleDays.length > 0 && (
+                    <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+                      <div className="flex items-start gap-2.5">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-bold">
+                            Schedule Overlap Detected: {overlappingScheduleDays.join(", ")} {overlappingScheduleDays.length === 1 ? "is" : "are"} assigned to multiple stores.
+                          </p>
+                          <p className="mt-0.5 text-amber-800/80 dark:text-amber-300/80">
+                            This roving employee has conflicting duty days across stores. Duty days should be distributed exclusively so store visits do not clash.
+                          </p>
+                        </div>
+                      </div>
+                      {isAuthorized && !isDeactivated && !isInactive && (
+                        <button
+                          type="button"
+                          onClick={() => setIsScheduleModalOpen(true)}
+                          className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 transition cursor-pointer shadow-xs self-start sm:self-auto"
+                        >
+                          Resolve in Schedule Editor
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Store Allocation Cards / Table */}
                   <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface">
                     {displayStores.map((store) => {
@@ -1121,6 +1172,13 @@ function PlantillaEmployeeDetailContent() {
                         store.scheduleTime ||
                         (displayStores.length === 1 ? data.scheduleTime : null) ||
                         "08:00 AM - 05:00 PM";
+                      const storeHasOverlap = Boolean(
+                        store.scheduleDays &&
+                        overlappingScheduleDays.some((d) => {
+                          const raw = store.scheduleDays!.toUpperCase();
+                          return raw.includes(d) || (raw === "MON-SAT" && d !== "SUN") || (raw === "MON-FRI" && d !== "SAT" && d !== "SUN");
+                        })
+                      );
                       const locationStr = [
                         store.area || data.area,
                         store.province || data.province,
@@ -1145,6 +1203,12 @@ function PlantillaEmployeeDetailContent() {
                                   {store.vcode}
                                 </span>
                               )}
+                              {storeHasOverlap && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shrink-0">
+                                  <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                                  <span>Overlapping</span>
+                                </span>
+                              )}
                             </div>
                             {locationStr && (
                               <p className="text-xs text-text-secondary pl-5">
@@ -1159,8 +1223,14 @@ function PlantillaEmployeeDetailContent() {
                               <span className="text-[11px] font-medium text-text-muted block">
                                 Duty Days
                               </span>
-                              <span className="font-semibold text-text-primary">
-                                {storeDays}
+                              <span className="font-semibold text-text-primary inline-flex items-center gap-1.5 flex-wrap">
+                                <span>{storeDays}</span>
+                                {storeHasOverlap && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                    <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                                    <span>Overlap</span>
+                                  </span>
+                                )}
                               </span>
                             </div>
                             <div className="space-y-0.5">
