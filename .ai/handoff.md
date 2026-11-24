@@ -1,5 +1,56 @@
 # AI Handoff
 
+## Execution Report — Comprehensive Audit & Fix across All Operational & Data Integrity Reports (ohm#audit-and-fix-all-operational-reports)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified & Live on Staging
+
+### What Was Built
+1. **User Request Alignment**:
+   - The user requested: "Check other report hindi lang Attrition and Backout baka may bug pa" to audit all remaining operational reports across the Reports module (`/reports`) and eliminate any hidden bugs.
+2. **Exhaustive Root Cause Analysis & Database Fixes**:
+   - **Bug 1: NULL Date Predicate Failure in Group Operational Reports**:
+     - *Affected RPCs*: `public.report_resigned_by_group`, `public.report_awol_by_group`, `public.report_time_to_fill_by_group`, `public.report_hr_emploc_late_update_by_group`.
+     - *Root Cause*: Function parameters lacked `DEFAULT NULL` and the query predicate evaluated `date BETWEEN p_start_date AND p_end_date`. In SQL, `BETWEEN NULL AND NULL` evaluates to `NULL` (false), causing all records to be silently filtered out to 0 rows whenever preset "All Dates" (`startDate: null, endDate: null`) was selected in the UI.
+     - *Resolution*: Added `DEFAULT NULL` to `p_start_date` and `p_end_date`, added null-safe comparison `IF p_start_date IS NOT NULL AND p_end_date IS NOT NULL AND p_end_date < p_start_date THEN ...`, and updated predicates to `(p_start_date IS NULL OR date >= p_start_date) AND (p_end_date IS NULL OR date <= p_end_date)`.
+   - **Bug 2: Resigned & AWOL Status & Separation Date Fallback**:
+     - *Affected RPCs*: `public.report_resigned_by_group`, `public.report_awol_by_group`.
+     - *Root Cause*: Checked only exact status `'Resigned'` and dropped records where separation date was stored in `deactivated_at::date` instead of `date_of_separation`.
+     - *Resolution*: Implemented `COALESCE(p.date_of_separation, p.deactivated_at::date)` fallback date, and broadened status filters to `(p.separation_status IN ('Resigned', 'Resignation') OR p.deactivation_reason ILIKE '%resign%')` for Resigned, and `(p.separation_status = 'AWOL' OR p.deactivation_reason ILIKE '%awol%')` for AWOL.
+   - **Bug 3: HR Emploc Late Update SLA Threshold & Store Count Flaw**:
+     - *Affected RPC*: `public.report_hr_emploc_late_update_by_group`.
+     - *Root Cause*: `p_end_date::timestamptz - INTERVAL '3 days'` evaluated to `NULL` when `p_end_date` was null; and `COUNT(DISTINCT e.store_id)` counted all stores regardless of whether any requests were late.
+     - *Resolution*: Evaluated `COALESCE(p_end_date, CURRENT_DATE)::timestamptz - INTERVAL '3 days'` for active requests, and scoped store count to `COUNT(DISTINCT e.store_id) FILTER (WHERE e.is_late)`.
+   - **Bug 4: Inactive Floating Staff Query Omission**:
+     - *Affected RPC*: `public.fn_report_floating_employees`.
+     - *Root Cause*: Filtered strictly on `p.status = 'Inactive' AND p.separation_status = 'Floating' AND p.inactive_at IS NOT NULL`. Records with `p.status = 'Floating'` or unset `inactive_at` were omitted.
+     - *Resolution*: Updated filter to `(p.status = 'Floating' OR p.separation_status = 'Floating') AND p.status <> 'Active'`, with floating date waterfall `COALESCE(p.inactive_at::date, p.updated_at::date, CURRENT_DATE)`.
+   - **Bug 5: Data Integrity & Team Performance Missing Involuntary Separations**:
+     - *Affected RPCs*: `public.fn_data_integrity_summary`, `public.fn_data_integrity_late_hr_detail`, `public.fn_data_integrity_vacancy_delay_detail`, `public.fn_team_performance_summary`, `public.fn_team_performance_detail`.
+     - *Root Cause*: Filtered strictly on `separation_status IN ('Resigned', 'AWOL', 'Endo', 'Others')`, omitting `'Terminated'` and `'End of Contract'`.
+     - *Resolution*: Expanded status filter to include `'Terminated'` and `'End of Contract'` with case-insensitive `deactivation_reason` checks and `COALESCE(p.date_of_separation, p.deactivated_at::date)` fallback.
+3. **Migration & Staging Deployment**:
+   - Auto-generated migration `supabase/migrations/20262606000162_fix_reports_operational_and_data_integrity.sql`.
+   - Verified pre-push dry-run via `npm run db:push:staging` and applied cleanly to Staging (`qqiiznmqxfoamqytjica`).
+4. **Verification & Testing**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 leaks detected.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 687 migrations.
+   - `npm run lint`: 0 ESLint errors.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run build`: 22/22 static pages generated cleanly.
+
+### Files
+- `supabase/migrations/20262606000162_fix_reports_operational_and_data_integrity.sql`
+- `docs/state/more_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Production Delta
+- Staging (`qqiiznmqxfoamqytjica`): 656 migrations
+- Production (`rwxelulyapjgaarlwkus`): 655 migrations
+- Pending on Prod: `20262606000162_fix_reports_operational_and_data_integrity.sql`
+
+---
+
 ## Execution Report — Comprehensive Reports Module Density & Polish Audit (ohm#compact-reports-module-sweep)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified & Complete
 

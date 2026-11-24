@@ -127,6 +127,30 @@ This document captures the current stable architecture and navigation contract f
      - Combined headcount loss report unifying candidate back-outs and employee terminations.
      - CTE Qualification: Avoids PL/pgSQL variable collisions (`ERROR: 42702`) by explicitly alias-qualifying column projections in `UNION ALL`.
      - UI Contract (`ReportDetailView.tsx`): Displays combined total count with secondary breakdown badge (`{total} ({backout} back-outs • {term} term)`) and exports dedicated `Back-Outs` and `Terminated` columns in CSV/XLSX.
+  5. `public.report_resigned_by_group(p_start_date date DEFAULT NULL, p_end_date date DEFAULT NULL, p_group_id uuid DEFAULT NULL, p_account_id uuid DEFAULT NULL)`:
+     - Aggregates voluntary resignations across groups and accounts.
+     - Supports `NULL` date parameters for preset "All Dates" view.
+     - Broadened status filter: `separation_status IN ('Resigned', 'Resignation') OR deactivation_reason ILIKE '%resign%'`.
+     - Evaluates `COALESCE(p.date_of_separation, p.deactivated_at::date)` fallback date.
+  6. `public.report_awol_by_group(p_start_date date DEFAULT NULL, p_end_date date DEFAULT NULL, p_group_id uuid DEFAULT NULL, p_account_id uuid DEFAULT NULL)`:
+     - Aggregates AWOL separations across groups and accounts.
+     - Supports `NULL` date parameters for preset "All Dates" view.
+     - Broadened status filter: `separation_status = 'AWOL' OR deactivation_reason ILIKE '%awol%'`.
+     - Evaluates `COALESCE(p.date_of_separation, p.deactivated_at::date)` fallback date.
+  7. `public.report_time_to_fill_by_group(p_start_date date DEFAULT NULL, p_end_date date DEFAULT NULL, p_group_id uuid DEFAULT NULL, p_account_id uuid DEFAULT NULL)`:
+     - Aggregates filled vacancies and mean time-to-fill turnaround velocity.
+     - Supports `NULL` date parameters for preset "All Dates" view without filtering out historical fills.
+  8. `public.report_hr_emploc_late_update_by_group(p_start_date date DEFAULT NULL, p_end_date date DEFAULT NULL, p_group_id uuid DEFAULT NULL, p_account_id uuid DEFAULT NULL)`:
+     - Aggregates HR Emploc 3-day SLA compliance across groups and accounts.
+     - Supports `NULL` date parameters and falls back to `CURRENT_DATE` when `p_end_date` is `NULL`.
+     - Filters `affected_store_count` to only stores with actual late updates (`COUNT(DISTINCT e.store_id) FILTER (WHERE e.is_late)`).
+  9. `public.fn_report_floating_employees(p_group_id uuid DEFAULT NULL, p_account_id uuid DEFAULT NULL)`:
+     - Surfaces inactive floating employees tracking DOLE 180-day temporary layoff compliance.
+     - Filter: `(p.status = 'Floating' OR p.separation_status = 'Floating') AND p.status <> 'Active' AND p.is_deleted = false`.
+     - Floating date waterfall: `COALESCE(p.inactive_at::date, p.updated_at::date, CURRENT_DATE)`.
+  10. `public.fn_data_integrity_*` & `public.fn_team_performance_*`:
+     - Broadened involuntary separation recognition across SLA audits: `separation_status IN ('Resigned', 'AWOL', 'Endo', 'Others', 'Terminated', 'End of Contract') OR deactivation_reason ILIKE '%terminat%'`.
+     - Evaluates `COALESCE(p.date_of_separation, p.deactivated_at::date)` uniformly across all audit metrics.
 
 - **Modal Entry**: `SwitchRoleModal` triggered from `/more?tab=admin_tools` tile (`switch_role`) or `targetModal === "switch_role"`.
 - **Database Engine**:
