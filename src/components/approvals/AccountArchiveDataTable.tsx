@@ -210,14 +210,21 @@ export function AccountArchiveDataTable({
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"
-                        onClick={() => setSelectedRejectItem(item)}
+                        onClick={() => {
+                          setErrorMessage(null);
+                          setRejectRemarks("");
+                          setSelectedRejectItem(item);
+                        }}
                         className="rounded-lg border border-danger-border/60 bg-danger-bg/30 px-2.5 py-1 text-xs font-semibold text-danger-text hover:bg-danger-bg transition cursor-pointer"
                       >
                         Reject
                       </button>
                       <button
                         type="button"
-                        onClick={() => setSelectedApproveItem(item)}
+                        onClick={() => {
+                          setErrorMessage(null);
+                          setSelectedApproveItem(item);
+                        }}
                         className="rounded-lg bg-brand-button px-2.5 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-brand-button-hover transition cursor-pointer"
                       >
                         Approve
@@ -245,7 +252,10 @@ export function AccountArchiveDataTable({
       {selectedApproveItem && (
         <Modal
           isOpen={Boolean(selectedApproveItem)}
-          onClose={() => setSelectedApproveItem(null)}
+          onClose={() => {
+            setSelectedApproveItem(null);
+            setErrorMessage(null);
+          }}
           title="Approve Account Archive"
           subtitle={`Account: ${selectedApproveItem.accountName}`}
           icon={Archive}
@@ -255,7 +265,10 @@ export function AccountArchiveDataTable({
             <div className="flex items-center justify-end gap-2.5 w-full">
               <button
                 type="button"
-                onClick={() => setSelectedApproveItem(null)}
+                onClick={() => {
+                  setSelectedApproveItem(null);
+                  setErrorMessage(null);
+                }}
                 disabled={approveMutation.isPending}
                 className="rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
               >
@@ -308,6 +321,7 @@ export function AccountArchiveDataTable({
           onClose={() => {
             setSelectedRejectItem(null);
             setRejectRemarks("");
+            setErrorMessage(null);
           }}
           title="Reject Archive Request"
           subtitle={`Account: ${selectedRejectItem.accountName}`}
@@ -321,6 +335,7 @@ export function AccountArchiveDataTable({
                 onClick={() => {
                   setSelectedRejectItem(null);
                   setRejectRemarks("");
+                  setErrorMessage(null);
                 }}
                 disabled={rejectMutation.isPending}
                 className="rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"

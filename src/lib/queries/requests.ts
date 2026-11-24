@@ -4212,12 +4212,24 @@ export async function fetchAccountArchiveCounts(): Promise<RequestStatusCounts> 
 export async function approveAccountArchive({
   notificationId,
   accountId,
+  accountName,
 }: {
   notificationId: string;
   accountId: string;
   accountName?: string;
 }): Promise<void> {
   const supabase = createClient();
+
+  // Try dedicated RPC first
+  const { error: rpcError } = await supabase.rpc("approve_account_archive", {
+    p_notification_id: notificationId,
+  });
+
+  if (!rpcError) {
+    return;
+  }
+
+  console.warn("[approveAccountArchive] RPC unavailable, falling back to direct update:", rpcError);
 
   // 1. Mark account inactive in public.accounts
   const { error: accountError } = await supabase
@@ -4244,6 +4256,7 @@ export async function approveAccountArchive({
     .eq("id", notificationId);
 
   if (notifError) {
+    console.error("[PostgREST Schema Error] Failed to update notification on approve:", notifError);
     await supabase.rpc("mark_notification_read", { p_notification_id: notificationId });
   }
 
@@ -4256,6 +4269,7 @@ export async function approveAccountArchive({
       new_data: {
         event: "ACCOUNT_ARCHIVE_APPROVED",
         account_id: accountId,
+        account_name: accountName,
         notification_id: notificationId,
       },
     });
@@ -4274,14 +4288,36 @@ export async function rejectAccountArchive({
   remarks: string;
 }): Promise<void> {
   const supabase = createClient();
+  const trimmedRemarks = remarks.trim();
 
-  const { data: notif } = await supabase
+  if (!trimmedRemarks) {
+    throw new RequestDataError("validation", "A rejection reason is required.");
+  }
+
+  // Try dedicated RPC first
+  const { error: rpcError } = await supabase.rpc("reject_account_archive", {
+    p_notification_id: notificationId,
+    p_reason: trimmedRemarks,
+  });
+
+  if (!rpcError) {
+    return;
+  }
+
+  console.warn("[rejectAccountArchive] RPC unavailable, falling back to direct update:", rpcError);
+
+  const { data: notif, error: fetchErr } = await supabase
     .from("notifications")
     .select("message")
     .eq("id", notificationId)
     .single();
 
-  const updatedMessage = `[REJECTED: ${remarks}] ${notif?.message ?? ""}`;
+  if (fetchErr) {
+    console.error("[PostgREST Schema Error] Failed to fetch notification on reject:", fetchErr);
+    throw new RequestDataError("generic", fetchErr.message || "Failed to find archive notification.");
+  }
+
+  const updatedMessage = `[REJECTED: ${trimmedRemarks}] ${notif?.message ?? ""}`;
 
   const { error: notifError } = await supabase
     .from("notifications")
@@ -4294,7 +4330,8 @@ export async function rejectAccountArchive({
     .eq("id", notificationId);
 
   if (notifError) {
-    await supabase.rpc("mark_notification_read", { p_notification_id: notificationId });
+    console.error("[PostgREST Schema Error] Failed to update notification on reject:", notifError);
+    throw new RequestDataError("generic", notifError.message || "Failed to update notification status.");
   }
 
   // Log audit trail
@@ -4306,7 +4343,7 @@ export async function rejectAccountArchive({
       new_data: {
         event: "ACCOUNT_ARCHIVE_REJECTED",
         notification_id: notificationId,
-        rejection_remarks: remarks,
+        rejection_remarks: trimmedRemarks,
       },
     });
   } catch (e) {

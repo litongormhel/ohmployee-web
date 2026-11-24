@@ -4631,7 +4631,7 @@ export async function requestAccountArchive(params: RequestAccountArchiveParams)
 
   // Call database SECURITY DEFINER RPC notify_user
   const { error: rpcError } = await supabase.rpc("notify_user", {
-    p_recipient_user_id: params.authUserId ?? null,
+    p_recipient_user_id: null,
     p_recipient_role: "Super Admin",
     p_title: `Account Archive Request: ${params.accountName}`,
     p_message: formattedMessage,

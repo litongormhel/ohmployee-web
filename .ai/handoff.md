@@ -1,5 +1,57 @@
 # AI Handoff
 
+## Execution Report — Fix Account Archive Approval & Rejection RPCs and Notifications RLS (ohm#fix-account-archive-reject-and-approval-rpcs)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified & Live on Staging
+
+### What Was Built
+1. **User Request Alignment**:
+   - User report: "reject button is not working." (with screenshot of Admin panel -> Approvals -> Account Archives review queue displaying pending request for `EUROMED PLANT`).
+2. **Forensic Root Cause Analysis**:
+   - In `public.notifications`, Row Level Security (RLS) is enabled. The `notif_update_own` policy was locked strictly to `recipient_user_id = auth.uid()` without an exception for Super Admin / Full Access (`i_have_full_access()`).
+   - When account archive requests were submitted via `requestAccountArchive` in `src/lib/queries/plantilla.ts`, `p_recipient_user_id` was erroneously stamped with `currentUser?.authUserId` (the requester's ID) rather than remaining `NULL` for Super Admin pool review.
+   - When Super Admin (or any other user) attempted to approve or reject the request, the client performed a direct PostgREST `UPDATE public.notifications`. Because `recipient_user_id != auth.uid()`, PostgreSQL silently updated 0 rows.
+   - In `src/lib/queries/requests.ts`, `rejectAccountArchive` swallowed the update error without throwing, falling back to `mark_notification_read` (which also filtered on `recipient_user_id = auth.uid()`, updating 0 rows). The frontend modal closed cleanly while the notification remained `is_archived = false`, leaving the request stuck permanently in the Pending queue.
+3. **Architectural Remediation**:
+   - **Database Migration (`20262606000164_fix_account_archive_approval_and_rejection_rpcs.sql`)**:
+     - §1: Created SECURITY DEFINER RPC `public.reject_account_archive(p_notification_id uuid, p_reason text)` with Super Admin permission enforcement (`i_have_full_access() OR get_my_role_level() >= 100`), mandatory non-empty reason validation, atomic notification update (`is_read = true, is_archived = true, read_at = now()`, message prepended with `[REJECTED: <reason>]`), and audit trail insertion in `public.audit_logs`.
+     - §2: Created SECURITY DEFINER RPC `public.approve_account_archive(p_notification_id uuid)` with Super Admin enforcement, atomic account deactivation (`is_active = false, status = 'Inactive'` triggering cascade trigger `trg_account_archive_cascade_stores`), notification update, and audit log write.
+     - §3: Updated `notif_update_own` RLS policy on `public.notifications` to allow `(recipient_user_id = auth.uid()) OR (SELECT i_have_full_access())`.
+     - §4: Sanitized existing `account_archive_request` notifications to `recipient_user_id = NULL` so they are accessible to all Super Admins.
+   - **Client Query Layer (`src/lib/queries/requests.ts`)**:
+     - Updated `rejectAccountArchive` and `approveAccountArchive` to invoke the dedicated RPCs with proper error logging and non-swallowing error boundaries.
+   - **Request Submission Layer (`src/lib/queries/plantilla.ts`)**:
+     - Updated `requestAccountArchive` to pass `p_recipient_user_id: null` so archive requests are not tied to a single user's account.
+   - **UI Component (`AccountArchiveDataTable.tsx`)**:
+     - Cleared error message and remarks upon opening the Reject and Approve modals to prevent stale validation states.
+4. **Verification & Post-Execution Sanity**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:secrets`: 0 credential leaks.
+   - `npm run check:sql`: 28 core tables & 19 cross-module RPC contracts verified across 689 migrations.
+   - `npm test`: 257/257 unit tests passed.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run build`: Clean Next.js 16.2.4 Turbopack production build with all 22 routes compiled.
+   - Pre-push dry run validated with 0 errors via `npm run db:push:staging -- --dry-run`.
+   - Applied migration `20262606000164` cleanly to Staging (`qqiiznmqxfoamqytjica`).
+   - Verified live definitions for `reject_account_archive` and `approve_account_archive` via `pg_get_functiondef`.
+
+### Files
+- `supabase/migrations/20262606000164_fix_account_archive_approval_and_rejection_rpcs.sql`
+- `src/lib/queries/requests.ts`
+- `src/lib/queries/plantilla.ts`
+- `src/components/approvals/AccountArchiveDataTable.tsx`
+- `docs/state/approvals_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Production Delta
+- Staging (`qqiiznmqxfoamqytjica`): 658 migrations
+- Production (`rwxelulyapjgaarlwkus`): 656 migrations
+- 2 migrations are not on prod:
+  - `20262606000163_clean_hard_delete_aling_nena_store.sql`
+  - `20262606000164_fix_account_archive_approval_and_rejection_rpcs.sql`
+
+---
+
 ## Execution Report — Hard Delete Inactive Test Account ALING NENA STORE & Child Artifacts (ohm#hard-delete-aling-nena-store)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified & Live on Staging
 

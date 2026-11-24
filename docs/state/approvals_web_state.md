@@ -97,15 +97,15 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
   - Search: Real-time client search filtering by account name, account code, or remarks.
   - Pagination: 1:1 parity with standard `TablePagination` (page index, page size `[10, 25, 50]`).
 - **Super Admin Actions**:
-  - **Approve Archive**: Opens confirmation modal summarizing account and headcount. Upon confirmation:
-    1. Sets `accounts.is_active = false` and `accounts.status = 'Inactive'`.
-    2. Updates notification status to approved (`is_read = true`, `is_archived = false`, title updated with `[APPROVED]`).
-    3. Logs audit trail in `public.audit_logs` (`action = 'UPDATE'`, `table_name = 'accounts'`).
-    4. Invalidates TanStack Query keys (`["plantilla-accounts"]`, `["account-archive-requests"]`, `["request-category-counts"]`).
-  - **Reject Archive**: Opens rejection dialog with mandatory reviewer justification. Upon submission:
-    1. Sets notification status to rejected (`is_read = true`, `is_archived = true`, title updated with `[REJECTED]`).
+  - **Approve Archive**: Opens confirmation modal summarizing account and headcount. Invokes dedicated SECURITY DEFINER RPC `public.approve_account_archive(p_notification_id)`:
+    1. Sets `accounts.is_active = false` and `accounts.status = 'Inactive'` (triggering `trg_account_archive_cascade_stores` to cascade to child stores).
+    2. Updates notification status to approved (`is_read = true`, `is_archived = true`, `read_at = now()`).
+    3. Logs audit trail in `public.audit_logs` (`action = 'UPDATE'`, `module = 'plantilla'`, `event = 'ACCOUNT_ARCHIVE_APPROVED'`).
+    4. Invalidates TanStack Query keys (`["plantilla"]`, `["plantilla", "allowed-accounts"]`, `["plantilla", "account-metrics"]`, `["account-archive-requests"]`, `["account-archive-counts"]`, `["request-category-counts"]`).
+  - **Reject Archive**: Opens rejection dialog with mandatory reviewer justification. Invokes dedicated SECURITY DEFINER RPC `public.reject_account_archive(p_notification_id, p_reason)`:
+    1. Sets notification status to rejected (`is_read = true`, `is_archived = true`, `read_at = now()`, message prepended with `[REJECTED: <reason>]`).
     2. Leaves account active in `accounts` table.
-    3. Logs audit trail in `public.audit_logs`.
+    3. Logs audit trail in `public.audit_logs` (`action = 'UPDATE'`, `module = 'approvals'`, `event = 'ACCOUNT_ARCHIVE_REJECTED'`).
     4. Invalidates TanStack Query keys to refresh counts and queue state.
 
 ---
