@@ -350,16 +350,12 @@ export function UpdateScheduleModal({
 
     setAllocations((prev) => {
       return prev.map((item, i) => {
+        if (i !== storeIdx) return item;
         const set = parseDaysToSet(item.scheduleDays);
-        if (i === storeIdx) {
-          if (set.has(day)) {
-            set.delete(day);
-          } else {
-            set.add(day);
-          }
-        } else {
-          // Exclusive assignment across stores
+        if (set.has(day)) {
           set.delete(day);
+        } else {
+          set.add(day);
         }
         return {
           ...item,
