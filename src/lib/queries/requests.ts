@@ -4520,7 +4520,7 @@ export async function fetchRollbackApprovalRequests(
 
   const filtered = items.filter((item) => {
     if (tab === "pending") {
-      return item.rollbackStatus === "requested";
+      return item.rollbackStatus === "requested" && item.status === "approved";
     }
     if (tab === "approved") {
       return item.rollbackStatus === "completed" || item.status === "rolled_back";
@@ -4564,10 +4564,10 @@ export async function fetchRollbackApprovalCounts(): Promise<RequestStatusCounts
   let rejected = 0;
 
   const countRow = (row: { status: string | null; rollback_status: string | null }) => {
-    if (row.rollback_status === "requested") {
-      pending++;
-    } else if (row.rollback_status === "completed" || row.status === "rolled_back") {
+    if (row.status === "rolled_back" || row.rollback_status === "completed") {
       approved++;
+    } else if (row.rollback_status === "requested" && row.status === "approved") {
+      pending++;
     } else if (row.rollback_status === "rejected" || row.rollback_status === "failed") {
       rejected++;
     }

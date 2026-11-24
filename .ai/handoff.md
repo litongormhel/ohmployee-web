@@ -1,5 +1,52 @@
 # AI Handoff
 
+## Execution Report — Reconcile Plantilla Rollback Status Desync & Prevent Zero-Edit Lock Query Storm (ohm#fix-plantilla-rollback-status-desync-and-guard)
+**Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
+
+### Forensic Root Cause & Operational Fix
+1. **User Alert Diagnosis (`IMG_4423.jpg`)**:
+   - The user uploaded an alert screenshot from the Supabase Dashboard: Staging database (`qqiiznmqxfoamqytjica`) CPU was maxed out at 100%, and Postgres logs repeatedly printed the following error 1-2 times every second:
+     `40001 ZERO_EDIT_LOCK: Batch records have been modified post-approval. Employee 2023-12046 (VASQUEZ, JULIUS JULIUS) was edited on 2026-10-27T06:16:22.657408+00:00. Rollback is hard-blocked.`
+   - Forensic Analysis:
+     - Inspection of `plantilla_import_batches` revealed that historical batch `aa79f9c7-9d44-4f35-9224-8c701534cee7` had `status = 'rolled_back'`, but its `rollback_status` remained desynchronized as `'requested'`.
+     - Months later on 2026-10-27, employee `2023-12046` was modified by a new batch import.
+     - Because `fetchRollbackApprovalRequests` and `fetchRollbackApprovalCounts` previously queried purely on `rollbackStatus === "requested"`, the batch reappeared as a pending rollback request in `/approvals?tab=rollbacks`.
+     - When approval was triggered, `public.approve_plantilla_import_rollback(p_batch_id)` executed `get_plantilla_import_first_modified_record(p_batch_id)` without first checking if the batch was already rolled back or in an invalid state.
+     - `humanizeRollbackError()` had a substring check `if (msg.includes("lock"))` before any specific check, erroneously translating the `ZERO_EDIT_LOCK` error into:
+       `"Another rollback is already in progress. Please wait and retry."`
+     - This misleading message led the client UI/user to repeatedly retry, hammering PostgREST every second and exhausting database CPU resources.
+2. **Database Hardening & Migration (`supabase/migrations/20262606000175_fix_plantilla_rollback_status_desync_and_guard.sql`)**:
+   - **Check Constraint Alignment**: Updated `pib_rollback_status_check` (`plantilla_import_batches`) and `vib_rollback_status_check` (`vacancy_import_batches`) to include `'rejected'`.
+   - **Batch Status Reconciliation**:
+     - Aligned all historical batches where `status = 'rolled_back'` to `rollback_status = 'completed'`.
+     - Reconciled rejected vacancy batch `caefef5e-506c-4f4c-a618-04b21d172623` to `rollback_status = 'rejected'`.
+   - **RPC Guarding (`public.approve_plantilla_import_rollback`)**:
+     - Added **Guard 1 (Idempotent Rollback Guard)**: If `v_batch.status = 'rolled_back'`, immediately update `rollback_status = 'completed'` and return success payload idempotently without evaluating records.
+     - Added **Guard 2 (State Guard)**: If `v_batch.status != 'approved'`, throw standard error: `Cannot approve rollback for batch with status: ...`.
+3. **Application & Client Safeguards**:
+   - [src/lib/queries/dataControl.ts](file:///D:/Projects/ohmployee-web/src/lib/queries/dataControl.ts): Placed `zero_edit_lock` check before generic `lock` check, returning an explicit permanent block message: `"Zero-Edit Lock: Rollback is permanently hard-blocked because batch records have been modified post-approval."`
+   - [src/lib/queries/requests.ts](file:///D:/Projects/ohmployee-web/src/lib/queries/requests.ts): Hardened `fetchRollbackApprovalRequests` and `fetchRollbackApprovalCounts` with `item.rollbackStatus === "requested" && item.status === "approved"`, preventing already rolled-back batches from ever appearing in pending queues.
+   - [src/components/approvals/RollbackDataTable.tsx](file:///D:/Projects/ohmployee-web/src/components/approvals/RollbackDataTable.tsx): Formatted clear Zero-Edit Lock error alert and replaced confirm button with "Close" upon Zero-Edit Lock error to prevent repeated clicks and query loops.
+4. **Verification**:
+   - `pg_stat_activity` check: live query count dropped from 1-2 qps storm to `rows: []` (0 active queries, CPU stabilized).
+   - `npm test`: 263/263 unit tests passed across 14 test suites.
+   - `npm run lint`: 0 ESLint errors/warnings, 0 secret leaks (`check:secrets`), 0 SQL contract violations (`check:sql`), ADR mirror fresh.
+   - `npm run build`: Turbopack production build compiled cleanly.
+   - Staging Migration Push: `20262606000175` dry-run verified and applied cleanly to Staging (`qqiiznmqxfoamqytjica`).
+
+### Files Modified / Created
+- `supabase/migrations/20262606000175_fix_plantilla_rollback_status_desync_and_guard.sql` — Database migration aligning check constraints, reconciling batch statuses, and hardening `approve_plantilla_import_rollback`.
+- `src/lib/queries/dataControl.ts` — Humanized zero-edit lock error message.
+- `src/lib/queries/requests.ts` — Filtered pending rollbacks to `status === 'approved'`.
+- `src/components/approvals/RollbackDataTable.tsx` — UX guard replacing confirm button with Close on zero-edit lock error.
+- `docs/state/approvals_web_state.md` — Documented rollback status invariants and Zero-Edit Lock UX guard.
+- `docs/state/plantilla_web_state.md` — Added Rule #29 detailing rollback status reconciliation and idempotent guards.
+- `.ai/briefing.md` — Updated Last Completed Tasks.
+- `.ai/current_state.md` — Added update log.
+- `.ai/handoff.md` — Added handoff report.
+
+---
+
 ## Execution Report — Refactor Vacancy Detail Surface to Multi-Tab Modal & Detailed What/Who/When Activity History Timeline (ohm#vacancy-detail-modal-and-activity-timeline)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrated to Staging & Locally Tested
 

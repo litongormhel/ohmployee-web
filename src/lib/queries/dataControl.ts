@@ -107,6 +107,9 @@ export function formatRollbackRemaining(seconds?: number | null): string {
 export function humanizeRollbackError(raw?: string | null): string {
   if (!raw || !raw.trim()) return "Rollback operation could not be completed.";
   const lower = raw.toLowerCase();
+  if (lower.includes("zero_edit_lock")) {
+    return "Zero-Edit Lock: Rollback is permanently hard-blocked because batch records have been modified post-approval.";
+  }
   if (lower.includes("records modified after import approval")) {
     return "Rollback blocked because imported records were modified after approval.";
   }

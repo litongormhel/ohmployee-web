@@ -183,6 +183,22 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
     - `NewStoreDataTable.tsx`: integrates dual action dispatching—delegating standard new store requests to `approveNewStoreRequest` and roving headcount requests with new doors to `approveHeadcountRequest` (which seamlessly triggers Step 1.5 atomic store provisioning in `create_plantilla_slot_from_request`) and `rejectHeadcountRequest`.
     - `fetchMyRequests` (`/my-requests`): categorizes headcount requests with new stores under `category: "new_stores"` with clear title `New Store (Position): Store Names` and subtitle `Account · N New Door(s) Proposed`.
 
+---
+
+## 12. Import Batch Rollback Status Reconciliation & ZERO_EDIT_LOCK Guard (`ohm#fix-plantilla-rollback-status-desync-and-guard`)
+- **Root Cause & Forensics**: Investigated high Supabase CPU alerts caused by repetitive 1-second `approve_plantilla_import_rollback` error loops on Staging (`qqiiznmqxfoamqytjica`). Diagnosed that historical batch `aa79f9c7-9d44-4f35-9224-8c701534cee7` had `status = 'rolled_back'` but `rollback_status = 'requested'`, causing it to linger in the Pending Approvals queue. When an execution attempt was made, `public.approve_plantilla_import_rollback` evaluated ADR-002 Zero-Edit Lock checks before verifying if the batch was already rolled back, crashing on employee `2023-12046` (`VASQUEZ, JULIUS JULIUS`, modified months post-approval) with Postgres error `40001 ZERO_EDIT_LOCK`.
+- **Database Hardening (Migration `20262606000175`)**:
+  - Reconciled historical batches where `status = 'rolled_back'` to `rollback_status = 'completed'`.
+  - Realigned check constraints `pib_rollback_status_check` and `vib_rollback_status_check` to permit `'rejected'`.
+  - Hardened `public.approve_plantilla_import_rollback(p_batch_id)`:
+    - Added Guard 1: If `v_batch.status = 'rolled_back'`, auto-completes `rollback_status = 'completed'` and returns cleanly without triggering downstream mutation checks.
+    - Added Guard 2: Strictly validates `v_batch.status = 'approved'` before evaluating `public.get_plantilla_import_first_modified_record`.
+- **UI & Query Hardening**:
+  - `src/lib/queries/requests.ts`: `fetchRollbackApprovalRequests` and `fetchRollbackApprovalCounts` strictly require `status = 'approved'` for `rollbackStatus = 'requested'` items to qualify for the `pending` queue, accurately classifying already rolled-back batches under `approved` (`Rolled Back`).
+  - `src/lib/queries/dataControl.ts`: updated `humanizeRollbackError` to recognize `zero_edit_lock` before generic `"lock"` checks, eliminating misleading "Another rollback is already in progress. Please wait and retry" messages.
+  - `src/components/approvals/RollbackDataTable.tsx`: catches `ZERO_EDIT_LOCK` / `40001` and surfaces a permanent warning, swapping the Confirm button for "Close" to permanently prevent rapid repeated retries.
+
+
 
 
 

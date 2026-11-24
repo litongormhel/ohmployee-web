@@ -86,7 +86,14 @@ export function RollbackDataTable({
         setSelectedDetailItem(null);
       }
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to execute rollback.");
+      const rawMsg = err instanceof Error ? err.message : String(err);
+      if (rawMsg.includes("ZERO_EDIT_LOCK") || rawMsg.includes("40001")) {
+        setErrorMessage("Zero-Edit Lock: This batch cannot be rolled back because employee or store records were modified post-approval. Reversal is permanently hard-blocked.");
+      } else if (rawMsg.includes("already rolled back") || rawMsg.includes("ALREADY_ROLLED_BACK")) {
+        setErrorMessage("This import batch has already been rolled back.");
+      } else {
+        setErrorMessage(err instanceof Error ? err.message : "Failed to execute rollback.");
+      }
     }
   };
 
@@ -471,23 +478,35 @@ export function RollbackDataTable({
           isSubmitting={approveMutation.isPending}
           footer={
             <div className="flex items-center justify-end gap-2.5 w-full">
-              <button
-                type="button"
-                onClick={() => setSelectedApproveItem(null)}
-                disabled={approveMutation.isPending}
-                className="rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleApprove}
-                disabled={approveMutation.isPending}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] px-4 py-2 text-xs font-semibold text-white shadow-2xs transition cursor-pointer"
-              >
-                {approveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                <span>{approveMutation.isPending ? "Executing..." : "Confirm & Execute Rollback"}</span>
-              </button>
+              {errorMessage?.includes("Zero-Edit Lock") ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedApproveItem(null)}
+                  className="rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
+                >
+                  Close
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedApproveItem(null)}
+                    disabled={approveMutation.isPending}
+                    className="rounded-lg border border-border-default bg-surface-base px-3.5 py-2 text-xs font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApprove}
+                    disabled={approveMutation.isPending}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--danger-button)] hover:bg-[var(--danger-button-hover)] px-4 py-2 text-xs font-semibold text-white shadow-2xs transition cursor-pointer"
+                  >
+                    {approveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    <span>{approveMutation.isPending ? "Executing..." : "Confirm & Execute Rollback"}</span>
+                  </button>
+                </>
+              )}
             </div>
           }
         >
