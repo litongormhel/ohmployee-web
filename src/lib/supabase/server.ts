@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import { STAGING_URL, STAGING_ANON_KEY } from "./client";
 
 export type ScopedServerClientResult = {
   supabase: SupabaseClient | null;
@@ -8,7 +9,8 @@ export type ScopedServerClientResult = {
 /**
  * Creates a scoped Supabase client tied strictly to the requesting user's Bearer JWT session.
  * Enforces PostgreSQL Row-Level Security (RLS) and user RBAC permissions.
- * Reads environment variables strictly; NEVER hardcodes credentials and NEVER uses SUPABASE_SERVICE_ROLE_KEY.
+ * Reads environment variables first, sharing the canonical Staging fallback with client.ts.
+ * NEVER uses SUPABASE_SERVICE_ROLE_KEY.
  */
 export async function createScopedServerClient(
   authHeader: string | null
@@ -22,8 +24,8 @@ export async function createScopedServerClient(
     return { supabase: null, user: null };
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || STAGING_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || STAGING_ANON_KEY;
 
   if (!url || !anonKey) {
     console.error(

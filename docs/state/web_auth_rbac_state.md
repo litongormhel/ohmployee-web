@@ -511,6 +511,19 @@ Per user direction, permanently cleaned up dormant/orphaned RBAC definitions tha
      - Overview Tab: Displays active override with scoped entity names and type badge.
      - Scope Assignment Tab: Added an informational callout banner when `activeTempOverride` is present detailing delegated access and expiration time, clarifying that baseline permanent scopes are displayed below.
 
+---
 
+## Security Audit Hardening: Timeline & Onboarding Scope Guards, Slot Authority & PostgREST Filter Sanitization (`ohm#security-audit-hardening-rls-rpcs-and-slot-authority`)
 
+1. **Cross-Account Scope Isolation on Activity Timeline RPCs (`20262606000189`)**:
+   - `public.get_plantilla_timeline(p_plantilla_id uuid)`: Revoked `EXECUTE` from `PUBLIC` and `anon`; granted only to `authenticated` and `service_role`. Enforced `auth.uid() IS NULL OR public.i_have_full_access() OR account = ANY(public.get_my_allowed_accounts()) OR account_id = ANY(public.get_my_allowed_account_ids())` inside `target_p` CTE and joined all event branches to `target_p`.
+   - `public.get_vacancy_activity_timeline(p_vacancy_id uuid)`: Enforced caller account-scope verification on the initial `public.vacancies` lookup so direct RPC invocations for out-of-scope vacancy IDs return `'[]'::jsonb`.
+2. **Account Scope Guard on `public.confirm_applicant_onboard` (`20262606000189`)**:
+   - Added explicit account-scope verification against `v_vac.account` and `v_vac.account_id` for Stationary and Roving requisitions, matching `public.confirm_coverage_group_onboarding`.
+3. **ADR-001 Rule 1 Slot Authority Enforcement (`20262606000189`)**:
+   - Rewired direct `UPDATE public.plantilla_slots` statements in `public.confirm_coverage_group_onboarding`, `public.confirm_applicant_onboard` (Option A fast-track), and `public._assign_and_deploy_emploc_core` (Coverage Group branch) through `public.fn_set_slot_status`.
+4. **PostgREST `.or()` Filter Sanitization & Least-Privilege Grants**:
+   - Applied `sanitizeOrTerm` to `cleanId` in `checkEmployeeIdUniqueness` (`src/lib/queries/hr_emploc.ts`) and `pendingVcodes` in `src/lib/queries/vacancy/vacancyListing.ts`.
+   - Revoked `anon` `SELECT` and `authenticated` `ALL` on `public.announcements` and `public.announcement_acknowledgements` (granting `SELECT, INSERT, UPDATE, DELETE` to `authenticated`), and added a `role_level >= 30` caller guard to `public.check_and_notify_on_leave_edr()`.
+   - Unified `STAGING_URL` / `STAGING_ANON_KEY` fallback in `src/lib/supabase/server.ts` with `src/lib/supabase/client.ts`.
 

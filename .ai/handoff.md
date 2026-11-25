@@ -1,5 +1,37 @@
 # AI Handoff
 
+## Execution Report — Security Audit Remediation: Harden Timeline & Onboarding RPC Account Scopes, Rewire Slot Authority via `fn_set_slot_status`, Sanitize `.or()` PostgREST Filters, and Enforce Least-Privilege Grants (ohm#security-audit-hardening-rls-rpcs-and-slot-authority)
+**Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings, Applied to Staging (`qqiiznmqxfoamqytjica`)
+
+### What Was Done
+1. **SEC-01 (High) — Lock Down `public.get_plantilla_timeline(uuid)` (`20262606000189`)**:
+   - Revoked `EXECUTE` from `PUBLIC` and `anon`; granted `EXECUTE` strictly to `authenticated` and `service_role`.
+   - Enforced caller authentication and account-scope isolation (`auth.uid() IS NULL OR public.i_have_full_access() OR account = ANY(public.get_my_allowed_accounts()) OR account_id = ANY(public.get_my_allowed_account_ids())`) inside `target_p` CTE and joined child CTE branches (`audit_logs`, `employee_transfers`, `employee_deactivation_requests`) to `target_p` so out-of-scope callers receive 0 rows.
+2. **SEC-02 (High) — Enforce Account Scope in `public.confirm_applicant_onboard` (`20262606000189`)**:
+   - Added explicit account-scope verification (`IF NOT public.i_have_full_access() AND NOT (v_vac.account = ANY(public.get_my_allowed_accounts())) AND NOT (v_vac.account_id = ANY(public.get_my_allowed_account_ids())) THEN RAISE EXCEPTION ...`) after resolving `v_vac` for Stationary and Roving requisitions, matching `confirm_coverage_group_onboarding`.
+3. **SEC-03 (Medium) — Enforce Account Scope in `public.get_vacancy_activity_timeline(uuid)` (`20262606000189`)**:
+   - Added caller account-scope verification on the initial `public.vacancies` lookup so direct RPC invocations for out-of-scope vacancy UUIDs safely return `'[]'::jsonb` without leaking candidate names, contact edits, or operational remarks.
+4. **SEC-04 (Medium) — Rewire Direct `UPDATE public.plantilla_slots` Through `public.fn_set_slot_status` (`20262606000189`)**:
+   - In accordance with **ADR-001 Rule 1 (Slot Authority)** (`00_core_invariants.md`), replaced direct `UPDATE public.plantilla_slots SET slot_status = ...` statements inside `public.confirm_coverage_group_onboarding`, `public.confirm_applicant_onboard` (Option A fast-track), and `public._assign_and_deploy_emploc_core` (Coverage Group branch) with calls to `public.fn_set_slot_status(...)`, guaranteeing transition-matrix validation and `public.slot_history` audit trail creation.
+5. **SEC-05 (Medium) — PostgREST `.or()` Filter Sanitization (`src/lib/queries/hr_emploc.ts` & `src/lib/queries/vacancy/vacancyListing.ts`)**:
+   - In `checkEmployeeIdUniqueness` (`src/lib/queries/hr_emploc.ts`), sanitized `cleanId` via `sanitizeOrTerm(cleanId)` prior to interpolating into `.or()` filter strings across `hr_emploc`, `plantilla`, and `users_profile`.
+   - In `src/lib/queries/vacancy/vacancyListing.ts`, sanitized `pendingVcodes` via `sanitizeOrTerm(r.vacancy_vcode)` before constructing `vcode.in.(...)` inside `.or()`.
+6. **SEC-06 & SEC-07 (Low) — Least-Privilege Grants, EDR Notification Caller Guard & Server Client Fallback Parity**:
+   - Revoked `anon` `SELECT` and `authenticated` `ALL` on `public.announcements` and `public.announcement_acknowledgements`, scoping `authenticated` strictly to `SELECT, INSERT, UPDATE, DELETE`.
+   - Added caller role/auth guard on `public.check_and_notify_on_leave_edr()` so unauthenticated or `Viewer` (`role_level < 30`) callers cannot trigger global EDR notifications.
+   - Updated `src/lib/supabase/server.ts` to share `STAGING_URL` and `STAGING_ANON_KEY` fallback with `src/lib/supabase/client.ts`.
+
+### Files Changed
+- `supabase/migrations/20262606000189_security_audit_hardening_rls_rpcs_and_slot_authority.sql`
+- `src/lib/queries/hr_emploc.ts`
+- `src/lib/queries/vacancy/vacancyListing.ts`
+- `src/lib/supabase/server.ts`
+- `docs/state/web_auth_rbac_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Cap All Activity History & Audit Timelines at 10 Initial Items with "See All Activity History" Toggle (ohm#cap-activity-history-to-10-with-expand)
 **Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings
 

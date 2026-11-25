@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { formatPersonName } from "@/lib/utils/formatName";
 import { parseHrEmplocError, type ParsedHrEmplocError } from "@/lib/utils/hr_emploc_errors";
+import { sanitizeOrTerm } from "@/lib/utils/postgrest";
 
 export type HrEmplocQueue =
   | "pending"
@@ -1443,11 +1444,16 @@ export async function checkEcosystemEmployeeIdUnique(
   }
 
   // 2. Client-side fallback check
+  const safeOrId = sanitizeOrTerm(cleanId);
+  if (!safeOrId) {
+    return { isUnique: true };
+  }
+
   // Check hr_emploc
   let emplocQuery = supabase
     .from("hr_emploc")
     .select("applicant_name, employee_no, emploc_no")
-    .or(`employee_no.ilike.${cleanId},emploc_no.ilike.${cleanId}`)
+    .or(`employee_no.ilike.${safeOrId},emploc_no.ilike.${safeOrId}`)
     .is("deleted_at", null)
     .neq("status", "Backout");
 
@@ -1470,7 +1476,7 @@ export async function checkEcosystemEmployeeIdUnique(
   let plantillaQuery = supabase
     .from("plantilla")
     .select("employee_name, employee_name_snapshot, employee_no")
-    .or(`employee_no.ilike.${cleanId},emploc_no.ilike.${cleanId}`)
+    .or(`employee_no.ilike.${safeOrId},emploc_no.ilike.${safeOrId}`)
     .or("is_deleted.is.null,is_deleted.eq.false");
 
   if (excludeHrEmplocId) {
@@ -1495,7 +1501,7 @@ export async function checkEcosystemEmployeeIdUnique(
     .select("full_name")
     .is("archived_at", null)
     .not("auth_user_id", "is", null)
-    .or(`metadata->>employee_id.ilike.${cleanId},metadata->>employee_no.ilike.${cleanId}`)
+    .or(`metadata->>employee_id.ilike.${safeOrId},metadata->>employee_no.ilike.${safeOrId}`)
     .limit(1);
 
   if (usersData && usersData.length > 0) {

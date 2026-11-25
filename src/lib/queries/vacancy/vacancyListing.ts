@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { formatPersonName, parseCandidateFullName } from "@/lib/utils/formatName";
+import { sanitizeOrTerm } from "@/lib/utils/postgrest";
 import { useQuery } from "@tanstack/react-query";
 import {
   type AssignedStoreDetail,
@@ -642,7 +643,9 @@ export async function getVacancySummary(
         .ilike("status", "pending");
 
       const pendingVcodes = new Set(
-        (rawRequests ?? []).map((r) => r.vacancy_vcode).filter(Boolean),
+        (rawRequests ?? [])
+          .map((r) => sanitizeOrTerm(r.vacancy_vcode))
+          .filter(Boolean),
       );
 
       // 2. Query active vacancies using PostgREST exact head count
