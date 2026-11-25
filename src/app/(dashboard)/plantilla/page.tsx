@@ -687,7 +687,7 @@ function PlantillaPageContent() {
       const [emplocRes, vacRes] = await Promise.all([
         supabase
           .from("hr_emploc")
-          .select("id, applicant_id, applicant_name, vcode, store_name, position, status, hired_date, date_requested, hrco_name, requirement_overall_status")
+          .select("id, applicant_id, applicant_name, vcode, store_name, position, status, hired_date, date_requested, hrco_name, requirement_overall_status, coverage_group_id, covered_stores")
           .eq("account_id", accountId)
           .is("deleted_at", null)
           .not("status", "in", '("Moved to Plantilla","Backout")')
@@ -811,11 +811,43 @@ function PlantillaPageContent() {
           seenNameKeys.add(nameKey);
         }
 
+        // If covered_stores carries per-store status (e.g. SMCO ONEMALL Confirmed + SSM JAZZ Pending Requirements),
+        // render a clear per-store breakdown label for Roving Coverage Group candidates
+        let resolvedStoreLabel: string | null = cgInfo
+          ? cgInfo.combinedStoresLabel
+          : ((emp.store_name as string | null) || (vac?.store_name as string | null) || null);
+        const rawCovered = (emp as Record<string, unknown>).covered_stores;
+        if (Array.isArray(rawCovered) && rawCovered.length > 1) {
+          const hasPendingStore = rawCovered.some(
+            (cs) =>
+              cs &&
+              typeof cs === "object" &&
+              String((cs as Record<string, unknown>).status || "").toLowerCase().includes("pending"),
+          );
+          if (hasPendingStore) {
+            const parts = rawCovered
+              .map((cs) => {
+                if (!cs || typeof cs !== "object") return null;
+                const obj = cs as Record<string, unknown>;
+                const sName = String(obj.store_name || "").trim();
+                const st = String(obj.status || "Confirmed").trim();
+                if (!sName) return null;
+                return st.toLowerCase().includes("pending")
+                  ? `${sName} (For Requirements)`
+                  : `${sName} (Onboarded)`;
+              })
+              .filter(Boolean);
+            if (parts.length > 1) {
+              resolvedStoreLabel = `${parts.join(" • ")} (Roving)`;
+            }
+          }
+        }
+
         result.push({
           id: String(emp.id),
           applicant_name: String(emp.applicant_name || "Candidate"),
           vcode: cgInfo && cgInfo.cgCode ? `${cgInfo.cgCode} (${rawVcode})` : (rawVcode || null),
-          store_name: cgInfo ? cgInfo.combinedStoresLabel : ((emp.store_name as string | null) || (vac?.store_name as string | null) || null),
+          store_name: resolvedStoreLabel,
           position: (emp.position as string | null) || (vac?.position as string | null) || null,
           status: (emp.status as string | null) || "Pending Emploc",
           hired_date: (emp.hired_date as string | null) ?? null,

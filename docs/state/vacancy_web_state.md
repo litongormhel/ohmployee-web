@@ -517,6 +517,19 @@ Root-caused and resolved foreign key constraint violation on `plantilla_slots_cl
 3. **Verification**:
    - Migration applied to Staging (`qqiiznmqxfoamqytjica`), verified `pg_get_functiondef` live matching, tested approving pending requisition closure `a2741731-0042-42eb-b523-748dee421a7a` (`TEST005`) with 100% success (all 3 slots closed with `VACANCY_CLOSED`, vacancy archived and marked `Closed`), passed all 264 unit tests (`npm test`), 0 ESLint errors/warnings (`npm run lint`), 0 secret leaks (`check:secrets`), 0 SQL contract violations (`check:sql`), and clean Turbopack build (`npm run build`).
 
+## Partial / Staggered Roving Coverage Group Store Onboarding (`ohm#partial-roving-coverage-store-onboarding-and-agawa-backfill`)
+
+Implements 100% Web-Mobile workflow parity for partial / per-store onboarding of Roving Coverage Group candidates ([20262606000188_partial_roving_coverage_store_onboarding_and_agawa_backfill.sql](file:///D:/Projects/ohmployee-web/supabase/migrations/20262606000188_partial_roving_coverage_store_onboarding_and_agawa_backfill.sql), [MarkHiredModal.tsx](file:///D:/Projects/ohmployee-web/src/components/vacancy/MarkHiredModal.tsx)):
+
+1. **Store Footprint Selection Checklist (`MarkHiredModal.tsx`)**:
+   - When opening **Confirm Onboarding / Mark Hired** for an applicant belonging to a multi-store Coverage Group (`CG-*` or any store linked in `public.coverage_group_stores`), the modal renders the **Approve Onboarding Store Footprint** checklist card (matching Mobile's `_CoverageOnboardingStoreSelectionSheet`).
+   - Checked store(s) transition immediately to `Confirmed Onboard` (`Onboard Now → HR Emploc` or `Fast-Track → Active Plantilla`), while unchecked store(s) remain in the Vacancy & Plantilla Pipeline (`For Requirements`).
+   - Any member store already confirmed onboard earlier renders as a locked green row (`Already Onboarded ✓`).
+2. **Lifecycle & Option A Fast-Track Engine (`confirm_coverage_group_onboarding` & `confirm_applicant_onboard`)**:
+   - **Initial Partial Onboarding**: Selected stores are recorded as `'Confirmed'` in `public.hr_emploc_store_links` (`plantilla_slots.slot_status = 'hr_processing'`); unselected member stores are recorded as `'Pending'` in `public.hr_emploc_store_links` and automatically retain/create a linked `public.applicants` row (`status = 'For Requirements'`, `coverage_group_id`, `coverage_slot_id`) on the remaining store's VCode (`plantilla_slots.slot_status = 'pipeline'`).
+   - **Remaining Store Completed While Still in HR Emploc**: Confirming onboarding on the remaining store merges it into the candidate's existing `public.hr_emploc` record (`hr_emploc_store_links.status = 'Confirmed'`, `covered_stores` updated) without creating a duplicate `hr_emploc` row.
+   - **Remaining Store Completed After Candidate Is Already Active in Plantilla (Option A Fast-Track)**: Confirming onboarding on the remaining store links it directly to the employee's active `public.plantilla` record via `public.plantilla_store_links`, marks the store's `plantilla_slots` row `'occupied'`, closes the store's `vacancies` row (`'Filled'`), and invokes `public.fn_sync_employee_store_allocations` to rebalance `public.employee_store_allocations` ($1/N$, e.g. `0.50 + 0.50` HC).
+
 ---
 
 > [!NOTE]

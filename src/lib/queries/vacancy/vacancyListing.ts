@@ -767,7 +767,8 @@ export async function listVacancies(params: VacancyListParams) {
           is_archived,
           recruited_by_name,
           recruited_by_user_id,
-          vacancy_requirement_id
+          vacancy_requirement_id,
+          coverage_group_id
         `)
         .eq("is_archived", false)
         .order("created_at", { ascending: false });
@@ -986,6 +987,132 @@ export async function listVacancies(params: VacancyListParams) {
             totalCount: validCandidates.length,
           };
         });
+
+        // Enrich Coverage Group metadata (cgCode, assignedStores, assignedStoreDetails) on Pipeline rows
+        try {
+          const pipeStoreIds = Array.from(
+            new Set(pipelineRows.map((r) => r.storeId).filter(Boolean) as string[]),
+          );
+          const explicitCgIds = Array.from(
+            new Set(
+              validCandidates
+                .map((c) => asString((c as Record<string, unknown>).coverage_group_id))
+                .filter(Boolean) as string[],
+            ),
+          );
+
+          const matchedCgIds = [...explicitCgIds];
+          if (pipeStoreIds.length > 0) {
+            const { data: cgsMatch } = await supabase
+              .from("coverage_group_stores")
+              .select("coverage_group_id, store_id")
+              .in("store_id", pipeStoreIds)
+              .is("archived_at", null);
+            if (cgsMatch) {
+              for (const m of cgsMatch) {
+                if (m.coverage_group_id && !matchedCgIds.includes(String(m.coverage_group_id))) {
+                  matchedCgIds.push(String(m.coverage_group_id));
+                }
+              }
+            }
+          }
+
+          if (matchedCgIds.length > 0) {
+            const [allGroupStoresRes, hslRes] = await Promise.all([
+              supabase
+                .from("coverage_group_stores")
+                .select("coverage_group_id, store_id, is_anchor, hc_share, stores(id, store_name, vcode), coverage_groups(id, coverage_code, status)")
+                .in("coverage_group_id", matchedCgIds)
+                .is("archived_at", null),
+              supabase
+                .from("hr_emploc_store_links")
+                .select("coverage_group_id, store_id, vcode, status")
+                .in("coverage_group_id", matchedCgIds)
+                .eq("status", "Confirmed")
+                .is("deleted_at", null),
+            ]);
+
+            const confirmedStoreSet = new Set<string>();
+            for (const h of hslRes.data ?? []) {
+              if (h.store_id) confirmedStoreSet.add(String(h.store_id));
+              if (h.vcode) confirmedStoreSet.add(String(h.vcode).toUpperCase());
+            }
+
+            const cgStoreMap = new Map<
+              string,
+              { cgCode: string; storeNames: string[]; storeDetails: AssignedStoreDetail[] }
+            >();
+            const storeToCgId = new Map<string, string>();
+            const vcodeToCgId = new Map<string, string>();
+
+            const rawGroupItems = (allGroupStoresRes.data ?? []) as Array<Record<string, unknown>>;
+            const byCg = new Map<string, Array<Record<string, unknown>>>();
+            for (const item of rawGroupItems) {
+              const cid = asString(item.coverage_group_id);
+              if (!cid) continue;
+              if (!byCg.has(cid)) byCg.set(cid, []);
+              byCg.get(cid)!.push(item);
+            }
+
+            for (const [cid, items] of byCg.entries()) {
+              const cgRaw = items[0]?.coverage_groups as unknown;
+              const cgObj = Array.isArray(cgRaw)
+                ? (cgRaw[0] as Record<string, unknown> | undefined)
+                : (cgRaw as Record<string, unknown> | null);
+              const cgCode = asString(cgObj?.coverage_code) || "";
+              const count = items.length || 1;
+              const defaultFraction = `1/${count}`;
+              const storeNames: string[] = [];
+              const storeDetails: AssignedStoreDetail[] = [];
+
+              for (const item of items) {
+                const sObj = (item.stores as unknown) as Record<string, unknown> | null;
+                const sid = asString(item.store_id) || asString(sObj?.id) || "";
+                const sname = asString(sObj?.store_name) || "";
+                const svcode = asString(sObj?.vcode) || "";
+                const isAnchor = asBoolean(item.is_anchor);
+                const hcShare = asNumber(item.hc_share);
+                const slotFraction = hcShare === 0.5 ? "1/2" : defaultFraction;
+                const isConfirmed =
+                  (sid && confirmedStoreSet.has(sid)) ||
+                  Boolean(svcode && confirmedStoreSet.has(svcode.toUpperCase()));
+
+                if (sname && !storeNames.includes(sname)) storeNames.push(sname);
+                storeDetails.push({
+                  storeId: sid || undefined,
+                  storeName: sname,
+                  vcode: svcode || null,
+                  isAnchor,
+                  slotFraction,
+                  onboardingStatus: isConfirmed ? "Confirmed" : "Pending Requirements",
+                });
+
+                if (sid) storeToCgId.set(sid, cid);
+                if (svcode) vcodeToCgId.set(svcode.toUpperCase(), cid);
+              }
+
+              if (storeDetails.length > 1) {
+                cgStoreMap.set(cid, { cgCode, storeNames, storeDetails });
+              }
+            }
+
+            for (const row of pipelineRows) {
+              const vk = (row.vcode || "").toUpperCase();
+              const cid =
+                (row.storeId ? storeToCgId.get(row.storeId) : undefined) ||
+                vcodeToCgId.get(vk);
+              if (cid && cgStoreMap.has(cid)) {
+                const cgInfo = cgStoreMap.get(cid)!;
+                row.cgCode = cgInfo.cgCode;
+                row.employmentType = "Roving";
+                row.assignedStores = cgInfo.storeNames;
+                row.assignedStoreDetails = cgInfo.storeDetails;
+              }
+            }
+          }
+        } catch (cgPipeErr) {
+          console.error("[PostgREST Schema Error] pipeline coverage group enrichment:", cgPipeErr);
+        }
 
         let filteredPipeline = pipelineRows;
         if (params.search) {

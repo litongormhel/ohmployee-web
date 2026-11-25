@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Execution Report — Implement Partial / Staggered Roving Coverage Group Store Onboarding, Option A Fast-Track & Backfill Agawa in PERFECT SM (ohm#partial-roving-coverage-store-onboarding-and-agawa-backfill)
+**Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, Migration 20262606000188 Pushed to Staging & Synced to Mobile, 264 Tests Passing, 0 Lint Warnings
+
+### What Was Done
+1. **Mobile Workflow Audit & Root Cause Diagnosis**:
+   - In Mobile (`lib/features/vacancy/vacancy_screen.dart:11131-11322`), onboarding a Coverage Group candidate presents `_CoverageOnboardingStoreSelectionSheet` (*"Approve Onboarding Store Footprint"*), allowing the user to check the store(s) where the merchandiser is ready to onboard now (e.g. `SMCO ONEMALL`, `VPSMG3_0008`, `0.5 HC`) and leave remaining store(s) unchecked (`SSM JAZZ`, `VPSMG3_0016`, `0.5 HC`) in the Pipeline (`For Requirements`).
+   - Previously on Web, `MarkHiredModal.tsx` had no store footprint checklist and submitted only a single store VCode (`VPSMG3_0008`) to `confirm_applicant_onboard`, creating a stationary `hr_emploc` record for `SMCO ONEMALL` while leaving `SSM JAZZ` (`VPSMG3_0016`) without an active pipeline applicant row.
+2. **Database & RPC Hardening (`supabase/migrations/20262606000188_partial_roving_coverage_store_onboarding_and_agawa_backfill.sql`)**:
+   - **`fn_assert_applicant_duplicate_and_reuse`**: Updated trigger checks against `applicants`, `hr_emploc`, and `plantilla` to exclude sibling store rows sharing the same `coverage_group_id` or `roving_assignment_id`, allowing a candidate to be onboarded in `hr_emploc` or active in `plantilla` at Store 1 while maintaining an active `'For Requirements'` pipeline applicant row at Store 2 of the same Coverage Group.
+   - **`confirm_coverage_group_onboarding`**:
+     - Auto-resolves `coverage_group_id` and `coverage_slot_id` from the applicant's `vacancy_vcode` / store if not pre-bound.
+     - **Option A Fast-Track to Active Plantilla**: When the candidate is already deployed (`Active` / `On Leave`) in `public.plantilla` for the account/coverage group (already assigned an Employee # at Store 1), confirming onboarding for the remaining store(s) links them directly into `public.plantilla_store_links` (`status = 'Active'`), occupies their `public.plantilla_slots` row(s), closes their `public.vacancies` row(s) (`status = 'Filled'`), and invokes `public.fn_sync_employee_store_allocations(employee_no)` to rebalance `public.employee_store_allocations` ($1/N$, e.g. `0.50` `SMCO ONEMALL` + `0.50` `SSM JAZZ`) without creating a duplicate `hr_emploc` record.
+     - **Late Store Merge into Existing HR Emploc**: When the candidate is still in `public.hr_emploc` (`status <> 'Moved to Plantilla'`), confirming the remaining store updates its `public.hr_emploc_store_links` entry from `'Pending'` to `'Confirmed'`, transitions its `plantilla_slots` row to `'hr_processing'`, and refreshes `hr_emploc.covered_stores` and `store_name`.
+     - **Partial Store Onboarding**: Selected stores in `p_selected_store_ids` are recorded as `'Confirmed'` in `hr_emploc_store_links` and `covered_stores` (`plantilla_slots.slot_status = 'hr_processing'`), while unselected member stores are recorded as `'Pending'` in `hr_emploc_store_links`, `'Pending Requirements'` in `covered_stores`, and automatically preserve/spawn a linked `public.applicants` row (`status = 'For Requirements'`, `coverage_group_id`, `coverage_slot_id`) on the remaining store's VCode (`plantilla_slots.slot_status = 'pipeline'`).
+   - **`confirm_applicant_onboard` (13-arg)**: Delegates to `public.confirm_coverage_group_onboarding` whenever `v_app.coverage_group_id IS NOT NULL` (such as confirming a remaining Coverage Group store from the Pipeline tab).
+   - **`_assign_and_deploy_emploc_core`**: Added Coverage Group (`v_emp.coverage_slot_id IS NOT NULL` / `assignment_type = 'Coverage'`) and Roving store link deployment support, populating `public.plantilla_store_links` for all `'Confirmed'` stores in `public.hr_emploc_store_links`, occupying their `plantilla_slots`, closing confirmed store vacancies, and calling `public.fn_sync_employee_store_allocations`.
+   - **`v_account_allocation_kpi`**: Preserved all 19 columns in exact order while deduplicating `pipeline_count` by `COALESCE(coverage_slot_id::text, coverage_group_id::text, cand_name)` and excluding candidates already active in `public.plantilla` for the account/coverage group so staggered 2nd-store onboarding never double-counts headcount.
+   - **Staging Backfill for `AGAWA, BERNARDINO OPENARIA` (`PERFECT SM`, `CG-PG3-0001`)**:
+     - Bound `VPSMG3_0008` (`SMCO ONEMALL`) applicant (`017c34cb-8dc5-4134-ab41-20195236bfda`) and `hr_emploc` (`e6c7892b-18e6-4145-b063-1d7df5fc0afd`, preserving `hr_status = 'For Emploc'`) to `coverage_group_id = '40c09c8f-0d21-419b-b3ec-fcae5f5303b2'` (`CG-PG3-0001`) and `coverage_slot_id = '50b5120e-3fdb-40b0-8019-0a1c06de750d'`.
+     - Populated `hr_emploc_store_links` (`SMCO ONEMALL` = `'Confirmed'`, `SSM JAZZ` = `'Pending'`) and `covered_stores` JSONB.
+     - Inserted linked pipeline applicant row (`cbf9461d-6ed4-4908-a6c6-dd310193077f`) on `VPSMG3_0016` (`SSM JAZZ`) with `status = 'For Requirements'`.
+3. **Web Frontend Integration**:
+   - `src/components/vacancy/MarkHiredModal.tsx`: Added the **"Approve Onboarding Store Footprint"** checklist card for Roving Coverage Group candidates, displaying member stores with `Anchor` / `Secondary` and fractional HC badges (`1/2 HC`), `Already Onboarded` lock badges for stores confirmed earlier, and interactive checkboxes toggling between `Onboard Now → HR Emploc` (or `Fast-Track → Active Plantilla`) and `Keep in Pipeline (For Requirements)`.
+   - `src/lib/queries/vacancy/types.ts` & `src/lib/queries/vacancy/vacancyMutations.ts`: Added `selectedStoreIds` and `cgCode` to `ConfirmApplicantOnboardParams`; routed multi-store footprint confirmations through `confirm_coverage_group_onboarding`.
+   - `src/lib/queries/vacancy/vacancyListing.ts`, `src/app/(dashboard)/vacancy/page.tsx`, `src/components/vacancy/VacancyDetailDrawer.tsx`: Enriched Pipeline tab candidates belonging to Coverage Groups with `cgCode`, `assignedStores`, and `assignedStoreDetails` (including per-store `onboardingStatus`) and forwarded them into `MarkHiredModal`.
+   - `src/app/(dashboard)/plantilla/page.tsx`: Updated `pipelineCandidatesQuery` so partially onboarded Coverage Group candidates display per-store status breakdown (`SMCO ONEMALL (Onboarded) • SSM JAZZ (For Requirements) (Roving)`).
+
+### Files Changed
+- `supabase/migrations/20262606000188_partial_roving_coverage_store_onboarding_and_agawa_backfill.sql`
+- `src/components/vacancy/MarkHiredModal.tsx`
+- `src/components/vacancy/VacancyDetailDrawer.tsx`
+- `src/app/(dashboard)/vacancy/page.tsx`
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/lib/queries/vacancy/types.ts`
+- `src/lib/queries/vacancy/vacancyMutations.ts`
+- `src/lib/queries/vacancy/vacancyListing.ts`
+- `docs/state/vacancy_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Align Account Card Actual HC with On-Leave, Unify Applicants & HR Emploc in Plantilla Pipeline Tab, Combine Roving Coverage Groups & Enforce Vacancy HC Sum (ohm#plantilla-pipeline-applicants-roving-cg-and-leave-hc-alignment)
 **Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, Migrations 185–187 Pushed to Staging, 264 Tests Passing, 0 Lint Warnings
 

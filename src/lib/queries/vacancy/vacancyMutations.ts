@@ -490,6 +490,39 @@ export async function confirmApplicantOnboard(
       ? `0${cleanContact}`
       : cleanContact;
 
+  // If explicit Coverage Group store footprint selection was provided (partial or full roving store onboarding),
+  // invoke confirm_coverage_group_onboarding so unselected stores remain in Pipeline ('For Requirements')
+  // and selected stores advance to HR Emploc (or fast-track to Active Plantilla under Option A).
+  if (Array.isArray(params.selectedStoreIds) && params.selectedStoreIds.length > 0) {
+    if (params.endorsedByName || params.endorsedByDeployerId) {
+      await supabase
+        .from("applicants")
+        .update({
+          endorsed_by_deployer_id: params.endorsedByDeployerId || null,
+          endorsed_by_name: params.endorsedByName || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", params.applicantId);
+    }
+
+    const { data: cgData, error: cgError } = await supabase.rpc(
+      "confirm_coverage_group_onboarding",
+      {
+        p_applicant_id: params.applicantId,
+        p_selected_store_ids: params.selectedStoreIds,
+        p_hired_by_user_id: params.hiredByUserId || null,
+        p_hired_date: params.hiredDate,
+        p_remarks: params.remarks || null,
+      },
+    );
+
+    if (cgError) {
+      throw new VacancyDataError("generic", cgError.message);
+    }
+
+    return cgData;
+  }
+
   const rpcParams: Record<string, unknown> = {
     p_applicant_id: params.applicantId,
     p_last_name: params.lastName,

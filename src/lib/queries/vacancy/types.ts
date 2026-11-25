@@ -47,6 +47,7 @@ export type AssignedStoreDetail = {
   vcode?: string | null;
   isAnchor?: boolean;
   slotFraction?: string | null;
+  onboardingStatus?: "Confirmed" | "Pending Requirements" | "Active" | null;
 };
 
 export type VacancyListItem = {
@@ -397,6 +398,8 @@ export type ConfirmApplicantOnboardParams = {
   remarks?: string | null;
   rovingAssignmentId?: string | null;
   vacancyRequirementId?: string | null;
+  selectedStoreIds?: string[] | null;
+  cgCode?: string | null;
   vcode?: string;
   vacancyId?: string;
   actualHiredDate?: string;

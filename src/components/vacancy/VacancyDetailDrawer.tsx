@@ -1650,21 +1650,29 @@ export function VacancyDetailDrawer({
                 setSelectedCandidate(null);
               }}
               applicant={
-                selectedCandidate || {
-                  id: detail.vacancyId,
-                  fullName: detail.applicantName || "Candidate",
-                  lastName: detail.applicantLastName,
-                  firstName: detail.applicantFirstName,
-                  middleName: detail.applicantMiddleName,
-                  contactNumber: detail.contactNumber,
-                  vcode: detail.vcode,
-                  positionTitle: detail.position_title,
-                  groupId: detail.groupId,
-                  accountId: detail.accountId,
-                  endorsedByName: detail.recruiterName || null,
-                  vacancyRequirementId:
-                    detail.requirements && detail.requirements.length === 1 ? detail.requirements[0].id : null,
-                }
+                selectedCandidate
+                  ? {
+                      ...selectedCandidate,
+                      cgCode: detail.cgCode || null,
+                      assignedStoreDetails: detail.assignedStoreDetails || null,
+                    }
+                  : {
+                      id: detail.applicantId || detail.vacancyId,
+                      fullName: detail.applicantName || "Candidate",
+                      lastName: detail.applicantLastName,
+                      firstName: detail.applicantFirstName,
+                      middleName: detail.applicantMiddleName,
+                      contactNumber: detail.contactNumber,
+                      vcode: detail.vcode,
+                      cgCode: detail.cgCode || null,
+                      assignedStoreDetails: detail.assignedStoreDetails || null,
+                      positionTitle: detail.position_title,
+                      groupId: detail.groupId,
+                      accountId: detail.accountId,
+                      endorsedByName: detail.recruiterName || null,
+                      vacancyRequirementId:
+                        detail.requirements && detail.requirements.length === 1 ? detail.requirements[0].id : null,
+                    }
               }
               onSuccess={() => {
                 setIsMarkHiredModalOpen(false);

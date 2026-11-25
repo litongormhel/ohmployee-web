@@ -172,6 +172,8 @@ function VacancyPageContent() {
     middleName?: string | null;
     contactNumber?: string | null;
     vcode: string;
+    cgCode?: string | null;
+    assignedStoreDetails?: VacancyListItem["assignedStoreDetails"] | null;
     positionTitle?: string | null;
     groupId?: string | null;
     accountId?: string | null;
@@ -542,6 +544,8 @@ function VacancyPageContent() {
       middleName: row.applicantMiddleName,
       contactNumber: row.contactNumber,
       vcode: row.vcode,
+      cgCode: row.cgCode || null,
+      assignedStoreDetails: row.assignedStoreDetails || null,
       positionTitle: row.position_title,
       groupId: row.groupId,
       accountId: row.accountId,
