@@ -1,5 +1,50 @@
 # AI Handoff
 
+## Execution Report — Align Account Card Actual HC with On-Leave, Unify Applicants & HR Emploc in Plantilla Pipeline Tab, Combine Roving Coverage Groups & Enforce Vacancy HC Sum (ohm#plantilla-pipeline-applicants-roving-cg-and-leave-hc-alignment)
+**Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, Migrations 185–187 Pushed to Staging, 264 Tests Passing, 0 Lint Warnings
+
+### What Was Done
+1. **Forensic Root Cause Analysis**:
+   - **On-Leave Included in Actual Headcount (`743 + 3 = 746 / 753`)**: Personnel on authorized leave (`On Leave` / `on_leave`) remain officially active employees of the organization (neither resigned, separated, nor floating). Updating `public.v_account_allocation_kpi` to include `leave_count` in `actual_hc` and `filled_hc` aligns the Account Card headcount directly with `Active + On-Leave` (`743 + 3 = 746 / 753` in ALTURAS; `6 + 1 = 7 / 10` in PERFECT SM).
+   - **Recruitment Applicants Missing from Both Plantilla > Vacancy and Plantilla > Pipeline (`Mike Ilagan Yao`, `VCBPIG1_1372`)**: In `src/app/(dashboard)/plantilla/page.tsx`, when Tab 3 (Vacancy) filtered out requisitions that already had an active candidate (`hasPipelineCandidate = true`), candidates in `public.applicants` who had not yet transitioned to `public.hr_emploc` (such as `Mike Ilagan Yao` on `VCBPIG1_1372` • `QUEZON BUKIDNON` with status `New`) were excluded from Tab 3 (Vacancy) AND omitted from Tab 4 (Pipeline) because `pipelineCandidatesQuery` only queried `public.hr_emploc`.
+   - **Roving Coverage Group Orphan `0.5` Vacancy Row & Vacancy Tab Badge HC Sum (`PERFECT SM`, `CG-PG3-0001`)**: In `PERFECT SM`, Roving Coverage Group `CG-PG3-0001` covers `SMCO ONEMALL` (`VPSMG3_0008`, `0.5` HC) and `SSM JAZZ` (`VPSMG3_0016`, `0.5` HC). Candidate `Bernardino Openaria Agawa` was in `hr_emploc` under `VPSMG3_0008`. Previously, only `VPSMG3_0008` was excluded from Tab 3 (Vacancy), leaving `VPSMG3_0016` (`SSM JAZZ`, `0.5` HC) orphaned in Tab 3 (Vacancy) and causing the Tab 3 badge to count rows (`2`) instead of the HC sum (`1`).
+   - **Coverage Group Pipeline Deduplication in `v_account_allocation_kpi`**: In `public.v_account_allocation_kpi`, when a candidate in `hr_emploc` or `applicants` (`coverage_slot_id IS NULL`) was assigned to a member store VCode of a coverage group, `coverage_slot_kpi.pipeline_count` also counted the coverage group slot, double-counting the candidate. Furthermore, already-occupied active coverage groups (such as `CG-AG2-0003` occupied by active roving employee `Rommel Abogado`, where member store `DAET CAMARINES SUR` `VCBPIG1_1026` had an independent stationary backfill candidate `Lorna Dela Pena`) needed to be excluded from `active_cg_with_pipeline`.
+2. **Database Hardening (`20262606000185`, `20262606000186`, `20262606000187`)**:
+   - Included `COALESCE(l.leave_count, 0)` in `filled_hc` and `actual_hc` in `public.v_account_allocation_kpi`.
+   - Created `active_pipeline_candidates` CTE uniting active candidates from `public.hr_emploc` and `public.applicants`, excluding their VCodes and unfilled parent Roving Coverage Groups (`active_cg_with_pipeline`) from `slot_vacant_non_roving`, `slot_vacant_roving`, `coverage_slot_kpi.slot_vacant_hc`, and `vacant`.
+   - Restricted `active_cg_with_pipeline` to coverage groups that do not already have an active occupied slot (`slot_status = 'active' AND current_occupant_plantilla_id IS NOT NULL`), and restricted `coverage_slot_kpi.pipeline_count` to `cg.id NOT IN (SELECT coverage_group_id FROM active_cg_with_pipeline)` to prevent double-counting.
+3. **Frontend & ADR Alignment (`src/app/(dashboard)/plantilla/page.tsx` & `01_plantilla.md`)**:
+   - Updated `pipelineCandidatesQuery` in `src/app/(dashboard)/plantilla/page.tsx` to query both `public.hr_emploc` and `public.applicants` (for active vacancies under the account), deduplicating by applicant ID and normalized name, and enriching candidates on unfilled Roving Coverage Groups with the combined roving store names (`SMCO ONEMALL • SSM JAZZ (Roving)`) and `CGCode (VCode)`.
+   - Updated `allVacancies` in `src/app/(dashboard)/plantilla/page.tsx` so that if any member store of a Roving Coverage Group (`v.cgCode`) has a pipeline candidate (`isCgInPipeline`), all member store rows of that coverage group are excluded from Tab 3 (Vacancy) and represented as combined in Tab 4 (Pipeline). Also registered all pipeline VCodes and store names in `seenVcodes` / `seenStoreNames` to prevent synthetic vacancy duplication.
+   - Updated `vacancyCount` in `src/app/(dashboard)/plantilla/page.tsx` to compute the **HC sum** (`vacancyHcSum`) across `allVacancies` rather than row count (`allVacancies.length`).
+   - Updated ADR `01_plantilla.md` in Mobile repo and synced ADR mirrors via `npm run sync:adr` (`ADR_MIRROR_STATUS: FRESH`).
+4. **Live Verification on Staging (`qqiiznmqxfoamqytjica`)**:
+   - **ALTURAS (`3126b9a8-29a6-4917-8b49-82e937d7cf88`)**: `actual_hc = 746` (`743 Active + 3 On-Leave`), `required_hc = 753`, `slot_vacant_hc = 4`, `pipeline_count = 3` (`Lorna Dela Pena`, `Elizabeth Tejada`, `Mike Ilagan Yao`), `leave_count = 3`.
+   - **PERFECT SM (`d3e4f5a6-b7c8-9012-cdef-123456789012`)**: `actual_hc = 7` (`6 Active + 1 On-Leave`), `required_hc = 10`, `slot_vacant_hc = 1` (`VPSMG3_0004`), `pipeline_count = 2` (`Juan Flavier Santos`, `Bernardino Openaria Agawa` on combined `CG-PG3-0001`), `leave_count = 1`.
+   - Unit tests: 264/264 passing (`npm test`).
+   - Lint: 0 errors, 0 warnings (`npm run lint`).
+   - Build: Clean Next.js 16.2.4 Turbopack production build (`npm run build`).
+
+### Files Changed
+- `supabase/migrations/20262606000185_fix_account_kpi_actual_hc_include_leave_and_filter_pipeline_from_vacancies.sql`
+- `supabase/migrations/20262606000186_fix_account_kpi_pipeline_applicants_and_roving_coverage.sql`
+- `supabase/migrations/20262606000187_fix_account_kpi_coverage_slot_pipeline_dedup.sql`
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `docs/architecture/_mirror/ADR-001-ohmployee-system-architecture.md`
+- `docs/architecture/_mirror/adr/00_core_invariants.md`
+- `docs/architecture/_mirror/adr/01_plantilla.md`
+- `docs/architecture/_mirror/adr/02_vacancy.md`
+- `docs/architecture/_mirror/adr/03_hr_emploc.md`
+- `docs/architecture/_mirror/adr/04_approvals_requisitions.md`
+- `docs/architecture/_mirror/adr/05_more_module.md`
+- `docs/architecture/_mirror/adr/06_dashboard_cencom.md`
+- `docs/architecture/_mirror/adr/README.md`
+- `docs/state/plantilla_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Fix Temporary Permission Override Delegated Access Visuals (ohm#fix-temp-override-delegated-access-visual)
 **Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings
 

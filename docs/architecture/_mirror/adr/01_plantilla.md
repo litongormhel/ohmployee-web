@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Plantilla. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/01_plantilla.md
-source_commit: 268420c 2026-11-24T19:47:28+08:00
-source_sha256: 72cad782d139a8f65b5457b274e49a7582a0ccbdd5384e588f77c0ca8899ed44
-synced_at: 2026-11-24T15:07:23.647Z
+source_commit: f87b04a 2026-11-25T11:22:21+08:00
+source_sha256: b48f85dbcfc611483c45aeb8d0de758a0a6165ed01c683bfbc89d6e242c7b942
+synced_at: 2026-11-25T03:22:24.214Z
 -->
 # Plantilla Module Architecture & Headcount Governance
 
@@ -169,21 +169,22 @@ Full schema/RLS/RPC/Flutter design: `docs/architecture/hrco_scope_isolation_desi
 
 **Non-Goals.** Does not introduce role-based visibility variants beyond HRCO. Does not add account-level defaults or bulk-enable tooling. Does not change Vacancy or HR Emploc read paths.
 
-### Dual Views & Six Status Sub-Tabs Architecture (`ohm#plantilla-subtabs-arch` — 2026-11-23)
+### Dual Views & Seven Status Sub-Tabs Architecture (`ohm#plantilla-subtabs-arch` — 2026-11-23, updated 2026-11-25)
 
 **Status: ACCEPTED.** Codifies the standard interface and lifecycle organization for Plantilla across Web and Mobile.
 
 The Plantilla module operates under **Dual Views** driven by a segmented view toggle:
 1. **Store View (`Store Capacity Table`)**: Audits contracted store plantilla headcount compliance. Displays stores with active personnel or vacancies, computing fractional capacity for roving personnel ($1/N$). Stores without active personnel or vacancies are filtered out.
-2. **Employee View (Directory Roster)**: Organizes workforce members across **Six Status Sub-Tabs**:
-   - **Tab 1: Active** — Deployed personnel with `status = 'Active'`.
-   - **Tab 2: On-Leave** — Personnel on approved leave, tracking Expected Date of Return (EDR) and reliever coverage.
-   - **Tab 3: Vacancy** — All unfilled required slots (`1 Row = 1 Individual Slot`) and candidate onboarding pipeline (`Vacancy - Open`, `Vacancy - Pipeline`, `HR Emploc - *`).
-   - **Tab 4: Floating** — Active personnel temporarily unassigned, subject to DOLE Article 301 monitoring.
-   - **Tab 5: Deactivation** — Action queue for pending deactivation/separation approval requests.
-   - **Tab 6: Inactive** — Persistent historical roster of separated personnel (`Resigned`, `AWOL`, `Terminated`, `Deactivated`), ordered via `vw_plantilla_inactive`.
+2. **Employee View (Directory Roster)**: Organizes workforce members across **Seven Status Sub-Tabs**:
+   - **Tab 1: Active** — Official deployed personnel with `status = 'Active'`.
+   - **Tab 2: On-Leave** — Personnel on approved leave, tracking Expected Date of Return (EDR) and reliever coverage. (Counted as part of company Actual Headcount: `Actual Headcount = Active + On-Leave`, recognizing that employees on authorized leave remain officially active employees and are not resigned, separated, or floating).
+   - **Tab 3: Vacancy** — Strictly open, unfilled required store slots awaiting candidates (`Vacancy - Open` or pending closure). Slots with active onboarding candidates are routed to Tab 4 (Pipeline) to prevent duplicate counting.
+   - **Tab 4: Pipeline** — Candidates undergoing onboarding and compliance processing in `hr_emploc` (`Confirmed Onboard`, `Pending Emploc`) prior to crossing the Plantilla Entry Gate, strictly preventing premature counting in Active Plantilla (Anti-Ghost Hire Contract).
+   - **Tab 5: Floating** — Active personnel temporarily unassigned, subject to DOLE Article 301 monitoring.
+   - **Tab 6: Deactivation** — Action queue for pending deactivation/separation approval requests.
+   - **Tab 7: Inactive** — Persistent historical roster of separated personnel (`Resigned`, `AWOL`, `Terminated`, `Deactivated`), ordered via `vw_plantilla_inactive`.
 
-**Universal View Modes**: Both Table and Responsive Cards views are universally supported across all 6 tabs.
+**Universal View Modes**: Both Table and Responsive Cards views are universally supported across all 7 tabs.
 
 ### Floating Employee Governance & DOLE Article 301 Statutory Ceiling (`ohm#floating-dole-governance` — 2026-11-23)
 

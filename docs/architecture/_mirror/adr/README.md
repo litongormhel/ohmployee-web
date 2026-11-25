@@ -3,7 +3,7 @@ ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Index. Edit in mobile repo, then 
 source: OHMployee/docs/architecture/adr/README.md
 source_commit: 0eb4407 2026-11-23T23:02:59+08:00
 source_sha256: c00349da320eda6c44696f31cc7045c79a9c691013aeb47010f24632ae5efe17
-synced_at: 2026-11-24T15:07:24.717Z
+synced_at: 2026-11-25T03:22:25.187Z
 -->
 # OHMployee Architecture Decision Records (Hub-and-Spoke Modular Hub)
 

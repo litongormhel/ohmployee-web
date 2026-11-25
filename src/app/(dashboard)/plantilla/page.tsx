@@ -677,25 +677,221 @@ function PlantillaPageContent() {
     staleTime: 60000,
   });
 
-  // Query candidates in HR Emploc onboarding pipeline under current account (before moving to Plantilla)
+  // Query candidates in HR Emploc onboarding & Recruitment applicants pipeline under current account (before moving to Plantilla)
   const pipelineCandidatesQuery = useQuery({
     queryKey: ["plantilla", "pipeline-candidates", accountId],
     queryFn: async (): Promise<PipelineCandidateItem[]> => {
       if (!accountId) return [];
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("hr_emploc")
-        .select("id, applicant_name, vcode, store_name, position, status, hired_date, date_requested, hrco_name, requirement_overall_status")
-        .eq("account_id", accountId)
-        .is("deleted_at", null)
-        .not("status", "in", '("Moved to Plantilla","Backout")')
-        .order("date_requested", { ascending: false });
 
-      if (error) {
-        console.error("[PostgREST Schema Error] hr_emploc pipeline candidates:", error);
-        return [];
+      const [emplocRes, vacRes] = await Promise.all([
+        supabase
+          .from("hr_emploc")
+          .select("id, applicant_id, applicant_name, vcode, store_name, position, status, hired_date, date_requested, hrco_name, requirement_overall_status")
+          .eq("account_id", accountId)
+          .is("deleted_at", null)
+          .not("status", "in", '("Moved to Plantilla","Backout")')
+          .order("date_requested", { ascending: false }),
+        supabase
+          .from("vacancies")
+          .select("id, vcode, store_id, store_name, position, hrco_name, status, is_archived, is_pool_vacancy")
+          .eq("account_id", accountId)
+          .is("deleted_at", null)
+          .eq("is_archived", false),
+      ]);
+
+      if (emplocRes.error) {
+        console.error("[PostgREST Schema Error] hr_emploc pipeline candidates:", emplocRes.error);
       }
-      return (data as PipelineCandidateItem[]) ?? [];
+      if (vacRes.error) {
+        console.error("[PostgREST Schema Error] vacancies for pipeline candidates:", vacRes.error);
+      }
+
+      const emplocRows = emplocRes.data ?? [];
+      const vacRows = (vacRes.data ?? []).filter((v) => !v.is_pool_vacancy);
+      const vacByVcode = new Map<string, (typeof vacRows)[0]>();
+      const storeIds: string[] = [];
+      const vcodes: string[] = [];
+
+      vacRows.forEach((v) => {
+        const vk = (v.vcode || "").trim().toUpperCase();
+        if (vk) {
+          vacByVcode.set(vk, v);
+          vcodes.push(v.vcode as string);
+        }
+        if (v.store_id) {
+          storeIds.push(v.store_id as string);
+        }
+      });
+
+      // Resolve unfilled roving coverage groups so candidates on any member store display combined roving stores
+      const vcodeToCgInfo = new Map<string, { cgCode: string; combinedStoresLabel: string }>();
+      if (storeIds.length > 0) {
+        const { data: cgsMatch, error: cgsErr } = await supabase
+          .from("coverage_group_stores")
+          .select("coverage_group_id, store_id")
+          .in("store_id", Array.from(new Set(storeIds)))
+          .is("archived_at", null);
+
+        if (cgsErr) {
+          console.error("[PostgREST Schema Error] coverage_group_stores for pipeline:", cgsErr);
+        } else if (cgsMatch && cgsMatch.length > 0) {
+          const cgIds = Array.from(new Set(cgsMatch.map((c) => c.coverage_group_id).filter(Boolean) as string[]));
+          if (cgIds.length > 0) {
+            const [allGroupStoresRes, activeSlotsRes] = await Promise.all([
+              supabase
+                .from("coverage_group_stores")
+                .select("coverage_group_id, store_id, is_anchor, stores(id, store_name, vcode), coverage_groups(id, coverage_code, status, archived_at)")
+                .in("coverage_group_id", cgIds)
+                .is("archived_at", null),
+              supabase
+                .from("coverage_slots")
+                .select("coverage_group_id, slot_status, current_occupant_plantilla_id")
+                .in("coverage_group_id", cgIds)
+                .eq("slot_status", "active")
+                .not("current_occupant_plantilla_id", "is", null),
+            ]);
+
+            const occupiedCgIds = new Set<string>(
+              (activeSlotsRes.data ?? []).map((s) => s.coverage_group_id as string).filter(Boolean)
+            );
+
+            const groupedStores = new Map<string, { cgCode: string; storeNames: string[]; memberVcodes: string[] }>();
+            (allGroupStoresRes.data ?? []).forEach((item: Record<string, unknown>) => {
+              const cgId = item.coverage_group_id as string;
+              if (!cgId || occupiedCgIds.has(cgId)) return;
+              const cgRaw = item.coverage_groups as Record<string, unknown> | Array<Record<string, unknown>> | null;
+              const cgObj = Array.isArray(cgRaw) ? cgRaw[0] : cgRaw;
+              if (!cgObj || cgObj.archived_at) return;
+              const cgStatus = String(cgObj.status || "").toLowerCase();
+              if (cgStatus === "filled" || cgStatus === "archived" || cgStatus === "dissolved") return;
+
+              const cgCode = String(cgObj.coverage_code || "").trim();
+              const sRaw = item.stores as Record<string, unknown> | Array<Record<string, unknown>> | null;
+              const sObj = Array.isArray(sRaw) ? sRaw[0] : sRaw;
+              const sName = String(sObj?.store_name || "").trim();
+              const sVcode = String(sObj?.vcode || "").trim().toUpperCase();
+
+              if (!groupedStores.has(cgId)) {
+                groupedStores.set(cgId, { cgCode, storeNames: [], memberVcodes: [] });
+              }
+              const entry = groupedStores.get(cgId)!;
+              if (sName && !entry.storeNames.includes(sName)) entry.storeNames.push(sName);
+              if (sVcode && !entry.memberVcodes.includes(sVcode)) entry.memberVcodes.push(sVcode);
+            });
+
+            groupedStores.forEach((info) => {
+              if (info.storeNames.length > 1) {
+                const combinedStoresLabel = `${info.storeNames.join(" • ")} (Roving)`;
+                info.memberVcodes.forEach((vk) => {
+                  vcodeToCgInfo.set(vk, {
+                    cgCode: info.cgCode,
+                    combinedStoresLabel,
+                  });
+                });
+              }
+            });
+          }
+        }
+      }
+
+      const result: PipelineCandidateItem[] = [];
+      const seenApplicantIds = new Set<string>();
+      const seenNameKeys = new Set<string>();
+
+      for (const emp of emplocRows) {
+        const rawVcode = (emp.vcode || "").trim();
+        const vkUpper = rawVcode.toUpperCase();
+        const vac = vacByVcode.get(vkUpper);
+        const cgInfo = vcodeToCgInfo.get(vkUpper);
+        const nameKey = (emp.applicant_name || "").toLowerCase().trim();
+        if (emp.applicant_id) seenApplicantIds.add(String(emp.applicant_id));
+        if (nameKey) {
+          seenNameKeys.add(`${vkUpper}::${nameKey}`);
+          seenNameKeys.add(nameKey);
+        }
+
+        result.push({
+          id: String(emp.id),
+          applicant_name: String(emp.applicant_name || "Candidate"),
+          vcode: cgInfo && cgInfo.cgCode ? `${cgInfo.cgCode} (${rawVcode})` : (rawVcode || null),
+          store_name: cgInfo ? cgInfo.combinedStoresLabel : ((emp.store_name as string | null) || (vac?.store_name as string | null) || null),
+          position: (emp.position as string | null) || (vac?.position as string | null) || null,
+          status: (emp.status as string | null) || "Pending Emploc",
+          hired_date: (emp.hired_date as string | null) ?? null,
+          date_requested: (emp.date_requested as string | null) ?? null,
+          hrco_name: (emp.hrco_name as string | null) || (vac?.hrco_name as string | null) || null,
+          requirement_overall_status: (emp.requirement_overall_status as string | null) ?? "Incomplete",
+        });
+      }
+
+      if (vcodes.length > 0) {
+        const { data: appRows, error: appErr } = await supabase
+          .from("applicants")
+          .select("id, vacancy_vcode, full_name, first_name, last_name, middle_name, status, hired_date, created_at, is_archived")
+          .in("vacancy_vcode", Array.from(new Set(vcodes)))
+          .eq("is_archived", false)
+          .order("created_at", { ascending: false });
+
+        if (appErr) {
+          console.error("[PostgREST Schema Error] applicants pipeline candidates:", appErr);
+        } else if (appRows) {
+          const terminalStatuses = new Set([
+            "backout",
+            "rejected",
+            "failed",
+            "did not report",
+            "did_not_report",
+            "rejected by ops",
+            "rejected_by_ops",
+            "withdrew",
+            "hired",
+            "moved to plantilla",
+            "moved_to_plantilla",
+            "archived",
+          ]);
+
+          for (const app of appRows) {
+            const appId = String(app.id || "");
+            const stNorm = String(app.status || "").toLowerCase().trim();
+            if (terminalStatuses.has(stNorm)) continue;
+
+            const rawVcode = String(app.vacancy_vcode || "").trim();
+            const vkUpper = rawVcode.toUpperCase();
+            const fullName =
+              String(app.full_name || "").trim() ||
+              [app.last_name, app.first_name, app.middle_name].filter(Boolean).join(", ");
+            const nameKey = fullName.toLowerCase().trim();
+
+            if (appId && seenApplicantIds.has(appId)) continue;
+            if (nameKey && (seenNameKeys.has(`${vkUpper}::${nameKey}`) || seenNameKeys.has(nameKey))) continue;
+
+            if (appId) seenApplicantIds.add(appId);
+            if (nameKey) {
+              seenNameKeys.add(`${vkUpper}::${nameKey}`);
+              seenNameKeys.add(nameKey);
+            }
+
+            const vac = vacByVcode.get(vkUpper);
+            const cgInfo = vcodeToCgInfo.get(vkUpper);
+
+            result.push({
+              id: appId,
+              applicant_name: fullName || "Candidate",
+              vcode: cgInfo && cgInfo.cgCode ? `${cgInfo.cgCode} (${rawVcode})` : (rawVcode || null),
+              store_name: cgInfo ? cgInfo.combinedStoresLabel : ((vac?.store_name as string | null) ?? null),
+              position: (vac?.position as string | null) ?? null,
+              status: (app.status as string | null) ? `Vacancy - ${app.status}` : "Vacancy - Pipeline",
+              hired_date: (app.hired_date as string | null) ?? null,
+              date_requested: (app.created_at as string | null) ?? null,
+              hrco_name: (vac?.hrco_name as string | null) ?? null,
+              requirement_overall_status: "Recruitment Pipeline",
+            });
+          }
+        }
+      }
+
+      return result;
     },
     enabled: !!accountId && isAccountAuthorized,
     staleTime: 30000,
@@ -869,6 +1065,54 @@ function PlantillaPageContent() {
     const raw = vacancyListQuery.data?.data ?? [];
     const seenVcodes = new Set<string>();
     const seenStoreNames = new Set<string>();
+    const pipelineVcodes = new Set<string>();
+    const pipelineCgCodes = new Set<string>();
+
+    // Index all VCodes and Coverage Groups that already have active pipeline candidates
+    pipelineCandidates.forEach((cand) => {
+      const rawCode = (cand.vcode || "").trim().toUpperCase();
+      if (rawCode) {
+        pipelineVcodes.add(rawCode);
+        const cgMatch = rawCode.match(/^(CG-[A-Z0-9-]+)/);
+        if (cgMatch) {
+          pipelineCgCodes.add(cgMatch[1]);
+        }
+        const parenMatch = rawCode.match(/\(([A-Z0-9_-]+)\)/);
+        if (parenMatch) {
+          pipelineVcodes.add(parenMatch[1]);
+        }
+      }
+      if (cand.store_name) {
+        cand.store_name
+          .replace(/\s*\(Roving\)/i, "")
+          .replace(/\s*\[Roving\]/i, "")
+          .split("•")
+          .forEach((part) => {
+            const clean = part.toLowerCase().trim();
+            if (clean) {
+              seenStoreNames.add(clean);
+            }
+          });
+      }
+    });
+
+    raw.forEach((v) => {
+      const vk = (v.vcode || "").trim().toUpperCase();
+      const cg = (v.cgCode || "").trim().toUpperCase();
+      const hasCand = Boolean(
+        (v.activeApplicantsList && v.activeApplicantsList.length > 0) ||
+        (v.applicantName && v.applicantName.trim() !== "" && v.applicantName.trim() !== "—") ||
+        (v.confirmedOnboardCount != null && v.confirmedOnboardCount > 0) ||
+        (v.hrProcessingCount != null && v.hrProcessingCount > 0) ||
+        (vk && pipelineVcodes.has(vk))
+      );
+      if (hasCand) {
+        if (vk) pipelineVcodes.add(vk);
+        if (cg) pipelineCgCodes.add(cg);
+      }
+    });
+
+    pipelineVcodes.forEach((vk) => seenVcodes.add(vk));
 
     const filtered = raw.filter((v) => {
       const vk = (v.vcode || "").trim().toUpperCase();
@@ -980,6 +1224,12 @@ function PlantillaPageContent() {
     // Expand multi-slot / multi-candidate vacancies to 1 row per approved slot (ADR-002 Invariants 1 & 5, Rule 8, Rule 26 Option A Standard)
     const expanded: VacancyListItem[] = [];
     filtered.forEach((v) => {
+      const vk = (v.vcode || "").trim().toUpperCase();
+      const cg = (v.cgCode || "").trim().toUpperCase();
+      // If any member store of this Roving Coverage Group has an active pipeline candidate,
+      // the entire roving slot is in Tab 4 (Pipeline) as combined stores and must not leave an orphaned 0.5 row in Vacancy.
+      const isCgInPipeline = Boolean(cg && pipelineCgCodes.has(cg));
+
       const candidates = v.activeApplicantsList ?? [];
       const physicalSlots = v.slotsList ?? [];
       // Filter out physical slots that are already occupied by active employees
@@ -998,28 +1248,9 @@ function PlantillaPageContent() {
           const slotOrd = physicalSlot?.slotOrdinal ?? (i + 1);
           const slotPos = cand?.position || physicalSlot?.position || v.position_title;
 
-          if (cand) {
-            expanded.push({
-              ...v,
-              id: `${v.id}-slot-${slotOrd}`,
-              parentVacancyId: v.id,
-              applicantId: cand.applicantId,
-              applicantName: cand.displayName,
-              applicantFirstName: cand.firstName,
-              applicantLastName: cand.lastName,
-              applicantMiddleName: cand.middleName,
-              contactNumber: cand.contactNumber || v.contactNumber,
-              stageBadge: cand.statusLabel,
-              pipelineStatus: cand.statusLabel,
-              remarks: cand.remarks || v.remarks,
-              slotOrdinal: slotOrd,
-              position_title: slotPos,
-              headcount: 1,
-              hcTotal: 1,
-              hcFilled: 0,
-              hcDisplay: "0/1",
-            });
-          } else {
+          // Slots with candidates in onboarding/pipeline are tracked in Tab 4 (Pipeline).
+          // Tab 3 (Vacancy) is strictly reserved for open, unfilled slots requiring recruitment.
+          if (!cand && !isCgInPipeline) {
             expanded.push({
               ...v,
               id: `${v.id}-slot-${slotOrd}`,
@@ -1046,17 +1277,38 @@ function PlantillaPageContent() {
         const physicalSlot = unoccupiedPhysicalSlots[0] ?? physicalSlots[0];
         const slotOrd = physicalSlot?.slotOrdinal ?? 1;
         const slotPos = cand?.position || physicalSlot?.position || v.position_title;
-        expanded.push({
-          ...v,
-          slotOrdinal: slotOrd,
-          position_title: slotPos,
-        });
+        const hasPipelineCandidate = Boolean(
+          cand ||
+          isCgInPipeline ||
+          (vk && pipelineVcodes.has(vk)) ||
+          (v.applicantName && v.applicantName.trim() !== "" && v.applicantName.trim() !== "—") ||
+          (v.confirmedOnboardCount != null && v.confirmedOnboardCount > 0) ||
+          (v.hrProcessingCount != null && v.hrProcessingCount > 0)
+        );
+
+        // If this single-slot requisition (or its Roving Coverage Group) already has an onboarding/pipeline candidate,
+        // it is tracked in Tab 4 (Pipeline) and must not duplicate into Tab 3 (Vacancy).
+        if (!hasPipelineCandidate) {
+          expanded.push({
+            ...v,
+            slotOrdinal: slotOrd,
+            position_title: slotPos,
+            applicantId: null,
+            applicantName: null,
+            applicantFirstName: null,
+            applicantLastName: null,
+            applicantMiddleName: null,
+            stageBadge: v.hasPendingClosure ? "Vacancy - Closure" : "Vacancy - Open",
+            pipelineStatus: v.hasPendingClosure ? "Vacancy - Closure" : "Vacancy - Open",
+          });
+        }
       }
     });
 
     return [...expanded, ...synthesized];
   }, [
     vacancyListQuery.data?.data,
+    pipelineCandidates,
     activeOccupiedVcodes,
     inactiveEmployees,
     closedVcodesQuery.data,
@@ -1585,7 +1837,24 @@ function PlantillaPageContent() {
   const floatingCount = floatingEmployees.length;
   const deactivationCount = deactivationEmployees.length;
   const inactiveCount = inactiveEmployees.length;
-  const vacancyCount = allVacancies.length > 0 ? allVacancies.length : (summaryData?.vacant ?? 0);
+  const vacancyHcSum = useMemo(() => {
+    if (allVacancies.length === 0) return 0;
+    const sum = allVacancies.reduce((acc, v) => {
+      const isRoving = Boolean(
+        v.employmentType?.toLowerCase() === "roving" ||
+        v.cgCode ||
+        v.vcode?.startsWith("CG-")
+      );
+      const assignedCount = v.assignedStoreDetails?.length || v.assignedStores?.length || 0;
+      const share = isRoving && assignedCount > 1
+        ? 1.0 / assignedCount
+        : (v.slotShare ?? 1);
+      return acc + share;
+    }, 0);
+    return Math.round(sum * 100) / 100;
+  }, [allVacancies]);
+
+  const vacancyCount = allVacancies.length > 0 ? vacancyHcSum : (summaryData?.vacant ?? 0);
   const pipelineCount = pipelineCandidates.length;
 
   // Active view pagination
