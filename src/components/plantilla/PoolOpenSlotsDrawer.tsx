@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Clock, Filter, Layers, Search } from "lucide-react";
-import { DetailDrawer } from "@/components/shared/DetailDrawer";
+import { Modal } from "@/components/shared/Modal";
 import { DataState } from "@/components/shared/DataState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
@@ -32,13 +32,23 @@ export function PoolOpenSlotsDrawer({ isOpen, onClose }: PoolOpenSlotsDrawerProp
   });
 
   return (
-    <DetailDrawer
+    <Modal
       isOpen={isOpen}
       onClose={onClose}
+      maxWidthClass="max-w-2xl"
       title="Approved Open Pool Slots"
       subtitle="Vacant slot inventory waiting for reliever/commando hiring & endorsement"
+      footer={
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg border border-border-default bg-surface px-4 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+        >
+          Close
+        </button>
+      }
     >
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* Controls */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
@@ -125,6 +135,6 @@ export function PoolOpenSlotsDrawer({ isOpen, onClose }: PoolOpenSlotsDrawerProp
           </div>
         )}
       </div>
-    </DetailDrawer>
+    </Modal>
   );
 }

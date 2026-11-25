@@ -445,6 +445,9 @@ In Loop 2, the Dashboard module was fully migrated onto the UI Standard & Motion
   - Restored `--danger` tokens strictly on destructive actions (reject batch, rollback batch) and validation/submission error banners.
   - Reverted gate submodule checks; verified full real module `hr-emploc` gate passes with `"decision": "allow"` and `'npm run build' completed successfully (0 errors)`.
 
+- **Modal-First Record Inspection Standard (ohm#convert-remaining-drawers-to-modals)**:
+  - All active record and pool inspection views across Vacancy (`VacancyDetailDrawer.tsx`), User Management (`UserDetailDrawer.tsx`), HR Emploc (`HrEmplocDetailDrawer.tsx`), Team Directory (`TeamDirectoryDetailDrawer.tsx`), Plantilla Store View Slot Inspector (`SlotDetailDrawer.tsx`), and Moses HQ Workforce Pool (`PoolEmployeeDetailDrawer.tsx`, `PoolOpenSlotsDrawer.tsx`, `PoolReviewQueueDrawer.tsx`, `PoolRequestHistoryDrawer.tsx`) render inside the canonical centered `Modal` shell (`max-w-2xl` / `max-w-3xl`), while `OhmniDrawer.tsx` remains a docked AI Copilot side panel.
+
 ---
 
 ## 15. Global Search Command Palette (`search_global_index` / ⌘K)

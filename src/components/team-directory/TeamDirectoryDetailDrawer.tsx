@@ -19,7 +19,7 @@ import {
   Shield,
   Users,
 } from "lucide-react";
-import { DetailDrawer } from "@/components/shared/DetailDrawer";
+import { Modal } from "@/components/shared/Modal";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge, type BadgeVariant } from "@/components/ui/StatusBadge";
 import {
@@ -111,9 +111,10 @@ export function TeamDirectoryDetailDrawer({
     user.roleLevel === 70;
 
   return (
-    <DetailDrawer
+    <Modal
       isOpen={isOpen}
       onClose={onClose}
+      maxWidthClass="max-w-2xl"
       title={formattedName}
       subtitle={
         <span className="flex items-center gap-1.5 font-medium">
@@ -126,7 +127,7 @@ export function TeamDirectoryDetailDrawer({
           )}
         </span>
       }
-      badge={
+      headerActions={
         <div className="flex items-center gap-2">
           <StatusBadge
             variant={getStatusVariant(user.directoryStatus)}
@@ -141,7 +142,15 @@ export function TeamDirectoryDetailDrawer({
           )}
         </div>
       }
-      widthClass="w-[560px] max-w-full"
+      footer={
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg border border-border-default bg-surface px-4 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+        >
+          Close
+        </button>
+      }
     >
       <div className="space-y-5">
         {/* Identity Header Card */}
@@ -484,6 +493,6 @@ export function TeamDirectoryDetailDrawer({
           </div>
         </div>
       </div>
-    </DetailDrawer>
+    </Modal>
   );
 }

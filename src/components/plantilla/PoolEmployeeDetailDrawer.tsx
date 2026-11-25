@@ -7,7 +7,7 @@ import {
   MapPin,
   UserCheck,
 } from "lucide-react";
-import { DetailDrawer } from "@/components/shared/DetailDrawer";
+import { Modal } from "@/components/shared/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { BadgeVariant } from "@/components/ui/StatusBadge";
 import {
@@ -133,13 +133,26 @@ export function PoolEmployeeDetailDrawer({
 
   return (
     <>
-      <DetailDrawer
+      <Modal
         isOpen={isOpen}
         onClose={onClose}
+        maxWidthClass="max-w-2xl"
+        disableBackdropClick={isCoverageModalOpen || isConversionModalOpen || Boolean(closingAssignmentId)}
+        isDirty={isCoverageModalOpen || isConversionModalOpen || Boolean(closingAssignmentId)}
+        isSubmitting={closeAssignmentMutation.isPending || withdrawMutation.isPending}
         title={emp.employeeName}
         subtitle={`${emp.employeeNo} • ${emp.poolTypeName}`}
+        footer={
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-border-default bg-surface px-4 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+          >
+            Close
+          </button>
+        }
       >
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           {/* Top Profile Summary Card */}
           <div className="p-5 rounded-xl border border-border-default bg-surface shadow-xs space-y-4">
             <div className="flex items-start justify-between">
@@ -407,7 +420,7 @@ export function PoolEmployeeDetailDrawer({
             )}
           </div>
         </div>
-      </DetailDrawer>
+      </Modal>
 
       {/* Coverage Request Modal */}
       {isCoverageModalOpen && (

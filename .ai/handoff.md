@@ -1,5 +1,42 @@
 # AI Handoff
 
+## Execution Report — Convert Remaining Active Record & Pool Drawers to Centered Modals Across HR Emploc, Team Directory, and Plantilla (ohm#convert-remaining-drawers-to-modals)
+**Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings
+
+### What Was Done
+1. **HR Emploc Detail Modal (`src/components/hr-emploc/HrEmplocDetailDrawer.tsx` & `src/components/hr-emploc/DocumentPreviewModal.tsx`)**:
+   - Converted `HrEmplocDetailDrawer` from a right-side slide-over `<DetailDrawer />` into a centered 3-tab `<Modal />` (`maxWidthClass="max-w-3xl"`) using `<SegmentedTabs />` (`Overview & Documents`, `Placement Details`, `Activity History`), matching the Vacancy Detail and User Management Detail modal pattern.
+   - Kept the VCode badge, Applicant Name, account/store subtitle, header quick-actions (`Upload Docs`, `+ Add Emploc`), and the 2-column Status Summary cards (`Deployment status`, `HR status`) permanently visible above the tab bar.
+   - Grouped SLA & Aging Performance, Requirements & Attachments, and Available Actions (deletion request workflow) under `Overview & Documents`, Placement Parameters & Roving Covered Stores under `Placement Details`, and the chronological audit timeline under `Activity History`.
+   - Elevated `DocumentPreviewModal` overlay z-index from `z-50` to `z-[70]` so document previews stack cleanly above the `z-[60]` detail modal.
+2. **Team Directory Detail Modal (`src/components/team-directory/TeamDirectoryDetailDrawer.tsx`)**:
+   - Replaced `<DetailDrawer />` with a centered `<Modal />` (`maxWidthClass="max-w-2xl"`) featuring header status & scope badges, large avatar identity card, copyable contact pills, assigned CENCOM group & account jurisdiction links, interactive reporting hierarchy (`Reports to` and `Direct reports`), and direct communication buttons (`Call`, `SMS`, `Email`).
+3. **Plantilla Store View Slot Inspector & Moses HQ Workforce Pool Modals**:
+   - `src/components/plantilla/SlotDetailDrawer.tsx`: Converted from `<DetailDrawer />` to `<Modal />` (`maxWidthClass="max-w-2xl"`) displaying VCode badge, Slot ordinal badge, lifecycle state, occupant/reservation status, ADR-001 capacity context, and slot audit trail.
+   - `src/components/plantilla/PoolEmployeeDetailDrawer.tsx`: Converted from `<DetailDrawer />` to `<Modal />` (`maxWidthClass="max-w-2xl"`) with dirty/submitting/sub-modal backdrop guards.
+   - `src/components/plantilla/PoolOpenSlotsDrawer.tsx`: Converted from `<DetailDrawer />` to `<Modal />` (`maxWidthClass="max-w-2xl"`).
+   - `src/components/plantilla/PoolReviewQueueDrawer.tsx`: Converted from `<DetailDrawer />` to `<Modal />` (`maxWidthClass="max-w-2xl"`) with pending action and dirty state guards.
+   - `src/components/plantilla/PoolRequestHistoryDrawer.tsx`: Converted from `<DetailDrawer />` to `<Modal />` (`maxWidthClass="max-w-2xl"`).
+   - Retained `OhmniDrawer.tsx` as the docked AI Copilot side panel.
+4. **State Documentation Updated**:
+   - Updated `docs/state/hr_emploc_web_state.md` and `docs/state/web_ui_system_state.md` to reflect the centered tabbed modal architecture across modules.
+
+### Files Changed
+- `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`
+- `src/components/hr-emploc/DocumentPreviewModal.tsx`
+- `src/components/team-directory/TeamDirectoryDetailDrawer.tsx`
+- `src/components/plantilla/SlotDetailDrawer.tsx`
+- `src/components/plantilla/PoolEmployeeDetailDrawer.tsx`
+- `src/components/plantilla/PoolOpenSlotsDrawer.tsx`
+- `src/components/plantilla/PoolReviewQueueDrawer.tsx`
+- `src/components/plantilla/PoolRequestHistoryDrawer.tsx`
+- `docs/state/hr_emploc_web_state.md`
+- `docs/state/web_ui_system_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Add Standardized Pagination Controls to Notifications Activity Center (ohm#add-pagination-to-notifications)
 **Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings
 

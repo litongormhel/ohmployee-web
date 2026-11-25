@@ -136,9 +136,9 @@ Validation Rule:
 
 ---
 
-## 5. Detail Drawer UX & Content Structure (Exact 8-Section Order)
+## 5. Detail Modal UX & Content Structure (3-Tab Centered Modal)
 
-When a row is selected, the desktop Detail Drawer slides overlaying the grid from the right (`DetailDrawer`, `w-[var(--drawer-width-lg)]`). It enforces the following exact top-to-bottom section order:
+When a row is selected, the centered Detail Modal opens (`Modal`, `maxWidthClass="max-w-3xl"`) with a top 2-column Status Summary strip (`Deployment status`, `HR status`) and a 3-tab `SegmentedTabs` switcher (`Overview & Documents`, `Placement Details`, `Activity History`). Document previews open above the modal at `z-[70]`. It organizes the 8 canonical sections as follows:
 
 1. **Drawer Header**:
    - `VCode` badge (e.g., `VAC-2026-0042`).

@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { DetailDrawer } from "@/components/shared/DetailDrawer";
+import { Modal } from "@/components/shared/Modal";
+import { SegmentedTabs, type TabItem } from "@/components/shared/SegmentedTabs";
 import { InheritedHrcoBadge } from "@/components/hr-emploc/useInheritedHrco";
 import { DocumentPreviewModal } from "@/components/hr-emploc/DocumentPreviewModal";
 import {
@@ -41,6 +42,8 @@ export type HrEmplocDetailDrawerProps = {
   onUploadDocs?: (row: HrEmplocListItem) => void;
   onAddEmploc?: (row: HrEmplocListItem) => void;
 };
+
+type HrEmplocModalTab = "overview" | "placement" | "history";
 
 function formatDate(value: string | null) {
   if (!value) return "--";
@@ -221,6 +224,10 @@ export function HrEmplocDetailDrawer({
 }: HrEmplocDetailDrawerProps) {
   const queryClient = useQueryClient();
 
+  // Active Modal Tab
+  const [activeTab, setActiveTab] = useState<HrEmplocModalTab>("overview");
+  const [prevEmplocId, setPrevEmplocId] = useState<string | null>(null);
+
   // Inline deletion form state (Available Actions)
   const [isRequestingDeletion, setIsRequestingDeletion] = useState(false);
   const [deletionReasonOption, setDeletionReasonOption] = useState<string>("Applicant Backed Out");
@@ -231,6 +238,13 @@ export function HrEmplocDetailDrawer({
   // Document preview modal state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
+
+  if (hrEmplocId !== prevEmplocId) {
+    setPrevEmplocId(hrEmplocId);
+    setActiveTab("overview");
+    setIsRequestingDeletion(false);
+    setActionError(null);
+  }
 
   const withdrawMutation = useWithdrawEmplocDeletion();
   const requestDeletionMutation = useRequestEmplocDeletion();
@@ -380,224 +394,263 @@ export function HrEmplocDetailDrawer({
     totalCount: 1,
   });
 
+  const modalTabs: TabItem<HrEmplocModalTab>[] = [
+    {
+      key: "overview",
+      label: "Overview & Documents",
+      count: detail?.attachments ? detail.attachments.length : undefined,
+    },
+    {
+      key: "placement",
+      label: "Placement Details",
+    },
+    {
+      key: "history",
+      label: "Activity History",
+      count: detail?.auditLogsTimeline ? detail.auditLogsTimeline.length : undefined,
+    },
+  ];
+
   return (
     <>
-      <DetailDrawer
-      isOpen={!!hrEmplocId}
-      onClose={onClose}
-      widthClass="w-[var(--drawer-width-lg)] max-w-full"
-      actionSlot={
-        !isLoading && detail && !isPendingDeletion ? (
-          <div className="flex items-center gap-1.5">
-            {detail.rowCapabilities.can_upload_docs &&
-              (detail.hrStatus.toLowerCase().trim() === "pending" ||
-                detail.hrStatus.toLowerCase().trim() === "for correction" ||
-                detail.hrStatus.toLowerCase().trim() === "for_correction") &&
-              onUploadDocs && (
+      <Modal
+        isOpen={!!hrEmplocId}
+        onClose={onClose}
+        maxWidthClass="max-w-3xl"
+        disableBackdropClick={isPreviewOpen || isRequestingDeletion}
+        isDirty={isRequestingDeletion && Boolean(deletionRemarks.trim() || originalRecordUuid.trim())}
+        isSubmitting={requestDeletionMutation.isPending || withdrawMutation.isPending}
+        headerActions={
+          !isLoading && detail && !isPendingDeletion ? (
+            <div className="flex items-center gap-1.5">
+              {detail.rowCapabilities.can_upload_docs &&
+                (detail.hrStatus.toLowerCase().trim() === "pending" ||
+                  detail.hrStatus.toLowerCase().trim() === "for correction" ||
+                  detail.hrStatus.toLowerCase().trim() === "for_correction") &&
+                onUploadDocs && (
+                  <button
+                    type="button"
+                    onClick={() => onUploadDocs(asListItem(detail))}
+                    className="inline-flex items-center gap-1 rounded bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                    title="Upload Requirements"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    <span>Upload Docs</span>
+                  </button>
+                )}
+              {detail.rowCapabilities.can_assign_employee_no && onAddEmploc && (
                 <button
                   type="button"
-                  onClick={() => onUploadDocs(asListItem(detail))}
-                  className="inline-flex items-center gap-1 rounded bg-brand-button hover:bg-brand-button-hover px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
-                  title="Upload Requirements"
+                  onClick={() => onAddEmploc(asListItem(detail))}
+                  className="inline-flex items-center gap-1 rounded bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
+                  title="Assign Emploc Number & Deploy to Plantilla"
                 >
-                  <Upload className="h-3.5 w-3.5" />
-                  <span>Upload Docs</span>
+                  <UserCheck className="h-3.5 w-3.5" />
+                  <span>+ Add Emploc</span>
                 </button>
               )}
-            {detail.rowCapabilities.can_assign_employee_no && onAddEmploc && (
-              <button
-                type="button"
-                onClick={() => onAddEmploc(asListItem(detail))}
-                className="inline-flex items-center gap-1 rounded bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
-                title="Assign Emploc Number & Deploy to Plantilla"
-              >
-                <UserCheck className="h-3.5 w-3.5" />
-                <span>+ Add Emploc</span>
-              </button>
-            )}
-          </div>
-        ) : null
-      }
-      /* Section 1: Drawer Header (VCode badge, Applicant Full Name, 📍 Account / Store) */
-      badge={
-        isLoading ? (
-          <div className="h-5 w-24 animate-pulse rounded bg-surface-muted" />
-        ) : detail ? (
-          <Badge className="font-mono text-xs font-semibold bg-surface border border-border-default text-text-primary py-1 px-2.5">
-            {detail.vcode}
-          </Badge>
+            </div>
+          ) : null
+        }
+        title={
+          isLoading ? (
+            <div className="h-6 w-48 animate-pulse rounded bg-surface-muted" />
+          ) : detail ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge className="font-mono text-xs font-semibold bg-surface border border-border-default text-text-primary py-0.5 px-2">
+                {detail.vcode}
+              </Badge>
+              <span className={isPendingDeletion ? "text-text-muted line-through" : ""}>
+                {detail.applicantName}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Badge className="bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)]">
+                Error
+              </Badge>
+              <span>Compliance Placement Detail</span>
+            </div>
+          )
+        }
+        subtitle={
+          !isLoading && detail ? (
+            <div className="flex items-center gap-1.5 text-xs text-text-secondary mt-0.5">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+              <span className="truncate">
+                {[detail.accountName, detail.storeName].filter(Boolean).join(" / ") ||
+                  "Global Account"}
+              </span>
+            </div>
+          ) : undefined
+        }
+        footer={
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-border-default bg-surface px-4 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+          >
+            Close
+          </button>
+        }
+      >
+        {isLoading ? (
+          <LoadingSkeleton />
+        ) : errorKind === "access_denied" ? (
+          <AccessDeniedState />
+        ) : isError ? (
+          <ErrorState
+            errorMsg={error instanceof Error ? error.message : "RPC fetch failure"}
+            onRetry={refetch}
+          />
+        ) : !detail ? (
+          <NotFoundState />
         ) : (
-          <Badge className="bg-[var(--danger-bg)] text-[var(--danger-text)] border border-[var(--danger-border)]">
-            Error
-          </Badge>
-        )
-      }
-      title={
-        isLoading ? (
-          <div className="h-6 w-48 animate-pulse rounded bg-surface-muted mt-1" />
-        ) : detail ? (
-          <span className={isPendingDeletion ? "text-text-muted line-through" : ""}>
-            {detail.applicantName}
-          </span>
-        ) : (
-          "Compliance Placement Detail"
-        )
-      }
-      subtitle={
-        !isLoading && detail && (
-          <>
-            <MapPin className="h-3 w-3 shrink-0 text-text-muted" />
-            <span className="truncate">
-              {[detail.accountName, detail.storeName].filter(Boolean).join(" / ") ||
-                "Global Account"}
-            </span>
-          </>
-        )
-      }
-    >
-      {isLoading ? (
-        <LoadingSkeleton />
-      ) : errorKind === "access_denied" ? (
-        <AccessDeniedState />
-      ) : isError ? (
-        <ErrorState
-          errorMsg={error instanceof Error ? error.message : "RPC fetch failure"}
-          onRetry={refetch}
-        />
-      ) : !detail ? (
-        <NotFoundState />
-      ) : (
-        <div className="space-y-4">
-          {/* Section 2: Status Summary Cards (2-Column Grid) */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-md border border-border-subtle bg-surface-muted p-2.5">
-              <div className="text-xs font-medium text-text-muted">Deployment status</div>
-              <div className="mt-1 flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-text-primary bg-surface border border-border-default rounded px-2 py-0.5">
-                  {isPendingDeletion
-                    ? "Deletion Requested"
-                    : isDeployed
-                    ? "Deployed to Plantilla"
-                    : detail.deploymentStatus || "Pending Emploc"}
-                </span>
+          <div className="space-y-4">
+            {/* Section 2: Status Summary Cards (2-Column Grid) — Always Visible */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-md border border-border-subtle bg-surface-muted p-2.5">
+                <div className="text-xs font-medium text-text-muted">Deployment status</div>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-text-primary bg-surface border border-border-default rounded px-2 py-0.5">
+                    {isPendingDeletion
+                      ? "Deletion Requested"
+                      : isDeployed
+                      ? "Deployed to Plantilla"
+                      : detail.deploymentStatus || "Pending Emploc"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-border-subtle bg-surface-muted p-2.5">
+                <div className="text-xs font-medium text-text-muted">HR status</div>
+                <div className="mt-1">
+                  <StatusBadge
+                    variant={
+                      isDeployed || detail.hrStatus.toLowerCase().includes("complete")
+                        ? "success"
+                        : detail.hrStatus.toLowerCase().includes("correction")
+                        ? "warning"
+                        : isPendingDeletion
+                        ? "danger"
+                        : "info"
+                    }
+                    className="font-semibold"
+                  >
+                    {isDeployed ? "Deployed" : detail.hrStatus}
+                  </StatusBadge>
+                </div>
               </div>
             </div>
 
-            <div className="rounded-md border border-border-subtle bg-surface-muted p-2.5">
-              <div className="text-xs font-medium text-text-muted">HR status</div>
-              <div className="mt-1">
-                <StatusBadge
-                  variant={
-                    isDeployed || detail.hrStatus.toLowerCase().includes("complete")
-                      ? "success"
-                      : detail.hrStatus.toLowerCase().includes("correction")
-                      ? "warning"
-                      : isPendingDeletion
-                      ? "danger"
-                      : "info"
-                  }
-                  className="font-semibold"
-                >
-                  {isDeployed ? "Deployed" : detail.hrStatus}
-                </StatusBadge>
-              </div>
+            {/* Segmented Tab Switcher */}
+            <div>
+              <SegmentedTabs
+                tabs={modalTabs}
+                activeKey={activeTab}
+                onChange={setActiveTab}
+                ariaLabel="HR Emploc detail sections"
+              />
             </div>
-          </div>
 
-          {/* Section 3: Placement Parameters Card */}
-          <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
-            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-              Placement Parameters
-            </h3>
-            <div className="grid grid-cols-2 gap-y-3 text-sm">
-              <div>
-                <div className="text-xs text-text-muted">Vacancy Code (VCode)</div>
-                <div className="mt-0.5 font-mono font-medium text-text-primary">
-                  {detail.vcode || "--"}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-text-muted">Account</div>
-                <div className="mt-0.5 font-medium text-text-primary">
-                  {detail.accountName || "--"}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-text-muted">Store / Location</div>
-                <div className="mt-0.5 font-medium text-text-primary">
-                  {detail.storeName || "--"}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-text-muted">Assignment Type</div>
-                <div className="mt-0.5 font-medium text-text-primary">
-                  {detail.assignmentType ?? "Stationary"}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-text-muted">Position Title</div>
-                <div className="mt-0.5 font-medium text-text-primary">
-                  {detail.positionTitle ?? "--"}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-text-muted">HRCO Coordinator</div>
-                <div className="mt-0.5">
-                  <InheritedHrcoBadge
-                    accountId={detail.accountId}
-                    groupId={detail.groupId}
-                    fallbackName={detail.hrcoName}
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-text-muted">Hired Date</div>
-                <div className="mt-0.5 font-medium text-text-primary flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-text-muted" />
-                  <span>{formatDate(detail.hiredDate)}</span>
-                </div>
-              </div>
-              {detail.employeeNo && (
-                <div>
-                  <div className="text-xs text-text-muted">Employee ID</div>
-                  <div className="mt-0.5">
-                    <Badge className="font-mono text-xs bg-surface border border-border-default text-text-primary font-bold">
-                      {detail.employeeNo}
-                    </Badge>
+            {activeTab === "placement" && (
+              /* Section 3: Placement Parameters Card */
+              <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
+                <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+                  Placement Parameters
+                </h3>
+                <div className="grid grid-cols-2 gap-y-3 text-sm">
+                  <div>
+                    <div className="text-xs text-text-muted">Vacancy Code (VCode)</div>
+                    <div className="mt-0.5 font-mono font-medium text-text-primary">
+                      {detail.vcode || "--"}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* Roving Covered Stores list */}
-            {detail.assignmentType === "Roving" &&
-              detail.coveredStores &&
-              detail.coveredStores.length > 0 && (
-                <div className="mt-3 border-t border-border-subtle pt-3">
-                  <div className="text-xs text-text-muted mb-1.5">Roving Covered Stores</div>
-                  <div className="grid gap-1.5">
-                    {detail.coveredStores.map((store, storeIdx) => (
-                      <div
-                        key={store.storeId || `store-${storeIdx}`}
-                        className="text-xs bg-surface-muted border border-border-subtle rounded p-2 flex items-start gap-2"
-                      >
-                        <MapPin className="h-3.5 w-3.5 text-brand-primary shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-semibold text-text-primary">{store.storeName}</div>
-                          {store.address && (
-                            <div className="text-[10px] text-text-muted">{store.address}</div>
-                          )}
-                        </div>
+                  <div>
+                    <div className="text-xs text-text-muted">Account</div>
+                    <div className="mt-0.5 font-medium text-text-primary">
+                      {detail.accountName || "--"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-text-muted">Store / Location</div>
+                    <div className="mt-0.5 font-medium text-text-primary">
+                      {detail.storeName || "--"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-text-muted">Assignment Type</div>
+                    <div className="mt-0.5 font-medium text-text-primary">
+                      {detail.assignmentType ?? "Stationary"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-text-muted">Position Title</div>
+                    <div className="mt-0.5 font-medium text-text-primary">
+                      {detail.positionTitle ?? "--"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-text-muted">HRCO Coordinator</div>
+                    <div className="mt-0.5">
+                      <InheritedHrcoBadge
+                        accountId={detail.accountId}
+                        groupId={detail.groupId}
+                        fallbackName={detail.hrcoName}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-text-muted">Hired Date</div>
+                    <div className="mt-0.5 font-medium text-text-primary flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5 text-text-muted" />
+                      <span>{formatDate(detail.hiredDate)}</span>
+                    </div>
+                  </div>
+                  {detail.employeeNo && (
+                    <div>
+                      <div className="text-xs text-text-muted">Employee ID</div>
+                      <div className="mt-0.5">
+                        <Badge className="font-mono text-xs bg-surface border border-border-default text-text-primary font-bold">
+                          {detail.employeeNo}
+                        </Badge>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              )}
-          </div>
 
-          {/* Section 4: SLA & Aging Performance Card */}
-          <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
-            <div className="flex items-center justify-between">
+                {/* Roving Covered Stores list */}
+                {detail.assignmentType === "Roving" &&
+                  detail.coveredStores &&
+                  detail.coveredStores.length > 0 && (
+                    <div className="mt-3 border-t border-border-subtle pt-3">
+                      <div className="text-xs text-text-muted mb-1.5">Roving Covered Stores</div>
+                      <div className="grid gap-1.5">
+                        {detail.coveredStores.map((store, storeIdx) => (
+                          <div
+                            key={store.storeId || `store-${storeIdx}`}
+                            className="text-xs bg-surface-muted border border-border-subtle rounded p-2 flex items-start gap-2"
+                          >
+                            <MapPin className="h-3.5 w-3.5 text-brand-primary shrink-0 mt-0.5" />
+                            <div>
+                              <div className="font-semibold text-text-primary">{store.storeName}</div>
+                              {store.address && (
+                                <div className="text-[10px] text-text-muted">{store.address}</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+              </div>
+            )}
+
+            {activeTab === "overview" && (
+              <div className="space-y-4">
+                {/* Section 4: SLA & Aging Performance Card */}
+                <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
+                  <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
                 SLA & Aging Performance
               </h3>
@@ -778,61 +831,6 @@ export function HrEmplocDetailDrawer({
               )}
             </div>
           )}
-
-          {/* Section 7: Specific Activity History Trail Card */}
-          <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-text-muted uppercase tracking-wider">
-              <History className="h-4 w-4 text-text-muted" />
-              <span>Activity History Trail</span>
-            </div>
-            <div className="relative pl-4 space-y-4 border-l-2 border-border-subtle ml-1.5 mt-2">
-              {detail.auditLogsTimeline && detail.auditLogsTimeline.length > 0 ? (
-                [...detail.auditLogsTimeline]
-                  .sort((a, b) => {
-                    // Latest event first; rows without a date go last.
-                    const at = a.createdAt ? new Date(a.createdAt).getTime() : -Infinity;
-                    const bt = b.createdAt ? new Date(b.createdAt).getTime() : -Infinity;
-                    return bt - at;
-                  })
-                  .map((item, timelineIdx) => {
-                  const formatted = formatTimelineItem(item, detail);
-                  return (
-                    <div
-                      key={item.eventId || `timeline-${timelineIdx}`}
-                      className="relative text-xs"
-                    >
-                      <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand-primary" />
-                      <div className="flex justify-between items-baseline">
-                        <span className="font-semibold text-text-primary">
-                          {formatted.title}
-                        </span>
-                        <span className="text-[10px] text-text-muted font-mono">
-                          {formatDateTime(item.createdAt)}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-text-secondary leading-relaxed">
-                        {formatted.description}
-                      </p>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="relative text-xs">
-                  <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand-primary" />
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-text-primary">Queue Endorsement</span>
-                    <span className="text-[10px] text-text-muted">
-                      {formatDate(detail.dateRequested)}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-text-secondary">
-                    Added to HR Emploc Queue ({detail.positionTitle || "Position"} –{" "}
-                    {detail.storeName || "Store"}) from Vacancy {detail.vcode}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
 
           {/* Section 8: Available Actions Card (Human-Readable & Scoped to Deletion Flow) */}
           <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
@@ -1019,7 +1017,66 @@ export function HrEmplocDetailDrawer({
           </div>
         </div>
       )}
-    </DetailDrawer>
+
+      {activeTab === "history" && (
+        /* Section 7: Specific Activity History Trail Card */
+        <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-text-muted uppercase tracking-wider">
+            <History className="h-4 w-4 text-text-muted" />
+            <span>Activity History Trail</span>
+          </div>
+          <div className="relative pl-4 space-y-4 border-l-2 border-border-subtle ml-1.5 mt-2">
+            {detail.auditLogsTimeline && detail.auditLogsTimeline.length > 0 ? (
+              [...detail.auditLogsTimeline]
+                .sort((a, b) => {
+                  // Latest event first; rows without a date go last.
+                  const at = a.createdAt ? new Date(a.createdAt).getTime() : -Infinity;
+                  const bt = b.createdAt ? new Date(b.createdAt).getTime() : -Infinity;
+                  return bt - at;
+                })
+                .map((item, timelineIdx) => {
+                const formatted = formatTimelineItem(item, detail);
+                return (
+                  <div
+                    key={item.eventId || `timeline-${timelineIdx}`}
+                    className="relative text-xs"
+                  >
+                    <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand-primary" />
+                    <div className="flex justify-between items-baseline">
+                      <span className="font-semibold text-text-primary">
+                        {formatted.title}
+                      </span>
+                      <span className="text-[10px] text-text-muted font-mono">
+                        {formatDateTime(item.createdAt)}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-text-secondary leading-relaxed">
+                      {formatted.description}
+                    </p>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="relative text-xs">
+                <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand-primary" />
+                <div className="flex justify-between">
+                  <span className="font-semibold text-text-primary">Queue Endorsement</span>
+                  <span className="text-[10px] text-text-muted">
+                    {formatDate(detail.dateRequested)}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-text-secondary">
+                  Added to HR Emploc Queue ({detail.positionTitle || "Position"} –{" "}
+                  {detail.storeName || "Store"}) from Vacancy {detail.vcode}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )}
+</Modal>
     {isPreviewOpen && detail?.attachments && (
       <DocumentPreviewModal
         isOpen={isPreviewOpen}

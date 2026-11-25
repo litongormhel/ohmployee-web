@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, RefreshCw, XCircle } from "lucide-react";
-import { DetailDrawer } from "@/components/shared/DetailDrawer";
+import { Modal } from "@/components/shared/Modal";
 import { DataState } from "@/components/shared/DataState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
@@ -58,13 +58,27 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
   const isPendingAction = reopenMutation.isPending || closeMutation.isPending;
 
   return (
-    <DetailDrawer
+    <Modal
       isOpen={isOpen}
       onClose={onClose}
+      maxWidthClass="max-w-2xl"
+      isSubmitting={isPendingAction}
+      disableBackdropClick={Boolean(selectedReviewId && actionType)}
+      isDirty={Boolean(selectedReviewId && actionType && actionNotes.trim())}
       title="Workforce Slot Review Queue"
       subtitle="Decide whether vacated pool slots are reopened for replenishment or closed"
+      footer={
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={isPendingAction}
+          className="rounded-lg border border-border-default bg-surface px-4 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-50"
+        >
+          Close
+        </button>
+      }
     >
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* Tab Switcher */}
         <div className="flex border-b border-border-default">
           <button
@@ -211,6 +225,6 @@ export function PoolReviewQueueDrawer({ isOpen, onClose }: PoolReviewQueueDrawer
           </div>
         )}
       </div>
-    </DetailDrawer>
+    </Modal>
   );
 }

@@ -12,7 +12,7 @@ import {
   Mail,
   Phone,
 } from "lucide-react";
-import { DetailDrawer } from "@/components/shared/DetailDrawer";
+import { Modal } from "@/components/shared/Modal";
 import { DataState } from "@/components/shared/DataState";
 import { StatusBadge, type BadgeVariant } from "@/components/ui/StatusBadge";
 import { Badge } from "@/components/ui/badge";
@@ -286,29 +286,31 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
   })();
 
   return (
-    <DetailDrawer
+    <Modal
       isOpen={isOpen}
       onClose={onClose}
-      widthClass="w-[var(--drawer-width-lg)] max-w-full"
-      badge={
+      maxWidthClass="max-w-2xl"
+      title={
         <div className="flex items-center gap-2 flex-wrap">
           <span
-            className={`inline-flex items-center rounded border px-2.5 py-1 font-mono text-xs font-semibold ${vcodeColorClass}`}
+            className={`inline-flex items-center rounded border px-2 py-0.5 font-mono text-xs font-semibold ${vcodeColorClass}`}
             title={vcodeTooltip}
           >
             {slot?.legacyVcode || "No VCode"}
           </span>
           {slot && (
-            <Badge className="font-mono text-xs text-text-secondary bg-surface-muted border-border-default py-1 px-2.5">
+            <Badge className="font-mono text-xs text-text-secondary bg-surface-muted border-border-default py-0.5 px-2">
               Slot #{slot.slotOrdinal}
             </Badge>
           )}
+          <span className="text-base font-semibold text-text-primary truncate">
+            {slot?.position ?? "Slot Inspector"}
+          </span>
         </div>
       }
-      title={slot?.position ?? "Slot Inspector"}
       subtitle={
         slot ? (
-          <div className="flex items-center gap-1.5 truncate">
+          <div className="flex items-center gap-1.5 truncate mt-0.5">
             <Building2 className="h-3.5 w-3.5 shrink-0 text-text-muted" />
             <span className="truncate">
               {[formatStoreName(slot.storeName || slot.storeCode), slot.accountName].filter(Boolean).join(" • ") ||
@@ -316,6 +318,15 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
             </span>
           </div>
         ) : undefined
+      }
+      footer={
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg border border-border-default bg-surface px-4 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+        >
+          Close
+        </button>
       }
     >
       {isSlotLoading ? (
@@ -600,6 +611,6 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
           </div>
         </div>
       )}
-    </DetailDrawer>
+    </Modal>
   );
 }
