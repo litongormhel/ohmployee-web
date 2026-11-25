@@ -1,6 +1,37 @@
 # AI Handoff
 
-## Execution Report — Security Audit Remediation: Harden Timeline & Onboarding RPC Account Scopes, Rewire Slot Authority via `fn_set_slot_status`, Sanitize `.or()` PostgREST Filters, and Enforce Least-Privilege Grants (ohm#security-audit-hardening-rls-rpcs-and-slot-authority)
+## Execution Report — Global Search Lifecycle Precedence (Current Stage Only) & Direct Employee Profile Navigation (ohm#dedup-global-search-stages-and-direct-plantilla-navigation)
+**Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 268 Tests Passing, 0 Lint Warnings, Applied to Staging (`qqiiznmqxfoamqytjica`)
+
+### ADR Updates Needed (Ohm applies in mobile repo)
+- **ADR-001 / Core Invariants — Global Search Single Active Stage Lifecycle Precedence & Direct Record Deep-Linking Contract**:
+  - In Universal Search (`search_global_index`), records representing individuals across recruitment and employment lifecycle must reflect strictly their single authoritative **current stage** (`Plantilla > HR Emploc > Applicants`):
+    1. **Plantilla Authority**: If a person has reached `plantilla` (whether `Active`, `On-Leave`, `Floating`, `Deactivation`, or `Inactive`), historical recruitment staging rows in `hr_emploc` (`status = 'Moved to Plantilla'` or linked via `p.hr_emploc_id` / `p.emploc_no`) and `applicants` (linked via `applicant_id` or `linked_plantilla_id`) MUST NOT be surfaced as separate search results.
+    2. **HR Emploc Active Onboarding Authority**: If a candidate has reached `hr_emploc` in active onboarding (`Pending Emploc`, `For Compliance`, `Contract Signed`, etc.), their upstream raw applicant record in `applicants` MUST NOT appear as a duplicate search result.
+    3. **Direct Record Deep-Linking Contract**: Selecting a search result must navigate directly to the specific entity detail view (e.g. `/plantilla/[id]` for Dedicated Employee Profile, `/vacancy?id=[id]&vcode=[vcode]` for vacancy detail modal, `/hr-emploc?id=[id]` for emploc detail modal), never dropping the user on a generic list view where they must search or click again.
+
+### What Was Done
+1. **Lifecycle Precedence & Anti-Ghost Stage Invariant (`20262606000191`)**:
+   - Re-architected `public.search_global_index(p_query text, p_limit integer DEFAULT 50)`:
+     - **Plantilla Active & Inactive Splitting**: Priority 3 covers active/current employees (`Active`, `On-Leave`, `Floating`, `Deactivation`), while Priority 4 covers historical employees (`Inactive`, `Deactivated`). Both check `employee_name`, `employee_no`, and `emploc_no`.
+     - **HR Emploc Suppression**: Excluded `he.status = 'Moved to Plantilla'` and added `NOT EXISTS (SELECT 1 FROM plantilla p WHERE p.hr_emploc_id = he.id OR (he.emploc_no IS NOT NULL AND p.emploc_no = he.emploc_no))` across exact and name match CTEs.
+     - **Applicant Suppression**: Excluded applicants who have already progressed to HR Emploc or Plantilla (`NOT EXISTS (SELECT 1 FROM hr_emploc he WHERE he.applicant_id = a.id) AND NOT EXISTS (SELECT 1 FROM plantilla p WHERE p.id = a.linked_plantilla_id OR p.hr_emploc_id IN (SELECT he2.id FROM hr_emploc he2 WHERE he2.applicant_id = a.id))`).
+   - Verified live on Staging: searching `"Antonelli"` previously returned 6 confusing duplicate rows across 3 tables (`hr_emploc`, `applicants`, `plantilla`). Now returns strictly 2 rows: Andrea Kimi Antonelli (Plantilla, On Leave) and Kimi Norris Antonelli (Plantilla, Inactive).
+2. **Direct Entity Deep-Linking Contract (`src/lib/queries/globalSearch.ts`)**:
+   - Updated `getNavigationUrl(result)`:
+     - For `plantilla`, if `result.recordId` is present, returns `/plantilla/${encodeURIComponent(result.recordId)}` (Dedicated Employee Profile per Rule #5).
+     - Retains fallback to `/plantilla?search=...` if `recordId` is missing.
+3. **Unit Tests Added (`src/lib/queries/__tests__/global_search_navigation.test.mjs`)**:
+   - Added 4 test cases verifying direct employee profile navigation (`/plantilla/[id]`), fallback behavior, vacancy deep-linking, and HR Emploc deep-linking. Total test count increased from 264 to 268.
+
+### Files Changed
+- `supabase/migrations/20262606000191_dedup_global_search_stages_and_direct_plantilla_nav.sql`
+- `src/lib/queries/globalSearch.ts`
+- `src/lib/queries/__tests__/global_search_navigation.test.mjs`
+- `docs/state/web_ui_system_state.md`
+- `.ai/handoff.md`
+
+---
 **Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings, Applied to Staging (`qqiiznmqxfoamqytjica`)
 
 ### What Was Done

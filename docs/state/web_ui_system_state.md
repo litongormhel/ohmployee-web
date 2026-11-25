@@ -464,10 +464,17 @@ In Loop 2, the Dashboard module was fully migrated onto the UI Standard & Motion
   - Quick triggers placed in `Sidebar.tsx` (top search bar button) and `AdminTopbar.tsx` (mobile search trigger).
 - **Backend RPC Integration (`src/lib/queries/globalSearch.ts`)**:
   - Authoritative query layer calling Supabase RPC `public.search_global_index(p_query text, p_limit integer DEFAULT 50)`.
-  - Searches Vacancies (VCODE, position, store, account), Plantilla personnel (name, employee #), HR Emploc (emploc #, applicant name), and Applicants (name, contact).
+  - Searches Vacancies (VCODE, position, store, account), Plantilla personnel (name, employee #, emploc #), HR Emploc (emploc #, applicant name), and Applicants (name, contact).
   - Returns `result_type`, `record_id`, `primary_label`, `secondary_label`, `status`, `matched_field`, `group_name`, `account_name`, `navigation_target`, and `navigation_id`.
-  - Resolves target URLs with direct module deep-linking and modal auto-opening (`/vacancy?search=...&vcode=...&id=...&status=...`, `/plantilla?search=...&status=...`, `/hr-emploc?search=...&id=...&queue=...`). Target pages reactively populate their search inputs, filter table rows, and immediately open the corresponding record detail drawer.
-  - Hardened with `#variable_conflict use_column`, explicit `combined(...)` CTE column definitions, and table alias qualification in `20262606000181_fix_search_global_index_ambiguity.sql` to permanently prevent PL/pgSQL variable collision on `primary_label`.
+  - **Lifecycle Precedence & Anti-Ghost Stage Invariant (`20262606000191`)**:
+    - Enforces single current authoritative stage deduplication across employee and candidate lifecycles (`Plantilla > HR Emploc > Applicants`).
+    - Personnel already deployed to Plantilla (`Active`, `On-Leave`, `Floating`, `Deactivation`, `Inactive`) suppress their superseded historical rows in `hr_emploc` (`Moved to Plantilla`) and `applicants` (`Confirmed Onboard`, etc.).
+    - Candidates in active HR Emploc onboarding (`Pending Emploc`, `For Compliance`, etc.) suppress their upstream raw `applicants` rows.
+  - **Direct Entity Deep-Linking Contract**:
+    - Plantilla records navigate **directly to the dedicated full-page Employee Profile view** (`/plantilla/[recordId]`), satisfying Rule #5 without dropping users on a generic filtered table where they would have to search or click again.
+    - Vacancies deep link to `/vacancy?search=...&vcode=...&id=...&status=...` auto-opening the vacancy modal.
+    - HR Emploc deep links to `/hr-emploc?search=...&id=...&queue=...` auto-opening the emploc detail drawer.
+  - Hardened with `#variable_conflict use_column`, explicit `combined(...)` CTE column definitions, and table alias qualification in `20262606000181_fix_search_global_index_ambiguity.sql` and `20262606000191_dedup_global_search_stages_and_direct_plantilla_nav.sql`.
 - **Recent Searches & Shortcuts**:
   - Stores up to 8 unique recent search terms in `localStorage` under `ohm_global_search_recent_v1` with 1-click execution and clear button.
   - Provides quick-jump navigation shortcuts to `/vacancy`, `/plantilla`, `/approvals`, `/my-requests`, and seamless bridge to OHMni AI.

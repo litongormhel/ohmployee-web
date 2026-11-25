@@ -142,6 +142,9 @@ export function getNavigationUrl(result: GlobalSearchResultItem): string {
       return `/vacancy?search=${vcode}&vcode=${vcode}${idParam}${statusParam}`;
     }
     case "plantilla": {
+      if (result.recordId) {
+        return `/plantilla/${encodeURIComponent(result.recordId)}`;
+      }
       const statusParam = result.status
         ? `&status=${encodeURIComponent(result.status.toLowerCase().replace(/\s+/g, "_"))}`
         : "";
