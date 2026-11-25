@@ -478,12 +478,14 @@ export async function unlockVacancyEditing({ reason }: { reason: string }) {
 export async function grantTempPermission({
   userId,
   additionalGroups,
+  additionalAccounts,
   expiresAt,
   reason,
   grantedBy,
 }: {
   userId: string;
   additionalGroups: string[];
+  additionalAccounts?: string[];
   expiresAt: string;
   reason?: string;
   grantedBy: string;
@@ -496,6 +498,7 @@ export async function grantTempPermission({
     p_reason: reason?.trim() || null,
     p_notify_user: true,
     p_granted_by: grantedBy,
+    p_additional_accounts: additionalAccounts || null,
   });
   if (error) throw new Error(error.message);
   return data;

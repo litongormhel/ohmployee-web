@@ -33,6 +33,7 @@ export interface GrantTempPermissionParams {
   userId: string;
   scopeType?: TempPermissionScopeType;
   additionalGroups: string[];
+  additionalAccounts?: string[];
   scopeItems?: string[];
   expiresAt: string;
   reason: string;
@@ -57,6 +58,8 @@ type RawTempOverrideRow = {
   id: string;
   user_id: string;
   additional_groups: unknown;
+  additional_accounts?: string[] | null;
+  additional_account_names?: string[] | null;
   reason: string | null;
   expires_at: string;
   is_active: boolean | null;
@@ -166,6 +169,8 @@ export async function fetchTempPermissions(
       id,
       user_id,
       additional_groups,
+      additional_accounts,
+      additional_account_names,
       reason,
       expires_at,
       is_active,
@@ -207,6 +212,9 @@ export async function fetchTempPermissions(
     const additionalGroups = Array.isArray(row.additional_groups)
       ? row.additional_groups.map(String)
       : [];
+    const additionalAccountNames = Array.isArray(row.additional_account_names)
+      ? row.additional_account_names.map(String)
+      : [];
 
     const isExpired = new Date(row.expires_at).getTime() < now;
     const isActive = row.is_active === true && !isExpired && !row.revoked_at;
@@ -218,7 +226,7 @@ export async function fetchTempPermissions(
 
     const { scopeType, displayReason, scopeItems } = parseScopeTypeAndReason(
       row.reason,
-      additionalGroups,
+      additionalAccountNames.length > 0 ? additionalAccountNames : additionalGroups,
     );
 
     return {
@@ -261,6 +269,7 @@ export async function grantTempPermissionOverride({
   userId,
   scopeType = "group",
   additionalGroups,
+  additionalAccounts,
   scopeItems = [],
   expiresAt,
   reason,
@@ -294,6 +303,10 @@ export async function grantTempPermissionOverride({
     p_reason: formattedReason,
     p_notify_user: notifyUser,
     p_granted_by: grantedBy || null,
+    p_additional_accounts:
+      scopeType === "account" && additionalAccounts && additionalAccounts.length > 0
+        ? additionalAccounts
+        : null,
   });
 
   if (error) {

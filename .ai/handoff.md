@@ -1,5 +1,59 @@
 # AI Handoff
 
+## Execution Report — Harden Account-Scoped Permissions & Temp Overrides Anti-Leak (ohm#fix-account-scoped-user-permissions-and-temp-overrides)
+**Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, Migrations Pushed to Staging & Production Build Clean
+
+### What Was Done
+1. **Forensic Root Cause Analysis**:
+   - The user reported: *"i only assign Group 1 > BANKO but this user can see all accounts Vacancy & HR Emploc, Plantilla is Correct. Original Account is ACTISERVE. Even in Temp override same bug. Investigate and fix"* [with attached screenshot of Scope Assignment drawer for Justine Limboc (HRCO, Active)].
+   - **Target Profile Investigated**: Justine Limboc (`limbocjustine14@gmail.com`, `id: f04e2e78-37b8-49f2-b96b-f8a412de8db0`, `auth_user_id: e5fbdd52-ba3d-41ff-8275-c888a9467635`, role: HRCO).
+   - **Root Cause 1 (`public.get_my_allowed_accounts()`)**: In migration `20262606000103`, `get_my_allowed_accounts` was unified into a 4-part UNION. In Part 2:
+     ```sql
+     -- 2. Accounts belonging to groups assigned in user_scopes
+     SELECT DISTINCT a.account_name
+     FROM public.accounts a
+     JOIN public.user_scopes us ON us.group_id = a.group_id
+     WHERE us.user_id = v_profile_id AND a.is_active = true
+     ```
+     Part 2 joined `us.group_id = a.group_id` WITHOUT `AND us.account_id IS NULL`. Because Justine had a row for `(user_id, Group 1, BANKO)` and `(user_id, Group 5, ACTISERVE)`, Part 2 matched `us.group_id` against Group 1 (14 accounts) and Group 5 (21 accounts), leaking all 35 accounts across Vacancy and HR Emploc!
+   - **Root Cause 2 (Why Plantilla was "Correct")**: In `plantilla_read_scoped`, HRCO visibility requires `((i_have_hrco_global_visibility() AND account = ANY(get_my_allowed_accounts())) OR EXISTS(SELECT 1 FROM plantilla_hrco_assignments pha WHERE pha.plantilla_id = plantilla.id AND pha.hrco_user_id = auth.uid() AND pha.is_active))`. Because `hrco_global_visibility = false`, Plantilla bypassed `get_my_allowed_accounts()` and restricted visibility to Justine's explicitly assigned plantilla personnel.
+   - **Root Cause 3 (Temporary Permission Overrides)**: `temp_permission_overrides` schema only had `additional_groups text[]` and lacked `additional_accounts uuid[]`. In `TempPermissionModal.tsx`, selecting an account override resolved its parent group and called `grant_temp_permission_override` which inserted a group-level wildcard `(user_id, group_id, NULL)` into `user_scopes`! And Part 4 of `get_my_allowed_accounts()` expanded all accounts in `tpo.additional_groups`.
+   - **Root Cause 4 (`upsert_user_profile_and_scopes` & `UserDetailDrawer.tsx`)**: In `upsert_user_profile_and_scopes`, when `p_account_ids` was non-empty, parent groups in `p_group_ids` with zero selected accounts had `v_has_accounts = false`, which triggered an `ELSE` branch inserting `(user_id, group_id, NULL)` group-wide wildcards. In `UserDetailDrawer.tsx`, `selectedGroupIds` retained legacy groups when the admin switched accounts without unclicking group pills.
+2. **Database Hardening (`20262606000182` & `20262606000183`)**:
+   - **`get_my_allowed_accounts()`**: Added `AND us.account_id IS NULL` to Part 2; hardened Part 3 fallback `(up.account_id = a.id OR (up.account_id IS NULL AND up.group_id = a.group_id))`; split Part 4 into (a) account-specific overrides (`a.id = ANY(tpo.additional_accounts)`) and (b) group-wide overrides (`g.group_name = ANY(tpo.additional_groups)` only when `tpo.additional_accounts IS NULL OR empty`).
+   - **`get_my_allowed_account_ids()`**: Rewritten into 100% 4-part UNION parity, returning `uuid[]` of active account IDs.
+   - **`get_my_scoped_accounts()`**: Synchronized to query directly against `get_my_allowed_account_ids()`.
+   - **`temp_permission_overrides`**: Added `additional_accounts uuid[] DEFAULT NULL` and `additional_account_names text[] DEFAULT NULL`.
+   - **`grant_temp_permission_override`**: Added `p_additional_accounts uuid[] DEFAULT NULL`. When provided, inserts strictly account-specific `user_scopes` (`user_id, a.group_id, a.id`), stores account IDs and names, and customizes notifications.
+   - **`revoke_temp_permission_override`**: Hardened to safely delete account-specific temporary `user_scopes` without disturbing permanent scopes.
+   - **`upsert_user_profile_and_scopes`**: Added check `IF COALESCE(array_length(p_account_ids, 1), 0) = 0 THEN` before inserting `account_id IS NULL` group-wide wildcards.
+3. **Client Hardening**:
+   - `src/lib/queries/tempPermissions.ts`: Extended `GrantTempPermissionParams` with `additionalAccounts?: string[]`, updated `grantTempPermissionOverride` to pass `p_additional_accounts`, and updated `fetchTempPermissions` to read `additional_account_names`.
+   - `src/components/users/TempPermissionModal.tsx`: Passed `additionalAccounts: scopeType === "account" ? selectedAccountIds : undefined` to `grantMutation`.
+   - `src/lib/queries/more.ts`: Added `additionalAccounts?: string[]` to `grantTempPermission`.
+   - `src/components/users/UserDetailDrawer.tsx`: In `handleSave`, derived `effectiveGroupIds` from the selected accounts when `sanitizedAccountIds.length > 0`, ensuring unselected legacy groups do not linger.
+4. **Live Verification on Staging (`qqiiznmqxfoamqytjica`)**:
+   - Applied migrations `20262606000182` and `20262606000183` cleanly.
+   - Ran `upsert_user_profile_and_scopes` for Justine Limboc with `Group 1 > BANKO`: verified `get_my_allowed_accounts()` returns strictly `['BANKO']` (1 account, 0 sibling accounts leaked).
+   - Tested Temporary Permission Override with Account Scope for `ACTISERVE`: verified `get_my_allowed_accounts()` returns strictly `['ACTISERVE', 'BANKO']` (2 accounts, 0 parent group accounts leaked).
+   - Tested Temporary Permission Override Revocation: verified `revoke_temp_permission_override` cleanly returned Justine to `['BANKO']`.
+   - Unit tests: 264/264 passing (`npm test`).
+   - Linter: 0 errors/warnings (`npm run lint`).
+   - Contract checks: 28 core tables & 19 cross-module RPC contracts verified (`npm run check:sql`).
+
+### Files Changed
+- `supabase/migrations/20262606000182_fix_account_scoped_user_permissions_and_temp_overrides.sql`
+- `supabase/migrations/20262606000183_grant_allowed_account_ids_to_public.sql`
+- `src/components/users/TempPermissionModal.tsx`
+- `src/components/users/UserDetailDrawer.tsx`
+- `src/lib/queries/more.ts`
+- `src/lib/queries/tempPermissions.ts`
+- `docs/state/web_auth_rbac_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Wire Deep-Link URL Search Parameters & Auto-Open Modal on Global Search Navigation (ohm#fix-vacancy-global-search-deep-link-auto-open)
 **Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings, Next.js Build Clean
 

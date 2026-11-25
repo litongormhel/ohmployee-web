@@ -58,6 +58,20 @@ This context is currently fetched once in the dashboard shell wrapper and passed
 - Queries inside the function must either:
   1. Qualify all table columns with explicit table aliases (e.g. `act.is_active = true`), or
   2. Encapsulate sub-lookups in separate helper functions (e.g. `SELECT * INTO v_acting_session FROM public.get_active_acting_session();`), which is the canonical standard for switch-role acting session checks.
+
+### Account-Scoped Isolation & Anti-Leak Guards (`get_my_allowed_accounts` & `get_my_allowed_account_ids`)
+- **Part 2 Guard**: `public.user_scopes` rows storing an explicit `account_id` MUST NEVER match group-wide expansion in Part 2. Part 2 strictly requires `us.account_id IS NULL` when expanding `us.group_id = a.group_id`, ensuring users assigned to specific accounts (e.g. Justine Limboc assigned to Group 1 > BANKO) do not leak sibling accounts in the same parent group.
+- **Parity between Names and IDs**: `public.get_my_allowed_account_ids()` returns `uuid[]` using the identical 4-part additive UNION as `public.get_my_allowed_accounts()` (`text[]`). `public.get_my_scoped_accounts()` synchronizes directly against `get_my_allowed_account_ids()`.
+- **Temporary Permission Overrides with Account Scope**:
+  - `public.temp_permission_overrides` includes `additional_accounts uuid[]` and `additional_account_names text[]`.
+  - When `grant_temp_permission_override` is invoked with `p_additional_accounts`, it inserts ONLY account-specific rows into `public.user_scopes` (`user_id, a.group_id, a.id`) and suppresses group-wide wildcard rows.
+  - Part 4 of `get_my_allowed_accounts()` and `get_my_allowed_account_ids()` branches into:
+    (a) Account-specific overrides (`a.id = ANY(tpo.additional_accounts)`), and
+    (b) Group-wide overrides (`g.group_name = ANY(tpo.additional_groups)` ONLY WHEN `tpo.additional_accounts IS NULL OR empty`).
+  - `revoke_temp_permission_override` cleans up account-specific temporary scopes safely without disturbing permanent scopes.
+- **User Detail Drawer & `upsert_user_profile_and_scopes`**:
+  - `upsert_user_profile_and_scopes` only inserts `(user_id, group_id, NULL)` group-wide wildcards if NO specific accounts are provided across the payload (`p_account_ids` is empty). When specific accounts are provided, unmatched groups do not receive wildcards.
+  - In `UserDetailDrawer.tsx`, `handleSave` derives `effectiveGroupIds` from the selected accounts when specific accounts are configured, preventing legacy unselected groups from lingering in the user's scope.
 - Unqualified column references matching return column names trigger error `42702: column reference is ambiguous` and crash the web authentication bootstrap.
 
 ### RBAC Boundary

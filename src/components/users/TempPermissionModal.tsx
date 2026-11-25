@@ -329,6 +329,7 @@ export function TempPermissionModal({
         userId: selectedTargetUserId,
         scopeType,
         additionalGroups: finalGroups,
+        additionalAccounts: scopeType === "account" ? selectedAccountIds : undefined,
         scopeItems: scopeItemLabels,
         expiresAt: new Date(customExpiryDate).toISOString(),
         reason: reason.trim(),

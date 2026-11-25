@@ -352,12 +352,24 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
           return gid ? selectedGroupIds.includes(gid) : accounts.some((a) => a.id === aid);
         });
 
+    // When specific accounts are selected, ensure effective groupIds matches the selected accounts'
+    // groups so unselected legacy groups do not linger or leak
+    const effectiveGroupIds = sanitizedAccountIds.length > 0
+      ? Array.from(
+          new Set(
+            sanitizedAccountIds
+              .map((aid) => accountGroupRef.current.get(aid) || accounts.find((a) => a.id === aid)?.group_id)
+              .filter(Boolean) as string[],
+          ),
+        )
+      : selectedGroupIds;
+
     try {
       await upsertMutation.mutateAsync({
         fullName: user.fullName,
         email: user.email,
         roleId: selectedRoleId,
-        groupIds: selectedGroupIds,
+        groupIds: effectiveGroupIds,
         accountIds: sanitizedAccountIds,
         existingProfileId: user.id,
       });
