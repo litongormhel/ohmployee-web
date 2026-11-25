@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
+import { TablePagination } from "@/components/shared/TablePagination";
 import {
   useNotifications,
   useNotificationsRealtime,
@@ -133,8 +134,9 @@ function NotificationsPageContent() {
   // Mark-all Confirmation Modal State
   const [confirmMarkAllOpen, setConfirmMarkAllOpen] = useState(false);
 
-  // Pagination display limit
-  const [displayLimit, setDisplayLimit] = useState(50);
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Queries
   const {
@@ -143,7 +145,7 @@ function NotificationsPageContent() {
     isRefetching,
     refetch: refetchList,
     error,
-  } = useNotifications({ tab: activeTab, limit: 300 });
+  } = useNotifications({ tab: activeTab, limit: 500 });
 
   const {
     data: counts = { all: 0, unread: 0, requests: 0, alerts: 0, system: 0 },
@@ -162,6 +164,7 @@ function NotificationsPageContent() {
   // Navigation / Tab sync
   const handleTabChange = (tab: NotificationTabFilter) => {
     setActiveTab(tab);
+    setPage(1);
     setSelectedIds(new Set());
     startTransition(() => {
       const params = new URLSearchParams(searchParams.toString());
@@ -181,6 +184,7 @@ function NotificationsPageContent() {
 
   // Module filter toggle
   const handleToggleModule = (mod: NotificationModule | "all") => {
+    setPage(1);
     if (mod === "all") {
       setSelectedModules(new Set());
       return;
@@ -264,6 +268,10 @@ function NotificationsPageContent() {
   }, [allNotifications]);
 
   // Date Grouping with Consecutive Burst Collapsing
+  const totalFilteredCount = filteredNotifications.length;
+  const maxPage = Math.max(1, Math.ceil(totalFilteredCount / pageSize));
+  const safePage = Math.min(page, maxPage);
+
   const dateGroups: DateGroup[] = useMemo(() => {
     const buckets: Record<DateGroup["key"], NotificationItem[]> = {
       today: [],
@@ -272,8 +280,9 @@ function NotificationsPageContent() {
       earlier: [],
     };
 
-    // Slice to pagination limit
-    const pagedItems = filteredNotifications.slice(0, displayLimit);
+    // Slice to current pagination page window
+    const startIdx = (safePage - 1) * pageSize;
+    const pagedItems = filteredNotifications.slice(startIdx, startIdx + pageSize);
 
     for (const item of pagedItems) {
       const bucket = getDateBucket(item.created_at);
@@ -328,7 +337,7 @@ function NotificationsPageContent() {
         return { key, label, items: processedItems };
       })
       .filter((g) => g.items.length > 0);
-  }, [filteredNotifications, displayLimit]);
+  }, [filteredNotifications, safePage, pageSize]);
 
   // Bulk Actions
   const handleBulkMarkRead = (isRead: boolean) => {
@@ -438,6 +447,7 @@ function NotificationsPageContent() {
     setSelectedModules(new Set());
     setSearchQuery("");
     setNeedsActionOnly(false);
+    setPage(1);
   };
 
   const hasActiveFilters =
@@ -536,7 +546,10 @@ function NotificationsPageContent() {
           </div>
           <button
             type="button"
-            onClick={() => setNeedsActionOnly((prev) => !prev)}
+            onClick={() => {
+              setNeedsActionOnly((prev) => !prev);
+              setPage(1);
+            }}
             className={`text-[10px] font-semibold px-2 py-0.5 rounded transition ${
               needsActionOnly
                 ? "bg-amber-600 text-white"
@@ -654,14 +667,20 @@ function NotificationsPageContent() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search title, code, actor..."
                 className="w-full h-8 pl-8 pr-7 text-xs rounded-lg border border-border-default bg-surface-base text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -674,7 +693,10 @@ function NotificationsPageContent() {
               <input
                 type="checkbox"
                 checked={needsActionOnly}
-                onChange={(e) => setNeedsActionOnly(e.target.checked)}
+                onChange={(e) => {
+                  setNeedsActionOnly(e.target.checked);
+                  setPage(1);
+                }}
                 className="h-3.5 w-3.5 rounded border-border-default text-brand-600 focus:ring-brand-500/30 cursor-pointer"
               />
               <span>Needs action only</span>
@@ -773,19 +795,23 @@ function NotificationsPageContent() {
             ))
           )}
 
-          {/* Load More Pagination Trigger */}
-          {filteredNotifications.length > displayLimit && (
-            <div className="pt-2 text-center">
-              <button
-                type="button"
-                onClick={() => setDisplayLimit((prev) => prev + 50)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-4 py-2 text-xs font-semibold text-text-primary hover:bg-surface-hover hover:border-border-strong transition cursor-pointer shadow-2xs"
-              >
-                <span>
-                  Load more notifications ({filteredNotifications.length - displayLimit} remaining)
-                </span>
-              </button>
-            </div>
+          {/* Standard Pagination Footer */}
+          {!error && totalFilteredCount > 0 && (
+            <TablePagination
+              page={safePage}
+              pageSize={pageSize}
+              totalCount={totalFilteredCount}
+              pageSizeOptions={[10, 25, 50, 100]}
+              onPageChange={(newPage) => {
+                setPage(newPage);
+              }}
+              onPageSizeChange={(newPageSize) => {
+                setPageSize(newPageSize);
+                setPage(1);
+              }}
+              isLoading={isLoading}
+              className="mt-4 -mx-4 -mb-4 rounded-b-xl bg-surface-subtle/30"
+            />
           )}
         </div>
       </div>

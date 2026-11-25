@@ -1,5 +1,26 @@
 # AI Handoff
 
+## Execution Report — Add Standardized Pagination Controls to Notifications Activity Center (ohm#add-pagination-to-notifications)
+**Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings
+
+### What Was Done
+1. **Standardized TablePagination Integration (`src/app/(dashboard)/notifications/page.tsx`)**:
+   - Replaced the basic `"Load more notifications"` incremental button (`displayLimit = 50`) with the canonical `TablePagination` footer component (`src/components/shared/TablePagination.tsx`).
+   - Added `page` state (default `1`) and `pageSize` state (default `25`, with selector options `[10, 25, 50, 100]`).
+   - Aligned `useNotifications` query `limit` to `500` to match `useNotificationCounts` so category tab badge counts and paginated records remain 100% consistent.
+   - Computed `totalFilteredCount = filteredNotifications.length`, `maxPage`, and `safePage`, slicing `filteredNotifications` to `[(safePage - 1) * pageSize, safePage * pageSize]` before grouping into chronological date buckets (`Today`, `Yesterday`, `This Week`, `Earlier`) and collapsing consecutive notification bursts.
+   - Wired automatic `setPage(1)` resets whenever the user changes category tabs (`All`, `Unread`, `Requests & Approvals`, `SLA & Alerts`, `System`), toggles module filter chips, types or clears the search query, toggles `"Needs action only"`, or clicks reset filters.
+2. **State Documentation Updated**:
+   - Updated `docs/state/notifications_state.md` to document the standardized `TablePagination` controls on `/notifications`.
+
+### Files Changed
+- `src/app/(dashboard)/notifications/page.tsx`
+- `docs/state/notifications_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Implement Partial / Staggered Roving Coverage Group Store Onboarding, Option A Fast-Track & Backfill Agawa in PERFECT SM (ohm#partial-roving-coverage-store-onboarding-and-agawa-backfill)
 **Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, Migration 20262606000188 Pushed to Staging & Synced to Mobile, 264 Tests Passing, 0 Lint Warnings
 

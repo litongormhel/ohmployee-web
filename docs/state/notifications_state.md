@@ -21,6 +21,7 @@ This document tracks the OHMployee Web Notifications module architecture, taxono
   - Secondary quick toggle button (Mark as read / unread)
 - **Consecutive Burst Collapsing**: Implemented in `src/components/notifications/NotificationBurstRow.tsx`. Consecutive same-type notifications within a date group collapse into a single expandable summary card (e.g. "3 Events: Approved") with count pill, burst selection checkbox, and "Mark all read" quick action.
 - **Date Grouping**: Notifications are grouped into sticky chronological headers: `Today`, `Yesterday`, `This Week`, and `Earlier`.
+- **Standardized Table Pagination**: Integrated canonical `TablePagination` footer (`src/components/shared/TablePagination.tsx`) supporting page numbers, `Prev` / `Next` navigation, `Showing X–Y of Z records`, and customizable `Rows per page` (`10`, `25`, `50`, `100`, defaulting to `25`), automatically resetting to Page 1 whenever category tabs, module filters, search queries, or "Needs action only" filters change.
 - **Bulk Action Mode**: Implemented in `src/components/notifications/NotificationBulkBar.tsx`. Floating sticky toolbar appearing when items are selected with `Mark as read`, `Mark as unread`, and `Clear selection`.
 - **Scope-Aware Mark All as Read with Confirmation & Undo**:
   - The top "Mark all as read" button detects active filters (e.g. "Mark Filtered Read (N)").
