@@ -389,7 +389,9 @@ The authoritative 55-item matrix governs operational drawer actions, mutations, 
   - `Actions`: Kebab menu (`...`) offering "Deactivate user" / "Activate user", "Reset password", and "Archive user" with modal confirmation gates.
   - `Pagination`: Standard bottom `TablePagination` with rows-per-page selector (10, 25, 50).
 
-### 3. User Detail Drawer & Activity Log
+### 3. User Detail Modal & Activity Log
+- **Modal Conversion (UserDetailModal):** Replaced slide-over right-side `DetailDrawer` with centered high-density `Modal` (`maxWidthClass="max-w-2xl"`). Provides balanced focus and eliminates cramped side scrolling while preserving the 3-tab architecture (`Overview`, `Scope Assignment`, `Activity Log`).
+- **Docked Footer:** Unsaved changes actions (`Reset` and `Save Changes`) render in the modal's fixed bottom footer rather than sticky within the scrollable body.
 - **Overview Tab Role Assignment:** Read-only role display paired with "Edit Role" button restricted to SA and HA. Triggers an explicit `EditRoleConfirmationModal` with diff preview (`Current ➔ New`) before saving.
 - **Danger Zone Actions:** Matches table kebab menu items with status toggle, password reset, and soft archival.
 - **Activity Log Conversational Translation:** Raw action blocks (e.g. `UPDATE_USER_ROLE`, `TOGGLE_USER_STATUS`) translated into conversational sentences answering *what, who, and when* with circular initials avatar (e.g. *Avatar* `Litong, Ohm (Super Admin) changed the user's role from HR Personnel to HRCO on Nov 9, 2026 at 09:38 AM.`).

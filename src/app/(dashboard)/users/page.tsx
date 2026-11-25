@@ -5,8 +5,7 @@ import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { AdminFilterBar } from "@/components/shared/AdminFilterBar";
 import { Modal } from "@/components/shared/Modal";
 import { UsersTable } from "@/components/users/UsersTable";
-import { UserMetricsCards } from "@/components/users/UserMetricsCards";
-import { UserDetailDrawer } from "@/components/users/UserDetailDrawer";
+import { UserDetailModal } from "@/components/users/UserDetailDrawer";
 import { CreateUserModal } from "@/components/users/CreateUserModal";
 import { AccountRequestsModal } from "@/components/more/AccountRequestsModal";
 import { TempPermissionModal } from "@/components/users/TempPermissionModal";
@@ -317,19 +316,6 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Top KPI Metrics Grid */}
-      <UserMetricsCards
-        totalCount={totalCount}
-        activeCount={activeCount}
-        inactiveCount={inactiveCount}
-        activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setActiveTab(tab);
-          setPage(1);
-        }}
-        isLoading={isLoading}
-      />
-
       {/* Main Directory Container */}
       <div className="space-y-4 rounded-xl border border-border-default bg-surface-base p-4 shadow-2xs">
         {/* Segmented Control Tabs */}
@@ -524,8 +510,8 @@ export default function UsersPage() {
         />
       </div>
 
-      {/* User Detail & Edit Drawer */}
-      <UserDetailDrawer
+      {/* User Detail & Edit Modal */}
+      <UserDetailModal
         user={selectedUser}
         onClose={() => setSelectedUser(null)}
         onSaved={() => {

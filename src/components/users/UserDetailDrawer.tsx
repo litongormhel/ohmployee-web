@@ -17,7 +17,6 @@ import {
   Clock,
   ArrowRight,
 } from "lucide-react";
-import { DetailDrawer } from "@/components/shared/DetailDrawer";
 import { Modal } from "@/components/shared/Modal";
 import type {
   UserProfileItem,
@@ -139,6 +138,8 @@ export interface UserDetailDrawerProps {
   onClose: () => void;
   onSaved?: () => void;
 }
+
+export type UserDetailModalProps = UserDetailDrawerProps;
 
 export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerProps) {
   const currentUser = useCurrentUser();
@@ -507,10 +508,10 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
 
   return (
     <>
-      <DetailDrawer
+      <Modal
         isOpen={Boolean(user)}
         onClose={onClose}
-        widthClass="w-[var(--drawer-width-lg)] max-w-full"
+        maxWidthClass="max-w-2xl"
         disableBackdropClick={isBusy}
         isSubmitting={isBusy}
         isDirty={hasEditableChanges}
@@ -554,6 +555,39 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
               </span>
             )}
           </div>
+        }
+        footer={
+          hasEditableChanges && !isTargetLocked ? (
+            <div className="flex w-full items-center justify-between">
+              <span className="text-xs font-medium text-text-secondary">
+                Unsaved changes pending.
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedRoleId(user.roleId);
+                    setSelectedGroupIds([...user.scopedGroupIds]);
+                    setSelectedAccountIds(
+                      user.scopes.filter((s) => s.accountId).map((s) => s.accountId as string),
+                    );
+                    setHrcoGlobalVisibilityState(user.hrcoGlobalVisibility);
+                  }}
+                  className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover cursor-pointer"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSaveDiffConfirmOpen(true)}
+                  disabled={upsertMutation.isPending}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-4 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-brand-600 cursor-pointer"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          ) : undefined
         }
       >
 
@@ -1058,39 +1092,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
           )}
         </div>
 
-        {/* Sticky Action Footer */}
-        {hasEditableChanges && !isTargetLocked && (
-          <div className="sticky bottom-0 -mx-5 -mb-5 border-t border-border-default bg-surface-base px-5 py-3 shadow-lg flex items-center justify-between">
-            <span className="text-xs font-medium text-text-secondary">
-              Unsaved changes pending.
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedRoleId(user.roleId);
-                  setSelectedGroupIds([...user.scopedGroupIds]);
-                  setSelectedAccountIds(
-                    user.scopes.filter((s) => s.accountId).map((s) => s.accountId as string),
-                  );
-                  setHrcoGlobalVisibilityState(user.hrcoGlobalVisibility);
-                }}
-                className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                onClick={() => setSaveDiffConfirmOpen(true)}
-                disabled={upsertMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-4 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-brand-600"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        )}
-      </DetailDrawer>
+      </Modal>
 
       {/* MODAL 1: Save Diff Confirmation */}
       <Modal
@@ -1329,4 +1331,6 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
     </>
   );
 }
+
+export const UserDetailModal = UserDetailDrawer;
 
