@@ -15,6 +15,8 @@ export interface TempPermissionOverride {
   userRole: string;
   grantedBy: string;
   additionalGroups: string[];
+  additionalAccounts?: string[];
+  additionalAccountNames?: string[];
   reason: string | null;
   expiresAt: string;
   isActive: boolean;
@@ -237,6 +239,10 @@ export async function fetchTempPermissions(
       userRole: roleName,
       grantedBy: row.granted_by ?? "System Administrator",
       additionalGroups,
+      additionalAccounts: Array.isArray(row.additional_accounts)
+        ? row.additional_accounts.map(String)
+        : [],
+      additionalAccountNames,
       reason: row.reason,
       expiresAt: row.expires_at,
       isActive,

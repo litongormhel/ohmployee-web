@@ -489,5 +489,28 @@ Per user direction, permanently cleaned up dormant/orphaned RBAC definitions tha
    - Safely unlinked foreign key references in `role_permission_audit_logs.permission_definition_id` (setting to `NULL` while preserving denormalized module/resource/action keys for historical audit compliance).
    - Removed definitions from `role_permission_overrides`, `role_permission_matrix`, and `role_permission_definitions`.
 
+---
+
+## Temporary Permission Override Visual Scope Alignment (`ohm#fix-temp-override-delegated-access-visual`)
+
+- **Context & Bug Forensic**:
+  - In `TempPermissionModal.tsx`, active overrides cards and history rows were unconditionally mapping over `item.additionalGroups`, rendering `Group 5` with a `<Layers />` icon even when the delegation was an `Account Scope` delegation (e.g. `ACTISERVE` in Group 5) or `Module Scope`.
+  - In `UserDetailDrawer.tsx`, the `Scope Assignment` tab showed only baseline permanent scopes (`user_scopes`) with no indication of active temporary overrides, leading to confusion when the user header showed an active override badge (e.g. `Expires in 1d 12h`).
+- **Fix Implementation**:
+  1. `src/lib/queries/tempPermissions.ts`:
+     - Populated `additionalAccounts` and `additionalAccountNames` in `TempPermissionOverride` return payload from `fetchTempPermissions`.
+  2. `src/components/users/TempPermissionModal.tsx`:
+     - Rendered tags conditionally based on `item.scopeType`:
+       - `account`: Renders `<Store />` icon with account name(s) and parent group tag (e.g., `ACTISERVE (Group 5)`).
+       - `module`: Renders `<AppWindow />` icon with module name(s).
+       - `group`: Renders `<Layers />` icon with group name(s).
+     - Applied identical scoped tag rendering to `History & Revocations` tab.
+     - Updated Revocation Confirmation Modal to display the exact account/module/group being revoked.
+     - Added `item.scopeItems` matching to search filters in active and history lists.
+  3. `src/components/users/UserDetailDrawer.tsx`:
+     - Overview Tab: Displays active override with scoped entity names and type badge.
+     - Scope Assignment Tab: Added an informational callout banner when `activeTempOverride` is present detailing delegated access and expiration time, clarifying that baseline permanent scopes are displayed below.
+
+
 
 

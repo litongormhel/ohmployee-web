@@ -175,6 +175,7 @@ export function TempPermissionModal({
       item.userFullName.toLowerCase().includes(q) ||
       (item.userEmail && item.userEmail.toLowerCase().includes(q)) ||
       item.userRole.toLowerCase().includes(q) ||
+      (item.scopeItems && item.scopeItems.some((s) => s.toLowerCase().includes(q))) ||
       item.additionalGroups.some((g) => g.toLowerCase().includes(q)) ||
       (item.reason && item.reason.toLowerCase().includes(q)) ||
       item.grantedBy.toLowerCase().includes(q)
@@ -188,6 +189,7 @@ export function TempPermissionModal({
       item.userFullName.toLowerCase().includes(q) ||
       (item.userEmail && item.userEmail.toLowerCase().includes(q)) ||
       item.userRole.toLowerCase().includes(q) ||
+      (item.scopeItems && item.scopeItems.some((s) => s.toLowerCase().includes(q))) ||
       item.additionalGroups.some((g) => g.toLowerCase().includes(q)) ||
       (item.reason && item.reason.toLowerCase().includes(q)) ||
       item.grantedBy.toLowerCase().includes(q)
@@ -620,15 +622,50 @@ export function TempPermissionModal({
                           Delegated Access:
                         </span>
                         <div className="flex flex-wrap gap-1.5">
-                          {item.additionalGroups.map((group) => (
-                            <span
-                              key={group}
-                              className="inline-flex items-center gap-1 rounded-md bg-surface-subtle/80 px-2 py-0.5 text-xs font-semibold text-text-primary border border-border-default/80"
-                            >
-                              <Layers className="w-3 h-3 text-text-muted" />
-                              {group}
-                            </span>
-                          ))}
+                          {item.scopeType === "account" ? (
+                            (item.scopeItems && item.scopeItems.length > 0
+                              ? item.scopeItems
+                              : item.additionalGroups
+                            ).map((accountName) => (
+                              <span
+                                key={accountName}
+                                className="inline-flex items-center gap-1.5 rounded-md bg-surface-subtle/80 px-2 py-0.5 text-xs font-semibold text-text-primary border border-border-default/80"
+                              >
+                                <Store className="w-3.5 h-3.5 text-brand-primary" />
+                                <span>{accountName}</span>
+                                {item.additionalGroups &&
+                                  item.additionalGroups.length > 0 &&
+                                  !item.additionalGroups.includes(accountName) && (
+                                    <span className="text-[10px] font-normal text-text-muted">
+                                      ({item.additionalGroups.join(", ")})
+                                    </span>
+                                  )}
+                              </span>
+                            ))
+                          ) : item.scopeType === "module" ? (
+                            (item.scopeItems && item.scopeItems.length > 0
+                              ? item.scopeItems
+                              : item.additionalGroups
+                            ).map((moduleName) => (
+                              <span
+                                key={moduleName}
+                                className="inline-flex items-center gap-1.5 rounded-md bg-surface-subtle/80 px-2 py-0.5 text-xs font-semibold text-text-primary border border-border-default/80"
+                              >
+                                <AppWindow className="w-3.5 h-3.5 text-brand-primary" />
+                                <span>{moduleName}</span>
+                              </span>
+                            ))
+                          ) : (
+                            item.additionalGroups.map((group) => (
+                              <span
+                                key={group}
+                                className="inline-flex items-center gap-1.5 rounded-md bg-surface-subtle/80 px-2 py-0.5 text-xs font-semibold text-text-primary border border-border-default/80"
+                              >
+                                <Layers className="w-3.5 h-3.5 text-text-muted" />
+                                <span>{group}</span>
+                              </span>
+                            ))
+                          )}
                         </div>
                       </div>
 
@@ -743,16 +780,40 @@ export function TempPermissionModal({
                         </div>
                       </div>
 
-                      {/* Delegated Groups */}
+                      {/* Delegated Scopes */}
                       <div className="flex items-center gap-2 text-xs">
-                        <span className="text-[11px] font-medium text-text-secondary">Groups:</span>
+                        <span className="text-[11px] font-medium text-text-secondary">
+                          {item.scopeType === "account"
+                            ? "Accounts:"
+                            : item.scopeType === "module"
+                              ? "Modules:"
+                              : "Groups:"}
+                        </span>
                         <div className="flex flex-wrap gap-1">
-                          {item.additionalGroups.map((group) => (
+                          {(item.scopeItems && item.scopeItems.length > 0
+                            ? item.scopeItems
+                            : item.additionalGroups
+                          ).map((scoped) => (
                             <span
-                              key={group}
-                              className="inline-flex items-center rounded bg-surface-muted px-1.5 py-0.5 text-[11px] text-text-primary"
+                              key={scoped}
+                              className="inline-flex items-center gap-1 rounded bg-surface-muted px-1.5 py-0.5 text-[11px] text-text-primary"
                             >
-                              {group}
+                              {item.scopeType === "account" ? (
+                                <Store className="w-3 h-3 text-brand-primary" />
+                              ) : item.scopeType === "module" ? (
+                                <AppWindow className="w-3 h-3 text-text-muted" />
+                              ) : (
+                                <Layers className="w-3 h-3 text-text-muted" />
+                              )}
+                              <span>{scoped}</span>
+                              {item.scopeType === "account" &&
+                                item.additionalGroups &&
+                                item.additionalGroups.length > 0 &&
+                                !item.additionalGroups.includes(scoped) && (
+                                  <span className="text-[10px] text-text-muted">
+                                    ({item.additionalGroups.join(", ")})
+                                  </span>
+                                )}
                             </span>
                           ))}
                         </div>
@@ -1185,7 +1246,28 @@ export function TempPermissionModal({
                 <strong>User:</strong> {revokingItem.userFullName}
               </div>
               <div>
-                <strong>Groups to remove:</strong> {revokingItem.additionalGroups.join(", ")}
+                <strong>
+                  {revokingItem.scopeType === "account"
+                    ? "Delegated Account(s) to revoke:"
+                    : revokingItem.scopeType === "module"
+                      ? "Delegated Module(s) to revoke:"
+                      : "Delegated Group(s) to revoke:"}
+                </strong>{" "}
+                {(revokingItem.scopeItems && revokingItem.scopeItems.length > 0
+                  ? revokingItem.scopeItems
+                  : revokingItem.additionalGroups
+                ).join(", ")}
+                {revokingItem.scopeType === "account" &&
+                  revokingItem.additionalGroups &&
+                  revokingItem.additionalGroups.length > 0 &&
+                  !revokingItem.additionalGroups.includes(
+                    (revokingItem.scopeItems && revokingItem.scopeItems[0]) || ""
+                  ) && (
+                    <span className="opacity-80">
+                      {" "}
+                      ({revokingItem.additionalGroups.join(", ")})
+                    </span>
+                  )}
               </div>
             </div>
 

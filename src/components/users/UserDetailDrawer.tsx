@@ -725,7 +725,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                     </span>
                     <p className="text-[11px] text-text-muted mt-0.5 truncate">
                       {activeTempOverride
-                        ? `Active: ${activeTempOverride.expiresLabel} (${activeTempOverride.scopeType})`
+                        ? `Active: ${activeTempOverride.expiresLabel} • ${(activeTempOverride.scopeItems && activeTempOverride.scopeItems.length > 0 ? activeTempOverride.scopeItems : activeTempOverride.additionalGroups).join(", ")} (${activeTempOverride.scopeType === "account" ? "Account Scope" : activeTempOverride.scopeType === "module" ? "Module Scope" : "Group Scope"})`
                         : "No active temporary override in effect."}
                     </p>
                   </div>
@@ -785,6 +785,61 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
           {/* TAB 2: SCOPE ASSIGNMENT */}
           {activeTab === "scope" && (
             <div className="space-y-4">
+              {/* Active Temporary Delegation Callout */}
+              {activeTempOverride && (
+                <div className="rounded-xl border border-border-default bg-surface-subtle p-3.5 flex items-start justify-between gap-3 shadow-2xs">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <Clock className="h-4 w-4 text-text-secondary shrink-0 mt-0.5" />
+                    <div className="min-w-0 text-xs">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-text-primary">
+                          Temporary Delegation Active (
+                          {activeTempOverride.scopeType === "account"
+                            ? "Account Scope"
+                            : activeTempOverride.scopeType === "module"
+                              ? "Module Scope"
+                              : "Group Scope"}
+                          )
+                        </span>
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-surface-base text-text-secondary border border-border-default">
+                          {activeTempOverride.expiresLabel}
+                        </span>
+                      </div>
+                      <p className="text-text-muted mt-1">
+                        Delegated access:{" "}
+                        <span className="font-semibold text-text-primary">
+                          {(activeTempOverride.scopeItems && activeTempOverride.scopeItems.length > 0
+                            ? activeTempOverride.scopeItems
+                            : activeTempOverride.additionalGroups
+                          ).join(", ")}
+                        </span>
+                        {activeTempOverride.scopeType === "account" &&
+                          activeTempOverride.additionalGroups &&
+                          activeTempOverride.additionalGroups.length > 0 &&
+                          !activeTempOverride.additionalGroups.includes(
+                            (activeTempOverride.scopeItems && activeTempOverride.scopeItems[0]) || ""
+                          ) && (
+                            <span className="text-text-muted">
+                              {" "}
+                              ({activeTempOverride.additionalGroups.join(", ")})
+                            </span>
+                          )}
+                      </p>
+                      <p className="text-[11px] text-text-muted mt-0.5">
+                        Note: Below are baseline permanent scopes. Temporary delegations operate on top of baseline scopes until expiration.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTempPermissionModalOpen(true)}
+                    className="shrink-0 text-xs font-semibold text-brand-primary hover:underline cursor-pointer"
+                  >
+                    View Override →
+                  </button>
+                </div>
+              )}
+
               {/* Group Scope Card */}
               <div className="rounded-lg border border-border-default bg-surface-base p-4 space-y-3">
                 <div className="flex items-center justify-between">

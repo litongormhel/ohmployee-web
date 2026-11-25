@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — Fix Temporary Permission Override Delegated Access Visuals (ohm#fix-temp-override-delegated-access-visual)
+**Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings
+
+### What Was Done
+1. **Forensic Root Cause Analysis**:
+   - The user uploaded screenshots demonstrating that in the `Temporary Permission Overrides` modal (`TempPermissionModal.tsx`), when viewing an active override granted with Account Scope (e.g. for `UAT Test 1`), the badge correctly indicated `Account Scope`, but under `Delegated Access:` it rendered `Group 5` with a `<Layers />` icon instead of the actual assigned account (`ACTISERVE` with `<Store />` icon).
+   - Furthermore, in `UserDetailDrawer.tsx`, when an active temporary override was present (indicated by the header badge `Expires in 1d 12h`), navigating to the `Scope Assignment` tab displayed only baseline permanent scopes (`user_scopes`) with zero indication of what temporary access was currently delegated, leading to confusion.
+2. **Component & Query Alignment**:
+   - `src/lib/queries/tempPermissions.ts`:
+     - Added `additionalAccounts` and `additionalAccountNames` to `TempPermissionOverride` interface and mapped them in `fetchTempPermissions` return objects.
+   - `src/components/users/TempPermissionModal.tsx`:
+     - In Active Overrides tab: Rendered delegated tags conditionally based on `item.scopeType`:
+       - `account`: Renders `<Store />` icon with account name(s) and parent group tag (e.g., `ACTISERVE (Group 5)`).
+       - `module`: Renders `<AppWindow />` icon with module name(s).
+       - `group`: Renders `<Layers />` icon with group name(s).
+     - In History & Revocations tab: Rendered matching scoped tags (`Accounts:`, `Modules:`, `Groups:`).
+     - In Revocation Confirmation dialog: Formatted target entity list accurately to show delegated account/module/group names rather than generic group names.
+     - Search filter: Added `item.scopeItems` checking so searching for account names (e.g., "ACTISERVE") finds the override.
+   - `src/components/users/UserDetailDrawer.tsx`:
+     - Overview tab: Enhanced override description to show `Active: <expiresLabel> • <scopedItems> (<scopeType>)`.
+     - Scope Assignment tab: Added an active temporary delegation callout banner at the top of the tab detailing delegated access, expiration time, and clarifying that baseline permanent scopes are displayed below.
+3. **Verification**:
+   - Unit tests: 264/264 passing (`npm test`).
+   - Lint check: 0 warnings, 0 errors (`npm run lint`).
+   - SQL contracts: 28 core tables & 19 cross-module RPC contracts verified (`scripts/check-sql-contracts.mjs`).
+
+### Files Changed
+- `src/components/users/TempPermissionModal.tsx`
+- `src/components/users/UserDetailDrawer.tsx`
+- `src/lib/queries/tempPermissions.ts`
+- `docs/state/web_auth_rbac_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Harden Account-Scoped Permissions & Temp Overrides Anti-Leak (ohm#fix-account-scoped-user-permissions-and-temp-overrides)
 **Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, Migrations Pushed to Staging & Production Build Clean
 
