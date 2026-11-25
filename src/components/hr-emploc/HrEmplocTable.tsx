@@ -123,39 +123,46 @@ function roleHasActionsOnQueue(
   queue: HrEmplocQueue,
   rows: HrEmplocListItem[]
 ): boolean {
+  // When rows are present, capability-driven evaluation is authoritative
+  // (also prevents hiding the Actions column while useCurrentUser() is still hydrating)
+  if (rows.length > 0) {
+    const anyRowHasAction = rows.some((r) => {
+      const c = r.rowCapabilities;
+      switch (queue) {
+        case "pending":
+          return c.can_upload_docs || c.can_assign_employee_no;
+        case "for_emploc":
+          return c.can_assign_employee_no || c.can_tag_deficiency;
+        case "correction":
+          return c.can_upload_docs || c.can_submit_correction;
+        case "review":
+          return c.can_review_approve || c.can_review_return;
+        case "deployed":
+        case "ready":
+          return c.can_edit_emploc_no || c.can_revert_to_pending;
+        default:
+          return false;
+      }
+    });
+    if (anyRowHasAction) return true;
+  }
+
   if (!role) return false;
   if (isRecruitmentRole(role)) return false;
 
   if (isSuperAdminRole(role)) {
-    // Super Admin has actions across all tabs when actionable rows exist
-    if (rows.length > 0) {
-      return rows.some((r) => {
-        const c = r.rowCapabilities;
-        switch (queue) {
-          case "pending":
-            return c.can_upload_docs || c.can_assign_employee_no;
-          case "for_emploc":
-            return c.can_assign_employee_no || c.can_tag_deficiency;
-          case "correction":
-            return c.can_upload_docs || c.can_submit_correction;
-          case "review":
-            return c.can_review_approve || c.can_review_return;
-          case "deployed":
-          case "ready":
-            return c.can_edit_emploc_no || c.can_revert_to_pending;
-          default:
-            return false;
-        }
-      });
-    }
-    return true;
+    return rows.length === 0;
   }
 
   let roleAllowed = false;
   switch (queue) {
     case "pending":
-      // Upload Docs is for Ops (+SA)
-      roleAllowed = isOpsRole(role);
+      // Upload Docs is for Ops (+SA); Add Emploc is for HR Personnel, Head Admin, Encoder (+SA)
+      roleAllowed =
+        isOpsRole(role) ||
+        isHrPersonnelRole(role) ||
+        isHeadAdminRole(role) ||
+        isEncoderRole(role);
       break;
 
     case "for_emploc":
@@ -186,29 +193,7 @@ function roleHasActionsOnQueue(
 
   if (!roleAllowed) return false;
 
-  // When rows are present, also ensure at least one row has an actionable capability on this queue
-  if (rows.length > 0) {
-    return rows.some((r) => {
-      const c = r.rowCapabilities;
-      switch (queue) {
-        case "pending":
-          return c.can_upload_docs || c.can_assign_employee_no;
-        case "for_emploc":
-          return c.can_assign_employee_no || c.can_tag_deficiency;
-        case "correction":
-          return c.can_upload_docs || c.can_submit_correction;
-        case "review":
-          return c.can_review_approve || c.can_review_return;
-        case "deployed":
-        case "ready":
-          return c.can_edit_emploc_no || c.can_revert_to_pending;
-        default:
-          return false;
-      }
-    });
-  }
-
-  return true;
+  return rows.length === 0;
 }
 
 function getTableColumns(queue: HrEmplocQueue, hideActions: boolean = false): string[] {
