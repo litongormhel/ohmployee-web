@@ -31,6 +31,7 @@ import {
   FloatingDoleBadge,
   type StoreCapacityRow,
   type StoreLookupMap,
+  type PipelineCandidateItem,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -536,7 +537,122 @@ export function StoreVacancyTable({
 }
 
 // ---------------------------------------------------------------------------
-// Tab 4: Floating Employees Table
+// Tab 4: Pipeline Candidates Table (Recruitment / Onboarding Before Plantilla)
+// ---------------------------------------------------------------------------
+
+export function EmployeePipelineTable({
+  rows,
+  onRowClick,
+}: {
+  rows: PipelineCandidateItem[];
+  onRowClick?: (id: string) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
+      <div className="overflow-auto flex-1 min-h-0">
+        <table className="w-full min-w-[980px] text-left text-xs">
+          <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
+            <tr className="border-b border-table-rule">
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Candidate Name
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                VCode
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Target Store
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Target Position
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Onboarding Stage
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Requirements
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                HRCO / Recruiter
+              </th>
+              <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Endorsed Date
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-table-rule">
+            {rows.map((row) => {
+              const displayName = formatPersonName(row.applicant_name) || "—";
+              const initials = getInitials(null, null, row.applicant_name);
+              const cleanStoreName = row.store_name ? formatStoreName(row.store_name) : "—";
+              const dateStr = formatDate(row.date_requested || row.hired_date);
+              const isReqComplete = row.requirement_overall_status?.toLowerCase() === "complete";
+
+              return (
+                <tr
+                  key={row.id}
+                  className="transition-colors hover:bg-table-row-hover"
+                  onClick={() => onRowClick?.(row.id)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Candidate ${displayName}`}
+                >
+                  <td className="px-3.5 py-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 font-semibold text-[11px] border border-blue-200 dark:border-blue-800">
+                        {initials}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="font-semibold text-table-text text-xs block truncate">
+                          {displayName}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-3.5 py-2 font-mono text-xs text-text-secondary whitespace-nowrap">
+                    <span className="rounded-md border border-border-default bg-surface-muted px-1.5 py-0.5 text-[11px]">
+                      {row.vcode || "—"}
+                    </span>
+                  </td>
+                  <td className="px-3.5 py-2 whitespace-nowrap text-text-primary">
+                    <span className="font-medium text-table-text text-xs">{cleanStoreName}</span>
+                  </td>
+                  <td className="px-3.5 py-2 whitespace-nowrap text-text-secondary">
+                    {row.position ? formatPosition(row.position) : "Staff"}
+                  </td>
+                  <td className="px-3.5 py-2 whitespace-nowrap">
+                    <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
+                      {row.status || "Pending Emploc"}
+                    </span>
+                  </td>
+                  <td className="px-3.5 py-2 whitespace-nowrap">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                        isReqComplete
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                          : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                      }`}
+                    >
+                      {row.requirement_overall_status || "Incomplete"}
+                    </span>
+                  </td>
+                  <td className="px-3.5 py-2 whitespace-nowrap text-text-secondary">
+                    {row.hrco_name || "—"}
+                  </td>
+                  <td className="px-3.5 py-2 whitespace-nowrap text-text-secondary font-mono text-[11px]">
+                    {dateStr}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tab 5: Floating Employees Table
 // ---------------------------------------------------------------------------
 
 export function EmployeeFloatingTable({

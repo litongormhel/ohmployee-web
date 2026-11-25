@@ -3,6 +3,7 @@ import {
   Users,
   UserMinus,
   Briefcase,
+  UserCheck,
   Share2,
   AlertCircle,
   UserX,
@@ -25,6 +26,7 @@ export interface PlantillaFilterToolbarProps {
   activeCount: number;
   onLeaveCount: number;
   vacancyCount: number;
+  pipelineCount?: number;
   floatingCount: number;
   deactivationCount: number;
   inactiveCount: number;
@@ -48,6 +50,7 @@ export function PlantillaFilterToolbar({
   activeCount,
   onLeaveCount,
   vacancyCount,
+  pipelineCount = 0,
   floatingCount,
   deactivationCount,
   inactiveCount,
@@ -148,7 +151,32 @@ export function PlantillaFilterToolbar({
               </span>
             </button>
 
-            {/* Tab 4: Floating */}
+            {/* Tab 4: Pipeline (Recruitment / Onboarding) */}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={statusTab === "pipeline"}
+              onClick={() => onSelectStatusTab("pipeline")}
+              className={`group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                statusTab === "pipeline"
+                  ? "border-tab-active-border bg-tab-active-bg text-tab-active-text shadow-2xs"
+                  : "border-transparent bg-transparent text-text-secondary hover:border-border-default hover:bg-surface-hover hover:text-text-primary"
+              }`}
+            >
+              <UserCheck className="w-3.5 h-3.5 shrink-0" />
+              <span>Pipeline</span>
+              <span
+                className={`ml-1 shrink-0 rounded-full px-1.5 py-0.2 font-sans tabular-nums text-[11px] font-semibold shadow-2xs transition-colors ${
+                  statusTab === "pipeline"
+                    ? "bg-brand-button text-white"
+                    : "bg-surface-muted text-text-secondary border border-border-default"
+                }`}
+              >
+                {pipelineCount}
+              </span>
+            </button>
+
+            {/* Tab 5: Floating */}
             <button
               type="button"
               role="tab"

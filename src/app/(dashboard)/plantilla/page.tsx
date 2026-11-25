@@ -69,6 +69,7 @@ import {
   isFloatingRecord,
   isInactiveRecord,
   isOnLeaveRecord,
+  type PipelineCandidateItem,
 } from "@/components/plantilla/directory/types";
 import { EmptyTabState } from "@/components/plantilla/directory/EmptyTabState";
 import { PlantillaFilterToolbar } from "@/components/plantilla/directory/PlantillaFilterToolbar";
@@ -77,6 +78,7 @@ import {
   EmployeeActiveTable,
   EmployeeOnLeaveTable,
   StoreVacancyTable,
+  EmployeePipelineTable,
   EmployeeFloatingTable,
   EmployeeDeactivationTable,
   EmployeeInactiveTable,
@@ -86,6 +88,7 @@ import {
   EmployeeCard,
   EmployeeOnLeaveCard,
   VacancyCard,
+  PipelineCard,
   EmployeeFloatingCard,
   EmployeeDeactivationCard,
   EmployeeInactiveCard,
@@ -151,7 +154,7 @@ function PlantillaPageContent() {
   )?.toLowerCase();
   const statusTab: StatusSubTab =
     urlStatusParam &&
-    (["active", "on_leave", "vacancy", "floating", "deactivation", "inactive"] as string[]).includes(
+    (["active", "on_leave", "vacancy", "pipeline", "floating", "deactivation", "inactive"] as string[]).includes(
       urlStatusParam
     )
       ? (urlStatusParam as StatusSubTab)
@@ -674,6 +677,35 @@ function PlantillaPageContent() {
     staleTime: 60000,
   });
 
+  // Query candidates in HR Emploc onboarding pipeline under current account (before moving to Plantilla)
+  const pipelineCandidatesQuery = useQuery({
+    queryKey: ["plantilla", "pipeline-candidates", accountId],
+    queryFn: async (): Promise<PipelineCandidateItem[]> => {
+      if (!accountId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("hr_emploc")
+        .select("id, applicant_name, vcode, store_name, position, status, hired_date, date_requested, hrco_name, requirement_overall_status")
+        .eq("account_id", accountId)
+        .is("deleted_at", null)
+        .not("status", "in", '("Moved to Plantilla","Backout")')
+        .order("date_requested", { ascending: false });
+
+      if (error) {
+        console.error("[PostgREST Schema Error] hr_emploc pipeline candidates:", error);
+        return [];
+      }
+      return (data as PipelineCandidateItem[]) ?? [];
+    },
+    enabled: !!accountId && isAccountAuthorized,
+    staleTime: 30000,
+  });
+
+  const pipelineCandidates = useMemo(
+    () => pipelineCandidatesQuery.data ?? [],
+    [pipelineCandidatesQuery.data]
+  );
+
   // Store staffing query for Store Capacity Table
   const storeStaffingQuery = useQuery({
     queryKey: ["plantilla", "store-staffing-capacity", accountId],
@@ -1048,6 +1080,39 @@ function PlantillaPageContent() {
   const filteredFloatingEmployees = useMemo(() => floatingEmployees.filter(filterEmployee), [floatingEmployees, filterEmployee]);
   const filteredDeactivationEmployees = useMemo(() => deactivationEmployees.filter(filterEmployee), [deactivationEmployees, filterEmployee]);
   const filteredInactiveEmployees = useMemo(() => inactiveEmployees.filter(filterEmployee), [inactiveEmployees, filterEmployee]);
+
+  const filteredPipelineCandidates = useMemo(() => {
+    return pipelineCandidates.filter((cand) => {
+      if (search.trim()) {
+        const q = search.toLowerCase().trim();
+        const name = (cand.applicant_name || "").toLowerCase();
+        const vcode = (cand.vcode || "").toLowerCase();
+        const store = (cand.store_name || "").toLowerCase();
+        const pos = (cand.position || "").toLowerCase();
+        const hrco = (cand.hrco_name || "").toLowerCase();
+        const status = (cand.status || "").toLowerCase();
+        if (!name.includes(q) && !vcode.includes(q) && !store.includes(q) && !pos.includes(q) && !hrco.includes(q) && !status.includes(q)) {
+          return false;
+        }
+      }
+
+      if (areaCityFilter) {
+        const storeKey = (cand.store_name || "").toLowerCase().trim();
+        const storeInfo = storeLookupMap.get(storeKey);
+        if (areaCityFilter.startsWith("area:")) {
+          const area = areaCityFilter.replace("area:", "").toLowerCase().trim();
+          const storeArea = (storeInfo?.province || "").toLowerCase().trim();
+          if (storeArea !== area) return false;
+        } else if (areaCityFilter.startsWith("city:")) {
+          const city = areaCityFilter.replace("city:", "").toLowerCase().trim();
+          const storeCity = (storeInfo?.city || "").toLowerCase().trim();
+          if (storeCity !== city) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [pipelineCandidates, search, areaCityFilter, storeLookupMap]);
 
   const filteredVacancies = useMemo(() => {
     return allVacancies.filter((v) => {
@@ -1521,6 +1586,7 @@ function PlantillaPageContent() {
   const deactivationCount = deactivationEmployees.length;
   const inactiveCount = inactiveEmployees.length;
   const vacancyCount = allVacancies.length > 0 ? allVacancies.length : (summaryData?.vacant ?? 0);
+  const pipelineCount = pipelineCandidates.length;
 
   // Active view pagination
   const currentTabRows =
@@ -1530,6 +1596,8 @@ function PlantillaPageContent() {
       ? filteredOnLeaveEmployees
       : statusTab === "vacancy"
       ? filteredVacancies
+      : statusTab === "pipeline"
+      ? filteredPipelineCandidates
       : statusTab === "floating"
       ? filteredFloatingEmployees
       : statusTab === "deactivation"
@@ -1907,6 +1975,7 @@ function PlantillaPageContent() {
               activeCount={activeCount}
               onLeaveCount={onLeaveCount}
               vacancyCount={vacancyCount}
+              pipelineCount={pipelineCount}
               floatingCount={floatingCount}
               deactivationCount={deactivationCount}
               inactiveCount={inactiveCount}
@@ -2116,6 +2185,36 @@ function PlantillaPageContent() {
                     </div>
                   </div>
                 )
+              ) : statusTab === "pipeline" ? (
+                /* Tab 4: Pipeline (Recruitment / Onboarding Before Plantilla) */
+                filteredPipelineCandidates.length === 0 ? (
+                  <EmptyTabState
+                    hasActiveFilters={hasActiveFilters}
+                    onResetFilters={handleResetFilters}
+                    tabLabel="pipeline candidates"
+                  />
+                ) : displayView === "table" ? (
+                  <EmployeePipelineTable
+                    rows={paginatedRows as PipelineCandidateItem[]}
+                    onRowClick={(id) => {
+                      router.push(`/recruitment?candidateId=${id}`);
+                    }}
+                  />
+                ) : (
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {(paginatedRows as PipelineCandidateItem[]).map((row) => (
+                        <PipelineCard
+                          key={row.id}
+                          row={row}
+                          onSelect={() => {
+                            router.push(`/recruitment?candidateId=${row.id}`);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
               ) : statusTab === "floating" ? (
                 /* Tab 4: Floating */
                 filteredFloatingEmployees.length === 0 ? (
@@ -2268,6 +2367,7 @@ function PlantillaPageContent() {
             onCloseVacancyDrawer={() => {
               setSelectedVacancyId(null);
               vacancyListQuery.refetch();
+              pipelineCandidatesQuery.refetch();
               summaryQuery.refetch();
             }}
             requestHeadcountConfig={requestHeadcountConfig}
@@ -2278,6 +2378,7 @@ function PlantillaPageContent() {
               employeeQuery.refetch();
               summaryQuery.refetch();
               vacancyListQuery.refetch();
+              pipelineCandidatesQuery.refetch();
               showToast("Headcount requisition submitted for approval.", "success");
             }}
             isNewStoreModalOpen={isNewStoreModalOpen}
@@ -2310,6 +2411,7 @@ function PlantillaPageContent() {
               employeeQuery.refetch();
               summaryQuery.refetch();
               vacancyListQuery.refetch();
+              pipelineCandidatesQuery.refetch();
             }}
             updateStatusTargetEmployee={updateStatusTargetEmployee}
             onCloseUpdateStatus={() => setUpdateStatusTargetEmployee(null)}
@@ -2317,6 +2419,7 @@ function PlantillaPageContent() {
               employeeQuery.refetch();
               summaryQuery.refetch();
               vacancyListQuery.refetch();
+              pipelineCandidatesQuery.refetch();
             }}
             onNavigateStatusTab={(tab) => {
               handleSelectStatusTab(tab);

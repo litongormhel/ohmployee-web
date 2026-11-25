@@ -11,7 +11,7 @@ import type { VacancyListItem } from "@/lib/queries/vacancy";
 
 export type PlantillaViewMode = "store" | "moses_pool" | "analytics";
 export type MainViewToggle = "employee" | "store";
-export type StatusSubTab = "active" | "on_leave" | "vacancy" | "floating" | "deactivation" | "inactive";
+export type StatusSubTab = "active" | "on_leave" | "vacancy" | "pipeline" | "floating" | "deactivation" | "inactive";
 export type DisplayView = "table" | "cards";
 
 export type VacancyWorkflowStage =
@@ -124,6 +124,19 @@ export interface StoreWithAvailableSlots {
   hcFilled: number;
   hcTotal: number;
   openSlots: number;
+}
+
+export interface PipelineCandidateItem {
+  id: string;
+  applicant_name: string;
+  vcode: string | null;
+  store_name: string | null;
+  position: string | null;
+  status: string | null;
+  hired_date: string | null;
+  date_requested: string | null;
+  hrco_name: string | null;
+  requirement_overall_status: string | null;
 }
 
 export type StoreLookupMap = Map<

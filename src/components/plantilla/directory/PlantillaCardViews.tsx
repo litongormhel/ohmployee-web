@@ -33,6 +33,7 @@ import {
   FloatingDoleBadge,
   plantillaStatusVariant,
   type StoreLookupMap,
+  type PipelineCandidateItem,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -409,6 +410,76 @@ export function VacancyCard({
         <span className="text-[11px] text-text-muted font-mono">
           HC Capacity: {rowHcTotal}
         </span>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline Candidate Card Component (Recruitment / Onboarding Before Plantilla)
+// ---------------------------------------------------------------------------
+
+export function PipelineCard({
+  row,
+  onSelect,
+}: {
+  row: PipelineCandidateItem;
+  onSelect?: () => void;
+}) {
+  const displayName = formatPersonName(row.applicant_name) || "—";
+  const initials = getInitials(null, null, row.applicant_name);
+  const cleanStore = row.store_name ? formatStoreName(row.store_name) : "—";
+  const dateStr = formatDate(row.date_requested || row.hired_date);
+  const isReqComplete = row.requirement_overall_status?.toLowerCase() === "complete";
+
+  return (
+    <div
+      onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      className="group relative flex flex-col justify-between rounded-xl border border-border-default bg-surface-base p-3.5 shadow-xs transition hover:border-border-hover hover:bg-surface-hover hover:shadow-sm cursor-pointer"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 font-semibold text-xs border border-blue-200 dark:border-blue-800">
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-xs font-semibold text-text-primary truncate">
+              {displayName}
+            </h4>
+            <div className="flex items-center gap-1.5 text-[11px] text-text-secondary">
+              <span className="font-mono">{row.vcode || "—"}</span>
+              <span>•</span>
+              <span className="truncate">{row.position ? formatPosition(row.position) : "Staff"}</span>
+            </div>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800">
+          {row.status || "Pending Emploc"}
+        </span>
+      </div>
+
+      <div className="mt-3 flex flex-col gap-1.5 border-t border-table-rule pt-2.5 text-xs text-text-secondary">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-1 text-[11px] text-text-muted truncate">
+            <Building className="h-3 w-3 shrink-0" />
+            <span className="truncate">{cleanStore}</span>
+          </span>
+          <span
+            className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+              isReqComplete
+                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                : "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+            }`}
+          >
+            Reqs: {row.requirement_overall_status || "Incomplete"}
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-[11px] text-text-muted">
+          <span>HRCO: {row.hrco_name || "—"}</span>
+          <span>Endorsed: {dateStr}</span>
+        </div>
       </div>
     </div>
   );
