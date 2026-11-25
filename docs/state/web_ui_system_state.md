@@ -447,6 +447,8 @@ In Loop 2, the Dashboard module was fully migrated onto the UI Standard & Motion
 
 - **Modal-First Record Inspection Standard (ohm#convert-remaining-drawers-to-modals)**:
   - All active record and pool inspection views across Vacancy (`VacancyDetailDrawer.tsx`), User Management (`UserDetailDrawer.tsx`), HR Emploc (`HrEmplocDetailDrawer.tsx`), Team Directory (`TeamDirectoryDetailDrawer.tsx`), Plantilla Store View Slot Inspector (`SlotDetailDrawer.tsx`), and Moses HQ Workforce Pool (`PoolEmployeeDetailDrawer.tsx`, `PoolOpenSlotsDrawer.tsx`, `PoolReviewQueueDrawer.tsx`, `PoolRequestHistoryDrawer.tsx`) render inside the canonical centered `Modal` shell (`max-w-2xl` / `max-w-3xl`), while `OhmniDrawer.tsx` remains a docked AI Copilot side panel.
+- **10-Item Activity History Cap & Expand Standard (ohm#cap-activity-history-to-10-with-expand)**:
+  - All Activity History and Audit Timeline sections across Vacancy Detail, HR Emploc Detail, User Management Detail, Plantilla Employee Profile (`/plantilla/[id]`), Plantilla Slot Inspector, Moses HQ Pool Employee & Request History modals, and Settings Security Audit Trail display at most 10 items initially (`slice(0, 10)`) with a `"See All Activity History (N)"` / `"Show Latest 10 Only"` toggle button whenever total records exceed 10.
 
 ---
 

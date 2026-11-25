@@ -1,5 +1,40 @@
 # AI Handoff
 
+## Execution Report — Cap All Activity History & Audit Timelines at 10 Initial Items with "See All Activity History" Toggle (ohm#cap-activity-history-to-10-with-expand)
+**Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings
+
+### What Was Done
+1. **Standardized 10-Item Activity History Cap & Expand/Collapse Toggle**:
+   - Enforced across all module detail modals and full-page profiles that Activity History / Audit Timeline lists render at most **10 items initially** (`slice(0, 10)`).
+   - When total history items exceed 10, a centered **`See All Activity History (N)`** button is rendered below the timeline, toggling to **`Show Latest 10 Only`** when expanded.
+   - Wired automatic state reset (`showAllHistory = false`) whenever the active record ID changes so opening a different record always starts cleanly at the 10 most recent items.
+2. **Modules & Surfaces Updated**:
+   - **Vacancy Detail Modal** (`src/components/vacancy/VacancyDetailDrawer.tsx`): Tab 4 (`Activity History`).
+   - **HR Emploc Detail Modal** (`src/components/hr-emploc/HrEmplocDetailDrawer.tsx`): Tab 3 (`Activity History`).
+   - **User Management Detail Modal** (`src/components/users/UserDetailDrawer.tsx`): Tab 3 (`Activity Log`).
+   - **Plantilla Dedicated Employee Profile** (`src/app/(dashboard)/plantilla/[id]/page.tsx`): Tab 4 (`Activity & System Info` — Lifecycle Event Log & Audit Timeline).
+   - **Plantilla Store View Slot Inspector Modal** (`src/components/plantilla/SlotDetailDrawer.tsx`): `Slot Audit Trail`.
+   - **Moses HQ Workforce Pool Employee Detail Modal** (`src/components/plantilla/PoolEmployeeDetailDrawer.tsx`): `Assignment History`.
+   - **Moses HQ Workforce Pool Request History Modal** (`src/components/plantilla/PoolRequestHistoryDrawer.tsx`): `Pool Headcount Request History`.
+   - **Settings — Security Audit Trail** (`src/components/settings/SecurityTab.tsx`): `Security Audit Trail`.
+3. **State Documentation Updated**:
+   - Updated `docs/state/web_ui_system_state.md` to document the 10-item Activity History cap and expand/collapse standard.
+
+### Files Changed
+- `src/components/vacancy/VacancyDetailDrawer.tsx`
+- `src/components/hr-emploc/HrEmplocDetailDrawer.tsx`
+- `src/components/users/UserDetailDrawer.tsx`
+- `src/app/(dashboard)/plantilla/[id]/page.tsx`
+- `src/components/plantilla/SlotDetailDrawer.tsx`
+- `src/components/plantilla/PoolEmployeeDetailDrawer.tsx`
+- `src/components/plantilla/PoolRequestHistoryDrawer.tsx`
+- `src/components/settings/SecurityTab.tsx`
+- `docs/state/web_ui_system_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Convert Remaining Active Record & Pool Drawers to Centered Modals Across HR Emploc, Team Directory, and Plantilla (ohm#convert-remaining-drawers-to-modals)
 **Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings
 

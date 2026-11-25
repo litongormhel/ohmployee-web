@@ -154,6 +154,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
 
   // Active Tab: "overview" | "scope" | "activity"
   const [activeTab, setActiveTab] = useState<"overview" | "scope" | "activity">("overview");
+  const [showAllActivity, setShowAllActivity] = useState(false);
 
   // Track the previous user id to reset form state when user changes without unmounting
   const [prevUserId, setPrevUserId] = useState<string | null>(null);
@@ -182,6 +183,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
     );
     setHrcoGlobalVisibilityState(user.hrcoGlobalVisibility);
     setActiveTab("overview");
+    setShowAllActivity(false);
     setFeedbackNotice(null);
   }
 
@@ -991,7 +993,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
             </div>
           )}
 
-          {/* TAB 3: ACTIVITY LOG */}
+          {/* TAB 3: ACTIVITY LOG (Capped at 10) */}
           {activeTab === "activity" && (
             <div className="space-y-3">
               {logsLoading ? (
@@ -1002,7 +1004,7 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {auditLogs.map((log) => {
+                  {(showAllActivity ? auditLogs : auditLogs.slice(0, 10)).map((log) => {
                     const actorFullName = log.actorName ? formatPersonName(log.actorName) : "System Admin";
                     const actorRoleText = log.actorRole || "Admin";
                     const initials = (log.actorName || "SA")
@@ -1036,6 +1038,19 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                       </div>
                     );
                   })}
+                  {auditLogs.length > 10 && (
+                    <div className="pt-1 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setShowAllActivity((prev) => !prev)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-muted/60 px-3.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+                      >
+                        {showAllActivity
+                          ? "Show Latest 10 Only"
+                          : `See All Activity History (${auditLogs.length})`}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

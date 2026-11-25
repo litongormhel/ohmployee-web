@@ -62,6 +62,7 @@ export function SecurityTab() {
   const [selectedSessionForRevoke, setSelectedSessionForRevoke] = useState<ActiveUserSession | null>(null);
   const [isRevokeOthersModalOpen, setIsRevokeOthersModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showAllAuditLogs, setShowAllAuditLogs] = useState(false);
 
   // Heartbeat registration & session ID resolution
   useEffect(() => {
@@ -337,60 +338,75 @@ export function SecurityTab() {
             </p>
           </div>
         ) : (
-          <div className="relative pl-6 space-y-6 before:absolute before:bottom-2 before:top-2 before:left-2.5 before:w-0.5 before:bg-border-default">
-            {auditLogs.map((log) => {
-              const isDanger =
-                log.action === "REMOTE_REVOKE" ||
-                log.action === "REVOKE" ||
-                log.action === "SUSPICIOUS_LOGIN";
+          <div className="space-y-4">
+            <div className="relative pl-6 space-y-6 before:absolute before:bottom-2 before:top-2 before:left-2.5 before:w-0.5 before:bg-border-default">
+              {(showAllAuditLogs ? auditLogs : auditLogs.slice(0, 10)).map((log) => {
+                const isDanger =
+                  log.action === "REMOTE_REVOKE" ||
+                  log.action === "REVOKE" ||
+                  log.action === "SUSPICIOUS_LOGIN";
 
-              return (
-                <div key={log.id} className="relative group">
-                  {/* Timeline dot */}
-                  <div
-                    className={`absolute -left-6 top-1 h-2.5 w-2.5 rounded-full ring-4 ring-surface-base ${
-                      isDanger
-                        ? "bg-danger"
-                        : log.action === "LOGIN"
-                        ? "bg-brand-primary"
-                        : "bg-text-secondary"
-                    }`}
-                  />
+                return (
+                  <div key={log.id} className="relative group">
+                    {/* Timeline dot */}
+                    <div
+                      className={`absolute -left-6 top-1 h-2.5 w-2.5 rounded-full ring-4 ring-surface-base ${
+                        isDanger
+                          ? "bg-danger"
+                          : log.action === "LOGIN"
+                          ? "bg-brand-primary"
+                          : "bg-text-secondary"
+                      }`}
+                    />
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 font-bold  text-xs ${
-                          isDanger
-                            ? "bg-danger-subtle text-danger border border-danger-border"
-                            : "bg-surface-subtle text-text-primary border border-border-default"
-                        }`}
-                      >
-                        {log.action}
-                      </span>
-                      <span className="font-semibold text-text-primary">
-                        {log.devicePlatform ?? "Web Device"}
-                      </span>
-                      {log.ipAddress && (
-                        <span className="font-mono text-text-muted">
-                          (IP: {log.ipAddress})
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 font-bold  text-xs ${
+                            isDanger
+                              ? "bg-danger-subtle text-danger border border-danger-border"
+                              : "bg-surface-subtle text-text-primary border border-border-default"
+                          }`}
+                        >
+                          {log.action}
                         </span>
-                      )}
+                        <span className="font-semibold text-text-primary">
+                          {log.devicePlatform ?? "Web Device"}
+                        </span>
+                        {log.ipAddress && (
+                          <span className="font-mono text-text-muted">
+                            (IP: {log.ipAddress})
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-text-muted font-mono flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {new Date(log.createdAt).toLocaleString()}
+                      </span>
                     </div>
-                    <span className="text-text-muted font-mono flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {new Date(log.createdAt).toLocaleString()}
-                    </span>
-                  </div>
 
-                  {log.details && Object.keys(log.details).length > 0 && (
-                    <div className="mt-1 text-xs text-text-secondary bg-surface-subtle px-2 py-1 rounded-md border border-border-default font-mono">
-                      {JSON.stringify(log.details)}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    {log.details && Object.keys(log.details).length > 0 && (
+                      <div className="mt-1 text-xs text-text-secondary bg-surface-subtle px-2 py-1 rounded-md border border-border-default font-mono">
+                        {JSON.stringify(log.details)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {auditLogs.length > 10 && (
+              <div className="pt-2 border-t border-border-subtle flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowAllAuditLogs((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-muted/60 px-3.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+                >
+                  {showAllAuditLogs
+                    ? "Show Latest 10 Only"
+                    : `See All Activity History (${auditLogs.length})`}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

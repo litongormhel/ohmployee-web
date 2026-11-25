@@ -260,6 +260,13 @@ export function VacancyDetailDrawer({
 }: VacancyDetailDrawerProps) {
   // Active tab state inside the modal
   const [activeTab, setActiveTab] = useState<VacancyModalTab>("pipeline");
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [prevVacancyId, setPrevVacancyId] = useState<string | null>(null);
+
+  if (vacancyId !== prevVacancyId) {
+    setPrevVacancyId(vacancyId);
+    setShowAllHistory(false);
+  }
 
   // Sub-modal states
   const [isReviseQuotaModalOpen, setIsReviseQuotaModalOpen] = useState(false);
@@ -1551,44 +1558,62 @@ export function VacancyDetailDrawer({
                 )}
 
                 {/* =====================================================================
-                    TAB 4: ACTIVITY HISTORY (Clean & Simple Timeline)
+                    TAB 4: ACTIVITY HISTORY (Clean & Simple Timeline, Capped at 10)
                    ===================================================================== */}
                 {activeTab === "history" && (
-                  <div className="rounded-lg border border-border-subtle bg-surface-base p-4 shadow-2xs">
+                  <div className="rounded-lg border border-border-subtle bg-surface-base p-4 shadow-2xs space-y-3">
                     {detail.activityHistory && detail.activityHistory.length > 0 ? (
-                      <div className="relative pl-4 space-y-3 border-l-2 border-border-subtle ml-1.5">
-                        {detail.activityHistory.map((item, index) => {
-                          const formatted = formatActivityHistoryItem(item);
-                          return (
-                            <div
-                              key={item.eventId || `activity-${index}`}
-                              className="relative pb-3 last:pb-0 border-b border-border-subtle/50 last:border-b-0 text-xs"
+                      <>
+                        <div className="relative pl-4 space-y-3 border-l-2 border-border-subtle ml-1.5">
+                          {(showAllHistory
+                            ? detail.activityHistory
+                            : detail.activityHistory.slice(0, 10)
+                          ).map((item, index) => {
+                            const formatted = formatActivityHistoryItem(item);
+                            return (
+                              <div
+                                key={item.eventId || `activity-${index}`}
+                                className="relative pb-3 last:pb-0 border-b border-border-subtle/50 last:border-b-0 text-xs"
+                              >
+                                {/* Timeline dot */}
+                                <div className="absolute -left-[21px] top-1 h-2 w-2 rounded-full border-2 border-surface-base bg-brand-600" />
+
+                                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                  <span className="font-semibold text-text-primary leading-tight">
+                                    {formatted.title}
+                                  </span>
+                                  <span className="text-[10px] font-mono text-text-muted shrink-0">
+                                    {formatDateTime(item.createdAt)}
+                                  </span>
+                                </div>
+
+                                {formatted.description && (
+                                  <p className="mt-0.5 text-xs text-text-secondary leading-relaxed">
+                                    {formatted.description}
+                                  </p>
+                                )}
+
+                                <div className="mt-0.5 text-[11px] text-text-muted">
+                                  By <span className="font-medium text-text-secondary">{formatted.actor}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {detail.activityHistory.length > 10 && (
+                          <div className="pt-2 border-t border-border-subtle flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => setShowAllHistory((prev) => !prev)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-muted/60 px-3.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
                             >
-                              {/* Timeline dot */}
-                              <div className="absolute -left-[21px] top-1 h-2 w-2 rounded-full border-2 border-surface-base bg-brand-600" />
-
-                              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                <span className="font-semibold text-text-primary leading-tight">
-                                  {formatted.title}
-                                </span>
-                                <span className="text-[10px] font-mono text-text-muted shrink-0">
-                                  {formatDateTime(item.createdAt)}
-                                </span>
-                              </div>
-
-                              {formatted.description && (
-                                <p className="mt-0.5 text-xs text-text-secondary leading-relaxed">
-                                  {formatted.description}
-                                </p>
-                              )}
-
-                              <div className="mt-0.5 text-[11px] text-text-muted">
-                                By <span className="font-medium text-text-secondary">{formatted.actor}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                              {showAllHistory
+                                ? "Show Latest 10 Only"
+                                : `See All Activity History (${detail.activityHistory.length})`}
+                            </button>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="text-center py-6 border border-dashed border-border-subtle rounded-lg text-xs text-text-muted">
                         No activity history recorded for this vacancy yet.

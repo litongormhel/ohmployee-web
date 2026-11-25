@@ -226,6 +226,7 @@ export function HrEmplocDetailDrawer({
 
   // Active Modal Tab
   const [activeTab, setActiveTab] = useState<HrEmplocModalTab>("overview");
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const [prevEmplocId, setPrevEmplocId] = useState<string | null>(null);
 
   // Inline deletion form state (Available Actions)
@@ -242,6 +243,7 @@ export function HrEmplocDetailDrawer({
   if (hrEmplocId !== prevEmplocId) {
     setPrevEmplocId(hrEmplocId);
     setActiveTab("overview");
+    setShowAllHistory(false);
     setIsRequestingDeletion(false);
     setActionError(null);
   }
@@ -1019,43 +1021,54 @@ export function HrEmplocDetailDrawer({
       )}
 
       {activeTab === "history" && (
-        /* Section 7: Specific Activity History Trail Card */
+        /* Section 7: Specific Activity History Trail Card (Capped at 10) */
         <div className="rounded-md border border-border-subtle p-4 space-y-3 bg-surface">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-text-muted uppercase tracking-wider">
-            <History className="h-4 w-4 text-text-muted" />
-            <span>Activity History Trail</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-text-muted uppercase tracking-wider">
+              <History className="h-4 w-4 text-text-muted" />
+              <span>Activity History Trail</span>
+            </div>
+            {detail.auditLogsTimeline && detail.auditLogsTimeline.length > 10 && (
+              <span className="text-[11px] text-text-muted">
+                Showing {showAllHistory ? detail.auditLogsTimeline.length : 10} of{" "}
+                {detail.auditLogsTimeline.length}
+              </span>
+            )}
           </div>
           <div className="relative pl-4 space-y-4 border-l-2 border-border-subtle ml-1.5 mt-2">
             {detail.auditLogsTimeline && detail.auditLogsTimeline.length > 0 ? (
-              [...detail.auditLogsTimeline]
-                .sort((a, b) => {
-                  // Latest event first; rows without a date go last.
+              (() => {
+                const sortedTimeline = [...detail.auditLogsTimeline].sort((a, b) => {
                   const at = a.createdAt ? new Date(a.createdAt).getTime() : -Infinity;
                   const bt = b.createdAt ? new Date(b.createdAt).getTime() : -Infinity;
                   return bt - at;
-                })
-                .map((item, timelineIdx) => {
-                const formatted = formatTimelineItem(item, detail);
-                return (
-                  <div
-                    key={item.eventId || `timeline-${timelineIdx}`}
-                    className="relative text-xs"
-                  >
-                    <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand-primary" />
-                    <div className="flex justify-between items-baseline">
-                      <span className="font-semibold text-text-primary">
-                        {formatted.title}
-                      </span>
-                      <span className="text-[10px] text-text-muted font-mono">
-                        {formatDateTime(item.createdAt)}
-                      </span>
+                });
+                const visibleTimeline = showAllHistory
+                  ? sortedTimeline
+                  : sortedTimeline.slice(0, 10);
+                return visibleTimeline.map((item, timelineIdx) => {
+                  const formatted = formatTimelineItem(item, detail);
+                  return (
+                    <div
+                      key={item.eventId || `timeline-${timelineIdx}`}
+                      className="relative text-xs"
+                    >
+                      <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand-primary" />
+                      <div className="flex justify-between items-baseline">
+                        <span className="font-semibold text-text-primary">
+                          {formatted.title}
+                        </span>
+                        <span className="text-[10px] text-text-muted font-mono">
+                          {formatDateTime(item.createdAt)}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-text-secondary leading-relaxed">
+                        {formatted.description}
+                      </p>
                     </div>
-                    <p className="mt-0.5 text-text-secondary leading-relaxed">
-                      {formatted.description}
-                    </p>
-                  </div>
-                );
-              })
+                  );
+                });
+              })()
             ) : (
               <div className="relative text-xs">
                 <div className="absolute -left-[21px] top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand-primary" />
@@ -1072,6 +1085,19 @@ export function HrEmplocDetailDrawer({
               </div>
             )}
           </div>
+          {detail.auditLogsTimeline && detail.auditLogsTimeline.length > 10 && (
+            <div className="pt-2 border-t border-border-subtle flex justify-center">
+              <button
+                type="button"
+                onClick={() => setShowAllHistory((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-muted/60 px-3.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+              >
+                {showAllHistory
+                  ? "Show Latest 10 Only"
+                  : `See All Activity History (${detail.auditLogsTimeline.length})`}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

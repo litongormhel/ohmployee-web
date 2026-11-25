@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Clock,
   User,
@@ -237,6 +237,13 @@ function humanizeRemarks(
 
 export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
   const isOpen = Boolean(slotId);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [prevSlotId, setPrevSlotId] = useState<string | null>(null);
+
+  if (slotId !== prevSlotId) {
+    setPrevSlotId(slotId);
+    setShowAllHistory(false);
+  }
 
   const {
     data: slot,
@@ -539,13 +546,18 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
             </div>
           </div>
 
-          {/* Slot History Timeline */}
+          {/* Slot History Timeline (Capped at 10) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
                 <Clock className="h-4 w-4 text-text-muted" />
                 <span>Slot Audit Trail ({sortedHistory.length})</span>
               </div>
+              {sortedHistory.length > 10 && (
+                <span className="text-[11px] text-text-muted">
+                  Showing {showAllHistory ? sortedHistory.length : 10} of {sortedHistory.length}
+                </span>
+              )}
             </div>
 
             {isHistoryLoading ? (
@@ -558,55 +570,70 @@ export function SlotDetailDrawer({ slotId, onClose }: SlotDetailDrawerProps) {
                 No history events recorded yet for this slot.
               </div>
             ) : (
-              <ol className="relative border-l border-border-default ml-2.5 space-y-4 pt-1">
-                {sortedHistory.map((event) => {
-                  const actionMeta = humanizeActionType(event.actionType);
-                  const cleanRemarks = humanizeRemarks(event.remarks, event.actionType, event.reasonCode);
-                  const performer = event.performerName && !event.performerName.includes("-")
-                    ? event.performerName
-                    : "System Automated";
+              <>
+                <ol className="relative border-l border-border-default ml-2.5 space-y-4 pt-1">
+                  {(showAllHistory ? sortedHistory : sortedHistory.slice(0, 10)).map((event) => {
+                    const actionMeta = humanizeActionType(event.actionType);
+                    const cleanRemarks = humanizeRemarks(event.remarks, event.actionType, event.reasonCode);
+                    const performer = event.performerName && !event.performerName.includes("-")
+                      ? event.performerName
+                      : "System Automated";
 
-                  return (
-                    <li key={event.id} className="ml-4">
-                      <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border-2 border-surface-base bg-brand-600 shadow-xs" />
-                      <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-1.5 shadow-xs">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <StatusBadge variant={actionMeta.variant} text={actionMeta.label} />
-                            {event.reasonCode && (
-                              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-text-secondary border border-border-subtle">
-                                {event.reasonCode}
-                              </span>
-                            )}
+                    return (
+                      <li key={event.id} className="ml-4">
+                        <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border-2 border-surface-base bg-brand-600 shadow-xs" />
+                        <div className="rounded-lg border border-border-subtle bg-surface-base p-3 space-y-1.5 shadow-xs">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <StatusBadge variant={actionMeta.variant} text={actionMeta.label} />
+                              {event.reasonCode && (
+                                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-text-secondary border border-border-subtle">
+                                  {event.reasonCode}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-mono text-[10px] text-text-muted">
+                              {formatTimelineDate(event.createdAt)}
+                            </span>
                           </div>
-                          <span className="font-mono text-[10px] text-text-muted">
-                            {formatTimelineDate(event.createdAt)}
-                          </span>
-                        </div>
 
-                        {(event.oldValue || event.newValue) && (
-                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-text-muted bg-surface-muted rounded px-2 py-0.5 w-fit">
-                            {event.oldValue && <span className="line-through">{humanizeStatus(event.oldValue)}</span>}
-                            {event.oldValue && event.newValue && <span>→</span>}
-                            {event.newValue && <span className="text-text-primary font-semibold">{humanizeStatus(event.newValue)}</span>}
+                          {(event.oldValue || event.newValue) && (
+                            <div className="flex items-center gap-1.5 text-[10px] font-mono text-text-muted bg-surface-muted rounded px-2 py-0.5 w-fit">
+                              {event.oldValue && <span className="line-through">{humanizeStatus(event.oldValue)}</span>}
+                              {event.oldValue && event.newValue && <span>→</span>}
+                              {event.newValue && <span className="text-text-primary font-semibold">{humanizeStatus(event.newValue)}</span>}
+                            </div>
+                          )}
+
+                          {cleanRemarks && (
+                            <p className="text-xs text-text-secondary leading-relaxed">
+                              {cleanRemarks}
+                            </p>
+                          )}
+
+                          <div className="text-[10px] text-text-muted flex items-center gap-1 pt-0.5">
+                            <ShieldCheck className="h-3 w-3 text-brand-600" />
+                            <span>Performed by {performer}</span>
                           </div>
-                        )}
-
-                        {cleanRemarks && (
-                          <p className="text-xs text-text-secondary leading-relaxed">
-                            {cleanRemarks}
-                          </p>
-                        )}
-
-                        <div className="text-[10px] text-text-muted flex items-center gap-1 pt-0.5">
-                          <ShieldCheck className="h-3 w-3 text-brand-600" />
-                          <span>Performed by {performer}</span>
                         </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
+                      </li>
+                    );
+                  })}
+                </ol>
+                {sortedHistory.length > 10 && (
+                  <div className="pt-2 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllHistory((prev) => !prev)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-muted/60 px-3.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+                    >
+                      {showAllHistory
+                        ? "Show Latest 10 Only"
+                        : `See All Activity History (${sortedHistory.length})`}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Clock, History, User } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import { DataState } from "@/components/shared/DataState";
@@ -10,8 +11,10 @@ import type { BaseModalProps } from "@/types/modal";
 export type PoolRequestHistoryDrawerProps = BaseModalProps;
 
 export function PoolRequestHistoryDrawer({ isOpen, onClose }: PoolRequestHistoryDrawerProps) {
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const historyQuery = usePoolRequestHistory();
   const requests = historyQuery.data ?? [];
+  const visibleRequests = showAllHistory ? requests : requests.slice(0, 10);
 
   return (
     <Modal
@@ -49,69 +52,84 @@ export function PoolRequestHistoryDrawer({ isOpen, onClose }: PoolRequestHistory
             message="No workforce pool requests have been logged yet."
           />
         ) : (
-          <div className="divide-y divide-border-subtle border border-border-subtle rounded-xl overflow-hidden bg-surface shadow-xs">
-            {requests.map((req) => (
-              <div key={req.id} className="p-4 hover:bg-surface-hover transition space-y-2.5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-text-primary">
-                        {req.poolTypeName || "Workforce Pool"}
-                      </span>
-                      <span className="text-xs text-text-muted font-mono">
-                        {req.headcountNeeded} slot{req.headcountNeeded > 1 ? "s" : ""}
-                      </span>
+          <>
+            <div className="divide-y divide-border-subtle border border-border-subtle rounded-xl overflow-hidden bg-surface shadow-xs">
+              {visibleRequests.map((req) => (
+                <div key={req.id} className="p-4 hover:bg-surface-hover transition space-y-2.5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-text-primary">
+                          {req.poolTypeName || "Workforce Pool"}
+                        </span>
+                        <span className="text-xs text-text-muted font-mono">
+                          {req.headcountNeeded} slot{req.headcountNeeded > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-text-secondary mt-1">
+                        <span>Account: {req.requestingAccount || req.operationalAccountName || "—"}</span>
+                        {req.positionName && <span>&bull; {req.positionName}</span>}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-text-secondary mt-1">
-                      <span>Account: {req.requestingAccount || req.operationalAccountName || "—"}</span>
-                      {req.positionName && <span>&bull; {req.positionName}</span>}
-                    </div>
-                  </div>
-                  <div className="shrink-0 flex items-center gap-2">
-                    <StatusBadge
-                      variant={
-                        req.status.toLowerCase() === "approved"
-                          ? "success"
-                          : req.status.toLowerCase() === "rejected"
-                          ? "danger"
-                          : "warning"
-                      }
-                    >
-                      {req.status}
-                    </StatusBadge>
-                  </div>
-                </div>
-
-                {req.vcodes.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {req.vcodes.map((vcode) => (
-                      <span
-                        key={vcode}
-                        className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-surface-muted text-text-primary border border-border-default"
+                    <div className="shrink-0 flex items-center gap-2">
+                      <StatusBadge
+                        variant={
+                          req.status.toLowerCase() === "approved"
+                            ? "success"
+                            : req.status.toLowerCase() === "rejected"
+                            ? "danger"
+                            : "warning"
+                        }
                       >
-                        {vcode}
-                      </span>
-                    ))}
+                        {req.status}
+                      </StatusBadge>
+                    </div>
                   </div>
-                )}
 
-                <div className="flex items-center justify-between text-xs text-text-muted pt-1 border-t border-border-subtle">
-                  <span className="flex items-center gap-1">
-                    <User className="h-3.5 w-3.5" />
-                    By: {req.createdBy || "System"}
-                  </span>
-                  {req.createdAt && (
-                    <span className="flex items-center gap-1 font-mono">
-                      <Clock className="h-3.5 w-3.5" />
-                      {new Date(req.createdAt).toLocaleDateString("en-PH", {
-                        dateStyle: "medium",
-                      })}
-                    </span>
+                  {req.vcodes.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {req.vcodes.map((vcode) => (
+                        <span
+                          key={vcode}
+                          className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-surface-muted text-text-primary border border-border-default"
+                        >
+                          {vcode}
+                        </span>
+                      ))}
+                    </div>
                   )}
+
+                  <div className="flex items-center justify-between text-xs text-text-muted pt-1 border-t border-border-subtle">
+                    <span className="flex items-center gap-1">
+                      <User className="h-3.5 w-3.5" />
+                      By: {req.createdBy || "System"}
+                    </span>
+                    {req.createdAt && (
+                      <span className="flex items-center gap-1 font-mono">
+                        <Clock className="h-3.5 w-3.5" />
+                        {new Date(req.createdAt).toLocaleDateString("en-PH", {
+                          dateStyle: "medium",
+                        })}
+                      </span>
+                    )}
+                  </div>
                 </div>
+              ))}
+            </div>
+            {requests.length > 10 && (
+              <div className="pt-1 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowAllHistory((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-muted/60 px-3.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+                >
+                  {showAllHistory
+                    ? "Show Latest 10 Only"
+                    : `See All Activity History (${requests.length})`}
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </Modal>

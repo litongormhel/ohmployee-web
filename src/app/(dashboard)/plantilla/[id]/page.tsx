@@ -310,6 +310,7 @@ function PlantillaEmployeeDetailContent() {
 
   // Active Category Tab
   const [activeTab, setActiveTab] = useState<CategoryTab>("employment");
+  const [showAllActivity, setShowAllActivity] = useState(false);
   const [isMasked, setIsMasked] = useState(true);
   const [actionFeedback, setActionFeedback] = useState<{
     type: "info" | "success" | "error";
@@ -1391,15 +1392,27 @@ function PlantillaEmployeeDetailContent() {
               <div className="space-y-6">
                 {/* Audit Timeline */}
                 <div className="bg-surface rounded-2xl border border-border-default p-6 shadow-xs">
-                  <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-brand-primary" />
-                    <span>Lifecycle Event Log & Audit Timeline</span>
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-brand-primary" />
+                      <span>Lifecycle Event Log & Audit Timeline</span>
+                    </h3>
+                    {data.auditTimeline && data.auditTimeline.length > 10 && (
+                      <span className="text-xs text-text-muted">
+                        Showing {showAllActivity ? data.auditTimeline.length : 10} of{" "}
+                        {data.auditTimeline.length}
+                      </span>
+                    )}
+                  </div>
 
                   <div className="space-y-3">
                     {data.auditTimeline && data.auditTimeline.length > 0 ? (
-                      data.auditTimeline.map((item) => {
-                        const l = item.eventLabel.toLowerCase();
+                      <>
+                        {(showAllActivity
+                          ? data.auditTimeline
+                          : data.auditTimeline.slice(0, 10)
+                        ).map((item) => {
+                          const l = item.eventLabel.toLowerCase();
                         let iconBadgeClass = "bg-brand-50 border-brand-200 text-brand-700 dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300";
                         let IconComponent = Store;
 
@@ -1466,7 +1479,21 @@ function PlantillaEmployeeDetailContent() {
                             </div>
                           </div>
                         );
-                      })
+                      })}
+                      {data.auditTimeline.length > 10 && (
+                        <div className="pt-2 flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => setShowAllActivity((prev) => !prev)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-muted/60 px-3.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+                          >
+                            {showAllActivity
+                              ? "Show Latest 10 Only"
+                              : `See All Activity History (${data.auditTimeline.length})`}
+                          </button>
+                        </div>
+                      )}
+                      </>
                     ) : (
                       <div className="py-3 px-4 rounded-xl bg-surface-muted/40 border border-border-default flex items-center gap-3.5">
                         <div className="w-7 h-7 rounded-lg bg-brand-50 border border-brand-200 text-brand-700 flex items-center justify-center shrink-0 dark:bg-brand-950/40 dark:border-brand-800 dark:text-brand-300">

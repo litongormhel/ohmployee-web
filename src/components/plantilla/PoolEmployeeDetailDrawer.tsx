@@ -84,6 +84,13 @@ export function PoolEmployeeDetailDrawer({
   const [isConversionModalOpen, setIsConversionModalOpen] = useState(false);
   const [closingAssignmentId, setClosingAssignmentId] = useState<string | null>(null);
   const [closingNotes, setClosingNotes] = useState<string>("");
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [prevEmpId, setPrevEmpId] = useState<string | null>(null);
+
+  if ((employee?.id ?? null) !== prevEmpId) {
+    setPrevEmpId(employee?.id ?? null);
+    setShowAllHistory(false);
+  }
 
   const currentUser = useCurrentUser();
   const canRequestCoverage = canRequestRelieverCoverage(currentUser);
@@ -388,7 +395,7 @@ export function PoolEmployeeDetailDrawer({
             </div>
           )}
 
-          {/* Assignment History Section */}
+          {/* Assignment History Section (Capped at 10) */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold text-text-secondary">
               Assignment History ({detail?.assignmentHistory.length ?? 0})
@@ -400,23 +407,41 @@ export function PoolEmployeeDetailDrawer({
                 No prior deployment assignments found.
               </div>
             ) : (
-              <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface text-xs">
-                {detail?.assignmentHistory.map((h) => (
-                  <div key={h.id} className="p-3 hover:bg-surface-hover flex items-center justify-between gap-4 transition">
-                    <div>
-                      <div className="font-semibold text-text-primary">
-                        {h.accountName ? `${h.accountName} / ` : ""}
-                        {h.storeName || "Store"}
-                        {h.positionCovered ? ` (${h.positionCovered})` : ""}
+              <>
+                <div className="divide-y divide-border-subtle border border-border-default rounded-xl overflow-hidden bg-surface text-xs">
+                  {(showAllHistory
+                    ? detail?.assignmentHistory ?? []
+                    : (detail?.assignmentHistory ?? []).slice(0, 10)
+                  ).map((h) => (
+                    <div key={h.id} className="p-3 hover:bg-surface-hover flex items-center justify-between gap-4 transition">
+                      <div>
+                        <div className="font-semibold text-text-primary">
+                          {h.accountName ? `${h.accountName} / ` : ""}
+                          {h.storeName || "Store"}
+                          {h.positionCovered ? ` (${h.positionCovered})` : ""}
+                        </div>
+                        <div className="text-text-muted mt-0.5">
+                          {h.startDate || "—"} to {h.endDate || "Present"} {h.endReason ? `• Reason: ${h.endReason}` : ""}
+                        </div>
                       </div>
-                      <div className="text-text-muted mt-0.5">
-                        {h.startDate || "—"} to {h.endDate || "Present"} {h.endReason ? `• Reason: ${h.endReason}` : ""}
-                      </div>
+                      <StatusBadge variant="neutral">{h.status}</StatusBadge>
                     </div>
-                    <StatusBadge variant="neutral">{h.status}</StatusBadge>
+                  ))}
+                </div>
+                {(detail?.assignmentHistory.length ?? 0) > 10 && (
+                  <div className="pt-1 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllHistory((prev) => !prev)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface-muted/60 px-3.5 py-1.5 text-xs font-semibold text-text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+                    >
+                      {showAllHistory
+                        ? "Show Latest 10 Only"
+                        : `See All Activity History (${detail?.assignmentHistory.length ?? 0})`}
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         </div>
