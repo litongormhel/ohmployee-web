@@ -119,8 +119,10 @@ The Vacancy Detail Modal (`VacancyDetailDrawer.tsx`, rendered via centered `Moda
 - **Close State**:
   - Dismissed by clicking the top-right close icon, clicking outside the panel area (backdrop overlay), or pressing the `Escape` key.
   - Instantly clears row selection state.
-- **Deep-Linking Readiness**:
-  - The drawer state is designed to align with URL query routing parameters (e.g., `?vacancyId=UUID`), allowing users to share links that automatically open the drawer for a specific vacancy.
+- **Deep-Linking & Global Search Integration**:
+  - The page fully integrates with URL query routing parameters (`?search=VCODE`, `?vcode=VCODE`, `?id=UUID`, `?tab=STATUS`).
+  - Navigating from Global Search (or direct link) automatically populates `searchDraft` and `search`, filters the table roster to the target requisition, synchronizes the active tab, and immediately auto-opens `VacancyDetailDrawer` via `selectedVacancyId` (or via exact VCode match in live rows).
+  - Dismissing the drawer preserves the search and filter context without re-opening.
 - **Loading State**:
   - Displays consistent, highly-structured skeleton loaders for the entire panel layout to prevent layout shifts during fetches.
 - **Blocked/Not-Found State**:

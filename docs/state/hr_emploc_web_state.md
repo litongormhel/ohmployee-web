@@ -548,6 +548,10 @@ The HR Emploc Web module will achieve aesthetic coherence and zero code duplicat
   1. `CHI, JOHN REY LIM` (BOUNTY, `COM-00005`, COMMANDO)
   2. `UY, ANNA ROLDAN` (ACTISERVE, `BUN-GHQ-00015`, Bundler)
   3. `REID, JAMES CRUZ` (Moses HQ, `SEA-00006`, RELIEVER)
+
+## Deep-Linking & Global Search Integration
+- **URL Parameter Synchronization**: The HR Emploc page (`/hr-emploc`) supports reactive query parameters (`?search=QUERY`, `?emploc_no=NO`, `?id=UUID`, `?queue=QUEUE`).
+- **Auto-Search & Auto-Open**: When navigating from Global Search (or direct link), `searchDraft` and `search` are populated, the table is filtered to the target employee/record, the queue tab is selected, and `HrEmplocDetailDrawer` immediately auto-opens via `selectedId` (or via exact match in fetched rows). Dismissing the drawer clears `selectedId` while maintaining the search filter.
 - **Verification**: Verified 100% health on Staging (`qqiiznmqxfoamqytjica`): 0 active candidates with null slots, 0 slot status mismatches, 1 legitimate correction ticket, 6 pending, 2 for emploc, 3 review, 7 deployed.
 
 

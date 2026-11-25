@@ -1,8 +1,9 @@
 // app/(dashboard)/vacancy/page.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense, type FormEvent } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
   Archive,
@@ -97,10 +98,33 @@ function getErrorKind(error: unknown) {
   return error instanceof VacancyDataError ? error.kind : null;
 }
 
-export default function VacancyPage() {
-  const [status, setStatus] = useState<VacancyStatus>("open");
-  const [searchDraft, setSearchDraft] = useState("");
-  const [search, setSearch] = useState("");
+function normalizeVacancyStatus(tabOrStatus: string | null | undefined): VacancyStatus | null {
+  if (!tabOrStatus) return null;
+  const clean = tabOrStatus.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (clean === "open") return "open";
+  if (clean === "pipeline" || clean === "withapplicant") return "pipeline";
+  if (clean === "hired") return "hired";
+  if (clean === "closure" || clean === "closed") return "closure";
+  if (clean.includes("fail") || clean.includes("backout")) return "failed_backout";
+  return null;
+}
+
+function VacancyPageContent() {
+  const searchParams = useSearchParams();
+  const urlSearch = (searchParams.get("search") || searchParams.get("vcode") || searchParams.get("q") || "").trim();
+  const urlId = searchParams.get("id") || searchParams.get("vacancyId") || searchParams.get("selected") || null;
+  const urlTab = searchParams.get("tab") || searchParams.get("status");
+
+  const validStatus = normalizeVacancyStatus(urlTab) || "open";
+
+  // Search params tracking for reactive in-render state adjustment
+  const [prevUrlSearch, setPrevUrlSearch] = useState(urlSearch);
+  const [prevUrlId, setPrevUrlId] = useState(urlId);
+  const [prevUrlStatus, setPrevUrlStatus] = useState(validStatus);
+
+  const [status, setStatus] = useState<VacancyStatus>(validStatus);
+  const [searchDraft, setSearchDraft] = useState(urlSearch);
+  const [search, setSearch] = useState(urlSearch);
   const [agingBucket, setAgingBucket] = useState("");
   const [accountId, setAccountId] = useState("");
   const [groupId, setGroupId] = useState("");
@@ -109,7 +133,25 @@ export default function VacancyPage() {
   const [vacantTo, setVacantTo] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(10);
-  const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(null);
+  const [selectedVacancyId, setSelectedVacancyId] = useState<string | null>(urlId);
+
+  // Adjust state during render when URL search params change
+  if (urlSearch !== prevUrlSearch) {
+    setPrevUrlSearch(urlSearch);
+    setSearchDraft(urlSearch);
+    setSearch(urlSearch);
+    setPage(1);
+  }
+  if (validStatus !== prevUrlStatus) {
+    setPrevUrlStatus(validStatus);
+    setStatus(validStatus);
+  }
+  if (urlId !== prevUrlId) {
+    setPrevUrlId(urlId);
+    if (urlId) {
+      setSelectedVacancyId(urlId);
+    }
+  }
   const [endorseTargetVacancy, setEndorseTargetVacancy] = useState<VacancyContextSummary | null>(null);
   const [isAddApplicantModalOpen, setIsAddApplicantModalOpen] = useState(false);
   const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
@@ -263,6 +305,27 @@ export default function VacancyPage() {
   const summaryErrorKind = getErrorKind(summaryQuery.error);
   const errorKind = listErrorKind ?? summaryErrorKind;
   const blocked = errorKind === "access_denied";
+
+  // Auto-open vacancy detail if an exact VCode match was searched from URL and no specific id was passed
+  const hasAutoOpenedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const currentRows = listQuery.data?.data ?? [];
+    if (!selectedVacancyId && currentRows.length > 0) {
+      const targetQuery = urlSearch.toUpperCase();
+      if (targetQuery && hasAutoOpenedRef.current !== targetQuery) {
+        const exactMatch = currentRows.find(
+          (r) => (r.vcode && r.vcode.toUpperCase() === targetQuery) || (r.cgCode && r.cgCode.toUpperCase() === targetQuery)
+        );
+        if (exactMatch && exactMatch.rowCapabilities.canViewDetail) {
+          hasAutoOpenedRef.current = targetQuery;
+          const timer = setTimeout(() => {
+            setSelectedVacancyId(exactMatch.id);
+          }, 0);
+          return () => clearTimeout(timer);
+        }
+      }
+    }
+  }, [listQuery.data, selectedVacancyId, urlSearch]);
 
   const tabCounts: Record<VacancyStatus, number> = useMemo(() => {
     const summary = summaryQuery.data;
@@ -1200,5 +1263,19 @@ export default function VacancyPage() {
       />
 
     </div>
+  );
+}
+
+export default function VacancyPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+        </div>
+      }
+    >
+      <VacancyPageContent />
+    </Suspense>
   );
 }

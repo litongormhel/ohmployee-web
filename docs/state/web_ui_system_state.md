@@ -461,7 +461,7 @@ In Loop 2, the Dashboard module was fully migrated onto the UI Standard & Motion
   - Authoritative query layer calling Supabase RPC `public.search_global_index(p_query text, p_limit integer DEFAULT 50)`.
   - Searches Vacancies (VCODE, position, store, account), Plantilla personnel (name, employee #), HR Emploc (emploc #, applicant name), and Applicants (name, contact).
   - Returns `result_type`, `record_id`, `primary_label`, `secondary_label`, `status`, `matched_field`, `group_name`, `account_name`, `navigation_target`, and `navigation_id`.
-  - Resolves target URLs with direct module deep-linking (`/vacancy?search=...`, `/plantilla?search=...`, `/hr-emploc?search=...`).
+  - Resolves target URLs with direct module deep-linking and modal auto-opening (`/vacancy?search=...&vcode=...&id=...&status=...`, `/plantilla?search=...&status=...`, `/hr-emploc?search=...&id=...&queue=...`). Target pages reactively populate their search inputs, filter table rows, and immediately open the corresponding record detail drawer.
   - Hardened with `#variable_conflict use_column`, explicit `combined(...)` CTE column definitions, and table alias qualification in `20262606000181_fix_search_global_index_ambiguity.sql` to permanently prevent PL/pgSQL variable collision on `primary_label`.
 - **Recent Searches & Shortcuts**:
   - Stores up to 8 unique recent search terms in `localStorage` under `ohm_global_search_recent_v1` with 1-click execution and clear button.

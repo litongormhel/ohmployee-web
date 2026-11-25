@@ -1,7 +1,8 @@
 // app/(dashboard)/hr-emploc/page.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   FileSearch,
@@ -88,15 +89,56 @@ function getErrorKind(error: unknown) {
   return error instanceof HrEmplocDataError ? error.kind : null;
 }
 
-export default function HrEmplocPage() {
-  const [queue, setQueue] = useState<HrEmplocQueue>("pending");
-  const [searchDraft, setSearchDraft] = useState("");
-  const [search, setSearch] = useState("");
+function normalizeHrEmplocQueue(param: string | null | undefined): HrEmplocQueue | null {
+  if (!param) return null;
+  const clean = param.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (clean === "pending") return "pending";
+  if (clean.includes("foremploc") || clean === "emploc") return "for_emploc";
+  if (clean.includes("correction") || clean.includes("deficien")) return "correction";
+  if (clean.includes("review") || clean.includes("verif")) return "review";
+  if (clean === "deployed" || clean === "ready") return "deployed";
+  return null;
+}
+
+function HrEmplocPageContent() {
+  const searchParams = useSearchParams();
+  const urlSearch = (searchParams.get("search") || searchParams.get("emploc_no") || searchParams.get("q") || "").trim();
+  const urlId = searchParams.get("id") || searchParams.get("emplocId") || searchParams.get("selected") || null;
+  const urlQueue = searchParams.get("queue") || searchParams.get("tab") || searchParams.get("status");
+
+  const validQueue = normalizeHrEmplocQueue(urlQueue) || "pending";
+
+  // Search params tracking for reactive in-render state adjustment
+  const [prevUrlSearch, setPrevUrlSearch] = useState(urlSearch);
+  const [prevUrlId, setPrevUrlId] = useState(urlId);
+  const [prevUrlQueue, setPrevUrlQueue] = useState(validQueue);
+
+  const [queue, setQueue] = useState<HrEmplocQueue>(validQueue);
+  const [searchDraft, setSearchDraft] = useState(urlSearch);
+  const [search, setSearch] = useState(urlSearch);
   const [accountId, setAccountId] = useState("");
   const [groupId, setGroupId] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(10);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(urlId);
+
+  // Adjust state during render when URL search params change
+  if (urlSearch !== prevUrlSearch) {
+    setPrevUrlSearch(urlSearch);
+    setSearchDraft(urlSearch);
+    setSearch(urlSearch);
+    setPage(1);
+  }
+  if (validQueue !== prevUrlQueue) {
+    setPrevUrlQueue(validQueue);
+    setQueue(validQueue);
+  }
+  if (urlId !== prevUrlId) {
+    setPrevUrlId(urlId);
+    if (urlId) {
+      setSelectedId(urlId);
+    }
+  }
 
   // Modal target states
   const [assignTarget, setAssignTarget] = useState<HrEmplocListItem | null>(null);
@@ -382,6 +424,29 @@ export default function HrEmplocPage() {
   const summaryErrorKind = getErrorKind(summaryQuery.error);
   const errorKind = listErrorKind ?? summaryErrorKind;
   const blocked = errorKind === "access_denied";
+
+  const hasAutoOpenedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const currentRows = listQuery.data?.data ?? [];
+    if (!selectedId && currentRows.length > 0) {
+      const targetQuery = urlSearch.toUpperCase();
+      if (targetQuery && hasAutoOpenedRef.current !== targetQuery) {
+        const exactMatch = currentRows.find(
+          (r) =>
+            (r.employeeNo && r.employeeNo.toUpperCase() === targetQuery) ||
+            (r.vcode && r.vcode.toUpperCase() === targetQuery) ||
+            (r.applicantName && r.applicantName.toUpperCase() === targetQuery)
+        );
+        if (exactMatch) {
+          hasAutoOpenedRef.current = targetQuery;
+          const timer = setTimeout(() => {
+            setSelectedId(exactMatch.id);
+          }, 0);
+          return () => clearTimeout(timer);
+        }
+      }
+    }
+  }, [listQuery.data, selectedId, urlSearch]);
 
   const activeQueueLabel =
     queueTabs.find((tab) => tab.value === queue)?.label ?? "Compliance Queue";
@@ -991,5 +1056,19 @@ export default function HrEmplocPage() {
         </Modal>
       )}
     </div>
+  );
+}
+
+export default function HrEmplocPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+        </div>
+      }
+    >
+      <HrEmplocPageContent />
+    </Suspense>
   );
 }

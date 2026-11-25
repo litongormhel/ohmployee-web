@@ -1,6 +1,43 @@
 # AI Handoff
 
-## Execution Report — Fix PL/pgSQL Ambiguous Column Reference in Global Search & Sync Both Repos (ohm#fix-global-search-ambiguous-primary-label)
+## Execution Report — Wire Deep-Link URL Search Parameters & Auto-Open Modal on Global Search Navigation (ohm#fix-vacancy-global-search-deep-link-auto-open)
+**Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 264 Tests Passing, 0 Lint Warnings, Next.js Build Clean
+
+### What Was Done
+1. **Forensic Root Cause Analysis**:
+   - The user tested Global Search for `"VPSMG3_0004"`, landed on `http://localhost:3000/vacancy?search=VPSMG3_0004`, and noted that the search box remained empty, the table showed all 29 unfiltered records, and the modal detail drawer did not open.
+   - **Root Cause**: `src/app/(dashboard)/vacancy/page.tsx` previously did not import or invoke Next.js `useSearchParams()`. As a result, the URL search parameters (`?search=VPSMG3_0004`) were completely ignored on load. `searchDraft` and `search` initialized to `""`, leaving the table unfiltered and `selectedVacancyId` set to `null`.
+2. **Global Search Navigation URL Optimization (`src/lib/queries/globalSearch.ts`)**:
+   - Upgraded `getNavigationUrl` to supply full deep-linking context:
+     - For vacancies: returns `/vacancy?search=${vcode}&vcode=${vcode}${idParam}${statusParam}` (passing the record UUID `id` and lowercase normalized status).
+     - For applicants: returns `/vacancy?tab=pipeline&search=${searchParam}&vcode=${searchParam}`.
+     - For HR Emploc: returns `/hr-emploc?search=${searchParam}${idParam}${queueParam}`.
+3. **Vacancy Management Page Deep-Linking & Auto-Open (`src/app/(dashboard)/vacancy/page.tsx`)**:
+   - Wrapped `VacancyPageContent` inside a `<Suspense>` boundary to fulfill Next.js 16 App Router streaming requirements.
+   - Initialized `searchDraft`, `search`, `status` (via `normalizeVacancyStatus`), and `selectedVacancyId` from `useSearchParams()`.
+   - Implemented in-render state adjustment tracking `prevUrlSearch`, `prevUrlId`, and `prevUrlStatus` to reactively update filters upon internal SPA route changes without triggering `react-hooks/set-state-in-effect` cascading renders.
+   - Added auto-open effect: if no `id` is passed in the URL (such as direct URL navigation to `/vacancy?search=VPSMG3_0004`), it checks the fetched rows for an exact case-insensitive match on `vcode` or `cgCode` and automatically opens `VacancyDetailDrawer` via `setSelectedVacancyId(exactMatch.id)`.
+   - Guarded with `hasAutoOpenedRef` so dismissing the drawer never triggers an infinite reopen loop.
+4. **HR Emploc Deep-Linking Parity (`src/app/(dashboard)/hr-emploc/page.tsx`)**:
+   - Replicated the identical deep-linking, in-render adjustment, and auto-open pattern for `/hr-emploc` (`?search=...`, `?id=...`, `?queue=...`), auto-opening `HrEmplocDetailDrawer` on exact matches of `employeeNo`, `vcode`, or `applicantName`.
+5. **Verification**:
+   - 264/264 unit tests passed (`npm test`).
+   - 0 ESLint errors/warnings (`npm run lint`).
+   - 0 secret leaks (`check:secrets`).
+   - 0 SQL contract violations (`check:sql`).
+   - Clean Next.js 16.2.4 Turbopack production build (`npm run build`).
+
+### Files Changed
+- `src/lib/queries/globalSearch.ts`
+- `src/app/(dashboard)/vacancy/page.tsx`
+- `src/app/(dashboard)/hr-emploc/page.tsx`
+- `docs/state/vacancy_web_state.md`
+- `docs/state/hr_emploc_web_state.md`
+- `docs/state/web_ui_system_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
 **Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, Migrations Pushed to Staging & Production Build Clean
 
 ### What Was Done

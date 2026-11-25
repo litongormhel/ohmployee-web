@@ -133,14 +133,29 @@ export function getNavigationUrl(result: GlobalSearchResultItem): string {
   const searchParam = encodeURIComponent(result.navigationId || result.primaryLabel);
 
   switch (target) {
-    case "vacancy":
-      return `/vacancy?search=${searchParam}`;
-    case "plantilla":
-      return `/plantilla?search=${searchParam}`;
-    case "hr_emploc":
-      return `/hr-emploc?search=${searchParam}`;
+    case "vacancy": {
+      const vcode = encodeURIComponent(result.navigationId || result.primaryLabel);
+      const idParam = result.recordId ? `&id=${encodeURIComponent(result.recordId)}` : "";
+      const statusParam = result.status
+        ? `&status=${encodeURIComponent(result.status.toLowerCase().replace(/\s+/g, "_"))}`
+        : "";
+      return `/vacancy?search=${vcode}&vcode=${vcode}${idParam}${statusParam}`;
+    }
+    case "plantilla": {
+      const statusParam = result.status
+        ? `&status=${encodeURIComponent(result.status.toLowerCase().replace(/\s+/g, "_"))}`
+        : "";
+      return `/plantilla?search=${searchParam}${statusParam}`;
+    }
+    case "hr_emploc": {
+      const idParam = result.recordId ? `&id=${encodeURIComponent(result.recordId)}` : "";
+      const queueParam = result.status
+        ? `&queue=${encodeURIComponent(result.status.toLowerCase().replace(/\s+/g, "_"))}`
+        : "";
+      return `/hr-emploc?search=${searchParam}${idParam}${queueParam}`;
+    }
     case "applicant":
-      return `/vacancy?tab=with_applicant&search=${searchParam}`;
+      return `/vacancy?tab=pipeline&search=${searchParam}&vcode=${searchParam}`;
     case "cencom":
       return `/cencom?search=${searchParam}`;
     default:
