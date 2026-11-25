@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Execution Report — Fix PL/pgSQL Ambiguous Column Reference in Global Search & Sync Both Repos (ohm#fix-global-search-ambiguous-primary-label)
+**Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, Migrations Pushed to Staging & Production Build Clean
+
+### What Was Done
+1. **Forensic Root Cause Analysis**:
+   - **PostgreSQL Ambiguous Column Reference (`42702`)**: In `GlobalSearchModal.tsx`, querying `VPSMG3_0004` (or any string) invoked `searchGlobalIndex` -> `supabase.rpc("search_global_index", { p_query, p_limit })`. The call aborted with:
+     ```text
+     column reference "primary_label" is ambiguous
+     ```
+   - **Regression Root Cause**: `public.search_global_index` returns `TABLE (result_type text, record_id text, primary_label text, ...)`. In PostgreSQL PL/pgSQL, return table columns become output variables in the function scope. In migration `20262606000008_reassert_function_bodies.sql`, `search_global_index` was re-asserted from an older dump that lacked the `#variable_conflict use_column` directive and lacked explicit column definitions on `combined(...) AS (...)`, overriding earlier migration `20260905000001_fix_global_search_ambiguous_columns.sql`. In CTE `deduped`, `SELECT DISTINCT ON (...) primary_label` matched both the CTE column and the PL/pgSQL output variable.
+2. **Database Hardening (`20262606000181_fix_search_global_index_ambiguity.sql`)**:
+   - Added `#variable_conflict use_column` compiler directive immediately after `AS $function$` to instruct PostgreSQL to prefer table/CTE columns over variable names.
+   - Explicitly defined the column shape schema on `combined(result_type, record_id, primary_label, secondary_label, status, matched_field, group_name, account_name, created_at, navigation_target, navigation_id, priority) AS (...)`.
+   - Explicitly qualified all columns in `deduped` from `combined c` (`c.result_type`, `c.record_id`, `c.primary_label`, etc.) for complete, multi-layered ambiguity protection.
+   - Granted execute on `search_global_index` to `authenticated` and revoked from `public`.
+3. **Cross-Repo Parity**:
+   - Copied migration `20262606000181_fix_search_global_index_ambiguity.sql` to both:
+     - Web: `d:\Projects\ohmployee-web\supabase\migrations\20262606000181_fix_search_global_index_ambiguity.sql`
+     - Mobile: `D:\Projects\OHMployee\supabase\migrations\20262606000181_fix_search_global_index_ambiguity.sql`
+   - Verified Mobile service `GlobalSearchService` (`lib/data/services/global_search_service.dart`) and model `GlobalSearchResult` (`lib/data/models/global_search_result.dart`) maintain 100% parameter and column schema parity.
+4. **Verification**:
+   - Applied cleanly to Staging (`qqiiznmqxfoamqytjica`) via `npm run db:push:staging`.
+   - Live `pg_get_functiondef` verification passed on Staging: confirmed `#variable_conflict use_column`, explicit `combined(...)` columns, and `c.primary_label` qualification.
+   - 264/264 unit tests passed (`npm test`).
+   - 0 ESLint errors/warnings (`npm run lint`).
+   - 0 secret leaks (`check:secrets`).
+   - 0 SQL contract violations (`check:sql`).
+   - Clean Next.js 16.2.4 Turbopack production build (`npm run build`).
+   - Mobile `flutter analyze` completed on `D:\Projects\OHMployee`.
+
+### Files Changed
+- `supabase/migrations/20262606000181_fix_search_global_index_ambiguity.sql`
+- `docs/state/web_ui_system_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+- Mobile: `D:\Projects\OHMployee\supabase\migrations\20262606000181_fix_search_global_index_ambiguity.sql`
+
+---
+
 ## Execution Report — Fix Announcement Creation Permissions, PostgREST Schema Mismatch & Publish CENCOM Day Reschedule (ohm#fix-announcement-creation-and-post-cencom-reschedule)
 **Date:** 2026-11-24 | **Branch:** `main` | **Status:** Verified Clean, Migrations Pushed to Staging & Production Build Clean
 
