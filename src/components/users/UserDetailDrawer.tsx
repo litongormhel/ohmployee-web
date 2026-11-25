@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import {
-  User,
   Shield,
   Layers,
   Store,
@@ -15,7 +14,6 @@ import {
   Check,
   Search,
   Clock,
-  ArrowRight,
 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import type {
@@ -171,9 +169,6 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
   const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
   const [resetPwConfirmOpen, setResetPwConfirmOpen] = useState(false);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
-  const [saveDiffConfirmOpen, setSaveDiffConfirmOpen] = useState(false);
-  const [editRoleModalOpen, setEditRoleModalOpen] = useState(false);
-  const [pendingRoleId, setPendingRoleId] = useState<string>("");
   const [tempPermissionModalOpen, setTempPermissionModalOpen] = useState(false);
   const [feedbackNotice, setFeedbackNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -345,45 +340,6 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
     return `(${count}) ${firstTwo}, +${count - 2} more`;
   }, [isGlobalHQSelected, selectedAccountIds, accounts]);
 
-  // Action: Save Role Change via Confirmation Modal
-  const handleSaveRole = async () => {
-    if (!user || isTargetLocked || !pendingRoleId) return;
-    setFeedbackNotice(null);
-
-    const sanitizedAccountIds = isGlobalHQSelected
-      ? []
-      : selectedAccountIds.filter((aid) => {
-          const gid = accountGroupRef.current.get(aid) || accounts.find((a) => a.id === aid)?.group_id;
-          return gid ? selectedGroupIds.includes(gid) : accounts.some((a) => a.id === aid);
-        });
-
-    try {
-      await upsertMutation.mutateAsync({
-        fullName: user.fullName,
-        email: user.email,
-        roleId: pendingRoleId,
-        groupIds: selectedGroupIds,
-        accountIds: sanitizedAccountIds,
-        existingProfileId: user.id,
-      });
-
-      const updatedRoleName = roles.find((r) => r.id === pendingRoleId)?.name || "selected role";
-      setSelectedRoleId(pendingRoleId);
-      setEditRoleModalOpen(false);
-      setFeedbackNotice({
-        type: "success",
-        text: `Role successfully changed to ${updatedRoleName}. Changes take effect immediately.`,
-      });
-      onSaved?.();
-    } catch (err) {
-      setFeedbackNotice({
-        type: "error",
-        text: friendlyUserError(err),
-      });
-      setEditRoleModalOpen(false);
-    }
-  };
-
   // Action: Save Changes
   const handleSave = async () => {
     if (!user || isTargetLocked) return;
@@ -417,14 +373,12 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
         type: "success",
         text: "User profile updated successfully. Scope changes take effect after next login.",
       });
-      setSaveDiffConfirmOpen(false);
       onSaved?.();
     } catch (err) {
       setFeedbackNotice({
         type: "error",
         text: friendlyUserError(err),
       });
-      setSaveDiffConfirmOpen(false);
     }
   };
 
@@ -579,15 +533,25 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSaveDiffConfirmOpen(true)}
+                  onClick={handleSave}
                   disabled={upsertMutation.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-4 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-brand-600 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-4 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-brand-600 cursor-pointer disabled:opacity-50"
                 >
-                  Save Changes
+                  {upsertMutation.isPending ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </div>
-          ) : undefined
+          ) : (
+            <div className="flex w-full justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-md border border-border-default bg-surface px-4 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          )
         }
       >
 
@@ -650,222 +614,144 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
           {/* TAB 1: OVERVIEW */}
           {activeTab === "overview" && (
             <div className="space-y-4">
-              {/* Basic Information Card */}
-              <div className="rounded-lg border border-border-default bg-surface-base p-4 space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-text-muted">
-                  <User className="h-4 w-4 text-brand-600" />
-                  Basic Information
-                </div>
-
-                {isTargetLocked && (
-                  <div className="rounded-md border border-border-default bg-surface-subtle p-2.5 text-xs text-text-secondary">
-                    Head Admin cannot change roles or scopes of Super Admin or Head Admin accounts.
-                  </div>
-                )}
-
-                <div className="space-y-2.5">
+              {/* Profile Details & Role */}
+              <div className="rounded-xl border border-border-default bg-surface-base p-4 space-y-3.5 shadow-2xs">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
                   <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1">
+                    <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                       Full Name
-                    </label>
-                    <input
-                      type="text"
-                      disabled
-                      value={user.fullName}
-                      className="w-full rounded-md border border-border-default bg-surface-muted px-3 py-2 text-xs text-text-primary font-medium cursor-not-allowed opacity-80"
-                    />
+                    </span>
+                    <p className="mt-0.5 text-xs font-semibold text-text-primary">{user.fullName}</p>
                   </div>
-
                   <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1">
+                    <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
                       Email Address
-                    </label>
-                    <input
-                      type="text"
-                      disabled
-                      value={user.email || "No email assigned"}
-                      className="w-full rounded-md border border-border-default bg-surface-muted px-3 py-2 text-xs text-text-primary font-medium cursor-not-allowed opacity-80"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-text-primary mb-1">
-                      Role Assignment
-                    </label>
-                    <div className="flex items-center justify-between rounded-lg border border-border-default bg-surface-muted/60 p-2.5">
-                      <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-brand-primary" />
-                        <span className="text-xs font-bold text-text-primary">
-                          {user.roleName || "No Role"}
-                        </span>
-                      </div>
-                      {!isTargetLocked && (isSuperAdmin || isHeadAdmin) && !isSelf && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPendingRoleId(user.roleId);
-                            setEditRoleModalOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface px-2.5 py-1 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover transition-colors cursor-pointer"
-                        >
-                          <Shield className="h-3 w-3 text-text-secondary" />
-                          <span>Edit Role</span>
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-text-muted mt-1.5 flex items-center gap-1">
-                      <Lock className="h-3 w-3 shrink-0" />
-                      <span>Role assignment is restricted to Super Admin (SA) and Head Admin (HA) only.</span>
+                    </span>
+                    <p className="mt-0.5 text-xs font-medium text-text-secondary">
+                      {user.email || "No email assigned"}
                     </p>
                   </div>
                 </div>
-              </div>
 
-              {/* Permission Summary Preview Card */}
-              <div className="rounded-lg border border-border-default bg-surface-base p-4 space-y-2.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-text-muted">
-                  <Shield className="h-4 w-4 text-brand-600" />
-                  Live Permission Summary
-                </div>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-brand-600 shrink-0" />
+                {/* Role Dropdown */}
+                <div className="pt-3 border-t border-border-subtle">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <strong className="text-text-primary">Role:</strong>{" "}
-                      <span className="text-text-secondary">{targetRole.name}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-brand-600 shrink-0" />
-                    <div>
-                      <strong className="text-text-primary">Groups:</strong>{" "}
-                      <span className="text-text-secondary">{summaryGroupNames}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-brand-600 shrink-0" />
-                    <div>
-                      <strong className="text-text-primary">Accounts:</strong>{" "}
-                      <span className="text-text-secondary">{summaryAccountNames}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Temporary Overrides & Delegations Card */}
-              <div className="rounded-lg border border-border-default bg-surface-subtle p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-text-primary">
-                    <Clock className="h-4 w-4 text-text-secondary" />
-                    Temporary Permission Overrides
-                  </div>
-                  {activeTempOverride && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-border-default bg-surface px-2 py-0.5 text-[10px] font-semibold text-text-primary">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pct-high opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-pct-high"></span>
-                      </span>
-                      Active Override
-                    </span>
-                  )}
-                </div>
-
-                {activeTempOverride ? (
-                  <div className="space-y-2 rounded-md bg-surface p-3 border border-border-default text-xs text-text-secondary">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-text-primary">
-                        Delegated Scope ({activeTempOverride.scopeType}):
-                      </span>
-                      <span className="font-mono text-text-primary font-bold text-[11px]">
-                        {activeTempOverride.expiresLabel}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {activeTempOverride.additionalGroups.map((g) => (
-                        <span
-                          key={g}
-                          className="inline-flex items-center gap-1 rounded bg-surface-subtle px-2 py-0.5 text-[11px] font-semibold text-text-primary border border-border-default"
-                        >
-                          <Layers className="h-2.5 w-2.5 text-text-muted" />
-                          {g}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="text-[11px] text-text-muted pt-1 border-t border-border-subtle flex items-center justify-between">
-                      <span>Granted by: {activeTempOverride.grantedBy}</span>
-                      <span>Expires: {new Date(activeTempOverride.expiresAt).toLocaleDateString()}</span>
-                    </div>
-                    {activeTempOverride.displayReason && (
-                      <p className="italic text-[11px] text-text-muted bg-surface-muted p-2 rounded border border-border-subtle">
-                        &ldquo;{activeTempOverride.displayReason}&rdquo;
+                      <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                        <Shield className="h-3.5 w-3.5 text-brand-primary" />
+                        Role Assignment
+                      </label>
+                      <p className="text-[11px] text-text-muted mt-0.5">
+                        {isTargetLocked
+                          ? "Protected account — role cannot be modified."
+                          : "Defines system-wide authorization and capability access."}
                       </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setTempPermissionModalOpen(true)}
-                      className="w-full mt-2 rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-bold text-text-primary hover:bg-surface-hover transition cursor-pointer"
-                    >
-                      Manage / Revoke Temporary Override
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between rounded-md bg-surface p-3 border border-border-default text-xs gap-3">
-                    <div className="text-text-secondary">
-                      No active time-bound overrides. User operates strictly under assigned role scopes.
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setTempPermissionModalOpen(true)}
-                      className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-600 transition cursor-pointer"
+                    <select
+                      value={selectedRoleId}
+                      onChange={(e) => setSelectedRoleId(e.target.value)}
+                      disabled={isTargetLocked || assignableRoles.length === 0 || isSelf}
+                      className="rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-primary focus:border-brand-500 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                     >
-                      <KeyRound className="h-3.5 w-3.5" />
-                      <span>Grant Override</span>
-                    </button>
+                      {assignableRoles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                )}
-              </div>
-
-              {/* Danger Zone Card */}
-              <div className="rounded-lg border border-danger-border bg-danger-subtle/40 p-4 space-y-3">
-
-                <div className="flex items-center gap-2 text-xs font-bold text-danger-text">
-                  <AlertTriangle className="h-4 w-4 text-danger-icon" />
-                  Danger Zone
                 </div>
 
-                {isSelf && (
-                  <p className="text-xs text-danger-text italic">
-                    Self-service destructive actions are disabled on your own account.
-                  </p>
+                {/* HRCO Cross-Group Visibility Toggle */}
+                {isHrcoRole && (
+                  <div className="pt-3 border-t border-border-subtle flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-xs font-semibold text-text-primary">
+                        Cross-Group Roster Visibility
+                      </span>
+                      <p className="text-[11px] text-text-muted mt-0.5">
+                        Allow HRCO to view personnel across all organizational groups
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={hrcoGlobalVisibility}
+                      disabled={isTargetLocked || (!isSuperAdmin && !isHeadAdmin)}
+                      onChange={(e) => setHrcoGlobalVisibilityState(e.target.checked)}
+                      className="h-4 w-4 rounded border-border-default text-brand-primary focus:ring-brand-primary cursor-pointer disabled:cursor-not-allowed"
+                    />
+                  </div>
                 )}
 
-                <div className="space-y-2">
+                {/* Scope Assignment Summary Row */}
+                <div className="pt-3 border-t border-border-subtle flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                      <Layers className="h-3.5 w-3.5 text-text-secondary" />
+                      Assigned Scopes
+                    </span>
+                    <p className="text-[11px] text-text-secondary mt-0.5 truncate">
+                      <strong>Groups:</strong> {summaryGroupNames} &nbsp;•&nbsp; <strong>Accounts:</strong>{" "}
+                      {summaryAccountNames}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("scope")}
+                    className="shrink-0 text-xs font-semibold text-brand-primary hover:underline cursor-pointer"
+                  >
+                    Configure Scopes →
+                  </button>
+                </div>
+
+                {/* Temporary Overrides Row */}
+                <div className="pt-3 border-t border-border-subtle flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-text-secondary" />
+                      Temporary Permission Override
+                    </span>
+                    <p className="text-[11px] text-text-muted mt-0.5 truncate">
+                      {activeTempOverride
+                        ? `Active: ${activeTempOverride.expiresLabel} (${activeTempOverride.scopeType})`
+                        : "No active temporary override in effect."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTempPermissionModalOpen(true)}
+                    className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-brand-primary hover:underline cursor-pointer"
+                  >
+                    <KeyRound className="h-3 w-3" />
+                    {activeTempOverride ? "Manage Override" : "Grant Override"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Account Actions */}
+              <div className="rounded-xl border border-border-default bg-surface-base p-4 space-y-2.5 shadow-2xs">
+                <span className="block text-xs font-bold text-text-muted uppercase tracking-wider">
+                  Account Actions
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     disabled={isSelf || isTargetLocked || toggleStatusMutation.isPending}
                     onClick={() => setStatusConfirmOpen(true)}
-                    className="flex w-full items-center justify-between rounded-md border border-border-default bg-surface px-3 py-2 text-xs font-semibold text-text-primary shadow-xs hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <span className="flex items-center gap-2">
-                      <Power className="h-3.5 w-3.5 text-text-secondary" />
-                      {user.isActive ? "Deactivate User" : "Activate User"}
-                    </span>
-                    <span className="text-[11px] text-text-muted">
-                      {user.isActive ? "Set to Suspended" : "Restore active access"}
-                    </span>
+                    <Power className="h-3.5 w-3.5 text-text-secondary" />
+                    <span>{user.isActive ? "Deactivate User" : "Activate User"}</span>
                   </button>
 
                   <button
                     type="button"
                     disabled={isSelf || isTargetLocked || resetPasswordMutation.isPending}
                     onClick={() => setResetPwConfirmOpen(true)}
-                    className="flex w-full items-center justify-between rounded-md border border-border-default bg-surface px-3 py-2 text-xs font-semibold text-text-primary shadow-xs hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <span className="flex items-center gap-2">
-                      <KeyRound className="h-3.5 w-3.5 text-text-secondary" />
-                      Reset Password
-                    </span>
-                    <span className="text-[11px] text-text-muted">Dispatch reset link</span>
+                    <KeyRound className="h-3.5 w-3.5 text-text-secondary" />
+                    <span>Reset Password</span>
                   </button>
 
                   {isSuperAdmin && (
@@ -873,13 +759,10 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
                       type="button"
                       disabled={isSelf || isTargetLocked || archiveMutation.isPending}
                       onClick={() => setArchiveConfirmOpen(true)}
-                      className="flex w-full items-center justify-between rounded-md border border-danger-border bg-surface px-3 py-2 text-xs font-semibold text-danger-text shadow-xs hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-danger-border bg-danger-subtle/30 px-3 py-1.5 text-xs font-semibold text-danger-text shadow-2xs hover:bg-danger-subtle cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <span className="flex items-center gap-2">
-                        <Archive className="h-3.5 w-3.5 text-danger-icon" />
-                        Archive Account
-                      </span>
-                      <span className="text-[11px] text-danger-text">Soft-archive profile</span>
+                      <Archive className="h-3.5 w-3.5 text-danger-icon" />
+                      <span>Archive Account</span>
                     </button>
                   )}
                 </div>
@@ -1094,55 +977,6 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
 
       </Modal>
 
-      {/* MODAL 1: Save Diff Confirmation */}
-      <Modal
-        isOpen={saveDiffConfirmOpen}
-        onClose={() => setSaveDiffConfirmOpen(false)}
-        title="Confirm Profile Updates"
-        isSubmitting={upsertMutation.isPending}
-        disableBackdropClick={upsertMutation.isPending}
-        maxWidthClass="max-w-md"
-        footer={
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setSaveDiffConfirmOpen(false)}
-              className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={upsertMutation.isPending}
-              className="rounded-md bg-brand-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-600 disabled:opacity-50"
-            >
-              {upsertMutation.isPending ? "Saving..." : "Confirm & Save"}
-            </button>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <p className="text-xs text-text-secondary">
-            Review modifications before applying changes to <strong>{user.fullName}</strong>.
-          </p>
-          <div className="rounded-lg border border-border-subtle bg-surface-muted/50 p-3 space-y-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-text-muted">Target Role:</span>
-              <span className="font-semibold text-text-primary">{targetRole.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-text-muted">Groups:</span>
-              <span className="font-semibold text-text-primary">{summaryGroupNames}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-text-muted">Accounts:</span>
-              <span className="font-semibold text-text-primary">{summaryAccountNames}</span>
-            </div>
-          </div>
-        </div>
-      </Modal>
-
       {/* MODAL 2: Status Toggle Confirmation */}
       <Modal
         isOpen={statusConfirmOpen}
@@ -1251,75 +1085,6 @@ export function UserDetailDrawer({ user, onClose, onSaved }: UserDetailDrawerPro
         <p className="text-xs text-text-secondary">
           Soft-archiving <strong>{user.fullName}</strong> will disable access and mark the profile as archived. This action will be audited.
         </p>
-      </Modal>
-
-      {/* MODAL 5: Edit Role Confirmation Modal */}
-      <Modal
-        isOpen={editRoleModalOpen}
-        onClose={() => setEditRoleModalOpen(false)}
-        title="Edit User Role"
-        subtitle={`Update role assignment for ${user.fullName}`}
-        icon={Shield}
-        isSubmitting={upsertMutation.isPending}
-        disableBackdropClick={upsertMutation.isPending}
-        maxWidthClass="max-w-md"
-        footer={
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setEditRoleModalOpen(false)}
-              className="rounded-lg border border-border-default bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveRole}
-              disabled={upsertMutation.isPending || !pendingRoleId || pendingRoleId === user.roleId}
-              className="rounded-lg bg-brand-500 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              {upsertMutation.isPending ? "Updating Role..." : "Confirm & Save Role"}
-            </button>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="edit-role-select" className="block text-xs font-semibold text-text-primary mb-1">
-              Select New Role
-            </label>
-            <select
-              id="edit-role-select"
-              value={pendingRoleId}
-              onChange={(e) => setPendingRoleId(e.target.value)}
-              className="w-full rounded-lg border border-border-default bg-surface px-3 py-2 text-xs font-semibold text-text-primary outline-none focus:border-brand-500 cursor-pointer"
-            >
-              {assignableRoles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Role Diff Preview */}
-          <div className="rounded-xl border border-border-default bg-surface-muted/50 p-3.5 space-y-2">
-            <div className="text-xs font-semibold text-text-secondary">Role Assignment Diff:</div>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="inline-flex items-center rounded-full bg-surface-subtle px-2.5 py-0.5 text-xs font-semibold text-text-secondary border border-border-default">
-                {user.roleName || "Current"}
-              </span>
-              <ArrowRight className="h-3.5 w-3.5 text-text-muted shrink-0" />
-              <span className="inline-flex items-center rounded-full bg-surface-selected px-2.5 py-0.5 text-xs font-bold text-brand-primary border border-border-default">
-                {roles.find((r) => r.id === pendingRoleId)?.name || "New Role"}
-              </span>
-            </div>
-          </div>
-
-          <p className="text-xs text-text-secondary">
-            Role modifications immediately adjust operational authorization, access boundaries, and audit logging on subsequent user requests.
-          </p>
-        </div>
       </Modal>
 
       {/* MODAL 6: Temporary Permission Overrides */}
