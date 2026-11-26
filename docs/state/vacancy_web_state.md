@@ -552,6 +552,26 @@ Executed automated data cleanup and alignment across Vacancy, Plantilla, HR Empl
 
 ---
 
+## Legacy VCode Drift Alignment & Orphan Candidate Archival (`ohm#align-legacy-vcodes-and-orphan-candidate`)
+
+Resolved remaining 5 legacy VCode drifts and archived orphan applicant across Staging ([20262606000207_align_legacy_vcodes_and_orphan_candidate.sql](file:///D:/Projects/ohmployee-web/supabase/migrations/20262606000207_align_legacy_vcodes_and_orphan_candidate.sql), [20262606000208_reconcile_realigned_store_headcounts.sql](file:///D:/Projects/ohmployee-web/supabase/migrations/20262606000208_reconcile_realigned_store_headcounts.sql)):
+1. **Orphan Candidate Archival**:
+   - Candidate `Alexa B Mae` (`id = '62dedd3a-7e21-4518-b3b4-90f89f845153'`) archived as `'Withdrawn'` (`is_archived = true`, `slot_id = NULL`).
+2. **Foreign Key Cascade Hardening**:
+   - Configured `ON UPDATE CASCADE NOT VALID` on foreign keys referencing `public.vacancies(vcode)` (`fk_applicants_vacancy_vcode`, `vacancy_closure_requests_vacancy_vcode_fkey`, `headcount_requests_target_vcode_fkey`, `headcount_quota_revisions_vcode_fkey`).
+3. **Canonical Store VCode Alignment & Deduplication**:
+   - `CPSEJV16` (`SUPER 8 ROSARIO CAVITE`): aligned vacancy, plantilla, hr_emploc, and renumbered slot ordinal 2 to avoid collision with ordinal 1 (`legacy_vcode = 'CPSEJV16'`).
+   - `VCBPIG1_0252` (`CALAMBA MISAMIS OCCIDENTAL`): aligned vacancy, plantilla, hr_emploc, and renumbered slot ordinal 2 (`legacy_vcode = 'VCBPIG1_0252'`).
+   - `VCAG5_0068` (`SM AURORA`): aligned vacancy, plantilla, hr_emploc, and slots from `VCAG5_0056` to canonical `VCAG5_0068`.
+   - `VBFG5_0009` (`GERONA & CONCEPCION-9`): merged active pipeline slots (ordinals 4 & 5) and applicants (`JAMES BOND`, `MICHAEL DE MESA`) from legacy `VCBG4_0001` into open canonical vacancy `VBFG5_0009`, cleaned duplicate row, and set `required_headcount = 3.0000`.
+   - `VCAPG2_0010` (`ASENSO PINOY HEAD OFFICE`): merged applicant (`GRACE LUCA`), slots (ordinals 2, 3, 4), and plantilla from legacy `VCTG2_0006` into open canonical vacancy `VCAPG2_0010`, cleaned duplicate row, and set `required_headcount = 3.0000`.
+4. **Verification**:
+   - `audit_adr_data_violations.mjs`: 29 clean checks, 0 violations.
+   - All 6 `fn_adr001_smoke()` assertions passed (A1-A6).
+   - 268/268 unit tests passed (`npm test`), 0 ESLint errors/warnings (`npm run lint`), clean Next.js 16.2.4 Turbopack build (`npm run build`).
+
+---
+
 > [!NOTE]
 > **Historical Assessment & Implementation Phases Archive:**
 > Historical pre-implementation assessments and phase checklists have been archived to [`docs/state/archive/vacancy_web_state_historical.md`](archive/vacancy_web_state_historical.md) to keep this live specification token-optimized.

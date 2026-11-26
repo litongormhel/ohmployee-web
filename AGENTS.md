@@ -115,3 +115,24 @@
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
+
+
+---
+
+## Model Tiering & Automated Quota Failover Protocol
+
+### 1. Model Tiering ("Flash Collects, Hydrogen Thinks")
+- **The Scout / Collector (`gemini-3.8-flash` / `flash_lite`)**:
+  - Delegate large-scale codebase searching, regex grepping, reading large files, logs, documentation lookups, and web searches to subagents on `flash_lite` or `gemini-3.8-flash`.
+  - Subagents must return only concise summaries, relevant code snippets, and line references. Never paste raw massive file dumps into the primary conversation.
+- **The Lead Architect / Thinker (`gemini-4-hydrogen` / `gemini-4-neon`)**:
+  - Focuses on system architecture, refactoring plans, complex reasoning, and writing/editing source files.
+
+### 2. Automated Quota & Rate-Limit Failover Protocol
+- **Primary Instance**: `antigravity` (`OHMX`)
+- **Failover Pool**: `antigravity_4` (`bbbrohm`) -> `antigravity_2` (`litongormhel`) -> `antigravity_3` (`pmrodriguez`)
+- If any model call returns a `429`, `Quota Exceeded`, or `RESOURCE_EXHAUSTED` error:
+  1. Do not abort or fail the turn.
+  2. Call `t3_thread_configure` to switch the active thread's `instanceId` to the next available instance in the pool.
+  3. If all high-tier instances hit limits, switch `model` to `gemini-3.8-flash`.
+  4. Notify user with a 1-line note and immediately resume task execution.
