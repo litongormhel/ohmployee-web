@@ -527,3 +527,13 @@ Per user direction, permanently cleaned up dormant/orphaned RBAC definitions tha
    - Revoked `anon` `SELECT` and `authenticated` `ALL` on `public.announcements` and `public.announcement_acknowledgements` (granting `SELECT, INSERT, UPDATE, DELETE` to `authenticated`), and added a `role_level >= 30` caller guard to `public.check_and_notify_on_leave_edr()`.
    - Unified `STAGING_URL` / `STAGING_ANON_KEY` fallback in `src/lib/supabase/server.ts` with `src/lib/supabase/client.ts`.
 
+
+---
+
+## Post-Logout Anon Query Cancellation & Session-Guarded Polling (`ohm#fix-anon-permission-denied-log-burst-and-approvals-polling`)
+
+1. **Global Query Cache Cancellation on `SIGNED_OUT` (`src/app/providers.tsx`)**:
+   - Subscribes to `supabase.auth.onAuthStateChange` and immediately executes `queryClient.cancelQueries()` and `queryClient.clear()` when `event === "SIGNED_OUT"`.
+   - All sign-out handlers (`DashboardAuthShell.tsx` idle logout, `Sidebar.tsx`, and `src/app/(dashboard)/more/page.tsx`) also cancel and clear active queries prior to calling `supabase.auth.signOut()`, preventing in-flight or background polling hooks from hitting PostgREST with the unauthenticated `anon` role and triggering PostgreSQL `42501: permission denied` log bursts.
+2. **Session-Guarded Background Pollers**:
+   - Background polling hooks (`fetchRequestCategoryCounts`, `fetchApprovalQueue`, `fetchAccountArchiveCounts`, `useUnreadNotificationsCount`, `fetchActiveActingSession`, and `fetchEditLockStatus`) verify an active session via `supabase.auth.getSession()` before querying RLS/privilege-locked tables or `SECURITY DEFINER` RPCs.

@@ -36,6 +36,7 @@ function AuthenticatedShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const motionLevel = useMotionLevel();
   const [idleWarningOpen, setIdleWarningOpen] = useState(false);
   const [isOhmniOpen, setIsOhmniOpen] = useState(false);
@@ -120,6 +121,8 @@ function AuthenticatedShell({
   const handleIdleLogout = useCallback(async () => {
     setIdleWarningOpen(false);
     try {
+      queryClient.cancelQueries();
+      queryClient.clear();
       try {
         localStorage.setItem("ohmployee_theme_mode", "light");
         window.dispatchEvent(new Event("ohmployee-theme-change"));
@@ -129,7 +132,7 @@ function AuthenticatedShell({
     } finally {
       router.replace("/login");
     }
-  }, [router]);
+  }, [queryClient, router]);
 
   // Wire the idle timer. Only document-level user events reset the clock.
   // React Query refetches, Supabase realtime, and API fetches must NOT

@@ -264,6 +264,8 @@ export async function fetchEditLockStatus(): Promise<EditLockStatus> {
   };
 
   try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) return defaultStatus;
     const { data, error } = await supabase.rpc("get_vacancy_edit_lock_status");
     if (error || !data) return defaultStatus;
 
@@ -1409,6 +1411,8 @@ export interface ScopeAccountItem {
 export async function fetchActiveActingSession(): Promise<ActingSessionResult | null> {
   const supabase = createClient();
   try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) return null;
     const { data, error } = await supabase.rpc("get_active_acting_session");
     if (error || !data) return null;
     const r = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;

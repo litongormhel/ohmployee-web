@@ -1,5 +1,58 @@
 # AI Handoff
 
+## Execution Report — Eliminate Post-Logout Anon 42501 Permission Denied Log Bursts & Scope ActiveQueueReviewPane Polling (ohm#fix-anon-permission-denied-log-burst-and-approvals-polling)
+**Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, All 268 Tests Passing, 0 Lint Warnings, Turbopack Build Clean
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants — `source_commit: 08ac81e`)
+- `docs/architecture/_mirror/adr/04_approvals_requisitions.md` (Approvals & Headcount Requisitions Architecture — `source_commit: 08ac81e`)
+
+### What Was Done
+1. **Forensic Root Cause Analysis (`IMG_4458.jpg`)**:
+   - Investigated the Supabase Unified Logs (`qqiiznmqxfoamqytjica`, filtered by `Level = error`) showing two clusters of PostgreSQL error `42501: permission denied`:
+     - **Cluster 1 (`19:20:08` to `19:20:11`)**: 25 rapid errors on `applicant_movement_requests`, `headcount_requests`, `coverage_requests`, `new_store_requests`, `vacancy_import_batches`, `notifications`, `function get_approval_queue`, `hr_emploc_deletion_requests`, `vw_amr_list`, `vacancy_closure_requests`, `v_deactivation_requests`, and `v_workforce_assignment_request_queue`.
+     - **Cluster 2 (`19:29:14` to `19:29:15`)**: 4 errors on `vw_vacancy_list`, `groups`, `users_profile`, and `plantilla`.
+   - **Root Cause 1 — Unauthenticated `anon` Queries During/After Sign-Out**:
+     - By least-privilege security design (`20260521062543_remote_schema.sql` and `20260523001000_fix_approval_queue_scope_ids.sql`), table/view `SELECT` and function `EXECUTE` on `get_approval_queue` are revoked from the `anon` role (`REVOKE ALL ... FROM anon`) and granted exclusively to `authenticated`.
+     - When a session signed out (via the 30-minute idle timer in `DashboardAuthShell.tsx`, `Sidebar.tsx`, or `/more`), `await supabase.auth.signOut()` cleared the user's Bearer JWT token before `router.replace("/login")` completed, AND the singleton `QueryClient` in `src/app/providers.tsx` was never cleared on sign-out.
+     - Consequently, background polling intervals (`refetchInterval: 30000` on `useRequestCategoryCounts`, `useAccountApprovalQueue`, `useAccountArchiveCounts`, `useActiveActingSession`, `useEditLockStatus`) and window-focus refetches fired with the unauthenticated `anon` key, causing PostgreSQL to reject every table, view, and RPC call with `42501: permission denied`.
+   - **Root Cause 2 — Unscoped 22-Query Fan-Out in `ActiveQueueReviewPane.tsx`**:
+     - `ActiveQueueReviewPane.tsx` called all 22 React Query hooks (list + status counts across all 11 approval queues) unconditionally at the top of the component without `enabled: selectedCategory === ...`.
+     - Because `ApprovalsPage` renders `<ActiveQueueReviewPane key={selectedCategory} />`, clicking any tab remounted the component and fired all 22 queries across every table, view, and `get_approval_queue` RPC at once.
+   - **Root Cause 3 — Unscoped Approvals Counter Polling in `Sidebar.tsx` & `DashboardPage`**:
+     - `Sidebar.tsx` and `DashboardPage` unconditionally invoked `useRequestCategoryCounts()` for all users regardless of whether their role had access to `/approvals` (`canViewApprovalsHub`).
+2. **Client & Query Layer Hardening**:
+   - `src/app/providers.tsx`: Registered a global `supabase.auth.onAuthStateChange` listener that immediately invokes `queryClient.cancelQueries()` and `queryClient.clear()` upon `SIGNED_OUT`.
+   - `src/components/DashboardAuthShell.tsx`, `src/components/Sidebar.tsx`, `src/app/(dashboard)/more/page.tsx`: Added explicit `queryClient.cancelQueries()` and `queryClient.clear()` prior to `supabase.auth.signOut()`.
+   - `src/lib/queries/requests.ts`, `src/lib/queries/accountRequests.ts`, `src/lib/queries/notifications.ts`, `src/lib/queries/more.ts`: Added session verification (`supabase.auth.getSession()`) inside background-polled query functions (`fetchRequestCategoryCounts`, `fetchApprovalQueue`, `fetchAccountArchiveCounts`, `useUnreadNotificationsCount`, `fetchActiveActingSession`, `fetchEditLockStatus`) so no PostgREST or RPC call is ever dispatched with the `anon` role when no session is active.
+   - `src/components/approvals/ActiveQueueReviewPane.tsx`, `src/lib/queries/requests.ts`, `src/lib/queries/accountRequests.ts`, `src/lib/queries/hr_emploc.ts`: Added `{ enabled?: boolean }` options to all 22 approval queue hooks and scoped each pair in `ActiveQueueReviewPane.tsx` to `enabled: selectedCategory === "<category_key>"`, reducing per-tab queries from 22 to 2.
+   - `src/components/Sidebar.tsx`, `src/app/(dashboard)/dashboard/page.tsx`, `src/app/(dashboard)/approvals/page.tsx`: Gated `useRequestCategoryCounts` with `enabled: canViewApprovals`.
+3. **Verification**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm test`: 268/268 unit tests passed, 0 secret leaks, 0 SQL contract violations.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run build`: Next.js 16.2.4 Turbopack production build compiled cleanly across all 25 routes.
+
+### Files Changed
+- `src/app/providers.tsx`
+- `src/components/DashboardAuthShell.tsx`
+- `src/components/Sidebar.tsx`
+- `src/components/approvals/ActiveQueueReviewPane.tsx`
+- `src/app/(dashboard)/approvals/page.tsx`
+- `src/app/(dashboard)/dashboard/page.tsx`
+- `src/app/(dashboard)/more/page.tsx`
+- `src/lib/queries/requests.ts`
+- `src/lib/queries/accountRequests.ts`
+- `src/lib/queries/hr_emploc.ts`
+- `src/lib/queries/notifications.ts`
+- `src/lib/queries/more.ts`
+- `docs/state/web_auth_rbac_state.md`
+- `docs/state/approvals_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Harden Coverage Group Onboarding RPC and Modal Against Duplicate Key Violations on idx_applicants_no_active_duplicate (ohm#fix-coverage-group-onboarding-applicant-vcode-conflict)
 **Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging, All 268 Tests Passing, 0 Lint Warnings
 

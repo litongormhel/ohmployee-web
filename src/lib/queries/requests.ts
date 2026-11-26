@@ -194,6 +194,11 @@ export async function fetchRequestCategoryCounts(): Promise<RequestCategoryCount
     rollbacks: 0,
   };
 
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData?.session) {
+    return results;
+  }
+
   const countItem = async (
     key: RequestCategoryKey,
     queryPromise: PromiseLike<{ count: number | null }>
@@ -686,30 +691,34 @@ export async function rejectHeadcountRequest({
 
 // ─── React Query Hooks ───────────────────────────────────────────────────────
 
-export function useRequestCategoryCounts() {
+export function useRequestCategoryCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["request-category-counts"],
     queryFn: () => fetchRequestCategoryCounts(),
+    enabled: options?.enabled ?? true,
     refetchInterval: 30000, // 30s polling
   });
 }
 
 export function useHeadcountRequests(
   tab: ApprovalStatusTab = "pending",
-  pagination?: RequestPaginationParams
+  pagination?: RequestPaginationParams,
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: ["headcount-requests", tab, pagination],
     queryFn: () => fetchHeadcountRequests(tab, pagination),
+    enabled: options?.enabled ?? true,
   });
 }
 
 export const usePendingHeadcountRequests = () => useHeadcountRequests("pending");
 
-export function useHeadcountCounts() {
+export function useHeadcountCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["headcount-counts"],
     queryFn: () => fetchHeadcountCounts(),
+    enabled: options?.enabled ?? true,
     retry: 1,
   });
 }
@@ -1689,20 +1698,23 @@ export async function rejectNewStoreRequest({ requestId, reason }: RejectNewStor
 
 export function useNewStoreRequests(
   tab: ApprovalStatusTab = "pending",
-  pagination?: RequestPaginationParams
+  pagination?: RequestPaginationParams,
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: ["new-store-requests", tab, pagination],
     queryFn: () => fetchNewStoreRequests(tab, pagination),
+    enabled: options?.enabled ?? true,
   });
 }
 
 export const usePendingNewStoreRequests = () => useNewStoreRequests("pending");
 
-export function useNewStoreCounts() {
+export function useNewStoreCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["new-store-counts"],
     queryFn: () => fetchNewStoreCounts(),
+    enabled: options?.enabled ?? true,
     retry: 1,
   });
 }
@@ -2217,20 +2229,23 @@ export async function approveAllVacancyClosureRequests() {
 
 export function useVacancyClosureRequests(
   tab: ApprovalStatusTab = "pending",
-  pagination?: RequestPaginationParams
+  pagination?: RequestPaginationParams,
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: ["vacancy-closure-requests", tab, pagination],
     queryFn: () => fetchVacancyClosureRequests(tab, pagination),
+    enabled: options?.enabled ?? true,
   });
 }
 
 export const usePendingVacancyClosureRequests = () => useVacancyClosureRequests("pending");
 
-export function useVacancyClosureCounts() {
+export function useVacancyClosureCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["vacancy-closure-counts"],
     queryFn: () => fetchVacancyClosureCounts(),
+    enabled: options?.enabled ?? true,
     retry: 1,
   });
 }
@@ -2585,20 +2600,23 @@ export async function rejectApplicantMovementRequest({
 
 export function useApplicantMovementRequests(
   tab: ApprovalStatusTab = "pending",
-  pagination?: RequestPaginationParams
+  pagination?: RequestPaginationParams,
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: ["applicant-movement-requests", tab, pagination],
     queryFn: () => fetchApplicantMovementRequests(tab, pagination),
+    enabled: options?.enabled ?? true,
   });
 }
 
 export const usePendingApplicantMovements = () => useApplicantMovementRequests("pending");
 
-export function useApplicantMovementCounts() {
+export function useApplicantMovementCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["applicant-movement-counts"],
     queryFn: () => fetchApplicantMovementCounts(),
+    enabled: options?.enabled ?? true,
     retry: 1,
   });
 }
@@ -3086,20 +3104,23 @@ export async function rejectEmployeeDeactivation({
 
 export function useDeactivationRequests(
   status: DeactivationStatusTab = "pending",
-  pagination?: RequestPaginationParams
+  pagination?: RequestPaginationParams,
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: ["deactivation-requests", status, pagination],
     queryFn: () => fetchDeactivationRequests(status, pagination),
+    enabled: options?.enabled ?? true,
   });
 }
 
 export const usePendingDeactivationRequests = useDeactivationRequests;
 
-export function useDeactivationCounts() {
+export function useDeactivationCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["deactivation-counts"],
     queryFn: () => fetchDeactivationCounts(),
+    enabled: options?.enabled ?? true,
     retry: 1,
   });
 }
@@ -3865,40 +3886,46 @@ export async function rejectCoverageRequest({
 
 export function useRelieverEndorsements(
   tab: ApprovalStatusTab = "pending",
-  pagination?: RequestPaginationParams
+  pagination?: RequestPaginationParams,
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: ["reliever-endorsements", tab, pagination],
     queryFn: () => fetchRelieverEndorsements(tab, pagination),
+    enabled: options?.enabled ?? true,
   });
 }
 
 export const usePendingRelieverEndorsements = () => useRelieverEndorsements("pending");
 
-export function useRelieverCounts() {
+export function useRelieverCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["reliever-counts"],
     queryFn: () => fetchRelieverCounts(),
+    enabled: options?.enabled ?? true,
     retry: 1,
   });
 }
 
 export function useCoverageRequests(
   tab: ApprovalStatusTab = "pending",
-  pagination?: RequestPaginationParams
+  pagination?: RequestPaginationParams,
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: ["coverage-group-requests", tab, pagination],
     queryFn: () => fetchCoverageRequests(tab, pagination),
+    enabled: options?.enabled ?? true,
   });
 }
 
 export const usePendingCoverageRequests = () => useCoverageRequests("pending");
 
-export function useCoverageCounts() {
+export function useCoverageCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["coverage-counts"],
     queryFn: () => fetchCoverageCounts(),
+    enabled: options?.enabled ?? true,
     retry: 1,
   });
 }
@@ -4358,6 +4385,8 @@ export async function fetchAccountArchiveRequests(
 
 export async function fetchAccountArchiveCounts(): Promise<RequestStatusCounts> {
   const supabase = createClient();
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData?.session) return { pending: 0, approved: 0, rejected: 0 };
   const { data, error } = await supabase
     .from("notifications")
     .select("id, is_archived, message")
@@ -4527,17 +4556,20 @@ export async function rejectAccountArchive({
 export function useAccountArchiveRequests(
   tab: ApprovalStatusTab = "pending",
   pagination?: RequestPaginationParams,
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: ["account-archive-requests", tab, pagination],
     queryFn: () => fetchAccountArchiveRequests(tab, pagination),
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useAccountArchiveCounts() {
+export function useAccountArchiveCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["account-archive-counts"],
     queryFn: () => fetchAccountArchiveCounts(),
+    enabled: options?.enabled ?? true,
     refetchInterval: 30000,
   });
 }
@@ -4755,18 +4787,21 @@ export async function fetchRollbackApprovalCounts(): Promise<RequestStatusCounts
 export function useRollbackApprovalRequests(
   tab: ApprovalStatusTab = "pending",
   pagination?: RequestPaginationParams,
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: ["rollback-approval-requests", tab, pagination?.page, pagination?.limit],
     queryFn: () => fetchRollbackApprovalRequests(tab, pagination),
+    enabled: options?.enabled ?? true,
     staleTime: 10_000,
   });
 }
 
-export function useRollbackApprovalCounts() {
+export function useRollbackApprovalCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["rollback-approval-counts"],
     queryFn: fetchRollbackApprovalCounts,
+    enabled: options?.enabled ?? true,
     staleTime: 10_000,
   });
 }

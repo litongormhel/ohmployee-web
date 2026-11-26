@@ -198,6 +198,16 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
   - `src/lib/queries/dataControl.ts`: updated `humanizeRollbackError` to recognize `zero_edit_lock` before generic `"lock"` checks, eliminating misleading "Another rollback is already in progress. Please wait and retry" messages.
   - `src/components/approvals/RollbackDataTable.tsx`: catches `ZERO_EDIT_LOCK` / `40001` and surfaces a permanent warning, swapping the Confirm button for "Close" to permanently prevent rapid repeated retries.
 
+---
+
+## 13. Active-Category Query Scoping & Role-Gated Category Counts (`ohm#fix-anon-permission-denied-log-burst-and-approvals-polling`)
+- **Active-Category Query Isolation (`src/components/approvals/ActiveQueueReviewPane.tsx`)**:
+  - All 11 approval queue list and status-count hooks (`useHeadcountRequests`, `useHeadcountCounts`, `useEmplocDeletionRequests`, `useEmplocDeletionCounts`, `useNewStoreRequests`, `useNewStoreCounts`, `useVacancyClosureRequests`, `useVacancyClosureCounts`, `useApplicantMovementRequests`, `useApplicantMovementCounts`, `useDeactivationRequests`, `useDeactivationCounts`, `useRelieverEndorsements`, `useRelieverCounts`, `useCoverageRequests`, `useCoverageCounts`, `useAccountApprovalQueue`, `useAccountRequestCounts`, `useAccountArchiveRequests`, `useAccountArchiveCounts`, `useRollbackApprovalRequests`, `useRollbackApprovalCounts`) accept `{ enabled?: boolean }` and are strictly gated by `enabled: selectedCategory === "<category_key>"`.
+  - Switching tabs in `/approvals` executes only the 2 queries belonging to the selected queue rather than fanning out 22 queries across all 11 queues simultaneously.
+- **Role-Gated & Session-Guarded Category Counters**:
+  - `useRequestCategoryCounts` in `Sidebar.tsx`, `DashboardPage`, and `ApprovalsPage` is gated by `enabled: Boolean(currentUser && (hasFullAccess(currentUser) || canViewApprovalsHub(currentUser)))`, and `fetchRequestCategoryCounts` checks `supabase.auth.getSession()` before dispatching count queries.
+
+
 
 
 

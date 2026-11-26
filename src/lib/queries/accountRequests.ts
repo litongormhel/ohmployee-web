@@ -65,6 +65,10 @@ export async function fetchApprovalQueue(
   pagination?: { page?: number; limit?: number }
 ): Promise<AccountRequestItem[]> {
   const supabase = createClient();
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData?.session) {
+    return [];
+  }
   const { data, error } = await supabase.rpc("get_approval_queue", {
     p_status: status,
   });
@@ -206,19 +210,22 @@ export async function fetchAccountRequestCounts(): Promise<{ pending: number; ap
 
 export function useAccountApprovalQueue(
   status: AccountRequestStatus = "pending",
-  pagination?: { page?: number; limit?: number }
+  pagination?: { page?: number; limit?: number },
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: ["account-approval-queue", status, pagination],
     queryFn: () => fetchApprovalQueue(status, pagination),
+    enabled: options?.enabled ?? true,
     refetchInterval: 30000,
   });
 }
 
-export function useAccountRequestCounts() {
+export function useAccountRequestCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["account-request-counts"],
     queryFn: () => fetchAccountRequestCounts(),
+    enabled: options?.enabled ?? true,
     retry: 1,
   });
 }

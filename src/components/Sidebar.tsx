@@ -3,10 +3,12 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { LogOut, Sparkles, Sun, Moon, Laptop, Search, Settings } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveModule, type WebModule } from "@/lib/modules";
 import { useCurrentUser } from "@/lib/auth";
+import { canViewApprovalsHub, hasFullAccess } from "@/lib/rbac";
 import { useRequestCategoryCounts } from "@/lib/queries/requests";
 import { useMyRequests, calculateMyRequestsCounts } from "@/lib/queries/my_requests";
 import { useUnreadNotificationsCount } from "@/lib/queries/notifications";
@@ -41,16 +43,21 @@ export function Sidebar({
 }: SidebarProps) {
   const path = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const activeModule = getActiveModule(path, visibleModules);
 
-  const { data: requestCounts } = useRequestCategoryCounts();
+  const currentUser = useCurrentUser();
+  const canViewApprovals = Boolean(
+    currentUser && (hasFullAccess(currentUser) || canViewApprovalsHub(currentUser))
+  );
+
+  const { data: requestCounts } = useRequestCategoryCounts({ enabled: canViewApprovals });
   const totalPendingCount = requestCounts
     ? Object.values(requestCounts).reduce((acc, c) => acc + c, 0)
     : 0;
 
   const { data: unreadNotificationsCount = 0 } = useUnreadNotificationsCount();
 
-  const currentUser = useCurrentUser();
   const { data: myRequestsData } = useMyRequests(currentUser);
   const myRequestsPendingCount = myRequestsData
     ? calculateMyRequestsCounts(myRequestsData).pending
@@ -80,6 +87,8 @@ export function Sidebar({
   };
 
   const logout = async () => {
+    queryClient.cancelQueries();
+    queryClient.clear();
     try {
       localStorage.setItem("ohmployee_theme_mode", "light");
       window.dispatchEvent(new Event("ohmployee-theme-change"));

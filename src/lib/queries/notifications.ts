@@ -229,6 +229,10 @@ export function useUnreadNotificationsCount() {
     queryKey: ["notifications-unread-count"],
     queryFn: async (): Promise<number> => {
       const supabase = createClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        return 0;
+      }
       const { count, error } = await supabase
         .from("notifications")
         .select("id", { count: "exact", head: true })

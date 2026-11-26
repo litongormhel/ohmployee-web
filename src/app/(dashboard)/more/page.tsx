@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useMemo, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   Archive,
@@ -131,6 +132,7 @@ const MORE_TABS: MoreTabItem[] = [
 function MorePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const currentUser = useCurrentUser();
 
   const { data: activeTempAccess } = useActiveTempPermission(
@@ -325,6 +327,8 @@ function MorePageContent() {
   const handleLogout = useCallback(async () => {
     setIsLoggingOut(true);
     try {
+      queryClient.cancelQueries();
+      queryClient.clear();
       try {
         localStorage.setItem("ohmployee_theme_mode", "light");
         window.dispatchEvent(new Event("ohmployee-theme-change"));
@@ -335,7 +339,7 @@ function MorePageContent() {
     } catch {
       router.push("/login");
     }
-  }, [router]);
+  }, [queryClient, router]);
 
   // ── Tab 1: Overview Shortcuts ─────────────────────────────────────────────
   const overviewTiles: MoreFeatureTile[] = useMemo(() => {

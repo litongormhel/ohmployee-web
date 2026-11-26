@@ -89,7 +89,7 @@ function ApprovalsPageContent() {
     isLoading: isLoadingCounts,
     refetch: refetchCounts,
     isRefetching: isRefetchingCounts,
-  } = useRequestCategoryCounts();
+  } = useRequestCategoryCounts({ enabled: Boolean(currentUser && isAuthorized) });
 
   const handleSelectCategory = (key: RequestCategoryKey) => {
     setLocalCategory(key);

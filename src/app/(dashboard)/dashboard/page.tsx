@@ -33,6 +33,7 @@ import { ScopeDropdown, type ScopeOption } from "@/components/shared/ScopeDropdo
 import { NeutralChip } from "@/components/shared/NeutralChip";
 import { Toast } from "@/components/shared/Toast";
 import { useCurrentUser } from "@/lib/auth";
+import { canViewApprovalsHub, hasFullAccess } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/client";
 import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
 import { AnnouncementBannerStrip } from "@/components/dashboard/AnnouncementBannerStrip";
@@ -100,8 +101,13 @@ export default function DashboardPage() {
   // Live Group KPI from CENCOM view
   const { data: groupKpiData, isLoading: isGroupKpiLoading } = useCencomGroupKpi();
 
+  const currentUser = useCurrentUser();
+  const canViewApprovals = Boolean(
+    currentUser && (hasFullAccess(currentUser) || canViewApprovalsHub(currentUser))
+  );
+
   // Reconciled Approvals Count from useRequestCategoryCounts
-  const { data: requestCounts } = useRequestCategoryCounts();
+  const { data: requestCounts } = useRequestCategoryCounts({ enabled: canViewApprovals });
 
   // Live SLA Breaches query
   const { data: slaBreachesData, isLoading: isSlaBreachesLoading } = useDashboardSlaBreaches();
@@ -267,8 +273,6 @@ export default function DashboardPage() {
   const criticalGroups = useMemo(() => {
     return displayedGroupRows.filter((g) => g.slaStatus === "Critical");
   }, [displayedGroupRows]);
-
-  const currentUser = useCurrentUser();
 
   // Check for unacknowledged urgent announcement
   const { data: unacknowledgedUrgent, refetch: refetchUrgent } = useQuery({

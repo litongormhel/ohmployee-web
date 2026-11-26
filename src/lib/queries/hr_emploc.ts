@@ -2129,18 +2129,21 @@ export async function rejectEmplocDeletion(
 
 export function useEmplocDeletionRequests(
   tab: "pending" | "approved" | "rejected" = "pending",
-  pagination?: { page?: number; limit?: number }
+  pagination?: { page?: number; limit?: number },
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: ["emploc_deletion_requests", tab, pagination],
     queryFn: () => fetchEmplocDeletionRequests(tab, pagination),
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useEmplocDeletionCounts() {
+export function useEmplocDeletionCounts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["emploc_deletion_counts"],
     queryFn: () => fetchEmplocDeletionCounts(),
+    enabled: options?.enabled ?? true,
     retry: 1,
   });
 }

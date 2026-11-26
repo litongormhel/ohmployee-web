@@ -248,7 +248,7 @@ export function ActiveQueueReviewPane({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // ── Queries & Live Counts ───────────────────────────────────────────────
+  // ── Queries & Live Counts (Strictly scoped to active selectedCategory) ───
   // 1. Headcount
   const {
     data: requests = [],
@@ -256,14 +256,18 @@ export function ActiveQueueReviewPane({
     isError,
     refetch,
     isRefetching,
-  } = useHeadcountRequests(headcountTab);
+  } = useHeadcountRequests(headcountTab, undefined, {
+    enabled: selectedCategory === "headcount",
+  });
 
   const {
     data: headcountCounts,
     isLoading: isHeadcountCountsLoading,
     isError: isHeadcountCountsError,
     refetch: refetchHeadcountCounts,
-  } = useHeadcountCounts();
+  } = useHeadcountCounts({
+    enabled: selectedCategory === "headcount",
+  });
 
   // 2. HR Emploc Deletions
   const {
@@ -272,14 +276,18 @@ export function ActiveQueueReviewPane({
     isError: isDeletionError,
     refetch: refetchDeletions,
     isRefetching: isDeletionRefetching,
-  } = useEmplocDeletionRequests(hrEmplocTab);
+  } = useEmplocDeletionRequests(hrEmplocTab, undefined, {
+    enabled: selectedCategory === "hr_emploc_deletions",
+  });
 
   const {
     data: deletionCounts,
     isLoading: isDeletionCountsLoading,
     isError: isDeletionCountsError,
     refetch: refetchDeletionCounts,
-  } = useEmplocDeletionCounts();
+  } = useEmplocDeletionCounts({
+    enabled: selectedCategory === "hr_emploc_deletions",
+  });
 
   // 3. New Store Requests
   const {
@@ -288,14 +296,18 @@ export function ActiveQueueReviewPane({
     isError: isNewStoreError,
     refetch: refetchNewStores,
     isRefetching: isNewStoreRefetching,
-  } = useNewStoreRequests(newStoreTab);
+  } = useNewStoreRequests(newStoreTab, undefined, {
+    enabled: selectedCategory === "new_stores",
+  });
 
   const {
     data: newStoreCounts,
     isLoading: isNewStoreCountsLoading,
     isError: isNewStoreCountsError,
     refetch: refetchNewStoreCounts,
-  } = useNewStoreCounts();
+  } = useNewStoreCounts({
+    enabled: selectedCategory === "new_stores",
+  });
 
   // 4. Vacancy Closures
   const {
@@ -304,14 +316,18 @@ export function ActiveQueueReviewPane({
     isError: isClosureError,
     refetch: refetchClosures,
     isRefetching: isClosureRefetching,
-  } = useVacancyClosureRequests(vacancyClosureTab);
+  } = useVacancyClosureRequests(vacancyClosureTab, undefined, {
+    enabled: selectedCategory === "vacancy_closures",
+  });
 
   const {
     data: closureCounts,
     isLoading: isClosureCountsLoading,
     isError: isClosureCountsError,
     refetch: refetchClosureCounts,
-  } = useVacancyClosureCounts();
+  } = useVacancyClosureCounts({
+    enabled: selectedCategory === "vacancy_closures",
+  });
 
   // 5. Applicant Movements
   const {
@@ -320,14 +336,18 @@ export function ActiveQueueReviewPane({
     isError: isMovementError,
     refetch: refetchMovements,
     isRefetching: isMovementRefetching,
-  } = useApplicantMovementRequests(movementTab);
+  } = useApplicantMovementRequests(movementTab, undefined, {
+    enabled: selectedCategory === "applicant_movements",
+  });
 
   const {
     data: movementCounts,
     isLoading: isMovementCountsLoading,
     isError: isMovementCountsError,
     refetch: refetchMovementCounts,
-  } = useApplicantMovementCounts();
+  } = useApplicantMovementCounts({
+    enabled: selectedCategory === "applicant_movements",
+  });
 
   // 6. Deactivations
   const {
@@ -336,14 +356,18 @@ export function ActiveQueueReviewPane({
     isError: isDeactError,
     refetch: refetchDeactivations,
     isRefetching: isDeactRefetching,
-  } = useDeactivationRequests(deactivationTab);
+  } = useDeactivationRequests(deactivationTab, undefined, {
+    enabled: selectedCategory === "deactivations",
+  });
 
   const {
     data: deactCounts,
     isLoading: isDeactCountsLoading,
     isError: isDeactCountsError,
     refetch: refetchDeactCounts,
-  } = useDeactivationCounts();
+  } = useDeactivationCounts({
+    enabled: selectedCategory === "deactivations",
+  });
 
   // 8. Relievers
   const {
@@ -352,14 +376,18 @@ export function ActiveQueueReviewPane({
     isError: isRelieverError,
     refetch: refetchRelievers,
     isRefetching: isRelieverRefetching,
-  } = useRelieverEndorsements(relieverTab);
+  } = useRelieverEndorsements(relieverTab, undefined, {
+    enabled: selectedCategory === "relievers",
+  });
 
   const {
     data: relieverCounts,
     isLoading: isRelieverCountsLoading,
     isError: isRelieverCountsError,
     refetch: refetchRelieverCounts,
-  } = useRelieverCounts();
+  } = useRelieverCounts({
+    enabled: selectedCategory === "relievers",
+  });
 
   // 9. Coverage
   const {
@@ -368,14 +396,18 @@ export function ActiveQueueReviewPane({
     isError: isRovingError,
     refetch: refetchRoving,
     isRefetching: isRovingRefetching,
-  } = useCoverageRequests(coverageTab);
+  } = useCoverageRequests(coverageTab, undefined, {
+    enabled: selectedCategory === "coverage",
+  });
 
   const {
     data: coverageCounts,
     isLoading: isCoverageCountsLoading,
     isError: isCoverageCountsError,
     refetch: refetchCoverageCounts,
-  } = useCoverageCounts();
+  } = useCoverageCounts({
+    enabled: selectedCategory === "coverage",
+  });
 
   // 10. Account Sign-Up Requests
   const {
@@ -384,14 +416,18 @@ export function ActiveQueueReviewPane({
     isError: isAccountError,
     refetch: refetchAccount,
     isRefetching: isAccountRefetching,
-  } = useAccountApprovalQueue(accountTab);
+  } = useAccountApprovalQueue(accountTab, undefined, {
+    enabled: selectedCategory === "account_requests",
+  });
 
   const {
     data: accountCounts,
     isLoading: isAccountCountsLoading,
     isError: isAccountCountsError,
     refetch: refetchAccountCounts,
-  } = useAccountRequestCounts();
+  } = useAccountRequestCounts({
+    enabled: selectedCategory === "account_requests",
+  });
 
   // 12. Account Archives
   const {
@@ -400,14 +436,20 @@ export function ActiveQueueReviewPane({
     isError: isArchiveError,
     refetch: refetchArchive,
     isRefetching: isArchiveRefetching,
-  } = useAccountArchiveRequests(archiveTab, { page, limit: pageSize });
+  } = useAccountArchiveRequests(
+    archiveTab,
+    { page, limit: pageSize },
+    { enabled: selectedCategory === "account_archives" }
+  );
 
   const {
     data: archiveCounts,
     isLoading: isArchiveCountsLoading,
     isError: isArchiveCountsError,
     refetch: refetchArchiveCounts,
-  } = useAccountArchiveCounts();
+  } = useAccountArchiveCounts({
+    enabled: selectedCategory === "account_archives",
+  });
 
   const archiveRequests = useMemo(() => archiveData?.data ?? [], [archiveData?.data]);
   const archiveTotalCount = archiveData?.totalCount ?? archiveRequests.length;
@@ -418,14 +460,20 @@ export function ActiveQueueReviewPane({
     isError: isRollbackError,
     refetch: refetchRollback,
     isRefetching: isRollbackRefetching,
-  } = useRollbackApprovalRequests(rollbackTab, { page, limit: pageSize });
+  } = useRollbackApprovalRequests(
+    rollbackTab,
+    { page, limit: pageSize },
+    { enabled: selectedCategory === "rollbacks" }
+  );
 
   const {
     data: rollbackCounts,
     isLoading: isRollbackCountsLoading,
     isError: isRollbackCountsError,
     refetch: refetchRollbackCounts,
-  } = useRollbackApprovalCounts();
+  } = useRollbackApprovalCounts({
+    enabled: selectedCategory === "rollbacks",
+  });
 
   const rollbackRequests = useMemo(() => rollbackData?.data ?? [], [rollbackData?.data]);
   const rollbackTotalCount = rollbackData?.totalCount ?? rollbackRequests.length;
