@@ -28,6 +28,7 @@ import {
 import { useRefCities } from "@/lib/queries/locations";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
+import { formatPosition } from "@/lib/utils/displayText";
 import type { ActionModalProps } from "@/types/modal";
 
 export interface RequestHeadcountModalProps extends ActionModalProps<SubmitHeadcountRequestResult | undefined> {
@@ -1036,7 +1037,7 @@ function RequestHeadcountModalDialog({
                     >
                       {positions.map((pos) => (
                         <option key={pos.id} value={pos.id}>
-                          {pos.position_name}
+                          {formatPosition(pos.position_name)}
                         </option>
                       ))}
                     </select>
@@ -1282,7 +1283,7 @@ function RequestHeadcountModalDialog({
                   <div>
                     <span className="text-[11px] font-semibold text-text-muted">Position</span>
                     <div className="text-sm font-bold text-text-primary mt-0.5">
-                      {selectedPosition?.position_name}
+                      {formatPosition(selectedPosition?.position_name)}
                     </div>
                   </div>
                   <div>

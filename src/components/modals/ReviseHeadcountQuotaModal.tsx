@@ -5,6 +5,7 @@ import { AlertCircle, Minus, Plus, ShieldAlert } from "lucide-react";
 import { useReviseHeadcountQuota, useVcodeQuotaDetails } from "@/lib/queries/quota";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
+import { formatPosition } from "@/lib/utils/displayText";
 import type { ActionModalProps } from "@/types/modal";
 
 export interface ReviseHeadcountQuotaModalProps extends ActionModalProps {
@@ -80,7 +81,7 @@ export function ReviseHeadcountQuotaModal({
   };
 
   const resolvedStoreName = quotaDetails?.storeName ?? storeName ?? "Store Allocation";
-  const resolvedPosition = quotaDetails?.positionTitle ?? positionTitle ?? "Position Title";
+  const resolvedPosition = formatPosition(quotaDetails?.positionTitle ?? positionTitle ?? "Position Title");
   const delta = targetQuota - currentQuota;
 
   return (

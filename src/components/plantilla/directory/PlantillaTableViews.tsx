@@ -509,7 +509,7 @@ export function StoreVacancyTable({
                     {agingDaysDisplay}
                   </td>
                   <td className="px-3.5 py-2 font-medium text-table-text text-xs whitespace-nowrap">
-                    {row.position_title || "General Staff"}
+                    {row.position_title ? formatPosition(row.position_title) : "General Staff"}
                   </td>
                   <td className="px-3.5 py-2 whitespace-nowrap">
                     <span

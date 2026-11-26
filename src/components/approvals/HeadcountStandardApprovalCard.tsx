@@ -18,6 +18,7 @@ import {
   useHcRequestStores,
   type HeadcountRequestItem,
 } from "@/lib/queries/requests";
+import { formatPosition } from "@/lib/utils/displayText";
 
 interface HeadcountStandardApprovalCardProps {
   request: HeadcountRequestItem;
@@ -123,7 +124,7 @@ export function HeadcountStandardApprovalCard({
             <span>{request.storeName ?? "Unassigned Store"}</span>
             {request.positionName && (
               <span className="text-sm font-normal text-text-secondary">
-                — {request.positionName}
+                — {formatPosition(request.positionName)}
               </span>
             )}
           </h3>
@@ -250,7 +251,7 @@ export function HeadcountStandardApprovalCard({
               <span className="font-semibold text-text-primary">
                 {request.storeName || (isRoving ? "Roving Cluster" : "Headcount Requisition")}
               </span>{" "}
-              ({request.positionName}) requesting{" "}
+              ({formatPosition(request.positionName)}) requesting{" "}
               <span className="font-semibold text-text-primary">
                 +{request.headcountNeeded} headcount
               </span>.
@@ -337,7 +338,7 @@ export function HeadcountStandardApprovalCard({
             <p>
               Are you sure you want to reject the headcount request for{" "}
               <span className="font-semibold text-text-primary">{request.storeName}</span>{" "}
-              ({request.positionName})?
+              ({formatPosition(request.positionName)})?
             </p>
 
             {actionError && (

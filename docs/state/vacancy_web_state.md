@@ -572,6 +572,19 @@ Resolved remaining 5 legacy VCode drifts and archived orphan applicant across St
 
 ---
 
+## Standardized Position Title Casing & Account Deduplication (`ohm#normalize-positions-proper-case-and-deduplicate-accounts`)
+
+Standardized all job positions across vacancies, applicants, and requisitions ([20262606000209_normalize_positions_and_deduplicate_accounts.sql](file:///D:/Projects/ohmployee-web/supabase/migrations/20262606000209_normalize_positions_and_deduplicate_accounts.sql)):
+1. **Title Case + Acronym Uppercase Standard**:
+   - All positions must strictly follow **Proper / Title Case** formatting.
+   - Tokens with 2 to 3 letters are strictly formatted in **UPPERCASE** (e.g., `FSR`, `SMP`, `AR`, `GL`, `QA`, `TL`, `OM`, `ATL`, `HR`, `IT`, `CSR`, `TSR`, `CIP`, `RMA`, plus allowlist `HRCO`, `HQ`).
+   - Standard is enforced in DB via `public.fn_format_position_title(text)`, in Web via `formatPosition` (`src/lib/utils/displayText.ts`), and in Mobile via `toPositionCase` (`lib/shared/utils/display_text_formatter.dart`).
+2. **Account Position Deduplication**:
+   - Enforced unique index `uq_account_positions_account_position` on `(account_id, position_id)` and `uq_positions_normalized_name` on `LOWER(TRIM(position_name))` in `public.positions`.
+   - All vacancy and applicant UI surfaces (`AddApplicantModal`, `MarkHiredModal`, `listVacancies`, `vw_vacancy_list`) format positions uniformly.
+
+---
+
 > [!NOTE]
 > **Historical Assessment & Implementation Phases Archive:**
 > Historical pre-implementation assessments and phase checklists have been archived to [`docs/state/archive/vacancy_web_state_historical.md`](archive/vacancy_web_state_historical.md) to keep this live specification token-optimized.

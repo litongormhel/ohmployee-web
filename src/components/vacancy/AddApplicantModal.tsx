@@ -6,6 +6,7 @@ import { useEndorseApplicant, useVacancyRequirements, type VacancyRequirementIte
 import { useCurrentUser } from "@/lib/auth";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
+import { formatPosition } from "@/lib/utils/displayText";
 
 export interface VacancyContextSummary {
   vcode: string;
@@ -271,8 +272,8 @@ function AddApplicantModalContent({
                 {requirements.length > 1
                   ? `Multi-Position (${requirements.length} Positions)`
                   : requirements.length === 1
-                  ? requirements[0].positionName
-                  : vacancy.positionTitle || "General Staff"}
+                  ? formatPosition(requirements[0].positionName)
+                  : formatPosition(vacancy.positionTitle || "General Staff")}
               </span>
               <span className="text-text-muted">•</span>
               <span>{vacancy.storeName || "—"}</span>
@@ -339,7 +340,7 @@ function AddApplicantModalContent({
                               : "text-text-primary"
                           }`}
                         >
-                          {req.positionName}
+                          {formatPosition(req.positionName)}
                         </span>
                         {isFull ? (
                           <span className="text-[10px] font-semibold text-danger-text bg-danger-bg px-1.5 py-0.5 rounded border border-danger-border shrink-0">

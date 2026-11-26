@@ -1,5 +1,86 @@
 # AI Handoff
 
+## Execution Report — Standardize Positions to Proper Format, Enforce 2-3 Letter Acronym Uppercase Rule, and Deduplicate Account Positions (ohm#normalize-positions-proper-case-and-deduplicate-accounts)
+**Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging, All 272 Tests Passing, 0 Lint Warnings, Next.js 16.2.4 Build Clean
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants — `source_commit: 08ac81e`)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (ADR-001 Plantilla Baseline & Slot Authority — `source_commit: 08ac81e`)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (ADR-002 Store Identity & Vacancy Capacity Matrix — `source_commit: 08ac81e`)
+
+### What Was Done
+1. **Forensic Audit & Database Normalization Migration (`20262606000209_normalize_positions_and_deduplicate_accounts.sql`)**:
+   - Diagnosed 5 legacy uppercase duplicate pairs in master `public.positions` with distinct UUIDs:
+     - `MERCHANDISER` (`6967073b-5353-488b-a486-538be140da7b`) vs `Merchandiser` (`30d4beff-29a8-4447-9755-9b2f6efba2ee`)
+     - `CASHIER` (`29177119-0118-4702-861f-901d8e12154c`) vs `Cashier` (`75ae0d33-3171-419b-ba2d-4ceea319a2e6`)
+     - `PROMODISER` (`ab54f891-9e8a-4467-b50a-f1190bc9311f`) vs `Promodiser` (`88267272-3580-4da2-81dc-9081e6490664`)
+     - `INVENTORY CLERK` (`83f5cb6a-fe29-459f-96a9-83bc8ef589c3`) vs `Inventory Clerk` (`a57f2025-a134-4541-b855-46b412e84d41`)
+     - `SERVICE CREW` (`c5ebff26-a61d-4076-afbe-a15239a519e9`) vs `Service Crew` (`3a097241-e946-4193-9c59-bf72b8d0e74b`)
+   - Found that multiple accounts linked BOTH UUIDs in `public.account_positions`, resulting in duplicate dropdown options across Web and Mobile.
+   - Found that 1,029 / 1,236 rows in `plantilla` and 1,180 / 1,444 rows in `plantilla_slots` were uppercase.
+   - Built and applied migration `20262606000209_normalize_positions_and_deduplicate_accounts.sql` to Staging (`qqiiznmqxfoamqytjica`):
+     - Created immutable SQL function `public.fn_format_position_title(p_text text)` implementing Title Case + 2-3 letter token uppercase (`FSR`, `SMP`, `AR`, `GL`, `QA`, `TL`, `OM`, `ATL`, `HR`, `IT`, `CSR`, `TSR`, `CIP`, `RMA`) + allowlist (`HRCO`, `HQ`).
+     - Re-pointed all child tables (`account_positions`, `plantilla`, `vacancies`, `hr_emploc`, `headcount_requests`, `coverage_groups`, `coverage_requests`, `headcount_quota_revisions`, `workforce_pool_request_items`, `employee_transfers`) to canonical Proper Case position IDs and deleted the 5 deprecated master rows.
+     - Deduplicated `public.account_positions` using window partitioning and created unique index `uq_account_positions_account_position` on `(account_id, position_id)`.
+     - Normalized all `position_name` in `public.positions` and created unique index `uq_positions_normalized_name` on `LOWER(TRIM(position_name))`.
+     - Formatted historical strings in `plantilla.position`, `vacancies.position`, `plantilla_slots.position`, `hr_emploc.position`, and `headcount_requests.position_name_snapshot`.
+2. **Web Repository Updates (`ohmployee-web`)**:
+   - `src/lib/utils/displayText.ts`: Updated `formatPosition` to enforce Proper Case with 2–3 letter tokens strictly UPPERCASE.
+   - `src/lib/queries/requests.ts`: Formatted position options and deduplicated by normalized name in `fetchHeadcountFormOptions`.
+   - Wrapped position displays and select dropdowns across:
+     - `src/app/(dashboard)/plantilla/[id]/page.tsx`
+     - `src/components/vacancy/AddApplicantModal.tsx`
+     - `src/components/plantilla/directory/RequestStoreReactivationModal.tsx`
+     - `src/components/modals/RequestHeadcountModal.tsx`
+     - `src/components/modals/ReviseHeadcountQuotaModal.tsx`
+     - `src/components/modals/RequestHeadcountAdjustmentModal.tsx`
+     - `src/components/approvals/HeadcountStandardApprovalCard.tsx`
+     - `src/components/approvals/HeadcountAmendmentApprovalCard.tsx`
+     - `src/components/approvals/NewStoreDataTable.tsx`
+     - `src/components/plantilla/AssignStoreModal.tsx`
+     - `src/components/plantilla/directory/PlantillaTableViews.tsx`
+     - `src/components/plantilla/directory/PlantillaCardViews.tsx`
+   - Added unit test suite `src/lib/utils/__tests__/display_position_casing.test.mjs` covering acronyms, multi-word titles, numbers, delimiters, and null safety.
+3. **Mobile Repository Updates (`D:\Projects\OHMployee`)**:
+   - `lib/shared/utils/display_text_formatter.dart`: Added `toPositionCase(String? value)` and expanded acronym list.
+   - `lib/data/services/account_position_service.dart`: Applied `toPositionCase` on `AccountPosition.fromRpcRow` and deduplicated positions per account by `name.toLowerCase()`.
+   - Synced migration `20262606000209_normalize_positions_and_deduplicate_accounts.sql` to `D:\Projects\OHMployee\supabase\migrations/`.
+4. **Verification**:
+   - `npm test`: 272/272 unit tests passed cleanly (including 4 new position casing tests).
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run check:sql`: Passed 28 core tables & 19 cross-module RPC checks.
+   - `npm run build`: Next.js 16.2.4 Turbopack production build succeeded.
+
+### Files Changed
+- `supabase/migrations/20262606000209_normalize_positions_and_deduplicate_accounts.sql`
+- `src/lib/utils/displayText.ts`
+- `src/lib/queries/requests.ts`
+- `src/lib/utils/__tests__/display_position_casing.test.mjs`
+- `src/app/(dashboard)/plantilla/[id]/page.tsx`
+- `src/components/vacancy/AddApplicantModal.tsx`
+- `src/components/plantilla/directory/RequestStoreReactivationModal.tsx`
+- `src/components/modals/RequestHeadcountModal.tsx`
+- `src/components/modals/ReviseHeadcountQuotaModal.tsx`
+- `src/components/modals/RequestHeadcountAdjustmentModal.tsx`
+- `src/components/approvals/HeadcountStandardApprovalCard.tsx`
+- `src/components/approvals/HeadcountAmendmentApprovalCard.tsx`
+- `src/components/approvals/NewStoreDataTable.tsx`
+- `src/components/plantilla/AssignStoreModal.tsx`
+- `src/components/plantilla/directory/PlantillaTableViews.tsx`
+- `src/components/plantilla/directory/PlantillaCardViews.tsx`
+- `AGENTS.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+- `docs/state/plantilla_web_state.md`
+- `docs/state/vacancy_web_state.md`
+- Mobile: `D:\Projects\OHMployee\lib\shared\utils\display_text_formatter.dart`
+- Mobile: `D:\Projects\OHMployee\lib\data\services\account_position_service.dart`
+- Mobile: `D:\Projects\OHMployee\supabase\migrations\20262606000209_normalize_positions_and_deduplicate_accounts.sql`
+
+---
+
+# AI Handoff
+
 ## Execution Report — Codify Diagnostic & Inspection Gate (Check, Investigate, Audit = Strict Read-Only Mode) (ohm#codify-diagnostic-read-only-gate)
 **Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, Codified across AGENTS.md & briefing.md
 

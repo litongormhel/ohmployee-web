@@ -109,6 +109,12 @@
       npx supabase link --project-ref rwxelulyapjgaarlwkus; npx supabase db push --include-all --yes; npx supabase link --project-ref qqiiznmqxfoamqytjica
       ```
 - Conclude every turn report with both: (1) an explicit **Next Steps** section covering immediate actions/guidance, and (2) a helpful `> [!TIP]` callout covering operational tips, verification commands, or deployment commands.
+- End-of-Turn Model & Token Burn Reporting Rule:
+  At the end of EVERY prompt report, always include the model(s) used and token burn estimate:
+  ```text
+  Model & Token Burn:
+  - <Model Name> - ~<Tokens> tokens
+  ```
 
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know

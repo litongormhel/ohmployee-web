@@ -20,6 +20,7 @@ import {
   useRejectHeadcountRequest,
   type HeadcountRequestItem,
 } from "@/lib/queries/requests";
+import { formatPosition } from "@/lib/utils/displayText";
 
 interface HeadcountAmendmentApprovalCardProps {
   request: HeadcountRequestItem;
@@ -134,7 +135,7 @@ export function HeadcountAmendmentApprovalCard({
             <span>{request.storeName ?? "Unassigned Store"}</span>
             {request.positionName && (
               <span className="text-sm font-normal text-text-secondary">
-                — {request.positionName}
+                — {formatPosition(request.positionName)}
               </span>
             )}
           </h3>

@@ -52,6 +52,7 @@ import { TransferPersonnelModal } from "@/components/plantilla/TransferPersonnel
 import { UpdateScheduleModal } from "@/components/plantilla/UpdateScheduleModal";
 import { ReassignHrcoModal } from "@/components/plantilla/ReassignHrcoModal";
 import { useInheritedHrcoMap } from "@/components/hr-emploc/useInheritedHrco";
+import { formatPosition } from "@/lib/utils/displayText";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -614,7 +615,7 @@ function PlantillaEmployeeDetailContent() {
                       <span className="text-text-muted">•</span>
                       <span className="flex items-center gap-1">
                         <Briefcase className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                        {data.positionTitle || "Position Unassigned"}
+                        {data.positionTitle ? formatPosition(data.positionTitle) : "Position Unassigned"}
                       </span>
                       <span className="text-text-muted">•</span>
                       <span className="flex items-center gap-1">
@@ -943,9 +944,9 @@ function PlantillaEmployeeDetailContent() {
                       </span>
                       <p
                         className="font-bold text-text-primary text-sm mt-1 truncate"
-                        title={data.positionTitle || "—"}
+                        title={data.positionTitle ? formatPosition(data.positionTitle) : "—"}
                       >
-                        {data.positionTitle || "—"}
+                        {data.positionTitle ? formatPosition(data.positionTitle) : "—"}
                       </p>
                     </div>
 

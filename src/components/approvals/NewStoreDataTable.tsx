@@ -24,6 +24,7 @@ import {
   type ApprovalStatusTab,
 } from "@/lib/queries/requests";
 import { useCurrentUser } from "@/lib/auth";
+import { formatPosition } from "@/lib/utils/displayText";
 
 interface NewStoreDataTableProps {
   requests: NewStoreRequestItem[];
@@ -541,7 +542,7 @@ export function NewStoreDataTable({
                         </div>
                         {request.isHeadcountRovingCluster && (
                           <span className="text-[11px] text-text-secondary mt-0.5">
-                            Position: <strong className="text-text-primary">{request.position || "Staff"}</strong>
+                            Position: <strong className="text-text-primary">{formatPosition(request.position) || "Staff"}</strong>
                           </span>
                         )}
                         {request.status === "pending_super_admin" ? (
@@ -751,7 +752,7 @@ export function NewStoreDataTable({
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Position:</span>
                   <span className="font-medium text-text-primary">
-                    {selectedApproveRequest.position}
+                    {formatPosition(selectedApproveRequest.position)}
                   </span>
                 </div>
               )}

@@ -14,7 +14,7 @@ import {
   useHeadcountModalMasterData,
   useSubmitStoreReactivation,
 } from "@/lib/queries/requests";
-import { formatStoreName } from "@/lib/utils/displayText";
+import { formatStoreName, formatPosition } from "@/lib/utils/displayText";
 import type { StoreCapacityRow } from "./types";
 
 export interface RequestStoreReactivationModalProps {
@@ -178,11 +178,14 @@ export function RequestStoreReactivationModal({
             <option value="">
               {isLoadingMasterData ? "Loading available positions..." : "— Select Target Position —"}
             </option>
-            {positionsList.map((p) => (
-              <option key={p.id} value={p.position_name}>
-                {p.position_name}
-              </option>
-            ))}
+            {positionsList.map((p) => {
+              const formattedName = formatPosition(p.position_name);
+              return (
+                <option key={p.id} value={formattedName}>
+                  {formattedName}
+                </option>
+              );
+            })}
             {!isLoadingMasterData && positionsList.length === 0 && (
               <>
                 <option value="Staff">Staff</option>

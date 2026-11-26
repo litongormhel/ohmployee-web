@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { formatPersonName } from "@/lib/utils/formatName";
+import { formatPosition } from "@/lib/utils/displayText";
 import {
   approvePlantillaImportRollback,
   rejectPlantillaImportRollback,
@@ -1062,18 +1063,26 @@ export async function fetchHeadcountModalMasterData(
     loadedStores = storesRes.value.data as HeadcountStoreOption[];
   }
 
-  let loadedPositions: HeadcountPositionOption[] = [];
+  const loadedPositions: HeadcountPositionOption[] = [];
   if (positionsRes.status === "fulfilled" && !positionsRes.value.error && positionsRes.value.data) {
     const rows = positionsRes.value.data as {
       position_id: string;
       position_name: string;
       position_code?: string;
     }[];
-    loadedPositions = rows.map((r) => ({
-      id: r.position_id,
-      position_name: r.position_name,
-      position_code: r.position_code,
-    }));
+    const seenPos = new Set<string>();
+    for (const r of rows) {
+      const formatted = formatPosition(r.position_name);
+      const key = formatted.toLowerCase();
+      if (!seenPos.has(key)) {
+        seenPos.add(key);
+        loadedPositions.push({
+          id: r.position_id,
+          position_name: formatted,
+          position_code: r.position_code,
+        });
+      }
+    }
   } else {
     // Fallback to table query
     const { data: posData } = await supabase
@@ -1082,10 +1091,18 @@ export async function fetchHeadcountModalMasterData(
       .eq("is_active", true)
       .order("position_name");
     if (posData && posData.length > 0) {
-      loadedPositions = posData.map((p) => ({
-        id: p.id,
-        position_name: p.position_name,
-      }));
+      const seenPos = new Set<string>();
+      for (const p of posData) {
+        const formatted = formatPosition(p.position_name);
+        const key = formatted.toLowerCase();
+        if (!seenPos.has(key)) {
+          seenPos.add(key);
+          loadedPositions.push({
+            id: p.id,
+            position_name: formatted,
+          });
+        }
+      }
     }
   }
 

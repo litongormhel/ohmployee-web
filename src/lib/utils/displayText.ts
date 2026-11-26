@@ -136,10 +136,28 @@ export function formatPersonName(
 }
 
 /**
- * Specialized alias for position titles
+ * Specialized alias for position titles.
+ * All positions must be in proper format even if the DB is CAPSLOCK or lowercase all.
+ * Tokens with 2 to 3 letters are strictly UPPERCASE all (e.g. FSR, SMP, QA, TL, OM, ATL, HR, IT, AR, GL).
+ * Words with 4+ letters are Proper Case (e.g. Merchandiser, Cashier, Collector).
  */
 export function formatPosition(pos: string | null | undefined): string {
-  return formatDisplayText(pos);
+  if (!pos) return "";
+  if (typeof pos !== "string") return String(pos);
+
+  const parts = pos.trim().split(/([ \t\r\n,/()\-.]+)/);
+  return parts
+    .map((part) => {
+      if (/^[ \t\r\n,/()\-.]+$/.test(part)) return part;
+      if (/\d/.test(part)) return part;
+      const upper = part.toUpperCase();
+      if (ACRONYM_ALLOWLIST.has(upper)) return upper;
+      if (/^[a-zA-Z]{2,3}$/.test(part)) return upper;
+      const first = part.charAt(0).toLocaleUpperCase("en-PH");
+      const rest = part.slice(1).toLocaleLowerCase("en-PH");
+      return first + rest;
+    })
+    .join("");
 }
 
 /**

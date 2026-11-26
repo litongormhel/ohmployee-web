@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Store, AlertCircle, Loader2 } from "lucide-react";
 import { Modal } from "@/components/shared/Modal";
 import { assignFloatingEmployeeToStore } from "@/lib/queries/plantilla";
+import { formatPosition } from "@/lib/utils/displayText";
 import type { ActionModalProps } from "@/types/modal";
 
 export interface AssignStoreModalProps extends ActionModalProps {
@@ -159,7 +160,7 @@ export function AssignStoreModal({
           </div>
           <div className="flex justify-between">
             <span className="text-text-muted">Position / Role:</span>
-            <span className="font-semibold text-text-primary">{employee.positionTitle || "General Staff"}</span>
+            <span className="font-semibold text-text-primary">{formatPosition(employee.positionTitle) || "General Staff"}</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-text-muted">Current Status:</span>

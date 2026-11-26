@@ -5,6 +5,7 @@ import { AlertCircle, ArrowRight, Minus, Plus, ShieldAlert } from "lucide-react"
 import { useSubmitHeadcountAmendment, useVcodeQuotaDetails } from "@/lib/queries/quota";
 import { Modal } from "@/components/shared/Modal";
 import { RequiredAsterisk } from "@/components/shared/RequiredAsterisk";
+import { formatPosition } from "@/lib/utils/displayText";
 import type { ActionModalProps } from "@/types/modal";
 
 export interface RequestHeadcountAdjustmentModalProps extends ActionModalProps {
@@ -92,7 +93,7 @@ export function RequestHeadcountAdjustmentModal({
   };
 
   const resolvedStoreName = quotaDetails?.storeName ?? storeName ?? "Store Allocation";
-  const resolvedPosition = quotaDetails?.positionTitle ?? positionTitle ?? "Position Title";
+  const resolvedPosition = formatPosition(quotaDetails?.positionTitle ?? positionTitle ?? "Position Title");
 
   return (
     <Modal

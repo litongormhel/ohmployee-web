@@ -93,7 +93,7 @@ export function EmployeeCard({
               </span>
               <span className="text-text-muted/40">•</span>
               <span className="font-semibold text-brand-primary truncate">
-                {row.positionTitle || "General Staff"}
+                {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
               </span>
             </div>
           </div>
@@ -191,7 +191,7 @@ export function EmployeeOnLeaveCard({
               <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
               <span className="text-text-muted/40">•</span>
               <span className="font-semibold text-text-secondary truncate">
-                {row.positionTitle || "General Staff"}
+                {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
               </span>
             </div>
           </div>
@@ -537,7 +537,7 @@ export function EmployeeFloatingCard({
               <span className="font-mono text-text-secondary">{row.employeeNo || "—"}</span>
               <span className="text-text-muted/40">•</span>
               <span className="font-semibold text-text-secondary truncate">
-                {row.positionTitle || "General Staff"}
+                {row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}
               </span>
             </div>
           </div>
@@ -650,7 +650,7 @@ export function EmployeeDeactivationCard({
         </div>
 
         <div className="mt-2.5 text-xs text-text-secondary">
-          <span className="font-medium text-text-secondary">{row.positionTitle || "General Staff"}</span>
+          <span className="font-medium text-text-secondary">{row.positionTitle ? formatPosition(row.positionTitle) : "General Staff"}</span>
         </div>
       </div>
 
