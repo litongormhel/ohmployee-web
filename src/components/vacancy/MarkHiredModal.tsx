@@ -179,7 +179,7 @@ function MarkHiredModalContent({
         return { cgId: null, cgCode: null, stores: [], isCandidateAlreadyActiveInPlantilla: false };
       }
 
-      const [cgsRes, hslRes, pslRes, activePlRes] = await Promise.all([
+      const [cgsRes, hslRes, pslRes, activePlRes, appRes, hrRes] = await Promise.all([
         supabase
           .from("coverage_group_stores")
           .select("store_id, is_anchor, hc_share, stores(id, store_name, vcode), coverage_groups(coverage_code)")
@@ -203,6 +203,19 @@ function MarkHiredModalContent({
           .eq("coverage_group_id", targetCgId)
           .in("status", ["Active", "On Leave"])
           .or("is_deleted.is.null,is_deleted.eq.false"),
+        supabase
+          .from("applicants")
+          .select("vacancy_vcode, status")
+          .eq("coverage_group_id", targetCgId)
+          .ilike("full_name", applicant.fullName.trim())
+          .eq("status", "Confirmed Onboard")
+          .is("is_archived", false),
+        supabase
+          .from("hr_emploc")
+          .select("vcode, store_id, covered_stores")
+          .eq("coverage_group_id", targetCgId)
+          .ilike("applicant_name", applicant.fullName.trim())
+          .is("deleted_at", null),
       ]);
 
       if (cgsRes.error) {
@@ -217,6 +230,21 @@ function MarkHiredModalContent({
       }
       for (const p of pslRes.data ?? []) {
         if (p.vcode) confirmedVcodes.add(String(p.vcode).toUpperCase());
+      }
+      for (const a of appRes.data ?? []) {
+        if (a.vacancy_vcode) confirmedVcodes.add(String(a.vacancy_vcode).toUpperCase());
+      }
+      for (const h of hrRes.data ?? []) {
+        if (h.vcode) confirmedVcodes.add(String(h.vcode).toUpperCase());
+        if (h.store_id) confirmedStoreIds.add(String(h.store_id));
+        if (Array.isArray(h.covered_stores)) {
+          for (const cs of h.covered_stores as Array<Record<string, unknown>>) {
+            if (cs.status === "Confirmed") {
+              if (cs.store_id) confirmedStoreIds.add(String(cs.store_id));
+              if (cs.vcode) confirmedVcodes.add(String(cs.vcode).toUpperCase());
+            }
+          }
+        }
       }
 
       const items = (cgsRes.data ?? []) as Array<Record<string, unknown>>;

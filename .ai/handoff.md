@@ -1,5 +1,79 @@
 # AI Handoff
 
+## Execution Report — Harden Coverage Group Onboarding RPC and Modal Against Duplicate Key Violations on idx_applicants_no_active_duplicate (ohm#fix-coverage-group-onboarding-applicant-vcode-conflict)
+**Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging, All 268 Tests Passing, 0 Lint Warnings
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (ADR-002 Store Identity & Vacancy Capacity Matrix)
+- `docs/architecture/_mirror/adr/03_hr_emploc.md` (Coverage Group & Roving Onboarding Lifecycle)
+
+### What Was Done
+1. **Forensic Root Cause Analysis**:
+   - In the **Confirm Onboarding / Mark Hired** modal for candidate `AGAWA, BERNARDINO OPENARIA` on `SSM JAZZ` (`VPSMG3_0016`), submitting onboarding with member stores selected failed with:
+     ```text
+     duplicate key value violates unique constraint "idx_applicants_no_active_duplicate"
+     ```
+   - In PostgreSQL, index `idx_applicants_no_active_duplicate` enforces `UNIQUE (vacancy_vcode, lower(trim(full_name))) WHERE is_archived = false`.
+   - In `public.confirm_coverage_group_onboarding` Step 6, the SQL previously executed:
+     ```sql
+     vacancy_vcode = COALESCE(v_first_selected_vcode, vacancy_vcode)
+     ```
+   - Because `SMCO ONEMALL` (`VPSMG3_0008`) was the anchor store of the Coverage Group (`CG-PG3-0001`), `v_first_selected_vcode` resolved to `VPSMG3_0008`.
+   - This forcibly clobbered the applicant's `vacancy_vcode` from `VPSMG3_0016` to `VPSMG3_0008`.
+   - Because an active applicant row for AGAWA already existed on `VPSMG3_0008` (from prior onboarding/intake), updating the second row's `vacancy_vcode` to `VPSMG3_0008` instantly triggered the unique constraint collision on `(VPSMG3_0008, 'agawa, bernardino openaria')`.
+2. **Database Hardening (`20262606000201_fix_coverage_group_onboarding_applicant_vcode_conflict.sql`)**:
+   - Replaced `public.confirm_coverage_group_onboarding`:
+     ```sql
+     vacancy_vcode = CASE
+       WHEN vacancy_vcode IS NOT NULL THEN vacancy_vcode
+       WHEN v_group.coverage_code IS NOT NULL AND NOT EXISTS (
+         SELECT 1 FROM public.applicants d
+          WHERE d.vacancy_vcode = v_group.coverage_code
+            AND LOWER(TRIM(d.full_name)) = LOWER(TRIM(v_app.full_name))
+            AND COALESCE(d.is_archived, false) = false
+            AND d.id <> p_applicant_id
+       ) THEN v_group.coverage_code
+       WHEN v_first_selected_vcode IS NOT NULL AND NOT EXISTS (
+         SELECT 1 FROM public.applicants d
+          WHERE d.vacancy_vcode = v_first_selected_vcode
+            AND LOWER(TRIM(d.full_name)) = LOWER(TRIM(v_app.full_name))
+            AND COALESCE(d.is_archived, false) = false
+            AND d.id <> p_applicant_id
+       ) THEN v_first_selected_vcode
+       ELSE vacancy_vcode
+     END
+     ```
+   - Preserves each applicant row's bound store `vacancy_vcode` intact so sibling applicant records never collide with existing active applicants on anchor stores.
+   - Applied migration cleanly to Staging (`qqiiznmqxfoamqytjica`).
+3. **Web Modal Store Footprint Parity (`src/components/vacancy/MarkHiredModal.tsx`)**:
+   - Expanded the footprint store query in `MarkHiredModal.tsx` to inspect `public.applicants` (`status = 'Confirmed Onboard'`) and `public.hr_emploc` (`covered_stores`), in addition to `hr_emploc_store_links` and `plantilla_store_links`.
+   - When candidate was previously onboarded at `SMCO ONEMALL`, `SMCO ONEMALL` is accurately recognized as `alreadyOnboarded = true`, rendering the locked `Already Onboarded ✓` badge and leaving only unconfirmed member stores (`SSM JAZZ`) actionable in the onboarding checklist.
+4. **Verification**:
+   - `npm run check:adr`: `ADR_MIRROR_STATUS: FRESH`.
+   - `npm run check:sql`: 0 errors across 726 migrations.
+   - `npm test`: 268/268 unit tests passed.
+   - `npm run lint`: 0 ESLint errors/warnings.
+   - `npm run build`: Next.js 16.2.4 Turbopack production build compiled clean with all 25 routes generated.
+   - `npm run check:migrations`: Staging applied cleanly.
+
+### Files Changed
+- `supabase/migrations/20262606000201_fix_coverage_group_onboarding_applicant_vcode_conflict.sql`
+- `src/components/vacancy/MarkHiredModal.tsx`
+- `docs/state/vacancy_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+### Production Delta
+- prod: 693 migrations
+- staging: 695 migrations
+
+2 migrations are not on prod:
+- `20262606000200_allow_ops_revise_headcount_quota.sql`
+- `20262606000201_fix_coverage_group_onboarding_applicant_vcode_conflict.sql`
+
+---
+
 ## Execution Report — Guard Against Assigning Stationary Floating Personnel to Roving Route Stores (ohm#roving-store-transfer-guard)
 **Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, Next.js Turbopack Production Build Clean (0 errors)
 
