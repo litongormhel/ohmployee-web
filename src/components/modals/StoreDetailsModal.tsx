@@ -399,7 +399,7 @@ export function StoreDetailsModal({
     >
       <div className="space-y-4 pt-1">
         {/* Metric Summary Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
           <div className="rounded-lg border border-border-default bg-surface-muted p-2.5">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Required</div>
             <div className="text-lg font-bold font-mono text-text-primary mt-0.5">{store.plantillaRequired}</div>
@@ -407,6 +407,12 @@ export function StoreDetailsModal({
           <div className="rounded-lg border border-border-default bg-surface-muted p-2.5">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Actual</div>
             <div className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">{store.activeDeployed}</div>
+          </div>
+          <div className="rounded-lg border border-border-default bg-surface-muted p-2.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Pipeline</div>
+            <div className={`text-lg font-bold font-mono mt-0.5 ${(store.pipelineCount ?? 0) > 0 ? "text-blue-600 dark:text-blue-400" : "text-text-muted"}`}>
+              {store.pipelineCount ?? 0}
+            </div>
           </div>
           <div className="rounded-lg border border-border-default bg-surface-muted p-2.5">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">On-Leave</div>

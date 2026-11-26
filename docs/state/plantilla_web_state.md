@@ -205,10 +205,11 @@ When `Store View` is active, the 6 Employee Status Sub-Tabs are hidden and repla
   2. `Area & City`: City and province pill tags.
   3. `Plantilla Required`: Contracted store headcount requirement (formerly Quota, centered).
   4. `Active Deployed`: Actual deployed headcount (centered, emerald bold text).
-  5. `On-Leave`: Count of employees on leave for that store (centered, amber text).
-  6. `Open Vacancy`: Unfilled headcount gaps (centered, red bold text if > 0; weighted by fractional roving share).
-  7. `Fulfillment Status`: `100% Fulfilled` green badge (`active >= required`), `Understaffed` amber/red badge, `In Pipeline` violet badge, `Standby (0 Quota)` slate badge, or `Archived` zinc muted badge.
-  8. `Actions`: Per-row `Request HC` button (gated by `canRequestHeadcount` and disabled for archived stores) opening `RequestHeadcountModal` pre-locked to that existing store (`lockedStore=true`, `lockedWorkforceType="stationary"`).
+  5. `Pipeline`: Count of candidates actively in recruitment screening or onboarding pipeline (`pipelineCount`, centered, blue bold text if > 0).
+  6. `On-Leave`: Count of employees on leave for that store (centered, amber text).
+  7. `Open Vacancy`: Unfilled headcount gaps (centered, red bold text if > 0; weighted by fractional roving share).
+  8. `Fulfillment Status`: `100% Fulfilled` green badge (`active >= required`), `Understaffed` amber/red badge, `In Pipeline` violet badge, `Standby (0 Quota)` slate badge, or `Archived` zinc muted badge.
+  9. `Actions`: Per-row `Request HC` button (gated by `canRequestHeadcount` and disabled for archived stores) opening `RequestHeadcountModal` pre-locked to that existing store (`lockedStore=true`, `lockedWorkforceType="stationary"`).
 - **Deployment & History Detail**: Selecting a Store Branch opens `StoreDetailsModal`, featuring three dedicated tabs: `Deployed Personnel` (listing all active/on-leave employees assigned to that store with positions, schedules, and roving fractional shares), `Store History` (chronological timeline of slot modifications and activity logs via `useStoreHistory`), and `Plantilla Slots` (with `Inspect Slot` navigation to `SlotDetailDrawer`).
 - **Slot Detail Drawer (`SlotDetailDrawer.tsx`)**: Inspecting any plantilla slot opens the dedicated right-side drawer:
   1. **Header VCode Badge**: Color-coded to match the slot's deployment type (Blue for Stationary, Violet for Roving, dashed for unassigned), accompanied by `Slot #ordinal`.

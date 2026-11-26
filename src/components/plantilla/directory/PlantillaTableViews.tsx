@@ -1190,6 +1190,7 @@ export function StoreCapacityTable({
   const totals = React.useMemo(() => {
     let req = 0;
     let act = 0;
+    let pipe = 0;
     let leave = 0;
     let vac = 0;
     rows.forEach((r) => {
@@ -1197,6 +1198,7 @@ export function StoreCapacityTable({
       if (r.isArchived) return;
       req += r.plantillaRequired;
       act += r.activeDeployed;
+      pipe += r.pipelineCount || 0;
       leave += r.onLeave;
       vac += r.openVacancy;
     });
@@ -1207,6 +1209,7 @@ export function StoreCapacityTable({
     return {
       required: format(req),
       actual: format(act),
+      pipeline: format(pipe),
       onLeave: format(leave),
       vacancy: format(vac),
     };
@@ -1215,7 +1218,7 @@ export function StoreCapacityTable({
   return (
     <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
       <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full min-w-[980px] text-left text-xs">
+        <table className="w-full min-w-[1040px] text-left text-xs">
           <thead className="sticky top-0 z-10 bg-table-header shadow-2xs">
             <tr className="border-b border-table-rule">
               <th className="px-3.5 py-2 text-left text-xs font-semibold text-text-secondary whitespace-nowrap">
@@ -1229,6 +1232,9 @@ export function StoreCapacityTable({
               </th>
               <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
                 Actual ({totals.actual})
+              </th>
+              <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Pipeline ({totals.pipeline})
               </th>
               <th className="px-3.5 py-2 text-center text-xs font-semibold text-text-secondary whitespace-nowrap">
                 On-Leave ({totals.onLeave})
@@ -1314,12 +1320,23 @@ export function StoreCapacityTable({
                     {formatCapacityCount(store.activeDeployed)}
                   </td>
 
-                  {/* 5. On-Leave (centered, amber) */}
+                  {/* 5. Pipeline (centered, blue if > 0) */}
+                  <td className="px-3.5 py-2 text-center font-mono font-bold text-xs">
+                    {(store.pipelineCount ?? 0) > 0 ? (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        {formatCapacityCount(store.pipelineCount ?? 0)}
+                      </span>
+                    ) : (
+                      <span className="text-text-muted">0</span>
+                    )}
+                  </td>
+
+                  {/* 6. On-Leave (centered, amber) */}
                   <td className="px-3.5 py-2 text-center font-mono font-bold text-amber-600 dark:text-amber-400 text-xs">
                     {formatCapacityCount(store.onLeave)}
                   </td>
 
-                  {/* 6. Open Vacancy (centered, red if > 0) */}
+                  {/* 7. Open Vacancy (centered, red if > 0) */}
                   <td className="px-3.5 py-2 text-center font-mono font-bold text-xs">
                     {store.openVacancy > 0 ? (
                       <span className="text-red-600 dark:text-red-400">{formatCapacityCount(store.openVacancy)}</span>
@@ -1328,7 +1345,7 @@ export function StoreCapacityTable({
                     )}
                   </td>
 
-                  {/* 7. Fulfillment Status */}
+                  {/* 8. Fulfillment Status */}
                   <td className="px-3.5 py-2 text-center">
                     {store.isArchived || store.statusBadge === "Archived" ? (
                       <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-surface-muted text-text-muted border border-border-default">
