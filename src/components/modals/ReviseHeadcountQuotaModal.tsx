@@ -97,7 +97,7 @@ export function ReviseHeadcountQuotaModal({
       }
       subtitle={
         <span>
-          Data Team override via <code className="font-mono text-[11px] font-medium text-[var(--foreground)]">revise_vcode_headcount_quota</code>
+          Data Team & Ops direct override via <code className="font-mono text-[11px] font-medium text-[var(--foreground)]">revise_vcode_headcount_quota</code>
         </span>
       }
       disableBackdropClick={reviseMutation.isPending}
@@ -261,7 +261,7 @@ export function ReviseHeadcountQuotaModal({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Provide audit reason for revising this vacancy target quota (e.g. Approved plantilla expansion by Ops Director)..."
-                className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2.5 text-xs text-[var(--foreground)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2.5 text-xs text-[var(--foreground)] outline-none placeholder:text-[var(--text-muted)] focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors"
               />
             </div>
 
@@ -288,7 +288,7 @@ export function ReviseHeadcountQuotaModal({
           <button
             type="submit"
             disabled={!canSubmit}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--brand)] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-button hover:bg-brand-button-hover px-4 py-2 text-xs font-semibold text-white shadow-xs disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             {reviseMutation.isPending ? "Applying..." : "Confirm Revision"}
           </button>

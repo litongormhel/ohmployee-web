@@ -429,9 +429,17 @@ test("Sanity 6: Specialized vacancy, applicant, and quota RBAC functions", () =>
     assert.equal(canRequestHeadcountAdjustment(r.key), r.level >= 100);
   }
 
-  // canReviseHeadcountQuota (SA, HA, Encoder: Data Team + SA)
+  // canReviseHeadcountQuota (SA, HA, Encoder: Data Team + SA, and Ops: OM, TL, ATL, HRCO)
   for (const r of ALL_ROLES) {
-    const expected = [AppRole.SUPER_ADMIN, AppRole.HEAD_ADMIN, AppRole.ENCODER].includes(r.key);
+    const expected = [
+      AppRole.SUPER_ADMIN,
+      AppRole.HEAD_ADMIN,
+      AppRole.ENCODER,
+      AppRole.OM,
+      AppRole.TL,
+      AppRole.ATL,
+      AppRole.HRCO,
+    ].includes(r.key);
     assert.equal(canReviseHeadcountQuota(r.key), expected);
   }
 });

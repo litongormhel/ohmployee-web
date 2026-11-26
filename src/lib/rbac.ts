@@ -315,12 +315,15 @@ export function canRequestHeadcountAdjustment(userOrRole?: RoleIdentifiable | st
 
 /**
  * Can directly adjust/revise headcount quota.
- * Restricted strictly to Data Team (Head Admin, Encoder) and Super Admin.
- * Hidden from Ops, Recruitment, HR Personnel, Viewer, etc.
+ * Allowed for Data Team (Head Admin, Encoder), Ops (OM, TL, ATL, HRCO), and Super Admin.
+ * Hidden from Recruitment, HR Personnel, Viewer, etc.
  */
 export function canReviseHeadcountQuota(userOrRole?: RoleIdentifiable | string | null): boolean {
+  const dyn = checkUserCapability(userOrRole, "vacancy", "revise_quota");
+  if (dyn !== null) return dyn;
+
   if (isOwner(userOrRole) || getRoleLevel(userOrRole) >= 100) return true;
-  return isDataTeam(userOrRole);
+  return isDataTeam(userOrRole) || isOpsTeam(userOrRole);
 }
 
 function extractRoleString(userOrRole?: RoleIdentifiable | string | null): string | null {

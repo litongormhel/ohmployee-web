@@ -1,5 +1,47 @@
 # AI Handoff
 
+## Execution Report — Allow Ops Roles to Revise Headcount Quota & Fix Modal Submit Button Visibility (ohm#allow-ops-revise-headcount-quota-and-fix-submit-button)
+**Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, 268 Tests Passing, 0 Lint Warnings, Applied to Staging (`qqiiznmqxfoamqytjica`)
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Invariants)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (Vacancy Architecture)
+
+### What Was Done
+1. **Headcount Quota Revision for Ops Roles (`canReviseHeadcountQuota` & `revise_vcode_headcount_quota`)**:
+   - In `src/lib/rbac.ts`, expanded `canReviseHeadcountQuota` to check `isDataTeam(userOrRole) || isOpsTeam(userOrRole)`. This grants Operations roles (`OM`, `TL`, `ATL`, `HRCO`) authorization to directly adjust headcount quota on existing store requisitions via the "Adjust Quota" action button in `VacancyDetailDrawer.tsx` (`headerActions`).
+   - Created database migration `20262606000200_allow_ops_revise_headcount_quota.sql`: updated `public.revise_vcode_headcount_quota` RPC guard to accept caller roles `'Super Admin', 'Head Admin', 'Encoder', 'Operations Manager', 'OM', 'TL', 'ATL', 'HRCO'`.
+   - Updated cross-repo parity in Mobile (`D:\Projects\OHMployee\lib\core\auth\auth_service.dart` and `test\headcount_quota_revision_test.dart`).
+   - Updated unit tests in `src/lib/utils/__tests__/rbac_sanity.test.mjs` verifying that `OM`, `TL`, `ATL`, and `HRCO` pass `canReviseHeadcountQuota`.
+2. **Invisible Submit Button Visual Bug Fix (`ReviseHeadcountQuotaModal` & `RequestHeadcountAdjustmentModal`)**:
+   - **Root Cause Diagnosed**: `ReviseHeadcountQuotaModal.tsx` and `RequestHeadcountAdjustmentModal.tsx` applied class `bg-[var(--brand)] text-white` to the submit button. Because CSS variable `--brand` was undefined in `globals.css` (only `--brand-button` and `--brand-primary` existed), `var(--brand)` evaluated to transparent. On a white modal surface, white text with a transparent background rendered the submit button completely invisible.
+   - **Fix Applied**:
+     - In `ReviseHeadcountQuotaModal.tsx`, replaced `bg-[var(--brand)]` with `bg-brand-button hover:bg-brand-button-hover text-white`, and updated textarea focus classes to `focus:border-brand-500 focus:ring-1 focus:ring-brand-500`.
+     - In `RequestHeadcountAdjustmentModal.tsx`, replaced `bg-[var(--brand)]` with `bg-brand-button hover:bg-brand-button-hover text-white`, `text-[var(--brand)]` with `text-brand-600`, and focus rings to `focus:border-brand-500 focus:ring-1 focus:ring-brand-500`.
+     - In `src/app/globals.css`, added `--brand: var(--brand-button);` in `:root`, `.dark`, and dark media queries as an additive defense-in-depth token fallback.
+     - Updated modal subtitle in `ReviseHeadcountQuotaModal.tsx` to `Data Team & Ops direct override via revise_vcode_headcount_quota`.
+
+### Verification
+- SQL Contract Check: `npm run check:sql` — 0 errors, 28 core tables & 19 cross-module RPC contracts verified.
+- Unit Tests: `npm test` — all 268 tests passed (0 failures).
+- Lint: `npm run lint` — 0 ESLint errors or warnings, 0 secret leaks.
+- Build: `npm run build` — Turbopack production build succeeded cleanly.
+- Staging Push: Applied `20262606000200_allow_ops_revise_headcount_quota.sql` to Staging (`qqiiznmqxfoamqytjica`). Verified live `pg_get_functiondef` contains `Operations Manager` and `HRCO`.
+
+### Files Changed
+- `supabase/migrations/20262606000200_allow_ops_revise_headcount_quota.sql`
+- `src/lib/rbac.ts`
+- `src/lib/utils/__tests__/rbac_sanity.test.mjs`
+- `src/app/globals.css`
+- `src/components/modals/ReviseHeadcountQuotaModal.tsx`
+- `src/components/modals/RequestHeadcountAdjustmentModal.tsx`
+- `docs/state/vacancy_web_state.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
+
 ## Execution Report — Global Search Lifecycle Precedence (Current Stage Only) & Direct Employee Profile Navigation (ohm#dedup-global-search-stages-and-direct-plantilla-navigation)
 **Date:** 2026-11-25 | **Branch:** `main` | **Status:** Verified Clean, 268 Tests Passing, 0 Lint Warnings, Applied to Staging (`qqiiznmqxfoamqytjica`)
 

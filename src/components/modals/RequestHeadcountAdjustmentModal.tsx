@@ -152,7 +152,7 @@ export function RequestHeadcountAdjustmentModal({
                   <ArrowRight className="h-4 w-4 text-[var(--text-muted)]" />
                   <div className="text-center">
                     <div className="text-xs font-semibold text-[var(--text-muted)]">Proposed</div>
-                    <div className="text-xl font-bold font-mono text-[var(--brand)]">{proposedQuota}</div>
+                    <div className="text-xl font-bold font-mono text-brand-600">{proposedQuota}</div>
                   </div>
                 </div>
 
@@ -304,7 +304,7 @@ export function RequestHeadcountAdjustmentModal({
                 value={justification}
                 onChange={(e) => setJustification(e.target.value)}
                 placeholder="Explain why this quota adjustment is required by Operations (e.g. Peak season volume expansion, store footprint reduction, etc.)..."
-                className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2.5 text-xs text-[var(--foreground)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] transition-colors"
+                className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] p-2.5 text-xs text-[var(--foreground)] outline-none placeholder:text-[var(--text-muted)] focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors"
               />
             </div>
 
@@ -331,7 +331,7 @@ export function RequestHeadcountAdjustmentModal({
           <button
             type="submit"
             disabled={!canSubmit}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--brand)] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-md bg-brand-button hover:bg-brand-button-hover px-4 py-2 text-xs font-semibold text-white shadow-xs disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             {amendmentMutation.isPending ? "Submitting..." : "Submit Request"}
           </button>
