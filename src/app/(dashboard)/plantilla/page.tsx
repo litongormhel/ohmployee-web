@@ -26,6 +26,7 @@ import {
   listWebPlantillaEmployees,
   listWebPlantillaStoreStaffing,
   fetchAccountStoreAllocations,
+  fetchAccountCoverageGroupStoreIds,
   fetchActiveCoverageForAccount,
   fetchPlantillaScopedAccounts,
   usePlantillaInactiveRemarks,
@@ -964,11 +965,19 @@ function PlantillaPageContent() {
     staleTime: 30000,
   });
 
-  // Store allocations query for accurate roving fractional headcount in Store View
+  // Store allocations query for accurate roving fractional headcount across Store View & Store Assignment
   const storeAllocationsQuery = useQuery({
     queryKey: ["plantilla", "account-store-allocations", accountId],
     queryFn: () => fetchAccountStoreAllocations(accountId),
-    enabled: !!accountId && isAccountAuthorized && mainView === "store",
+    enabled: !!accountId && isAccountAuthorized,
+    staleTime: 30000,
+  });
+
+  // Query member stores of active coverage groups for roving conflict detection (Rule 7 parity with Mobile)
+  const coverageGroupStoresQuery = useQuery({
+    queryKey: ["plantilla", "coverage-group-stores", accountId],
+    queryFn: () => fetchAccountCoverageGroupStoreIds(accountId),
+    enabled: !!accountId && isAccountAuthorized,
     staleTime: 30000,
   });
 
@@ -1911,6 +1920,17 @@ function PlantillaPageContent() {
       }
     });
 
+    const cgStoreIds = new Set(coverageGroupStoresQuery.data ?? []);
+    const activeAllocations = storeAllocationsQuery.data ?? [];
+    const fractionalRovingStoreMap = new Set<string>();
+
+    activeAllocations.forEach((a) => {
+      if (a.filledHc > 0 && a.filledHc < 1.0) {
+        if (a.storeId) fractionalRovingStoreMap.add(a.storeId);
+        if (a.storeName) fractionalRovingStoreMap.add(a.storeName.toLowerCase().trim());
+      }
+    });
+
     return rawStores
       .map((st) => {
         const cap = capacityMap.get(st.id) || capacityMap.get(st.name.toLowerCase().trim());
@@ -1926,11 +1946,13 @@ function PlantillaPageContent() {
           hcFilled = Math.max(0, hcTotal - openSlots);
         }
 
-        const isFractionalRoving = (hcFilled > 0 && hcFilled < 1.0) || Boolean(st.code?.toUpperCase().includes("CG"));
-        const wouldExceedCapacity = (hcFilled + 1.0) > hcTotal;
-        const isRovingBlocked = isFractionalRoving && wouldExceedCapacity;
+        const isCgCode = Boolean(st.code?.toUpperCase().includes("CG")) || Boolean(st.code?.toUpperCase().startsWith("VCAG"));
+        const isInCoverageGroup = cgStoreIds.has(st.id) || cgStoreIds.has(st.name.toLowerCase().trim());
+        const hasFractionalAlloc = fractionalRovingStoreMap.has(st.id) || fractionalRovingStoreMap.has(st.name.toLowerCase().trim()) || (hcFilled > 0 && hcFilled < 1.0);
+
+        const isRovingBlocked = isCgCode || isInCoverageGroup || hasFractionalAlloc;
         const rovingConflictReason = isRovingBlocked
-          ? `Roving Route (${hcFilled > 0 ? hcFilled.toFixed(2) : "0.33"} active) • Exceeds Capacity (${(hcFilled + 1.0).toFixed(2)} / ${hcTotal} HC)`
+          ? `Roving Route • Exceeds capacity if stationary`
           : null;
 
         return {
@@ -1947,7 +1969,7 @@ function PlantillaPageContent() {
         };
       })
       .filter((st) => st.openSlots > 0 || st.hcFilled < st.hcTotal);
-  }, [storesUnderAccountQuery.data, storeCapacityRows, allVacancies]);
+  }, [storesUnderAccountQuery.data, storeCapacityRows, allVacancies, coverageGroupStoresQuery.data, storeAllocationsQuery.data]);
 
   // Derived counts for KPI cards and badges
   const summaryData = summaryQuery.data;

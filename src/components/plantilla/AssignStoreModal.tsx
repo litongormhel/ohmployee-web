@@ -43,9 +43,12 @@ export function AssignStoreModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Strictly filter to stores that have open or available slots (hc_filled < hc_total or openSlots > 0).
-  // Fully occupied stores (e.g., 1/1, 2/2) are filtered out and hidden to prevent over-allocation.
+  // Fully occupied stores (e.g., 1/1, 2/2) and roving route stores are filtered out and hidden to prevent over-allocation.
   const availableStores = useMemo(() => {
     return stores.filter((s) => {
+      // Exclude roving routes: floating personnel deployment is strictly stationary (Rule 7 / Mobile parity)
+      if (s.isRovingBlocked) return false;
+
       if (s.openSlots !== undefined) {
         return s.openSlots > 0;
       }
@@ -183,10 +186,10 @@ export function AssignStoreModal({
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200 space-y-1">
               <p className="font-semibold flex items-center gap-1.5">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                No Stores with Open Slots Available
+                No Stationary Stores with Open Slots Available
               </p>
               <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                All stores under this account are currently fully occupied (1/1). To prevent over-allocation, floating personnel can only be assigned to stores with open slots (hc_filled &lt; hc_total).
+                All stores under this account are currently fully occupied (1/1) or part of roving routes. To prevent over-allocation, floating personnel can only be assigned to stationary stores with available slots (hc_filled &lt; hc_total).
               </p>
             </div>
           ) : (
@@ -200,26 +203,24 @@ export function AssignStoreModal({
                 <option value="">Select target store with available slots...</option>
                 {sortedStores.map((s) => {
                   const loc = [s.city, s.province].filter(Boolean).join(", ");
-                  const isBlocked = s.isRovingBlocked === true;
-                  const slotLabel = isBlocked
-                    ? ` • [BLOCKED] ${s.rovingConflictReason || "Roving Route (exceeds capacity)"}`
-                    : s.hcFilled !== undefined && s.hcTotal !== undefined
-                    ? ` • ${s.hcFilled}/${s.hcTotal} slots (${Math.max(0, s.hcTotal - s.hcFilled)} open)`
-                    : s.openSlots !== undefined
-                    ? ` • ${s.openSlots} open slot${s.openSlots > 1 ? "s" : ""}`
-                    : vacantStoreIds.has(s.id)
-                    ? " • ★ [Open Vacancy]"
-                    : "";
+                  const slotLabel =
+                    s.hcFilled !== undefined && s.hcTotal !== undefined
+                      ? ` • ${s.hcFilled}/${s.hcTotal} slots (${Math.max(0, s.hcTotal - s.hcFilled)} open)`
+                      : s.openSlots !== undefined
+                      ? ` • ${s.openSlots} open slot${s.openSlots > 1 ? "s" : ""}`
+                      : vacantStoreIds.has(s.id)
+                      ? " • ★ [Open Vacancy]"
+                      : "";
 
                   return (
-                    <option key={s.id} value={s.id} disabled={isBlocked}>
+                    <option key={s.id} value={s.id}>
                       {s.name} {loc ? `(${loc})` : ""}{slotLabel}
                     </option>
                   );
                 })}
               </select>
               <p className="mt-1 text-[11px] text-text-muted">
-                Restricted strictly to stores with available capacity (hc_filled &lt; hc_total) to prevent over-allocation.
+                Restricted strictly to stationary stores with available capacity (hc_filled &lt; hc_total). Roving routes are excluded to prevent fractional over-allocation.
               </p>
             </>
           )}

@@ -1827,6 +1827,23 @@ export async function fetchAccountStoreAllocations(accountId: string): Promise<P
   }));
 }
 
+export async function fetchAccountCoverageGroupStoreIds(accountId: string): Promise<string[]> {
+  if (!accountId) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("coverage_group_stores")
+    .select("store_id, stores!inner(account_id)")
+    .eq("stores.account_id", accountId)
+    .is("archived_at", null);
+
+  if (error) {
+    console.error("[PostgREST Schema Error] fetchAccountCoverageGroupStoreIds failed:", error);
+    return [];
+  }
+
+  return (data ?? []).map((r) => r.store_id as string).filter(Boolean);
+}
+
 export async function getWebPlantillaDetail(plantillaId: string): Promise<PlantillaDetailItem> {
   const supabase = createClient();
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(plantillaId);
@@ -4504,74 +4521,25 @@ export async function assignRelieverCoverage({
 export async function assignFloatingEmployeeToStore({
   plantillaId,
   storeId,
-  storeName,
-  area,
   assignmentType = "Stationary",
-  vcode,
 }: {
   plantillaId: string;
   storeId: string;
-  storeName: string;
+  storeName?: string;
   area?: string | null;
   assignmentType?: "Stationary" | "Roving";
   vcode?: string | null;
 }) {
   const supabase = createClient();
-  const updatePayload: Record<string, unknown> = {
-    store_id: storeId,
-    store_name: storeName,
-    area: area || null,
-    deployment_type: assignmentType || "Stationary",
-    status: "Active",
-    separation_status: null,
-    inactive_at: null,
-    inactive_by: null,
-    date_of_separation: null,
-    resignation_date: null,
-    remarks: null,
-    deactivation_reason: null,
-    for_deactivation_at: null,
-    for_deactivation_by: null,
-    deactivated_at: null,
-    deactivated_by: null,
-    updated_at: new Date().toISOString(),
-  };
-
-  if (vcode !== undefined) {
-    updatePayload.vcode = vcode;
-  }
-
-  const { data, error } = await supabase
-    .from("plantilla")
-    .update(updatePayload)
-    .eq("id", plantillaId)
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc("assign_floating_employee_to_store", {
+    p_plantilla_id: plantillaId,
+    p_target_store_id: storeId,
+    p_assignment_type: assignmentType || "Stationary",
+  });
 
   if (error) {
+    console.error("[PostgREST Schema Error] assign_floating_employee_to_store RPC failed:", error);
     throwPlantillaError(error);
-  }
-
-  // If there's an open vacancy at this store, decrement/fill it
-  try {
-    const { data: openVacancies } = await supabase
-      .from("vacancies")
-      .select("id")
-      .eq("store_id", storeId)
-      .eq("status", "open")
-      .limit(1);
-
-    if (openVacancies && openVacancies.length > 0) {
-      await supabase
-        .from("vacancies")
-        .update({
-          status: "hired",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", openVacancies[0].id);
-    }
-  } catch (vacErr) {
-    console.warn("Could not decrement vacancy:", vacErr);
   }
 
   return data;
