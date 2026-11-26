@@ -1,5 +1,44 @@
 # AI Handoff
 
+## Execution Report — Codify ADR-First Hard Lockout Policy and Expand Scope across ADR-001, ADR-002, ADR-003, and Modular ADR Hub (ohm#adr-first-hard-lockout-and-adr-003-coverage)
+**Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, 268 Tests Passing, 0 Lint Warnings, ADR Mirrors Fresh
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (ADR-001 Plantilla Baseline & Slot Authority)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (ADR-002 Store Identity & Vacancy Capacity Matrix)
+- `docs/architecture/_mirror/adr/04_approvals_requisitions.md` (ADR-003 Unified Roving Requisitions & Atomic Store Provisioning)
+- `docs/architecture/_mirror/adr/README.md` (Hub-and-Spoke Modular ADR Index)
+
+### What Was Done
+1. **Upgraded Architectural Safety Gate to "ADR-First Hard Lockout"**:
+   - In `AGENTS.md` and `.ai/briefing.md`, transformed the "ADR Conflict & Architecture Safety Gate" from a conversational override/approval gate into an inviolable **ADR-First Hard Lockout (Anti-Regression & Anti-Bypass Gate)**.
+   - The agent is now structurally forbidden from violating or modifying any code, migrations, or database functions that contradict an active ADR—even if the user explicitly types "Proceed", "Force", "Ignore ADR", or attempts to approve the violation in chat.
+2. **Comprehensive ADR Scope Expansion (ADR-001, ADR-002, ADR-003 & Modular Hub)**:
+   - Remedied legacy phrasing that only referenced "ADR-001/ADR-002".
+   - Explicitly expanded binding authority to cover:
+     - **ADR-001** (Plantilla Baseline, Slot Authority, 1 Store = 1 VCode, In-Database Ordering)
+     - **ADR-002** (Store Identity, 72h Rollback, Bi-Directional Identity Lock, Vacancy Avail Zero-Applicant)
+     - **ADR-003** (Unified Roving Headcount Requisitions with Atomic Store Provisioning & Mandatory Justification)
+     - **The Full Modular ADR Hub** (`00_core_invariants.md` through `06_dashboard_cencom.md`).
+3. **Codified the 4-Step "Spec-First" Amendment Protocol**:
+   - If a prompt conflicts with an ADR, the agent immediately halts and drafts the exact markdown diff needed for the authoritative ADR file in the mobile repository (`D:\Projects\OHMployee\docs\architecture\adr/<module>.md`).
+   - The task remains locked until the user commits the approved ADR amendment to `main` in the mobile repo and syncs it to the web mirror via `npm run sync:adr` (`ADR_MIRROR_STATUS: FRESH`).
+   - Only once the amendment is officially part of the committed ADR source of truth does code implementation unlock.
+
+### Verification
+- ADR Freshness: `npm run check:adr` — `ADR_MIRROR_STATUS: FRESH`.
+- SQL Contract Check: `npm run check:sql` — 0 errors, 28 core tables & 19 cross-module RPC contracts verified.
+- Unit Tests: `npm test` — all 268 tests passed (0 failures).
+- Lint: `npm run lint` — 0 ESLint errors or warnings, 0 secret leaks.
+
+### Files Changed
+- `AGENTS.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Allow Ops Roles to Revise Headcount Quota & Fix Modal Submit Button Visibility (ohm#allow-ops-revise-headcount-quota-and-fix-submit-button)
 **Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, 268 Tests Passing, 0 Lint Warnings, Applied to Staging (`qqiiznmqxfoamqytjica`)
 

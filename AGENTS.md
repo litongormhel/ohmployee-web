@@ -28,7 +28,7 @@
   - **When to STOP and WAIT (Approval / Clarification Gate)**: The agent pauses and waits for user input ONLY if:
     (1) The user explicitly says "Plan only", "Plan muna", or asks for review/options first,
     (2) There is genuine ambiguity or uncertainty in business requirements (present 1–3 concrete recommendations and ask),
-    (3) The change directly conflicts with an ADR architecture lock or contract invariant, OR
+    (3) The change directly conflicts with an ADR architecture lock or contract invariant (triggers the ADR-First Hard Lockout: requires ADR revision in mobile repo + sync before implementation), OR
     (4) Irreversible destructive actions are involved (e.g. dropping production tables or deleting production assets).
 - Non-Breaking View & RPC Parity Rule (Mobile Protection Lock):
   The Supabase database serves BOTH Web and Mobile (`OHMployee`).
@@ -43,11 +43,18 @@
 - Uncertainty & Clarification Gate: If requirements, user intent, edge cases, or scope boundaries
   are unclear or ambiguous, NEVER make assumptions or proceed blindly. Always STOP, ask clarifying
   questions, and explicitly provide 1–3 concrete recommendations with rationale.
-- ADR & Architecture Conflict Gate: If a user instruction directly conflicts with ADR-001/ADR-002
-  architectural locks, permanent rule locks, or database contracts, NEVER implement it silently.
-  STOP immediately, cite the conflicting ADR section/rule, explain the specific risks and breakages
-  if implemented as requested, and provide a safe recommendation that satisfies the objective without
-  violating architectural integrity. Wait for explicit confirmation or override.
+- ADR-First Hard Lockout (Anti-Regression & Anti-Bypass Gate):
+  The agent is STRUCTURALLY FORBIDDEN from violating or overwriting any architectural lock codified across
+  ADR-001 (Plantilla Baseline & Slot Authority), ADR-002 (Store Identity & Vacancy Capacity Matrix),
+  ADR-003 (Unified Roving Requisitions & Atomic Store Provisioning), or the Modular ADR Hub (`00_core_invariants.md`
+  through `06_dashboard_cencom.md`). This lock binds EVERY prompt, even if the user explicitly says
+  "Proceed", "Force", "Ignore ADR", or approves the violation in chat.
+  If a prompt or requested change conflicts with an active ADR lock or database contract:
+  1. STOP IMMEDIATELY. Do NOT write, modify, or commit any code, migrations, or DDL.
+  2. Identify and cite the exact conflicting ADR file and section.
+  3. Clearly articulate the regression risk (e.g. mobile crash, broken audit trail, capacity leak, dual-existence bug).
+  4. Draft the formal ADR Amendment Proposal (exact markdown diff for the source ADR file in the mobile repository `docs/architecture/adr/<module>.md`).
+  5. The change is HARD LOCKED until the user reviews and commits the ADR amendment to `main` in the mobile repository (`D:\Projects\OHMployee`) and syncs it to the web mirror via `npm run sync:adr` (`ADR_MIRROR_STATUS: FRESH`). Only once the new rule is codified in the source of truth does it become the legal architecture and unlock code execution.
 - Workflow & Visibility Regression Guard: If any proposed change risks breaking an existing workflow,
   regressing visibility (e.g., role-scoped action buttons, tab rosters, historical separation logs),
   or corrupting state transitions, STOP immediately. Detail what breaks, ask the user, and present
