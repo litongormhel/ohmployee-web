@@ -708,6 +708,23 @@ To achieve perfect visual alignment with the design systems defined in `web_ui_s
 
 ---
 
+## 11.2 Comprehensive ADR Data Alignment & Automatic Cleanup (`ohm#all-modules-adr-data-cleanup-and-alignment`)
+
+Executed cross-module forensic audit and authored 4 database migrations (`20262606000203` through `20262606000206`) establishing 100% ADR compliance and data integrity across Web and Mobile:
+1. **Module 1 (Plantilla Invariants)**:
+   - Populated VCodes for 19 stores; resolved occupied physical slots for 364 active deployed personnel; updated roving allocations to balanced $1/N$; backfilled `needs_hrco = false`; resolved store links for closed slots; updated `fn_adr001_smoke()` assertion A1 to permit `'On Leave'` occupants.
+   - Disambiguated 44 generic store names ("WAREHOUSE", "ADDITIONAL", "SAN PABLO", etc.) sharing multiple VCodes within the same account by appending `(VCODE)` suffix to strictly enforce ADR-001 Invariant 2 (1 Store Name = 1 VCODE).
+   - Resolved active personnel (`ONE, MARIZ A`, `Symon Angeles`, `Bato Dela Rosa`, `Clarisse Guzman`, `Juan Santos Dela Cruz`, `Clarris Gomez`, `Ann Reyes`, `Hanz Sandoval`) with active physical slots in `plantilla_slots`.
+2. **Store Fleet & Capacity Protection**:
+   - Safely reactivated 336 stores that were bulk-archived by QA test scripts while active employees were deployed there, deduplicating with `stores_vcode_active_uidx` via canonical active store selection.
+   - Closed open slots on archived stores using valid reason code `'STORE_CLOSED'`.
+   - Backfilled missing `store_id` on closed slots without deleting them (preserving `slot_history` foreign keys).
+3. **Verification**:
+   - Ran `audit_adr_data_violations.mjs`: all 29 checks reported `✔ [CLEAN]` with 0 violation categories found.
+   - All 6 `fn_adr001_smoke()` assertions passed cleanly (A1, A2, A3, A4, A5, A6).
+
+---
+
 > [!NOTE]
 > **Historical Implementation Phases & Changelogs Archive:**
 > Phased delivery checklists and historical prompt changelogs (Sections 12+) have been archived to [`docs/state/archive/plantilla_web_state_historical.md`](archive/plantilla_web_state_historical.md) to keep this live specification token-optimized.

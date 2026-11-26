@@ -533,6 +533,25 @@ Implements 100% Web-Mobile workflow parity for partial / per-store onboarding of
 
 ---
 
+## ADR Data Clean Up & Alignment Migration Across All Modules (`ohm#all-modules-adr-data-cleanup-and-alignment`)
+
+Executed automated data cleanup and alignment across Vacancy, Plantilla, HR Emploc, and Approvals:
+1. **Module 2 (Vacancy Invariants)**:
+   - Released `slot_id` from 21 terminal applicants (`Backout`, `Rejected`, `Failed`, `Withdrawn`) to restore slot authority.
+   - Set unarchived terminal candidates to `'Withdrawn'` and transitioned active onboarded candidates in `applicants` to `'Hired'`.
+   - Transitioned fulfilled vacancies to `status = 'Filled'`.
+   - Closed open slots on archived/cancelled vacancies using `closure_reason_code = 'HC_REDUCTION'`.
+   - Archived Vacancy for `Ali Mall` (`ACT-G5-008`).
+   - Restored `vw_slot_derived_vacancy_shadow` view definition adhering to `20262606000021` so `hired_count` derives strictly from active Plantilla rows per VCode and respects the waterfall priority (`Closure -> Pipeline -> Open -> Hired`).
+2. **Module 3 & 4 (HR Emploc & Approvals)**:
+   - Linked stationary `hr_emploc` records with active physical slots while strictly upholding `hr_emploc_slot_coverage_mutex_chk` (`coverage_slot_id IS NULL`).
+   - Provisioned and linked slot for `Victor Moritte Sterling` on `VDRG4_0002` (`slot_status = 'hr_processing'`).
+3. **Verification**:
+   - `node scripts/scratch/audit_adr_data_violations.mjs`: 29 clean checks, 0 violations.
+   - All 6 `fn_adr001_smoke()` assertions passed (A1 through A6).
+
+---
+
 > [!NOTE]
 > **Historical Assessment & Implementation Phases Archive:**
 > Historical pre-implementation assessments and phase checklists have been archived to [`docs/state/archive/vacancy_web_state_historical.md`](archive/vacancy_web_state_historical.md) to keep this live specification token-optimized.
