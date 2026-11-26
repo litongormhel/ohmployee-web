@@ -31,6 +31,7 @@ import {
   UserPlus,
   Users2,
   Wrench,
+  Briefcase,
 } from "lucide-react";
 import { useCurrentUser } from "@/lib/auth";
 import {
@@ -44,6 +45,7 @@ import { createClient } from "@/lib/supabase/client";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 
 // Modals
+import { AccountPositionManagerModal } from "@/components/more/AccountPositionManagerModal";
 import { AccountSignupControlModal } from "@/components/more/AccountSignupControlModal";
 import { DataArchivalCenterModal } from "@/components/more/DataArchivalCenterModal";
 import { EditLockControlModal } from "@/components/more/EditLockControlModal";
@@ -159,6 +161,9 @@ function MorePageContent() {
   const [storeTransferOpen, setStoreTransferOpen] = useState(false);
   const [accountRequestsOpen, setAccountRequestsOpen] = useState(
     () => targetModal === "account_requests"
+  );
+  const [accountPositionsOpen, setAccountPositionsOpen] = useState(
+    () => targetModal === "account_positions" || targetModal === "positions"
   );
   const [payrollReviewCenterOpen, setPayrollReviewCenterOpen] = useState(false);
   const [ohmsSafespaceOpen, setOhmsSafespaceOpen] = useState(
@@ -629,6 +634,16 @@ function MorePageContent() {
         onClick: () => setPayrollReviewCenterOpen(true),
         badgeLabel: "REVIEWS",
         badgeVariant: "purple",
+      },
+      {
+        id: "account_positions",
+        title: "Account Positions",
+        description: "Govern allowed position catalogs per account, link existing roles, or register new positions",
+        icon: Briefcase,
+        onClick: () => setAccountPositionsOpen(true),
+        badgeLabel: "DATA TEAM",
+        badgeVariant: "purple",
+        minRoleLevel: 30,
       },
       {
         id: "ghost_detection",
@@ -1225,6 +1240,12 @@ function MorePageContent() {
         isOpen={ghostDetectionOpen}
         onClose={() => setGhostDetectionOpen(false)}
         initialAccount={searchParams.get("account")}
+      />
+
+      <AccountPositionManagerModal
+        isOpen={accountPositionsOpen}
+        onClose={() => setAccountPositionsOpen(false)}
+        initialAccountId={searchParams.get("account_id") || searchParams.get("accountId")}
       />
     </div>
 

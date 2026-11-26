@@ -11,6 +11,7 @@ import {
   Store,
   Users2,
   BarChart3,
+  Briefcase,
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCurrentUser, isOpsAmendmentRole, isHeadOrSuperAdmin } from "@/lib/auth";
@@ -100,6 +101,7 @@ import {
   PlantillaModalsHub,
   type RequestHeadcountConfig,
 } from "@/components/plantilla/directory/PlantillaModalsHub";
+import { AccountPositionManagerModal } from "@/components/more/AccountPositionManagerModal";
 
 // Re-export types and helpers for backward compatibility
 export type {
@@ -236,6 +238,7 @@ function PlantillaPageContent() {
   const [archiveModalAccount, setArchiveModalAccount] = useState<ArchiveModalAccount | null>(null);
   const [absorbModalAccount, setAbsorbModalAccount] = useState<AbsorbModalAccount | null>(null);
   const [transferGroupModalAccount, setTransferGroupModalAccount] = useState<PlantillaScopedAccountItem | null>(null);
+  const [positionManagerAccount, setPositionManagerAccount] = useState<{ id: string; name: string } | null>(null);
   const [reactivateStoreTarget, setReactivateStoreTarget] = useState<StoreCapacityRow | null>(null);
   const [withdrawReactivateTarget, setWithdrawReactivateTarget] = useState<{ store: StoreCapacityRow; requestId: string } | null>(null);
 
@@ -2239,6 +2242,8 @@ function PlantillaPageContent() {
             onArchiveClick={(acc) => setArchiveModalAccount(acc)}
             canTransferGroup={isHeadOrSuperAdmin(userRole)}
             onTransferGroupClick={(acc) => setTransferGroupModalAccount(acc)}
+            canManagePositions={isHeadOrSuperAdmin(userRole) || isDataTeam(currentUser)}
+            onManagePositionsClick={(acc) => setPositionManagerAccount(acc)}
           />
         </div>
       ) : !isAccountAuthorized ? (
@@ -2377,6 +2382,24 @@ function PlantillaPageContent() {
                     <ArrowRightLeft className="w-3.5 h-3.5 shrink-0 text-brand-600" />
                     <span>Absorb Employees</span>
                   </button>
+
+                  {/* Action button: Positions (Data Team) */}
+                  {(isHeadOrSuperAdmin(userRole) || isDataTeam(currentUser)) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPositionManagerAccount({
+                          id: accountId,
+                          name: selectedAccountName,
+                        })
+                      }
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border-default bg-surface-base px-3 py-1.5 text-xs font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
+                      title="Manage job roles assigned to this account"
+                    >
+                      <Briefcase className="w-3.5 h-3.5 shrink-0 text-brand-600" />
+                      <span>Positions</span>
+                    </button>
+                  )}
                 </div>
               }
             />
@@ -2936,6 +2959,11 @@ function PlantillaPageContent() {
             onInspectSlot={setSelectedStoreSlotId}
           />
           <SlotDetailDrawer slotId={selectedStoreSlotId} onClose={() => setSelectedStoreSlotId(null)} />
+          <AccountPositionManagerModal
+            isOpen={Boolean(positionManagerAccount)}
+            onClose={() => setPositionManagerAccount(null)}
+            initialAccountId={positionManagerAccount?.id}
+          />
         </>
       )}
     </div>

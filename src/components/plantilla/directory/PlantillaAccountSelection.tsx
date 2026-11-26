@@ -6,6 +6,7 @@ import {
   ArrowRightLeft,
   Archive,
   GitFork,
+  Briefcase,
 } from "lucide-react";
 import { DataState } from "@/components/shared/DataState";
 import {
@@ -34,6 +35,8 @@ export interface PlantillaAccountSelectionProps {
   onArchiveClick: (account: ArchiveModalAccount) => void;
   canTransferGroup?: boolean;
   onTransferGroupClick?: (account: PlantillaScopedAccountItem) => void;
+  canManagePositions?: boolean;
+  onManagePositionsClick?: (account: { id: string; name: string }) => void;
 }
 
 export function PlantillaAccountSelection({
@@ -55,6 +58,8 @@ export function PlantillaAccountSelection({
   onArchiveClick,
   canTransferGroup,
   onTransferGroupClick,
+  canManagePositions,
+  onManagePositionsClick,
 }: PlantillaAccountSelectionProps) {
   if (isLoading) {
     return (
@@ -323,6 +328,19 @@ export function PlantillaAccountSelection({
                                 >
                                   <GitFork className="h-3.5 w-3.5 text-brand-600 shrink-0" />
                                   <span>Transfer Group</span>
+                                </button>
+                              )}
+                              {canManagePositions && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveMenuAccountId(null);
+                                    onManagePositionsClick?.({ id: account.id, name: account.name });
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-primary hover:bg-surface-hover transition cursor-pointer"
+                                >
+                                  <Briefcase className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                                  <span>Manage Positions</span>
                                 </button>
                               )}
                               <button

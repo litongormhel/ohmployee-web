@@ -1,5 +1,41 @@
 # AI Handoff
 
+## Execution Report — Implement Hybrid Account Position Management Hub & Contextual Plantilla Toolbar Shortcuts (ohm#account-position-management-hub-and-shortcuts)
+**Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging, All 272 Tests Passing, 0 Lint Warnings, Next.js 16.2.4 Build Clean
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants — `source_commit: 08ac81e`)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (ADR-001 Plantilla Baseline & Slot Authority — `source_commit: 08ac81e`)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (ADR-002 Store Identity & Vacancy Capacity Matrix — `source_commit: 08ac81e`)
+
+### What Was Done
+1. **Database Engine & RPC Architecture (`20262606000210_manage_account_positions_rpc.sql`)**:
+   - Built and applied migration `20262606000210_manage_account_positions_rpc.sql` to Staging (`qqiiznmqxfoamqytjica`) and synced to Mobile repo (`D:\Projects\OHMployee`):
+     - `public.get_account_positions_detailed(p_account_id uuid)`: Security definer function returning mapped positions per account along with real-time active employee count (`plantilla.status IN ('Active', 'On-Leave')`) and open vacancy count (`vacancies.status = 'Open'`).
+     - `public.manage_account_position(p_action text, p_account_id uuid, p_position_id uuid, p_position_name text)`: Security definer mutation function supporting:
+       - `link`: Links an existing master position to the specified account.
+       - `create_and_link`: Normalizes the input position name via `public.fn_format_position_title`, inserts into `public.positions` (or reuses existing ID), and links to `public.account_positions`.
+       - `unlink`: Unlinks a position from the account with strict in-use protection (blocks deletion if active workforce or open vacancies exist under that position).
+       - Enforces role-level gate $\ge 30$ (Data Team: `SA`, `HA`, `Encoder`) and logs full operational audit trail via `public.log_audit_event`.
+2. **Web Query Layer (`src/lib/queries/accountPositions.ts`)**:
+   - Implemented `fetchAccountPositionsDetailed`, `fetchMasterPositions`, and `mutateManageAccountPosition`.
+   - Provided TanStack Query v5 hooks: `useAccountPositionsDetailedQuery`, `useMasterPositionsQuery`, and `useManageAccountPositionMutation` with comprehensive cache invalidation (`account_positions_detailed`, `master_positions`, `account_position_options`, `headcount_form_options`).
+3. **Web UI Components & Hybrid Integration**:
+   - `src/components/more/AccountPositionManagerModal.tsx`:
+     - Built comprehensive management modal with account selector, search filter, assigned positions list with live active/open badges, unlink confirmation with in-use locks, option A (link from master catalog), and option B (register new master position with dynamic Proper Case + acronym uppercase preview).
+   - `src/app/(dashboard)/more/page.tsx`:
+     - Added "Account Positions" governance tile to `More > Data Control > Operations & Governance` (`tool=account_positions`) with URL query sync.
+   - `src/components/plantilla/directory/PlantillaAccountSelection.tsx`:
+     - Added `Positions` action button inside the 3-dots context menu on account cards for Data Team roles.
+   - `src/app/(dashboard)/plantilla/page.tsx`:
+     - Added dedicated `Positions` button in the Account Header toolbar next to Export/Actions for Data Team roles, opening `AccountPositionManagerModal` with preselected account context.
+4. **Verification & Mobile Parity**:
+   - Synced migration `20262606000210_manage_account_positions_rpc.sql` to Mobile repository.
+   - All 272/272 tests passed (`npm test`).
+   - 0 ESLint errors/warnings (`npm run lint`).
+   - 0 SQL contract violations (`check:sql`).
+   - Clean Next.js 16.2.4 Turbopack build (`npm run build`).
+
 ## Execution Report — Standardize Positions to Proper Format, Enforce 2-3 Letter Acronym Uppercase Rule, and Deduplicate Account Positions (ohm#normalize-positions-proper-case-and-deduplicate-accounts)
 **Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging, All 272 Tests Passing, 0 Lint Warnings, Next.js 16.2.4 Build Clean
 
