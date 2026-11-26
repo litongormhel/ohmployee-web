@@ -39,6 +39,8 @@ export interface PlantillaFilterToolbarProps {
   hierarchicalAreaOptions: { area: string; cities: string[] }[];
   assignmentType: string;
   onAssignmentTypeChange: (value: string) => void;
+  storeStatusFilter?: "active" | "archived" | "all";
+  onStoreStatusFilterChange?: (value: "active" | "archived" | "all") => void;
   hasActiveFilters: boolean;
   onResetFilters: () => void;
 }
@@ -63,6 +65,8 @@ export function PlantillaFilterToolbar({
   hierarchicalAreaOptions,
   assignmentType,
   onAssignmentTypeChange,
+  storeStatusFilter = "active",
+  onStoreStatusFilterChange,
   hasActiveFilters,
   onResetFilters,
 }: PlantillaFilterToolbarProps) {
@@ -346,6 +350,22 @@ export function PlantillaFilterToolbar({
               <option value="roving">Roving</option>
             </select>
           </div>
+
+          {/* Store Status Dropdown (Active / Archived / All) when in Store View */}
+          {mainView === "store" && (
+            <div className="min-w-[130px] flex-1 sm:flex-initial">
+              <select
+                value={storeStatusFilter}
+                onChange={(e) => onStoreStatusFilterChange?.(e.target.value as "active" | "archived" | "all")}
+                className="h-8.5 w-full rounded-lg border border-border-default bg-surface-base px-2.5 text-xs text-text-primary outline-none transition-colors focus:border-brand-500 cursor-pointer"
+                aria-label="Filter stores by active or archived status"
+              >
+                <option value="active">Active Stores</option>
+                <option value="archived">Archived Stores</option>
+                <option value="all">All Stores</option>
+              </select>
+            </div>
+          )}
 
           {hasActiveFilters && (
             <button

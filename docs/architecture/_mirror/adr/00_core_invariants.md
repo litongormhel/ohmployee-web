@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Core. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/00_core_invariants.md
-source_commit: 8df2f62 2026-11-24T23:07:07+08:00
-source_sha256: b9f06af42d09e9c672df002ecd83354244a3dc9246f60f11c45a796703102b96
-synced_at: 2026-11-25T03:22:24.073Z
+source_commit: 08ac81e 2026-11-25T19:31:17+08:00
+source_sha256: a3b8d8c347a17625520187eacff3b8da6fa4e90d63c828d9fa40e9b2b5398487
+synced_at: 2026-11-26T02:11:10.320Z
 -->
 # ADR Architecture — Core Cross-Module Invariants
 
@@ -41,6 +41,11 @@ The 5 SA-gated admin/QA bulk archive functions (`fn_archive_*`, `fn_qa_*`, `fn_r
 
 **Backout releases the slot in the same transaction:** `tag_backout` resolves the linked plantilla slot (`hr_emploc.slot_id`, else unambiguous single-`hr_processing`-slot fallback on the vcode) and releases it → open via `fn_set_slot_status(reason 'BACKOUT')`; blocked release is FATAL (22023). Slots occupied by a different employee are never released. Reason codes `BACKOUT`/`HC_READD` are seeded into `slot_reason_codes`; `slot_history.reason_code` is FK-checked. Matrix extension: `closed`/`hc_reduced`→`open` only with reason `HC_READD`/`COVERAGE_STORE_REMOVED`/`COVERAGE_GROUP_DISSOLVED`.
 
+#### Slot-Level Position Independence Contract (Multi-HC Heterogeneous Positions)
+For multi-headcount stores, distinct physical slots under the same store `VCODE` are permitted to hold **heterogeneous positions** (e.g., Slot 1 = `Quality Assurance`, Slot 2 = `Stockman`). 
+- **Slot Ownership of Position**: Position identity is a property of the physical slot (`plantilla_slots.position_id` / `position_name_snapshot`) and vacancy requisition, not permanently frozen or collapsed at the store level.
+- **No Blanket Position Overwrite**: Headcount expansion, amendment approvals, and separation triggers must preserve and stamp the specific requested position onto the newly generated or reopened slot. Approval RPCs (`approve_headcount_amendment_request`, `approve_headcount_request`) and views (`vw_vacancy_list`, `v_plantilla_safe`) are **STRICTLY PROHIBITED** from overwriting all existing store slots with a single parent position.
+
 ### Rule 2 — Hired HC Source & Dual Context Delineation
 
 **Module scope:** Cross-module derived read. Source of truth lives in Plantilla; consumed by Vacancy, Dashboard, CENCOM, HR Emploc, and Onboarding.
@@ -60,6 +65,11 @@ To permanently eliminate cross-module ambiguity, the system strictly delineates 
 **Module scope:** Cross-module (Applicant / Vacancy / Plantilla / HR Emploc / Onboarding).
 
 An applicant/vacancy status change (hire, backout, separation) must never leave its corresponding `plantilla_slots` row dangling. This is enforced as a backstop, not just a convention: a deferred CONSTRAINT TRIGGER (`trg_applicant_terminal_slot_sync`) on `applicants` fails the transaction at COMMIT if a move into Backout/Withdrawn/Separated leaves its slot unclaimed (`hr_processing`) or still occupied/filled by that applicant's plantilla row.
+
+#### Separation Vacancy Reopen & Attribution Contract
+When an active employee separates (Resigned, AWOL, Terminated, Endo) and their slot is reopened via `fn_plantilla_separation_to_vacancy` / `_apply_separation`:
+1. **Accurate Vacancy Date Reset**: The resulting vacancy's `vacancy_date` must be **reset to the employee's separation `effective_date`** (or `date_of_separation`), rather than retaining an ancient vacancy date from years or months prior. This ensures SLA and aging metrics accurately reflect the current unfulfilled period.
+2. **Deterministic Ownership Attribution**: `vacancies.triggered_by` must record the authenticated actor (or `users_profile.id`) who submitted or executed the separation, guaranteeing unambiguous auditability.
 
 ### Rule 4 — Standardized Vacancy Open Visibility Filter
 *(Housed in `docs/architecture/adr/02_vacancy.md` § Standardized Open Visibility Filter & Waterfall Priority)*

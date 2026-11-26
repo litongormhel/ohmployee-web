@@ -1193,6 +1193,8 @@ export function StoreCapacityTable({
     let leave = 0;
     let vac = 0;
     rows.forEach((r) => {
+      // Exclude archived stores from operational totals
+      if (r.isArchived) return;
       req += r.plantillaRequired;
       act += r.activeDeployed;
       leave += r.onLeave;
@@ -1268,7 +1270,12 @@ export function StoreCapacityTable({
                 : `${isMixed ? "Mixed" : isRoving ? "Roving" : "Stationary"} store (No VCode assigned yet)`;
 
               return (
-                <tr key={store.id} className="transition-colors hover:bg-table-row-hover">
+                <tr
+                  key={store.id}
+                  className={`transition-colors hover:bg-table-row-hover ${
+                    store.isArchived ? "opacity-60 bg-surface-muted/30" : ""
+                  }`}
+                >
                   {/* 1. Store Branch */}
                   <td className="px-3.5 py-2 font-medium text-table-text">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -1323,7 +1330,25 @@ export function StoreCapacityTable({
 
                   {/* 7. Fulfillment Status */}
                   <td className="px-3.5 py-2 text-center">
-                    {store.isFulfilled ? (
+                    {store.isArchived || store.statusBadge === "Archived" ? (
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-surface-muted text-text-muted border border-border-default">
+                        Archived
+                      </span>
+                    ) : store.statusBadge === "Standby" || (store.plantillaRequired === 0 && store.activeDeployed === 0) ? (
+                      <span
+                        className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-surface-muted text-text-secondary border border-border-default"
+                        title="Active store profile with zero allocated headcount quota"
+                      >
+                        Standby (0 Quota)
+                      </span>
+                    ) : store.statusBadge === "In Pipeline" ? (
+                      <span
+                        className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
+                        title="Candidate in recruitment screening or HR Emploc onboarding pipeline"
+                      >
+                        In Pipeline
+                      </span>
+                    ) : store.isFulfilled ? (
                       <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800">
                         100% Fulfilled
                       </span>
@@ -1337,15 +1362,19 @@ export function StoreCapacityTable({
                   {/* 8. Actions */}
                   {showActions && (
                     <td className="px-3.5 py-2 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => onRequestHeadcount?.(store)}
-                        className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-[11px] font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
-                        title={`Request stationary headcount for ${formatStoreName(store.storeBranch)}`}
-                      >
-                        <Plus className="h-3 w-3 text-brand-600 shrink-0" />
-                        <span>Request HC</span>
-                      </button>
+                      {store.isArchived ? (
+                        <span className="text-[11px] text-text-muted italic px-2">Archived</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onRequestHeadcount?.(store)}
+                          className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-[11px] font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
+                          title={`Request stationary headcount for ${formatStoreName(store.storeBranch)}`}
+                        >
+                          <Plus className="h-3 w-3 text-brand-600 shrink-0" />
+                          <span>Request HC</span>
+                        </button>
+                      )}
                     </td>
                   )}
                 </tr>

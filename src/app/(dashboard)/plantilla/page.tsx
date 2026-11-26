@@ -53,6 +53,7 @@ import {
   type DisplayView,
   type VacancyWorkflowStage,
   type StoreCapacityRow,
+  type StoreFulfillmentStatus,
   type RelieverTargetEmployee,
   type ReturnToActiveTarget,
   type AssignStoreTargetEmployee,
@@ -161,6 +162,7 @@ function PlantillaPageContent() {
       : internalStatusTab;
 
   const [vacancySubFilter] = useState<"all" | "open" | "pipeline">("all");
+  const [storeStatusFilter, setStoreStatusFilter] = useState<"active" | "archived" | "all">("active");
 
   const urlDisplayParam = (
     searchParams.get("display") ||
@@ -517,10 +519,8 @@ function PlantillaPageContent() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("stores")
-        .select("id, store_name, vcode, area_city, area_province, province")
+        .select("id, store_name, vcode, area_city, area_province, province, is_active, is_archived, status")
         .eq("account_id", accountId)
-        .eq("is_active", true)
-        .eq("is_archived", false)
         .order("store_name");
       if (error) throw error;
       return (data ?? []).map((s) => ({
@@ -529,6 +529,8 @@ function PlantillaPageContent() {
         code: (s.vcode as string | null) ?? null,
         city: (s.area_city as string | null) ?? null,
         province: ((s.area_province ?? s.province) as string | null) ?? null,
+        isActive: s.is_active !== false,
+        isArchived: s.is_archived === true || s.status === "archived",
       }));
     },
     enabled: !!accountId && isAccountAuthorized,
@@ -547,7 +549,8 @@ function PlantillaPageContent() {
 
   // Hierarchical Area -> City options for dropdown
   const hierarchicalAreaOptions = useMemo(() => {
-    const stores = storesUnderAccountQuery.data ?? [];
+    // Only active stores contribute to the filter options
+    const stores = (storesUnderAccountQuery.data ?? []).filter((s) => !s.isArchived);
     const areaMap = new Map<string, Set<string>>();
 
     stores.forEach((s) => {
@@ -1627,6 +1630,8 @@ function PlantillaPageContent() {
         code: string | null;
         city: string | null;
         province: string | null;
+        isActive?: boolean;
+        isArchived?: boolean;
       }
     >();
 
@@ -1637,6 +1642,8 @@ function PlantillaPageContent() {
         code: st.code,
         city: st.city,
         province: st.province,
+        isActive: st.isActive,
+        isArchived: st.isArchived,
       });
     });
 
@@ -1649,6 +1656,8 @@ function PlantillaPageContent() {
           code: st.code,
           city: st.city,
           province: st.province,
+          isActive: true,
+          isArchived: false,
         });
       }
     });
@@ -1671,6 +1680,8 @@ function PlantillaPageContent() {
             code: alloc.vcode || info?.code || null,
             city: info?.city || null,
             province: info?.province || null,
+            isActive: true,
+            isArchived: false,
           });
         }
       }
@@ -1693,6 +1704,8 @@ function PlantillaPageContent() {
             code: emp.vcode || info?.code || null,
             city: info?.city || null,
             province: info?.province || null,
+            isActive: true,
+            isArchived: false,
           });
         }
       }
@@ -1715,32 +1728,78 @@ function PlantillaPageContent() {
             code: v.vcode || info?.code || null,
             city: info?.city || null,
             province: info?.province || null,
+            isActive: true,
+            isArchived: false,
           });
         }
+      }
+    });
+
+    // Map pipeline candidate counts by store branch name
+    const storePipelineCountMap = new Map<string, number>();
+    pipelineCandidates.forEach((cand) => {
+      const rawStore = cand.store_name?.trim();
+      if (rawStore) {
+        rawStore
+          .replace(/\s*\(Roving\)/i, "")
+          .replace(/\s*\[Roving\]/i, "")
+          .replace(/\s*\(For Requirements\)/i, "")
+          .replace(/\s*\(Onboarded\)/i, "")
+          .split("•")
+          .forEach((part) => {
+            const clean = part.toLowerCase().trim();
+            if (clean) {
+              storePipelineCountMap.set(clean, (storePipelineCountMap.get(clean) ?? 0) + 1);
+            }
+          });
       }
     });
 
     const rows: StoreCapacityRow[] = [];
 
     candidateStoreMap.forEach((storeObj, storeKey) => {
+      const isArchivedStore = Boolean(storeObj.isArchived);
+
+      // Status filter gate: by default ("active"), hide archived stores. When "archived", show only archived.
+      if (storeStatusFilter === "active" && isArchivedStore) return;
+      if (storeStatusFilter === "archived" && !isArchivedStore) return;
+
       const rawActive = storeActiveCountMap.get(storeKey) ?? 0;
       const rawOnLeave = storeOnLeaveCountMap.get(storeKey) ?? 0;
       const rawVacancy = storeVacancyCountMap.get(storeKey) ?? 0;
+      const rawPipeline = storePipelineCountMap.get(storeKey) ?? 0;
 
       const activeDeployed = Math.round(rawActive * 100) / 100;
       const onLeave = Math.round(rawOnLeave * 100) / 100;
-      const openVacancy = Math.round(rawVacancy * 100) / 100;
 
-      if (activeDeployed === 0 && onLeave === 0 && openVacancy === 0) {
-        return;
-      }
+      // If a vacancy has active candidates in pipeline recruitment, ensure openVacancy covers that demand
+      const effectiveVacancy = Math.max(
+        rawVacancy,
+        rawPipeline > 0 && activeDeployed === 0 ? rawPipeline : rawVacancy
+      );
+      const openVacancy = Math.round(effectiveVacancy * 100) / 100;
+      const pipelineCount = rawPipeline;
 
       const derivedRequired = Math.round((activeDeployed + openVacancy) * 100) / 100;
       const staffing = staffingMap.get(storeObj.id);
       const plantillaRequired = derivedRequired > 0
         ? derivedRequired
         : (staffing?.requiredHeadcount ?? derivedRequired);
-      const isFulfilled = activeDeployed >= plantillaRequired - 0.01 && openVacancy === 0;
+
+      let statusBadge: StoreFulfillmentStatus;
+      if (isArchivedStore) {
+        statusBadge = "Archived";
+      } else if (plantillaRequired === 0 && activeDeployed === 0) {
+        statusBadge = "Standby";
+      } else if (activeDeployed >= plantillaRequired - 0.01 && openVacancy === 0) {
+        statusBadge = "100% Fulfilled";
+      } else if (pipelineCount > 0 && (activeDeployed + pipelineCount) >= plantillaRequired) {
+        statusBadge = "In Pipeline";
+      } else {
+        statusBadge = "Understaffed";
+      }
+
+      const isFulfilled = statusBadge === "100% Fulfilled";
 
       rows.push({
         id: storeObj.id,
@@ -1752,7 +1811,10 @@ function PlantillaPageContent() {
         activeDeployed,
         onLeave,
         openVacancy,
+        pipelineCount,
         isFulfilled,
+        statusBadge,
+        isArchived: isArchivedStore,
         deploymentTypes: Array.from(storeDeploymentTypes.get(storeKey) ?? ["Stationary"]),
       });
     });
@@ -1766,6 +1828,8 @@ function PlantillaPageContent() {
     effectiveStoreLookupMap,
     allEmployees,
     allVacancies,
+    pipelineCandidates,
+    storeStatusFilter,
   ]);
 
   const filteredStoreCapacityRows = useMemo(() => {
@@ -1918,7 +1982,12 @@ function PlantillaPageContent() {
     return filteredStoreCapacityRows.slice(start, start + storePageSize);
   }, [filteredStoreCapacityRows, storePage, storePageSize]);
 
-  const hasActiveFilters = Boolean(search.trim() || areaCityFilter || assignmentType);
+  const hasActiveFilters = Boolean(
+    search.trim() ||
+    areaCityFilter ||
+    assignmentType ||
+    (mainView === "store" && storeStatusFilter !== "active")
+  );
 
   // -------------------------------------------------------------------------
   // Handlers
@@ -1983,6 +2052,7 @@ function PlantillaPageContent() {
     setSearch("");
     setAreaCityFilter("");
     setAssignmentType("");
+    setStoreStatusFilter("active");
     setPage(1);
     setStorePage(1);
   }
@@ -2297,6 +2367,12 @@ function PlantillaPageContent() {
               onAssignmentTypeChange={(val) => {
                 setAssignmentType(val);
                 setPage(1);
+                setStorePage(1);
+              }}
+              storeStatusFilter={storeStatusFilter}
+              onStoreStatusFilterChange={(val) => {
+                setStoreStatusFilter(val);
+                setStorePage(1);
               }}
               hasActiveFilters={hasActiveFilters}
               onResetFilters={handleResetFilters}

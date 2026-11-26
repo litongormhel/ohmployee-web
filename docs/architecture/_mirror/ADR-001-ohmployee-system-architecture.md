@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001-Full. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
-source_commit: 227a315 2026-11-23T20:19:54+08:00
-source_sha256: d1caa50e6315ac18fb03ca1314d01658791578f6a85267022216aecd7ef215af
-synced_at: 2026-11-25T03:22:23.916Z
+source_commit: 08ac81e 2026-11-25T19:31:17+08:00
+source_sha256: c01612a7fef31bf1cfd3bd322c6b61146b2dddda58f529e8165e71b0f4f3907c
+synced_at: 2026-11-26T02:11:10.154Z
 -->
 # ADR-001: OHMployee System Architecture
 
@@ -38,6 +38,11 @@ The 5 SA-gated admin/QA bulk archive functions (`fn_archive_*`, `fn_qa_*`, `fn_r
 
 **Backout releases the slot in the same transaction:** `tag_backout` resolves the linked plantilla slot (`hr_emploc.slot_id`, else unambiguous single-`hr_processing`-slot fallback on the vcode) and releases it → open via `fn_set_slot_status(reason 'BACKOUT')`; blocked release is FATAL (22023). Slots occupied by a different employee are never released. Reason codes `BACKOUT`/`HC_READD` are seeded into `slot_reason_codes`; `slot_history.reason_code` is FK-checked. Matrix extension: `closed`/`hc_reduced`→`open` only with reason `HC_READD`/`COVERAGE_STORE_REMOVED`/`COVERAGE_GROUP_DISSOLVED`.
 
+#### Slot-Level Position Independence Contract (Multi-HC Heterogeneous Positions)
+For multi-headcount stores, distinct physical slots under the same store `VCODE` are permitted to hold **heterogeneous positions** (e.g., Slot 1 = `Quality Assurance`, Slot 2 = `Stockman`).
+- **Slot Ownership of Position**: Position identity is a property of the physical slot (`plantilla_slots.position_id` / `position_name_snapshot`) and vacancy requisition, not permanently frozen or collapsed at the store level.
+- **No Blanket Position Overwrite**: Headcount expansion, amendment approvals, and separation triggers must preserve and stamp the specific requested position onto the newly generated or reopened slot. Approval RPCs (`approve_headcount_amendment_request`, `approve_headcount_request`) and views (`vw_vacancy_list`, `v_plantilla_safe`) are **STRICTLY PROHIBITED** from overwriting all existing store slots with a single parent position.
+
 ### Rule 2 — Hired HC Source
 
 **Module scope:** Cross-module derived read. Source of truth lives in Plantilla; consumed by Vacancy, Dashboard, CENCOM, HR Emploc, and Onboarding.
@@ -49,6 +54,11 @@ The 5 SA-gated admin/QA bulk archive functions (`fn_archive_*`, `fn_qa_*`, `fn_r
 **Module scope:** Cross-module (Applicant / Vacancy / Plantilla / HR Emploc / Onboarding).
 
 An applicant/vacancy status change (hire, backout, separation) must never leave its corresponding `plantilla_slots` row dangling. This is enforced as a backstop, not just a convention: a deferred CONSTRAINT TRIGGER (`trg_applicant_terminal_slot_sync`) on `applicants` fails the transaction at COMMIT if a move into Backout/Withdrawn/Separated leaves its slot unclaimed (`hr_processing`) or still occupied/filled by that applicant's plantilla row.
+
+#### Separation Vacancy Reopen & Attribution Contract
+When an active employee separates (Resigned, AWOL, Terminated, Endo) and their slot is reopened via `fn_plantilla_separation_to_vacancy` / `_apply_separation`:
+1. **Accurate Vacancy Date Reset**: The resulting vacancy's `vacancy_date` must be **reset to the employee's separation `effective_date`** (or `date_of_separation`), rather than retaining an ancient vacancy date from years or months prior. This ensures SLA and aging metrics accurately reflect the current unfulfilled period.
+2. **Deterministic Ownership Attribution**: `vacancies.triggered_by` must record the authenticated actor (or `users_profile.id`) who submitted or executed the separation, guaranteeing unambiguous auditability.
 
 ### Rule 6 — Denormalized Writes
 
@@ -108,6 +118,7 @@ User Management (`public.user_scopes` joined to `public.users_profile` with `rol
 17. Mixed Stationary + Roving Store Coexistence: A store with active Stationary employee(s) may simultaneously be covered by one or more Roving employees under a Coverage Group (CGCODE). Store-level capacity sums Stationary (1.00 each) + Roving ($1/N$ each, e.g., 1.50 for 2-store roving, 1.33 for 3-store roving), while Account/CENCOM/Dashboard HC always counts distinct people.
 18. Request Headcount vs. Request New Store Separation: Request Headcount (Plantilla Store View per-row Stationary action + Plantilla header Roving action) operates strictly on existing stores. Request New Store is an independent Plantilla header flow owning all unlisted store openings (Stationary 1-store with initial HC >= 1, and Roving multi-door openings per ADR-003).
 19. Automatic Inactive Status on Effective Date of Separation: When `plantilla.date_of_separation` is populated and `<= CURRENT_DATE`, the employee's status automatically transitions to `Inactive` (or `Deactivated`), even without a prior deactivation request. The employee is immediately excluded from active deployed headcount (`Actual = 0`), and their occupied slot in `plantilla_slots` is vacated (`slot_status = 'open'`), reopening the replacement vacancy for the store.
+20. Headcount Expansion on Existing Stores Contract: An approved Headcount Request for an already existing store/VCode MUST NEVER route to New VCode / New Store Creation. It must strictly execute in-place Quota Revision via `revise_vcode_headcount_quota` (incrementing `hc_required` on the store) and provision additional physical `plantilla_slots` with sequential `slot_ordinal`s (e.g., ordinal 2, 3) under that exact same VCode. Generating duplicate VCodes or spawning new stores for existing store locations is strictly prohibited.
 
 ### Definitions
 
@@ -517,6 +528,11 @@ To eliminate operational ambiguity between Open and Pipeline queues across Web a
 4. **Tab 4: Closure** (`p_status = 'Closure'`): Requisitions with pending store closure or headcount reduction requests awaiting administrative approval (`has_pending_closure = true`).
 5. **Tab 5: Failed / Backout** (`p_status = 'Failed'`): Historical roster of candidates who dropped out, backed out, failed medical/ops evaluation, or did not report.
 
+#### Coverage Group Vacancy Invisibility & Shadow Section Deprecation
+- **Dedicated Coverage Group Surface**: Vacancies for roving roles spanning $N \ge 2$ stores are managed exclusively under the parent Coverage Group (`CGCODE`).
+- **Standard Vacancy Tab Exclusion**: Stationary stores that belong to an active Coverage Group do not generate actionable open vacancies in the standard store vacancy queue.
+- **Deprecation of "Covered by Coverage Group" Cards**: The experimental read-only shadow section ("Covered by Coverage Group") previously rendered inside the standard Account Vacancy tab is **deprecated and retired from the UI**. All Coverage Group vacancies are managed within their dedicated Coverage Group views to prevent operational confusion.
+
 ### Strict Applicant Closure Lock Invariant (`ohm#c3m8v1k4` — 2026-11-12)
 
 **Status: ACCEPTED.** Database trigger / assertion `public.fn_assert_vacancy_closeable(p_vcode)` enforces that:
@@ -619,6 +635,19 @@ Confirmed live writers (all `SECURITY DEFINER`, all gated on `is_super_admin()`,
 ---
 
 ## Plantilla
+
+### Plantilla Account Roster Standard Tabs & Status Isolation Contract
+
+**Status: ACCEPTED & LOCKED.** Codifies the standard tab roster and strict status isolation for Plantilla Account Views across Web and Mobile:
+
+1. **Tab 1: Active** (`status = 'Active'`): Currently deployed, active employees.
+2. **Tab 2: Pipeline**: Active candidates undergoing recruitment screening/processing for the account.
+3. **Tab 3: Vacancy**: Open physical slot requisitions requiring staffing.
+4. **Tab 4: On-Leave** (`status = 'On Leave'` or `separation_status = 'On Leave'`): Employees with authorized temporary leave. Must be **strictly excluded** from the Inactive tab roster.
+5. **Tab 5: Floating** (`status = 'Floating'` or `separation_status = 'Floating'`): Employees awaiting reassignment under DOLE 6-month floating status. Must be **strictly excluded** from the Inactive tab roster. Redundant `Floating` badge is hidden in this tab view as the grouping is self-evident.
+6. **Tab 6: Inactive**: Historical separated personnel (`Resigned`, `Terminated`, `Endo`, `AWOL`, `Separated`). On-Leave and Floating employees are **strictly prohibited** from rendering in this tab.
+7. **Conditional Tab: Needs HRCO**: Renders if and only if the account has zero assigned active HRCOs (`active_assigned_hrco_count = 0`). Accounts with $\ge 1$ assigned active HRCO must never display the `Needs HRCO` badge or tab.
+8. **View Mode Toggle Parity**: The `Employee / Store` view switcher must be prominently accessible inline below the account title. In `Store` view, all store cards are displayed and individual employee status tabs are hidden.
 
 ### Rule 5 — Ordering Contract
 

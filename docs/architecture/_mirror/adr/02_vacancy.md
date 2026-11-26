@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Vacancy. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/02_vacancy.md
-source_commit: 8df2f62 2026-11-24T23:07:07+08:00
-source_sha256: 109b75472e2beff82c4572ca53c26b5cbb4544af46017de36830cdd9789c7cdd
-synced_at: 2026-11-25T03:22:24.363Z
+source_commit: 08ac81e 2026-11-25T19:31:17+08:00
+source_sha256: b3aa4f7d0bd1843a9c24ae3231045e5872016e80509122f11ca78e8b5632e258
+synced_at: 2026-11-26T02:11:10.622Z
 -->
 # Vacancy Module Architecture
 
@@ -57,6 +57,11 @@ To eliminate operational ambiguity between Open, Pipeline, and Available capacit
 3. **Tab 3: Hired** (`p_status = 'Hired'`): Requisitions where recruitment is fulfilled because candidates reached confirmed onboard status (`confirmed_onboard_count >= required_headcount`), are active in HR Emploc onboarding, or are deployed in active Plantilla.
 4. **Tab 4: Closure** (`p_status = 'Closure'`): Requisitions with pending store closure or headcount reduction requests awaiting administrative approval (`has_pending_closure = true`).
 5. **Tab 5: Failed / Backout** (`p_status = 'Failed'`): Historical roster of candidates who dropped out, backed out, failed medical/ops evaluation, or did not report.
+
+#### Coverage Group Vacancy Invisibility & Shadow Section Deprecation
+- **Dedicated Coverage Group Surface**: Vacancies for roving roles spanning $N \ge 2$ stores are managed exclusively under the parent Coverage Group (`CGCODE`).
+- **Standard Vacancy Tab Exclusion**: Stationary stores that belong to an active Coverage Group do not generate actionable open vacancies in the standard store vacancy queue.
+- **Deprecation of "Covered by Coverage Group" Cards**: The experimental read-only shadow section ("Covered by Coverage Group") previously rendered inside the standard Account Vacancy tab is **deprecated and retired from the UI**. All Coverage Group vacancies are managed within their dedicated Coverage Group views to prevent operational confusion.
 
 ### Authoritative Waterfall Priority Order of Vacancy Tabs & Derived Status
 

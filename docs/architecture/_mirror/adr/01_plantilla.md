@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Plantilla. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/01_plantilla.md
-source_commit: f87b04a 2026-11-25T11:22:21+08:00
-source_sha256: b48f85dbcfc611483c45aeb8d0de758a0a6165ed01c683bfbc89d6e242c7b942
-synced_at: 2026-11-25T03:22:24.214Z
+source_commit: f4b7a3b 2026-11-26T10:11:00+08:00
+source_sha256: b18e3e80d66727d7b847e30d9bda2ddc95f854194e8fa3d00ecf8608acc4e941
+synced_at: 2026-11-26T02:11:10.465Z
 -->
 # Plantilla Module Architecture & Headcount Governance
 
@@ -31,6 +31,7 @@ Within an Account, 1 `STORE_NAME` maps 1:1 to 1 `VCODE`.
 - Even if 10 employees are assigned to that store, all employees and slots share the store's single `VCODE` with distinct, sequential `slot_ordinal`s (1..N).
 - Same `STORE_NAME` with a different `VCODE` within the Account is hard-blocked.
 - Same `VCODE` with a different `STORE_NAME` within the Account is hard-blocked.
+- **Headcount Expansion on Existing Stores Contract**: An approved Headcount Request for an already existing store/VCode **MUST NEVER route to New VCode / New Store Creation**. It must strictly execute in-place Quota Revision via `revise_vcode_headcount_quota` (incrementing `hc_required` on the store) and provision additional physical `plantilla_slots` with sequential `slot_ordinal`s (e.g., ordinal 2, 3) under that exact same VCode. Generating duplicate VCodes or spawning new stores for existing store locations is strictly prohibited.
 
 ### Invariant 3 — `CGCODE` (Coverage Group) Coexistence with Permanent `VCODE` & Universal Roving Binding
 Every store permanently retains its individual `VCODE` even when grouped into a roving Coverage Group (`CGCODE`).
@@ -225,5 +226,35 @@ The Plantilla module operates under **Dual Views** driven by a segmented view to
    - Filtering by `Position` strictly targets individual slot capabilities without breaking or omitting multi-position stores.
 3. **Sequential Slot Ordinal Identity:**
    - Each rendered slot row displays its distinct sequential slot indicator (`Slot 1`, `Slot 2`, `Slot 3`), enabling direct operational clarity for recruiters, HR coordinators, and store managers.
+
+### Plantilla Account Roster Standard Tabs & Status Isolation Contract
+
+**Status: ACCEPTED & LOCKED.** Codifies the standard tab roster and strict status isolation for Plantilla Account Views across Web and Mobile:
+
+1. **Tab 1: Active** (`status = 'Active'`): Currently deployed, active employees.
+2. **Tab 2: Pipeline**: Active candidates undergoing recruitment screening/processing for the account.
+3. **Tab 3: Vacancy**: Open physical slot requisitions requiring staffing.
+4. **Tab 4: On-Leave** (`status = 'On Leave'` or `separation_status = 'On Leave'`): Employees with authorized temporary leave. Must be **strictly excluded** from the Inactive tab roster.
+5. **Tab 5: Floating** (`status = 'Floating'` or `separation_status = 'Floating'`): Employees awaiting reassignment under DOLE 6-month floating status. Must be **strictly excluded** from the Inactive tab roster. Redundant `Floating` badge is hidden in this tab view as the grouping is self-evident.
+6. **Tab 6: Inactive**: Historical separated personnel (`Resigned`, `Terminated`, `Endo`, `AWOL`, `Separated`). On-Leave and Floating employees are **strictly prohibited** from rendering in this tab.
+7. **Conditional Tab: Needs HRCO**: Renders if and only if the account has zero assigned active HRCOs (`active_assigned_hrco_count = 0`). Accounts with $\ge 1$ assigned active HRCO must never display the `Needs HRCO` badge or tab.
+8. **View Mode Toggle Parity**: The `Employee / Store` view switcher must be prominently accessible inline below the account title. In `Store` view, all store cards are displayed and individual employee status tabs are hidden.
+
+### Store View Active Fleet Visibility & Full-Lifecycle Transparency Invariant (`ohm#store-view-all-active-stores` — 2026-11-26)
+
+**Status: ACCEPTED & LOCKED.** Codifies the Store View visibility contract across Web and Mobile:
+
+1. **STORE VIEW = All Active Stores Fleet Invariant (Zero Ghost-Dropping Lock):**
+   - In Store View, every active store profile belonging to the Account (`stores.is_active = TRUE AND stores.is_archived = FALSE`) must **permanently be visible**, regardless of its operational, vacancy, or recruitment lifecycle stage.
+   - An active store must **NEVER silently disappear or be dropped** from the Store View roster simply because it currently has zero deployed personnel, zero on-leave personnel, or zero open vacancies.
+2. **Lifecycle Stage Transparency & Fulfillment Status:**
+   - **100% Fulfilled**: `active_deployed >= plantilla_required` and `open_vacancy = 0` (emerald badge).
+   - **Understaffed**: `active_deployed < plantilla_required` with open recruitment slots (rose/red badge).
+   - **In Pipeline**: Requisition has active candidate(s) undergoing recruitment screening or HR Emploc onboarding compliance (amber/blue badge). Store View must reflect pipeline candidates and must not drop the store.
+   - **Zero Quota / Standby**: Active store profile where authorized headcount is zero or all vacancies/slots were formally closed (e.g. approved Vacancy Closure). Renders with `Required: 0 | Actual: 0 | Vacancy: 0`, tagged as `Standby / Zero Quota` (slate badge), retaining the `+ Request HC` action so Operations can request new headcount whenever business resumes.
+3. **Archived / Closed Stores Separation:**
+   - Stores that are soft-archived or deactivated in the database (`stores.is_archived = TRUE` or `stores.is_active = FALSE`) represent historical, deleted, or dissolved locations.
+   - To preserve operational focus and prevent KPI distortion, archived stores are **strictly excluded** from the default Store View table and header KPI totals (`Required`, `Actual`, `Vacancy`).
+   - They are accessible exclusively via an explicit **`Archived / Closed Stores`** sub-filter toggle in the Store View toolbar, rendered with an `Archived` tag and with the `+ Request HC` action disabled.
 
 ---

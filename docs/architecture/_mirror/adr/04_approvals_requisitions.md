@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Approvals. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/04_approvals_requisitions.md
-source_commit: 0eb4407 2026-11-23T23:02:59+08:00
-source_sha256: 295ef34a0aa485408e9c3a630cb7c4a431b1363f8f72189fa47372c216e3605a
-synced_at: 2026-11-25T03:22:24.684Z
+source_commit: 08ac81e 2026-11-25T19:31:17+08:00
+source_sha256: 6c887659938127abd1bd2dff631975da760546993daafa300e913c71b1ec677f
+synced_at: 2026-11-26T02:11:10.940Z
 -->
 # Approvals & Headcount Requisitions Architecture
 
@@ -35,6 +35,7 @@ synced_at: 2026-11-25T03:22:24.684Z
 17. Mixed Stationary + Roving Store Coexistence: A store with active Stationary employee(s) may simultaneously be covered by one or more Roving employees under a Coverage Group (CGCODE). Store-level capacity sums Stationary (1.00 each) + Roving ($1/N$ each, e.g., 1.50 for 2-store roving, 1.33 for 3-store roving), while Account/CENCOM/Dashboard HC always counts distinct people.
 18. Request Headcount vs. Request New Store Separation: Request Headcount (Plantilla Store View per-row Stationary action + Plantilla header Roving action) operates strictly on existing stores. Request New Store is an independent Plantilla header flow owning all unlisted store openings (Stationary 1-store with initial HC >= 1, and Roving multi-door openings per ADR-003).
 19. Automatic Inactive Status on Effective Date of Separation: When `plantilla.date_of_separation` is populated and `<= CURRENT_DATE`, the employee's status automatically transitions to `Inactive` (or `Deactivated`), even without a prior deactivation request. The employee is immediately excluded from active deployed headcount (`Actual = 0`), and their occupied slot in `plantilla_slots` is vacated (`slot_status = 'open'`), reopening the replacement vacancy for the store.
+20. Headcount Expansion on Existing Stores Contract: An approved Headcount Request for an already existing store/VCode MUST NEVER route to New VCode / New Store Creation. It must strictly execute in-place Quota Revision via `revise_vcode_headcount_quota` (incrementing `hc_required` on the store) and provision additional physical `plantilla_slots` with sequential `slot_ordinal`s (e.g., ordinal 2, 3) under that exact same VCode. Generating duplicate VCodes or spawning new stores for existing store locations is strictly prohibited.
 
 ### Definitions
 

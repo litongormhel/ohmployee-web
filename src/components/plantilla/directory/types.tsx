@@ -36,6 +36,13 @@ export const VALID_LEAVE_REASONS = [
 // Component Data Contracts
 // ---------------------------------------------------------------------------
 
+export type StoreFulfillmentStatus =
+  | "100% Fulfilled"
+  | "Understaffed"
+  | "In Pipeline"
+  | "Standby"
+  | "Archived";
+
 export interface StoreCapacityRow {
   id: string;
   storeBranch: string;
@@ -46,7 +53,10 @@ export interface StoreCapacityRow {
   activeDeployed: number;
   onLeave: number;
   openVacancy: number;
+  pipelineCount?: number;
   isFulfilled: boolean;
+  statusBadge?: StoreFulfillmentStatus;
+  isArchived?: boolean;
   deploymentTypes: Array<"Roving" | "Stationary">;
 }
 
