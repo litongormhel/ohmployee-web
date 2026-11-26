@@ -1,5 +1,29 @@
 # AI Handoff
 
+## Execution Report — Codify Diagnostic & Inspection Gate (Check, Investigate, Audit = Strict Read-Only Mode) (ohm#codify-diagnostic-read-only-gate)
+**Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, Codified across AGENTS.md & briefing.md
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants — `source_commit: 08ac81e`)
+
+### What Was Done
+1. **Rule Codification Across Workflow Files**:
+   - Updated `AGENTS.md` and `.ai/briefing.md` to formally introduce the **Diagnostic & Inspection Gate (Check / Investigate / Audit = Read-Only Mode)**.
+   - Clarified that while single-turn execution remains the default for implementation tasks, any prompt phrased with diagnostic or exploratory keywords (**"Check"**, **"Investigate"**, **"Audit"**, **"Inspect"**, **"Suriin"**, **"Alamin"**) is strictly read-only:
+     1. **Strict Read-Only Execution**: The agent is strictly forbidden from writing or modifying code, creating or applying migrations, editing files, or making commits. The turn MUST remain read-only.
+     2. **Forensic Root Cause Analysis**: Focus the entire turn on code tracing, schema verification, log analysis, and evidence gathering.
+     3. **Present Root Cause & Recommended Plan**: Clearly explain the root cause and provide 1–3 concrete, actionable recommendations with trade-offs.
+     4. **Approval Gate Required**: STOP and wait for the user to review the findings and explicitly approve the recommended plan before modifying any code.
+2. **Cross-Repo Alignment**:
+   - Aligned with Mobile repo's permanent Approval & Regression Gate rules.
+
+### Files Changed
+- `AGENTS.md`
+- `.ai/briefing.md`
+- `.ai/handoff.md`
+
+---
+
 ## Execution Report — Eliminate Post-Logout Anon 42501 Permission Denied Log Bursts & Scope ActiveQueueReviewPane Polling (ohm#fix-anon-permission-denied-log-burst-and-approvals-polling)
 **Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, All 268 Tests Passing, 0 Lint Warnings, Turbopack Build Clean
 

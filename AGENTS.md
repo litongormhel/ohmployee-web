@@ -26,10 +26,16 @@
 - Autonomous Single-Turn Execution Rule (Default Mode):
   - **Single-Turn by Default**: The agent automatically executes and verifies tasks end-to-end in a **single turn** (Plan -> Implement -> Verify -> Test/Lint -> Commit -> Staging Auto-Push) without requiring the user to type "Direct" or "Proceed".
   - **When to STOP and WAIT (Approval / Clarification Gate)**: The agent pauses and waits for user input ONLY if:
-    (1) The user explicitly says "Plan only", "Plan muna", or asks for review/options first,
+    (1) The user explicitly says "Plan only", "Plan muna", or asks for review/options first, OR uses diagnostic inspection keywords ("Check", "Investigate", "Audit", "Inspect", "Suriin", "Alamin"),
     (2) There is genuine ambiguity or uncertainty in business requirements (present 1–3 concrete recommendations and ask),
     (3) The change directly conflicts with an ADR architecture lock or contract invariant (triggers the ADR-First Hard Lockout: requires ADR revision in mobile repo + sync before implementation), OR
     (4) Irreversible destructive actions are involved (e.g. dropping production tables or deleting production assets).
+- Diagnostic & Inspection Gate (Check / Investigate / Audit = Read-Only Mode):
+  Whenever the user prompt uses diagnostic or investigative phrasing (e.g. **"Check"**, **"Investigate"**, **"Audit"**, **"Inspect"**, **"Suriin"**, **"Alamin"**):
+  1. **Strict Read-Only Execution**: The agent is strictly forbidden from writing or modifying code, creating or applying migrations, editing files, or making commits. The turn MUST remain read-only.
+  2. **Forensic Root Cause Analysis**: Focus the entire turn on code tracing, schema verification, log analysis, and evidence gathering.
+  3. **Present Root Cause & Recommended Plan**: Clearly explain the root cause and provide 1–3 concrete, actionable recommendations with trade-offs.
+  4. **Approval Gate Required**: STOP and wait for the user to review the findings and explicitly approve the recommended plan before modifying any code.
 - Non-Breaking View & RPC Parity Rule (Mobile Protection Lock):
   The Supabase database serves BOTH Web and Mobile (`OHMployee`).
   1. **Views (Append-Only)**: In `CREATE OR REPLACE VIEW`, any new column MUST be appended to the very end of the column list. Never reorder, rename, or drop existing columns in views.
