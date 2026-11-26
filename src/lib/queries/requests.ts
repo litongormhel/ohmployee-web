@@ -1180,6 +1180,9 @@ export type NewStoreRequestItem = {
   reviewedAt: string | null;
   reviewReason: string | null;
   createdAt: string;
+  requestType?: "new_store" | "reactivation" | null;
+  storeId?: string | null;
+  existingVcode?: string | null;
   isHeadcountRovingCluster?: boolean;
   rovingStores?: Array<{
     store_name: string;
@@ -1270,6 +1273,9 @@ interface NewStoreDbRow {
   reviewed_at: string | null;
   review_reason: string | null;
   created_at: string;
+  request_type?: string | null;
+  store_id?: string | null;
+  existing_vcode?: string | null;
   groups?: {
     id?: string;
     group_name: string | null;
@@ -1320,6 +1326,9 @@ export async function fetchNewStoreRequests(
       reviewed_at,
       review_reason,
       created_at,
+      request_type,
+      store_id,
+      existing_vcode,
       groups:groups!group_id (
         id,
         group_name
@@ -1453,6 +1462,9 @@ export async function fetchNewStoreRequests(
       reviewedAt: row.reviewed_at ?? null,
       reviewReason: row.review_reason ?? null,
       createdAt: row.created_at,
+      requestType: (row.request_type as "new_store" | "reactivation") || "new_store",
+      storeId: row.store_id ?? null,
+      existingVcode: row.existing_vcode ?? null,
     };
   });
 
@@ -1813,6 +1825,167 @@ export function useSubmitNewStoreRequest() {
       queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
       queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
     },
+  });
+}
+
+// ─── Store Reactivation Requests ──────────────────────────────────────────
+
+export interface SubmitStoreReactivationInput {
+  store_id: string;
+  position: string;
+  reason: string;
+}
+
+export interface SubmitStoreReactivationResult {
+  request_id: string;
+  status: string;
+  notifications_sent?: number;
+}
+
+export async function submitStoreReactivation(
+  input: SubmitStoreReactivationInput
+): Promise<SubmitStoreReactivationResult> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("submit_store_reactivation_request", {
+    p_input: input,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        error.message ||
+          "Unauthorized: Only Ops (OM, TL, ATL, HRCO) or Super Admin may request store reactivation."
+      );
+    }
+    if (error.code === "P0001" || error.code === "22023") {
+      throw new RequestDataError("validation", error.message);
+    }
+    throw new RequestDataError(
+      "generic",
+      error.message || "Failed to submit store reactivation request."
+    );
+  }
+
+  return data as SubmitStoreReactivationResult;
+}
+
+export function useSubmitStoreReactivation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: SubmitStoreReactivationInput) => submitStoreReactivation(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-store-reactivations"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+    },
+  });
+}
+
+export interface WithdrawStoreReactivationParams {
+  requestId: string;
+  reason?: string | null;
+}
+
+export async function withdrawStoreReactivation({
+  requestId,
+  reason,
+}: WithdrawStoreReactivationParams) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("withdraw_store_reactivation_request", {
+    p_request_id: requestId,
+    p_reason: reason?.trim() || null,
+  });
+
+  if (error) {
+    if (error.code === "42501") {
+      throw new RequestDataError(
+        "unauthorized",
+        error.message ||
+          "Unauthorized: Only requester, Ops, or Super Admin may withdraw reactivation request."
+      );
+    }
+    if (error.code === "P0001" || error.code === "22023") {
+      throw new RequestDataError("validation", error.message);
+    }
+    throw new RequestDataError(
+      "generic",
+      error.message || "Failed to withdraw store reactivation request."
+    );
+  }
+
+  return data;
+}
+
+export function useWithdrawStoreReactivation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: WithdrawStoreReactivationParams) =>
+      withdrawStoreReactivation(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["request-category-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["new-store-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-store-reactivations"] });
+      queryClient.invalidateQueries({ queryKey: ["plantilla"] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+    },
+  });
+}
+
+export interface PendingStoreReactivationItem {
+  id: string;
+  storeId: string;
+  status: string;
+  requestedAt: string;
+  requestedByName: string;
+  reason: string;
+  existingVcode: string | null;
+}
+
+export async function fetchPendingStoreReactivations(
+  accountId?: string | null
+): Promise<PendingStoreReactivationItem[]> {
+  const supabase = createClient();
+  let query = supabase
+    .from("new_store_requests")
+    .select("id, store_id, status, requested_at, requested_by_name, reason, existing_vcode, account_id")
+    .eq("request_type", "reactivation")
+    .in("status", ["pending", "pending_super_admin"])
+    .eq("is_archived", false);
+
+  if (accountId) {
+    query = query.eq("account_id", accountId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("[fetchPendingStoreReactivations] error:", error);
+    return [];
+  }
+  return (data || []).map((r) => ({
+    id: r.id,
+    storeId: r.store_id,
+    status: r.status,
+    requestedAt: r.requested_at,
+    requestedByName: r.requested_by_name || "Ops",
+    reason: r.reason,
+    existingVcode: r.existing_vcode,
+  }));
+}
+
+export function usePendingStoreReactivations(accountId?: string | null) {
+  return useQuery({
+    queryKey: ["pending-store-reactivations", accountId],
+    queryFn: () => fetchPendingStoreReactivations(accountId),
+    enabled: true,
   });
 }
 

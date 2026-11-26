@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCurrentUser, isOpsAmendmentRole, isHeadOrSuperAdmin } from "@/lib/auth";
-import { isDataTeam, canSubmitNewStoreRequest } from "@/lib/rbac";
+import { isDataTeam, canSubmitNewStoreRequest, canSubmitStoreReactivationRequest } from "@/lib/rbac";
+import { usePendingStoreReactivations } from "@/lib/queries/requests";
 import { createClient } from "@/lib/supabase/client";
 import { AdminPageHeader } from "@/components/shared/AdminPageHeader";
 import { DataState } from "@/components/shared/DataState";
@@ -234,6 +235,8 @@ function PlantillaPageContent() {
   const [archiveModalAccount, setArchiveModalAccount] = useState<ArchiveModalAccount | null>(null);
   const [absorbModalAccount, setAbsorbModalAccount] = useState<AbsorbModalAccount | null>(null);
   const [transferGroupModalAccount, setTransferGroupModalAccount] = useState<PlantillaScopedAccountItem | null>(null);
+  const [reactivateStoreTarget, setReactivateStoreTarget] = useState<StoreCapacityRow | null>(null);
+  const [withdrawReactivateTarget, setWithdrawReactivateTarget] = useState<{ store: StoreCapacityRow; requestId: string } | null>(null);
 
   // Card context menu state
   const [activeMenuAccountId, setActiveMenuAccountId] = useState<string | null>(null);
@@ -264,6 +267,7 @@ function PlantillaPageContent() {
   const userRole = currentUser?.roleKey ?? currentUser?.roleName;
   const canRequestAdjustment = isOpsAmendmentRole(userRole);
   const canRequestNewStore = canSubmitNewStoreRequest(currentUser);
+  const canRequestReactivation = canSubmitStoreReactivationRequest(currentUser);
 
   // Derive viewMode directly from searchParams
   const viewParam = searchParams.get("view") || searchParams.get("tab");
@@ -637,6 +641,16 @@ function PlantillaPageContent() {
     enabled: !!accountId && isAccountAuthorized,
     staleTime: 30000,
   });
+
+  // Query pending store reactivations for this account
+  const pendingReactivationsQuery = usePendingStoreReactivations(accountId);
+  const pendingReactivationsMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of (pendingReactivationsQuery.data ?? [])) {
+      map.set(r.storeId, r.id);
+    }
+    return map;
+  }, [pendingReactivationsQuery.data]);
 
   // Query closed/archived vacancy codes under current account so synthetic vacancies never resurrect dead slots
   const closedVcodesQuery = useQuery({
@@ -2409,9 +2423,15 @@ function PlantillaPageContent() {
                   <StoreCapacityTable
                     rows={paginatedStoreRows}
                     canRequestHeadcount={canRequestAdjustment}
+                    canRequestReactivation={canRequestReactivation}
                     onRequestHeadcount={(store) =>
                       setRequestHeadcountConfig({ mode: "stationary_locked", store })
                     }
+                    onRequestReactivate={setReactivateStoreTarget}
+                    onWithdrawReactivate={(store, requestId) =>
+                      setWithdrawReactivateTarget({ store, requestId })
+                    }
+                    pendingReactivationsMap={pendingReactivationsMap}
                     onSelectStore={setSelectedStoreCapacity}
                   />
                 )
@@ -2857,6 +2877,20 @@ function PlantillaPageContent() {
               )
             }
             uniqueGroups={uniqueGroups}
+            reactivateStoreTarget={reactivateStoreTarget}
+            onCloseReactivateStore={() => setReactivateStoreTarget(null)}
+            onReactivateStoreSuccess={() => {
+              setReactivateStoreTarget(null);
+              pendingReactivationsQuery.refetch();
+              showToast("Store reactivation request submitted to Data Team for review.", "success");
+            }}
+            withdrawReactivateTarget={withdrawReactivateTarget}
+            onCloseWithdrawReactivate={() => setWithdrawReactivateTarget(null)}
+            onWithdrawReactivateSuccess={() => {
+              setWithdrawReactivateTarget(null);
+              pendingReactivationsQuery.refetch();
+              showToast("Store reactivation request withdrawn.", "success");
+            }}
             toastMessage={toastMessage}
             toastVariant={toastVariant}
             onCloseToast={() => setToastMessage(null)}

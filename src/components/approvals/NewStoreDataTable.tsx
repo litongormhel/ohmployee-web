@@ -520,6 +520,19 @@ export function NewStoreDataTable({
                       <div className="flex flex-col">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span>{request.storeName}</span>
+                          {request.requestType === "reactivation" && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 text-[10px] font-semibold dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800">
+                              Reactivation
+                            </span>
+                          )}
+                          {request.existingVcode && (
+                            <span
+                              className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
+                              title="Original VCode (Anti-Recycle Invariant)"
+                            >
+                              Old: {request.existingVcode}
+                            </span>
+                          )}
                           {request.isHeadcountRovingCluster && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold">
                               ✨ New Roving Doors ({request.rovingStores?.length ?? 1})
@@ -701,8 +714,18 @@ export function NewStoreDataTable({
         <Modal
           isOpen={Boolean(selectedApproveRequest)}
           onClose={() => setSelectedApproveRequest(null)}
-          title={selectedApproveRequest.isHeadcountRovingCluster ? "Approve New Store Headcount Request" : "Approve New Store Request"}
-          subtitle="Create store record and activate initial plantilla quota"
+          title={
+            selectedApproveRequest.requestType === "reactivation"
+              ? "Approve Store Reactivation"
+              : selectedApproveRequest.isHeadcountRovingCluster
+              ? "Approve New Store Headcount Request"
+              : "Approve New Store Request"
+          }
+          subtitle={
+            selectedApproveRequest.requestType === "reactivation"
+              ? "Reactivate archived store with original VCode and provision 1 open vacancy"
+              : "Create store record and activate initial plantilla quota"
+          }
           icon={CheckCircle2}
           isSubmitting={approveMutation.isPending || approveHcMutation.isPending}
           disableBackdropClick={approveMutation.isPending || approveHcMutation.isPending}
@@ -738,6 +761,21 @@ export function NewStoreDataTable({
                   {selectedApproveRequest.requestedHc ?? 1} Headcount
                 </span>
               </div>
+              {selectedApproveRequest.requestType === "reactivation" && (
+                <div className="flex justify-between">
+                  <span className="text-text-secondary">VCode Policy:</span>
+                  <span className="font-mono font-bold text-text-primary">
+                    {selectedApproveRequest.existingVcode
+                      ? `Keeps ${selectedApproveRequest.existingVcode}`
+                      : "Will mint canonical VCode"}
+                  </span>
+                </div>
+              )}
+              {selectedApproveRequest.requestType === "reactivation" && (
+                <div className="mt-2 pt-2 border-t border-border-default text-[11px] text-purple-700 dark:text-purple-300">
+                  Approving will restore this store to active state, preserve its old VCode, and automatically provision 1 Open Vacancy with 1 plantilla slot.
+                </div>
+              )}
               {selectedApproveRequest.isHeadcountRovingCluster && (
                 <div className="mt-2 pt-2 border-t border-border-default text-[11px] text-text-muted">
                   Approving will automatically provision these {selectedApproveRequest.rovingStores?.length ?? 1} unlisted door(s) into the store registry and activate roving plantilla coverage.

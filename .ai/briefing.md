@@ -1,5 +1,9 @@
 # AI Briefing
 
+## User Role Groupings (Standard Glossary)
+- **Ops**: Operations roles comprising `OM` (Operations Manager), `TL` (Team Leader), `ATL` (Area Team Leader), and `HRCO` (HR Coordinator).
+- **Data Team**: Administrative data management roles comprising `SA` (Super Admin), `HA` (Head Admin), and `Encoder` (Data Encoder).
+
 ## Mandatory Workflow Rules (apply to EVERY prompt, even if the prompt body does not mention them)
 
 ### Autonomous Single-Turn Execution Rule (Default Mode)

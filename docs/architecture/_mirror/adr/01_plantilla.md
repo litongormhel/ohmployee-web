@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Plantilla. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/01_plantilla.md
-source_commit: f4b7a3b 2026-11-26T10:11:00+08:00
-source_sha256: b18e3e80d66727d7b847e30d9bda2ddc95f854194e8fa3d00ecf8608acc4e941
-synced_at: 2026-11-26T02:11:10.465Z
+source_commit: bfee3d7 2026-11-26T10:43:44+08:00
+source_sha256: bc1088bb29214670fee8029c5a4af36462da12b02dce62fee771fa4d34059194
+synced_at: 2026-11-26T02:43:49.128Z
 -->
 # Plantilla Module Architecture & Headcount Governance
 
@@ -256,5 +256,24 @@ The Plantilla module operates under **Dual Views** driven by a segmented view to
    - Stores that are soft-archived or deactivated in the database (`stores.is_archived = TRUE` or `stores.is_active = FALSE`) represent historical, deleted, or dissolved locations.
    - To preserve operational focus and prevent KPI distortion, archived stores are **strictly excluded** from the default Store View table and header KPI totals (`Required`, `Actual`, `Vacancy`).
    - They are accessible exclusively via an explicit **`Archived / Closed Stores`** sub-filter toggle in the Store View toolbar, rendered with an `Archived` tag and with the `+ Request HC` action disabled.
+
+### Store Reactivation Governance & Old VCode Preservation Invariant (ohm#store-reactivation-governance — 2026-11-26)
+
+**Status: ACCEPTED & LOCKED.** Codifies the Store Reactivation workflow and old VCode preservation invariant across Web and Mobile:
+
+1. **Web-Only Operational Scope**: Store reactivation is an administrative workflow restricted strictly to the Web dashboard (`/plantilla` -> `Archived Stores`).
+2. **Role Separation (Ops Requester vs. Data Team Approver)**:
+   - **Requester Gate (Ops Only)**: Only Operations roles (`OM`, `TL`, `ATL`, `HRCO`, and Super Admin) are authorized to file a store reactivation request.
+   - **Reviewer Gate (Data Team Only)**: All reactivation requests are routed to the **New Store Approval** queue (`/approvals?tab=new_stores`) and governed exclusively by Data Team (`Encoder`, `Head Admin`, `Super Admin`).
+3. **Mandatory Operational Justification**: Every reactivation request strictly requires an operational justification text explaining the business rationale for re-opening the store location.
+4. **Permanent Old VCode Preservation (Anti-Recycling Lock)**:
+   - A reactivated store MUST strictly retain and reuse its existing permanent VCode (`stores.vcode`).
+   - The system is prohibited from minting a new VCode if one already exists, preserving historical audit trails, store identity, and cross-platform continuity.
+   - If a legacy archived store lacks an existing VCode (`vcode IS NULL`), Data Team approval automatically mints a canonical VCode via `generate_vcode_for_account(account_id)`.
+5. **Headcount & Vacancy Auto-Provisioning**:
+   - Upon Data Team approval, the store transitions to active (`is_active = TRUE, is_archived = FALSE, status = 'active', archived_at = NULL, archived_by = NULL`).
+   - The system automatically provisions an initial Open Vacancy (`status = 'Open'`, `required_headcount = 1`) with 1 physical open slot in `plantilla_slots` under the target position selected by Ops.
+6. **Self-Service Withdrawal Guard**: Ops requesters retain the authority to withdraw an ongoing `pending` reactivation request directly from the store action button (`Withdraw Request`), automatically cancelling the pending review in New Store Approvals.
+7. **OM Notification Loop**: Real-time notifications are systematically dispatched to the account's Operations Manager (`om_user_id`) upon request submission, approval, rejection, and withdrawal.
 
 ---

@@ -703,6 +703,8 @@ export const canRequestRelieverCoverage = (u?: RoleIdentifiable | string | null)
   canPerformDrawerAction("Request Reliever Coverage Assignment", u);
 export const canSubmitNewStoreRequest = (u?: RoleIdentifiable | string | null) =>
   canPerformDrawerAction("Submit New Store Opening Request", u);
+export const canSubmitStoreReactivationRequest = (u?: RoleIdentifiable | string | null) =>
+  isOpsTeam(u) || hasFullAccess(u);
 
 // Approvals
 export const canApproveNewStoreRequests = (u?: RoleIdentifiable | string | null) =>

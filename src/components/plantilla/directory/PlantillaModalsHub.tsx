@@ -15,6 +15,8 @@ import { CreateCoverageGroupModal } from "@/components/modals/CreateCoverageGrou
 import { ArchiveAccountModal } from "@/components/plantilla/ArchiveAccountModal";
 import { AbsorbEmployeesModal } from "@/components/plantilla/AbsorbEmployeesModal";
 import { TransferAccountGroupModal } from "@/components/plantilla/TransferAccountGroupModal";
+import { RequestStoreReactivationModal } from "./RequestStoreReactivationModal";
+import { WithdrawStoreReactivationModal } from "./WithdrawStoreReactivationModal";
 import { Toast, type ToastVariant } from "@/components/shared/Toast";
 import type { PlantillaScopedAccountItem } from "@/lib/queries/plantilla";
 import type {
@@ -107,6 +109,14 @@ export interface PlantillaModalsHubProps {
   onTransferGroupSuccess: (accountName: string, targetGroupName: string) => void;
   uniqueGroups: { id: string; name: string }[];
 
+  // Store Reactivation (Web-only Ops workflow)
+  reactivateStoreTarget?: StoreCapacityRow | null;
+  onCloseReactivateStore?: () => void;
+  onReactivateStoreSuccess?: () => void;
+  withdrawReactivateTarget?: { store: StoreCapacityRow; requestId: string } | null;
+  onCloseWithdrawReactivate?: () => void;
+  onWithdrawReactivateSuccess?: () => void;
+
   // Toast
   toastMessage: string | null;
   toastVariant: ToastVariant;
@@ -159,6 +169,12 @@ export function PlantillaModalsHub({
   onCloseTransferGroupModal,
   onTransferGroupSuccess,
   uniqueGroups,
+  reactivateStoreTarget,
+  onCloseReactivateStore,
+  onReactivateStoreSuccess,
+  withdrawReactivateTarget,
+  onCloseWithdrawReactivate,
+  onWithdrawReactivateSuccess,
   toastMessage,
   toastVariant,
   onCloseToast,
@@ -316,6 +332,29 @@ export function PlantillaModalsHub({
           account={transferGroupModalAccount}
           uniqueGroups={uniqueGroups}
           onSuccess={onTransferGroupSuccess}
+        />
+      )}
+
+      {/* Request Store Reactivation Modal */}
+      {reactivateStoreTarget && (
+        <RequestStoreReactivationModal
+          isOpen={Boolean(reactivateStoreTarget)}
+          onClose={onCloseReactivateStore ?? (() => {})}
+          store={reactivateStoreTarget}
+          accountId={accountId}
+          accountName={selectedAccountName}
+          onSuccess={onReactivateStoreSuccess}
+        />
+      )}
+
+      {/* Withdraw Store Reactivation Modal */}
+      {withdrawReactivateTarget && (
+        <WithdrawStoreReactivationModal
+          isOpen={Boolean(withdrawReactivateTarget)}
+          onClose={onCloseWithdrawReactivate ?? (() => {})}
+          store={withdrawReactivateTarget.store}
+          requestId={withdrawReactivateTarget.requestId}
+          onSuccess={onWithdrawReactivateSuccess}
         />
       )}
 

@@ -1,3 +1,7 @@
+## User Role Groupings (Standard Glossary)
+- **Ops**: Operations roles comprising `OM` (Operations Manager), `TL` (Team Leader), `ATL` (Area Team Leader), and `HRCO` (HR Coordinator).
+- **Data Team**: Administrative data management roles comprising `SA` (Super Admin), `HA` (Head Admin), and `Encoder` (Data Encoder).
+
 ## Core Workflow Rules (apply to EVERY prompt, even if the prompt body does not mention them)
 - Read `.ai/briefing.md` first. Follow its "Mandatory Workflow Rules" section on EVERY prompt.
 - Auto Context Loading (EVERY prompt, no Context block needed):

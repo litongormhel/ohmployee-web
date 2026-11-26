@@ -1177,15 +1177,26 @@ function formatCapacityCount(val: number): string {
 export function StoreCapacityTable({
   rows,
   canRequestHeadcount = false,
+  canRequestReactivation = false,
   onRequestHeadcount,
+  onRequestReactivate,
+  onWithdrawReactivate,
+  pendingReactivationsMap,
   onSelectStore,
 }: {
   rows: StoreCapacityRow[];
   canRequestHeadcount?: boolean;
+  canRequestReactivation?: boolean;
   onRequestHeadcount?: (store: StoreCapacityRow) => void;
+  onRequestReactivate?: (store: StoreCapacityRow) => void;
+  onWithdrawReactivate?: (store: StoreCapacityRow, requestId: string) => void;
+  pendingReactivationsMap?: Map<string, string>;
   onSelectStore?: (store: StoreCapacityRow) => void;
 }) {
-  const showActions = Boolean(canRequestHeadcount && onRequestHeadcount);
+  const showActions = Boolean(
+    (canRequestHeadcount && onRequestHeadcount) ||
+    (canRequestReactivation && (onRequestReactivate || onWithdrawReactivate))
+  );
 
   const totals = React.useMemo(() => {
     let req = 0;
@@ -1380,17 +1391,56 @@ export function StoreCapacityTable({
                   {showActions && (
                     <td className="px-3.5 py-2 text-right whitespace-nowrap">
                       {store.isArchived ? (
-                        <span className="text-[11px] text-text-muted italic px-2">Archived</span>
-                      ) : (
+                        pendingReactivationsMap?.has(store.id) ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800"
+                              title="Reactivation request under review by Data Team"
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              Under Review
+                            </span>
+                            {canRequestReactivation && onWithdrawReactivate && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onWithdrawReactivate(
+                                    store,
+                                    pendingReactivationsMap.get(store.id)!
+                                  )
+                                }
+                                className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-surface-base px-2 py-0.5 text-[10px] font-semibold text-red-600 shadow-2xs hover:bg-red-50 hover:border-red-300 dark:border-red-900 dark:hover:bg-red-950/40 transition cursor-pointer"
+                                title={`Withdraw reactivation request for ${formatStoreName(store.storeBranch)}`}
+                              >
+                                <span>Withdraw</span>
+                              </button>
+                            )}
+                          </div>
+                        ) : canRequestReactivation && onRequestReactivate ? (
+                          <button
+                            type="button"
+                            onClick={() => onRequestReactivate(store)}
+                            className="inline-flex items-center gap-1 rounded-md border border-brand-300 bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700 shadow-2xs hover:bg-brand-100 hover:border-brand-400 dark:bg-brand-950/60 dark:border-brand-800 dark:text-brand-300 transition cursor-pointer"
+                            title={`Request reactivation for ${formatStoreName(store.storeBranch)}`}
+                          >
+                            <RotateCw className="h-3 w-3 text-brand-600 shrink-0" />
+                            <span>Reactivate</span>
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-text-muted italic px-2">Archived</span>
+                        )
+                      ) : canRequestHeadcount && onRequestHeadcount ? (
                         <button
                           type="button"
-                          onClick={() => onRequestHeadcount?.(store)}
+                          onClick={() => onRequestHeadcount(store)}
                           className="inline-flex items-center gap-1 rounded-md border border-border-default bg-surface-base px-2.5 py-1 text-[11px] font-semibold text-text-primary shadow-2xs hover:bg-surface-hover hover:border-border-strong transition cursor-pointer"
                           title={`Request stationary headcount for ${formatStoreName(store.storeBranch)}`}
                         >
                           <Plus className="h-3 w-3 text-brand-600 shrink-0" />
                           <span>Request HC</span>
                         </button>
+                      ) : (
+                        <span className="text-[11px] text-text-muted">—</span>
                       )}
                     </td>
                   )}
