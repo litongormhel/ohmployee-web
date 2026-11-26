@@ -1926,6 +1926,13 @@ function PlantillaPageContent() {
           hcFilled = Math.max(0, hcTotal - openSlots);
         }
 
+        const isFractionalRoving = (hcFilled > 0 && hcFilled < 1.0) || Boolean(st.code?.toUpperCase().includes("CG"));
+        const wouldExceedCapacity = (hcFilled + 1.0) > hcTotal;
+        const isRovingBlocked = isFractionalRoving && wouldExceedCapacity;
+        const rovingConflictReason = isRovingBlocked
+          ? `Roving Route (${hcFilled > 0 ? hcFilled.toFixed(2) : "0.33"} active) • Exceeds Capacity (${(hcFilled + 1.0).toFixed(2)} / ${hcTotal} HC)`
+          : null;
+
         return {
           id: st.id,
           name: st.name,
@@ -1935,6 +1942,8 @@ function PlantillaPageContent() {
           hcFilled,
           hcTotal,
           openSlots,
+          isRovingBlocked,
+          rovingConflictReason,
         };
       })
       .filter((st) => st.openSlots > 0 || st.hcFilled < st.hcTotal);

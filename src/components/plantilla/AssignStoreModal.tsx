@@ -24,6 +24,8 @@ export interface AssignStoreModalProps extends ActionModalProps {
     hcFilled?: number;
     hcTotal?: number;
     openSlots?: number;
+    isRovingBlocked?: boolean;
+    rovingConflictReason?: string | null;
   }[];
   vacantStoreIds?: Set<string>;
 }
@@ -116,6 +118,14 @@ export function AssignStoreModal({
       setErrorMessage("Please select a target store branch.");
       return;
     }
+    const targetStore = stores.find((s) => s.id === selectedStoreId);
+    if (targetStore?.isRovingBlocked) {
+      setErrorMessage(
+        targetStore.rovingConflictReason ||
+          "Cannot assign stationary personnel to a roving store branch (causes fractional overmanning)."
+      );
+      return;
+    }
     mutation.mutate();
   };
 
@@ -190,17 +200,19 @@ export function AssignStoreModal({
                 <option value="">Select target store with available slots...</option>
                 {sortedStores.map((s) => {
                   const loc = [s.city, s.province].filter(Boolean).join(", ");
-                  const slotLabel =
-                    s.hcFilled !== undefined && s.hcTotal !== undefined
-                      ? ` • ${s.hcFilled}/${s.hcTotal} slots (${Math.max(0, s.hcTotal - s.hcFilled)} open)`
-                      : s.openSlots !== undefined
-                      ? ` • ${s.openSlots} open slot${s.openSlots > 1 ? "s" : ""}`
-                      : vacantStoreIds.has(s.id)
-                      ? " • ★ [Open Vacancy]"
-                      : "";
+                  const isBlocked = s.isRovingBlocked === true;
+                  const slotLabel = isBlocked
+                    ? ` • [BLOCKED] ${s.rovingConflictReason || "Roving Route (exceeds capacity)"}`
+                    : s.hcFilled !== undefined && s.hcTotal !== undefined
+                    ? ` • ${s.hcFilled}/${s.hcTotal} slots (${Math.max(0, s.hcTotal - s.hcFilled)} open)`
+                    : s.openSlots !== undefined
+                    ? ` • ${s.openSlots} open slot${s.openSlots > 1 ? "s" : ""}`
+                    : vacantStoreIds.has(s.id)
+                    ? " • ★ [Open Vacancy]"
+                    : "";
 
                   return (
-                    <option key={s.id} value={s.id}>
+                    <option key={s.id} value={s.id} disabled={isBlocked}>
                       {s.name} {loc ? `(${loc})` : ""}{slotLabel}
                     </option>
                   );

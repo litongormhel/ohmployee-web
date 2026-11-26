@@ -134,6 +134,8 @@ export interface StoreWithAvailableSlots {
   hcFilled: number;
   hcTotal: number;
   openSlots: number;
+  isRovingBlocked?: boolean;
+  rovingConflictReason?: string | null;
 }
 
 export interface PipelineCandidateItem {

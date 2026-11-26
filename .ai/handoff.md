@@ -1,5 +1,33 @@
 # AI Handoff
 
+## Execution Report — Guard Against Assigning Stationary Floating Personnel to Roving Route Stores (ohm#roving-store-transfer-guard)
+**Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, Next.js Turbopack Production Build Clean (0 errors)
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants — Invariant 3 & Invariant 20)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (ADR-001 Plantilla Baseline & Slot Authority)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (ADR-002 Store Identity & Vacancy Capacity Matrix)
+
+### What Was Done
+1. **Roving Capacity Guard & Headcount Invariant Enforcement**:
+   - Guarded against assigning stationary floating employees (1.0 FTE) to store branches participating in active roving routes or coverage groups.
+   - Prevents fractional headcount schedule fragmentation and overmanning (e.g. $0.33 + 1.0 = 1.33$ HC on a 1.0 HC store).
+2. **Web Type & State Updates**:
+   - `src/components/plantilla/directory/types.tsx`: Extended `StoreWithAvailableSlots` with `isRovingBlocked?: boolean;` and `rovingConflictReason?: string | null;`.
+   - `src/app/(dashboard)/plantilla/page.tsx`: Updated `storesWithAvailableSlots` memo to detect fractional filled headcount (`hcFilled > 0 && hcFilled < 1.0`), store codes matching `CG`, or capacity overflow (`hcFilled + 1.0 > hcTotal`), marking them `isRovingBlocked = true` with descriptive reason.
+   - `src/components/plantilla/AssignStoreModal.tsx`:
+     - Rendered `<option disabled>` with `[BLOCKED]` prefix for blocked roving stores.
+     - Added validation in `handleSubmit` to prevent submitting a roving blocked store.
+3. **Verification**:
+   - Production Build: `npm run build` with Turbopack passed clean with 0 errors.
+
+### Files Changed
+- `src/components/plantilla/directory/types.tsx`
+- `src/app/(dashboard)/plantilla/page.tsx`
+- `src/components/plantilla/AssignStoreModal.tsx`
+
+---
+
 ## Execution Report — Codify ADR-First Hard Lockout Policy and Expand Scope across ADR-001, ADR-002, ADR-003, and Modular ADR Hub (ohm#adr-first-hard-lockout-and-adr-003-coverage)
 **Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, 268 Tests Passing, 0 Lint Warnings, ADR Mirrors Fresh
 
