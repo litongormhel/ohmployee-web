@@ -23,6 +23,16 @@ The Supabase database serves BOTH Web and Mobile (`OHMployee`).
 1. **Views (Append-Only)**: In `CREATE OR REPLACE VIEW`, any new column MUST be appended to the very end of the column list. Never reorder, rename, or drop existing columns in views.
 2. **RPC Functions (Default-Safe)**: Any new parameter added to existing RPC functions MUST specify `DEFAULT NULL` (or provide a backward-compatible wrapper overload) so Mobile app calls without the new parameter never fail.
 
+### Prod Migration Push Suggestion Rule (Single-Repo Format)
+Whenever there are migrations to be pushed or applied to Production (`rwxelulyapjgaarlwkus`):
+- In Web (`ohmployee-web`): Show ONLY the Web `supabase db push` prod command. Never show the Mobile command.
+- In Mobile (`OHMployee`): Show ONLY the Mobile `supabase db push` prod command. Never show the Web command.
+- NEVER show both commands together in the same response so the user can easily copy and paste with zero edits.
+  - Web prod push command:
+    ```powershell
+    npx supabase link --project-ref rwxelulyapjgaarlwkus; npx supabase db push --include-all --yes; npx supabase link --project-ref qqiiznmqxfoamqytjica
+    ```
+
 ### No Silent Catch & PostgREST Column Guard (`src/lib/queries/*.ts`)
 - Never use empty or unlogged `catch {}` blocks around Supabase queries.
 - Always log PostgREST errors via `console.error('[PostgREST Schema Error]', error)` with the query context.

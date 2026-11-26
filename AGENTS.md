@@ -93,6 +93,15 @@
      - <filename_1>
      - <filename_2>
      ```
+- Prod Migration Push Suggestion Rule (Single-Repo Format):
+  Whenever there are migrations to be pushed or applied to Production (`rwxelulyapjgaarlwkus`):
+  - In Web (`ohmployee-web`): Show ONLY the Web `supabase db push` prod command. Never show the Mobile command.
+  - In Mobile (`OHMployee`): Show ONLY the Mobile `supabase db push` prod command. Never show the Web command.
+  - NEVER show both commands together in the same response so the user can easily copy and paste with zero edits.
+    - Web prod push command:
+      ```powershell
+      npx supabase link --project-ref rwxelulyapjgaarlwkus; npx supabase db push --include-all --yes; npx supabase link --project-ref qqiiznmqxfoamqytjica
+      ```
 - Conclude every turn report with both: (1) an explicit **Next Steps** section covering immediate actions/guidance, and (2) a helpful `> [!TIP]` callout covering operational tips, verification commands, or deployment commands.
 
 <!-- BEGIN:nextjs-agent-rules -->
