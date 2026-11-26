@@ -1,5 +1,30 @@
 # AI Handoff
 
+## Execution Report — Normalize Demographics, Civil Status, Deployment Type, and Store/Location Names (ohm#normalize-demographics-and-stores)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging, All 275 Tests Passing, 0 Lint Warnings, Next.js 16.2.4 Build Clean
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants — `source_commit: 08ac81e`)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (ADR-001 Plantilla Baseline & Slot Authority — `source_commit: 08ac81e`)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (ADR-002 Store Identity & Vacancy Capacity Matrix — `source_commit: 08ac81e`)
+
+### What Was Done
+1. **Forensic Database Migration (`20262606000211_normalize_demographics_and_stores.sql`)**:
+   - Built and applied migration `20262606000211_normalize_demographics_and_stores.sql` to Staging (`qqiiznmqxfoamqytjica`) and synced to Mobile (`D:\Projects\OHMployee`):
+     - `public.fn_format_store_name(p_text text)`: Created deterministic immutable SQL formatting function enforcing Title Case while strictly preserving retail and location uppercase acronyms (`SM`, `SSM`, `SMC`, `S&R`, `PG`, `MOA`, `EDSA`, `FTI`, `QC`, `HQ`, `NCR`, `NCCC`, `RDS`, `GMC`, `GMA`, `CSI`, `KCC`, `LCC`, etc.), handling `Mc` prefixes, preserving numbers/delimiters, and supporting Filipino orthography (`Ñ`/`ñ`).
+     - Standardized all 1,333 active stores in `public.stores` (`store_name`, `area_city`, `area_province`), converting 1,277 all-caps store names into Proper Case.
+     - Synchronized child snapshot tables: `plantilla.store_name`, `vacancies.store_name`, `vacancies.area_city`, `hr_emploc.store_name`, `employee_store_allocations.store_name`, and `headcount_requests.store_name_snapshot`.
+     - Reconciled 2 legacy dangling `last_mika_synced_by` references in `public.plantilla` to satisfy `plantilla_last_mika_synced_by_fkey`.
+     - Standardized `plantilla.civil_status` to canonical Title Case (`Single` 3,833, `Married` 559, `Widowed` 13, `Separated` 4, `Divorced` 1), permanently nullified dirty artifacts (`'0'`, `'N/A'`, `'None'`), and added `plantilla_civil_status_check` constraint.
+     - Standardized `plantilla.deployment_type` (`'commando'` -> `'Commando'`), and added `plantilla_deployment_type_check` constraint.
+2. **Web & Mobile Presentation Layer Parity**:
+   - Web (`src/lib/utils/displayText.ts`): Expanded `ACRONYM_ALLOWLIST` with retail acronyms (`SSM`, `SMC`, `S&R`, `PG`, `MOA`, `EDSA`, `FTI`, `QC`, `NCR`, `NCCC`, `RDS`, `GMC`, `GMA`, `CSI`, `KCC`, `LCC`, etc.), added `formatCivilStatus`, and added `formatDeploymentType`.
+   - Mobile (`D:\Projects\OHMployee\lib\shared\utils\display_text_formatter.dart`): Expanded `_knownUppercaseValues`, added `toCivilStatusCase`, and added `toDeploymentTypeCase`.
+3. **Verification**:
+   - Unit Tests: 275/275 unit tests passed (`npm test`), including 7/7 formatting and casing unit tests.
+   - SQL Contracts: Passed 28 core tables & 19 cross-module RPC contracts across 736 migrations (`npm run check:sql`).
+   - Lint & Build: 0 ESLint errors/warnings, Next.js 16.2.4 Turbopack production build clean.
+
 ## Execution Report — Implement Hybrid Account Position Management Hub & Contextual Plantilla Toolbar Shortcuts (ohm#account-position-management-hub-and-shortcuts)
 **Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging, All 272 Tests Passing, 0 Lint Warnings, Next.js 16.2.4 Build Clean
 

@@ -17,6 +17,29 @@
 export const ACRONYM_ALLOWLIST = new Set([
   "HQ",
   "SM",
+  "SSM",
+  "SMC",
+  "S&R",
+  "PG",
+  "MOA",
+  "EDSA",
+  "FTI",
+  "QC",
+  "NCR",
+  "NCCC",
+  "RDS",
+  "GMC",
+  "GMA",
+  "CSI",
+  "KCC",
+  "LCC",
+  "JY",
+  "JS",
+  "CB",
+  "VM",
+  "BGC",
+  "CBD",
+  "ATC",
   "HRCO",
   "HC",
   "MFR",
@@ -209,4 +232,33 @@ export function formatVacancySource(source: string | null | undefined): string {
 export function formatAccountName(acc: string | null | undefined): string {
   if (!acc) return "";
   return acc.trim().toUpperCase();
+}
+
+/**
+ * Formats employee civil status into canonical Title Case.
+ * Maps 'single' -> 'Single', 'married' -> 'Married', 'widowed' -> 'Widowed',
+ * 'separated' -> 'Separated', 'divorced' -> 'Divorced', and nullifies dirty artifacts.
+ */
+export function formatCivilStatus(status: string | null | undefined): string {
+  if (!status) return "";
+  const s = status.trim().toLowerCase();
+  if (s === "single") return "Single";
+  if (s === "married") return "Married";
+  if (s === "widowed" || s === "widow" || s === "widower") return "Widowed";
+  if (s === "separated") return "Separated";
+  if (s === "divorced") return "Divorced";
+  if (s === "0" || s === "n/a" || s === "na" || s === "none") return "";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Formats deployment type into canonical Title Case ('Stationary' | 'Roving' | 'Commando').
+ */
+export function formatDeploymentType(type: string | null | undefined): string {
+  if (!type) return "";
+  const t = type.trim().toLowerCase();
+  if (t === "stationary") return "Stationary";
+  if (t === "roving") return "Roving";
+  if (t === "commando") return "Commando";
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
