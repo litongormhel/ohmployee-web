@@ -1828,7 +1828,8 @@ function PlantillaPageContent() {
       const openVacancy = Math.round(effectiveVacancy * 100) / 100;
       const pipelineCount = rawPipeline;
 
-      const derivedRequired = Math.round((activeDeployed + openVacancy) * 100) / 100;
+      // ADR-001: Required headcount = occupied (activeDeployed) + open (openVacancy) + pipeline (pipelineCount)
+      const derivedRequired = Math.round((activeDeployed + openVacancy + pipelineCount) * 100) / 100;
       const staffing = staffingMap.get(storeObj.id);
       const plantillaRequired = derivedRequired > 0
         ? derivedRequired

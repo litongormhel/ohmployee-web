@@ -462,7 +462,17 @@ export function StoreDetailsModal({
             }`}
           >
             <Layers className="h-3.5 w-3.5" />
-            <span>Plantilla Slots ({slots?.length ?? 0})</span>
+            <span>
+              Plantilla Slots (
+              {(slots ?? []).filter(
+                (s) =>
+                  s.slotStatus !== "closed" &&
+                  s.slotStatus !== "hc_reduced" &&
+                  !s.isRoving &&
+                  !(s.legacyVcode ?? "").startsWith("COM-")
+              ).length}
+              )
+            </span>
           </button>
         </div>
 
@@ -601,16 +611,30 @@ export function StoreDetailsModal({
                 <div className="h-16 rounded-md bg-surface-muted" />
                 <div className="h-16 rounded-md bg-surface-muted" />
               </div>
-            ) : (slots ?? []).length === 0 ? (
+            ) : (slots ?? []).filter(
+                (s) =>
+                  s.slotStatus !== "closed" &&
+                  s.slotStatus !== "hc_reduced" &&
+                  !s.isRoving &&
+                  !(s.legacyVcode ?? "").startsWith("COM-")
+              ).length === 0 ? (
               <div className="rounded-lg border border-border-default bg-surface-muted p-8 text-center">
                 <Layers className="mx-auto h-8 w-8 text-text-muted" />
-                <h4 className="mt-2 text-xs font-semibold text-text-primary">No Discrete Slots Registered</h4>
+                <h4 className="mt-2 text-xs font-semibold text-text-primary">No Active Slots Registered</h4>
                 <p className="mt-1 text-[11px] text-text-muted">
-                  No ADR-001 plantilla slot records have been created for this store.
+                  No active ADR-001 plantilla slot records are currently open, occupied, or in pipeline for this store.
                 </p>
               </div>
             ) : (
-              (slots ?? []).map((slot) => (
+              (slots ?? [])
+                .filter(
+                  (s) =>
+                    s.slotStatus !== "closed" &&
+                    s.slotStatus !== "hc_reduced" &&
+                    !s.isRoving &&
+                    !(s.legacyVcode ?? "").startsWith("COM-")
+                )
+                .map((slot) => (
                 <div
                   key={slot.id}
                   className="rounded-lg border border-border-default bg-surface-base p-3 space-y-2 hover:border-border-subtle transition-colors"
