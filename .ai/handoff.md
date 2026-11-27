@@ -1,5 +1,17 @@
 # AI Handoff
 
+## Execution Report — Fix `log_audit_event` Signature in `approve_new_store_request` (ohm#fix-approve-new-store-log-audit-event-signature)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`)
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+- `docs/architecture/_mirror/adr/04_approvals_requisitions.md` (Approvals & Headcount Requisitions Architecture)
+
+### What Was Done
+1. **Root Cause**: `public.approve_new_store_request(uuid)` called `public.log_audit_event(p_action => ..., p_module => ..., p_target_type => ..., p_target_id => ..., p_details => ...)`, whereas `public.log_audit_event` has the 5-parameter signature `(p_module text, p_action text, p_record_id uuid, p_old_data jsonb, p_new_data jsonb)`.
+2. **Database Migration (`supabase/migrations/20262606000216_fix_approve_new_store_log_audit_event_signature.sql`)**: Updated `public.approve_new_store_request(uuid)` to call `public.log_audit_event(p_module => 'new_store_requests', p_action => 'UPDATE', p_record_id => p_request_id, p_old_data => ..., p_new_data => ...)`.
+3. **Verification**: Validated with `npm run check:sql` and pushed cleanly to Staging (`qqiiznmqxfoamqytjica`).
+
 ## Execution Report — New Store Approval Slot Collision, Account KPI Parity, Roving Store Active Filter & Table UI (ohm#fix-new-store-approval-slot-collision-and-kpi-parity)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`), 276/276 Tests Passing, 0 Lint Warnings, Next.js 16.2.4 Build Clean
 
