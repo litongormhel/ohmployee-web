@@ -6,6 +6,13 @@
 
 ## Mandatory Workflow Rules (apply to EVERY prompt, even if the prompt body does not mention them)
 
+### Pre-Execution Model Tier Gate (Check First Before Any Implementation)
+Before executing ANY approved plan, migration, or code change, **immediately check the active model against the 3-Tier Routing Rule**:
+- **Tier 3 (`gemini-4-neon`, `thought_level: high`)**: Any task touching `supabase/migrations/`, SQL RPCs/views/triggers, schema DDL, RLS, security, or cross-repo architecture.
+- **Tier 2 (`gemini-4-hydrogen`, `thought_level: medium`)**: Standard CRUD, forms, table filtering/sorting, pagination, routine single-module bug fixes.
+- **Tier 1 (`gemini-4-hydrogen`, `thought_level: low`)**: UI, copy, CSS/Tailwind layout tweaks, single-file minor edits.
+If the current thread model does not match the required tier (especially on user approval of a Tier 2/Tier 3 plan), **immediately call `t3_thread_configure`** to switch to the required model and `thought_level` BEFORE writing any migration or code.
+
 ### Autonomous Single-Turn Execution Rule (Default Mode)
 - **Single-Turn by Default**: The agent automatically executes and verifies tasks end-to-end in a **single turn** (Plan -> Implement -> Verify -> Test/Lint -> Commit -> Staging Auto-Push) without requiring the user to type "Direct" or "Proceed".
 - **When to STOP and WAIT (Approval / Clarification Gate)**: The agent pauses and waits for user input ONLY if:
