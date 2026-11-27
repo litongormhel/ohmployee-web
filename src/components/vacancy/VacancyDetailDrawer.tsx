@@ -537,9 +537,14 @@ export function VacancyDetailDrawer({
             {canReviseQuota && (
               <button
                 type="button"
+                disabled={isPendingClosure}
                 onClick={() => setIsReviseQuotaModalOpen(true)}
-                className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-surface-muted/60 px-2 py-1 text-[11px] font-medium text-text-primary hover:bg-surface-muted hover:border-border-default transition cursor-pointer shadow-2xs"
-                title="Directly revise headcount quota for this requisition slot"
+                className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-surface-muted/60 px-2 py-1 text-[11px] font-medium text-text-primary hover:bg-surface-muted hover:border-border-default transition cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
+                title={
+                  isPendingClosure
+                    ? "Disabled while a closure request is pending"
+                    : "Directly revise headcount quota for this requisition slot"
+                }
               >
                 <SlidersHorizontal className="h-3 w-3 text-brand-600" />
                 <span>Adjust Quota</span>
@@ -549,9 +554,14 @@ export function VacancyDetailDrawer({
             {canRequestAdjustment && (
               <button
                 type="button"
+                disabled={isPendingClosure}
                 onClick={() => setIsRequestAdjustmentModalOpen(true)}
-                className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-surface-muted/60 px-2 py-1 text-[11px] font-medium text-text-primary hover:bg-surface-muted hover:border-border-default transition cursor-pointer shadow-2xs"
-                title="Submit a formal headcount quota adjustment request"
+                className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-surface-muted/60 px-2 py-1 text-[11px] font-medium text-text-primary hover:bg-surface-muted hover:border-border-default transition cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
+                title={
+                  isPendingClosure
+                    ? "Disabled while a closure request is pending"
+                    : "Submit a formal headcount quota adjustment request"
+                }
               >
                 <FileText className="h-3 w-3 text-brand-600" />
                 <span>HC Adjustment</span>

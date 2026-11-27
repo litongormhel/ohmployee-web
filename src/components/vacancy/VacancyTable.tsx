@@ -39,7 +39,7 @@ import {
 
 export type { VacancyStatus } from "@/lib/queries/vacancy";
 
-function getTableColumns(status: VacancyStatus): string[] {
+function getTableColumns(status: VacancyStatus, showClosureActions = false): string[] {
   if (status === "open") {
     return [
       "VCODE",
@@ -53,7 +53,7 @@ function getTableColumns(status: VacancyStatus): string[] {
     ];
   }
   if (status === "closure") {
-    return [
+    const cols = [
       "VCODE",
       "Position",
       "Account / group",
@@ -63,6 +63,10 @@ function getTableColumns(status: VacancyStatus): string[] {
       "Requested by",
       "Aging",
     ];
+    if (showClosureActions) {
+      cols.push("Actions");
+    }
+    return cols;
   }
   if (status === "hired") {
     return [
@@ -292,9 +296,11 @@ export function VacancyTable({
   const userCanManagePipeline = canManageApplicantPipeline(currentUser);
   const userCanReviewClosures = canReviewVacancyClosures(currentUser);
   const userIsOps = isOpsTeam(currentUser);
+  const canSeeClosureActions =
+    status === "closure" && (userIsOps || currentUser?.roleKey === "super_admin");
 
   const errorCopy = getErrorCopy(errorKind);
-  const activeColumns = getTableColumns(status);
+  const activeColumns = getTableColumns(status, canSeeClosureActions);
 
   return (
     <section className="flex min-h-[520px] flex-col rounded-md border border-table-rule-section bg-table-row">
@@ -679,8 +685,8 @@ export function VacancyTable({
                           );
                         })()}
 
-                        {/* 10. ACTIONS (Omitted in Closure tab; approvals live in Approval Module) */}
-                        {status !== "closure" && (
+                        {/* 10. ACTIONS (In Closure tab, visible only to Ops + SA for Withdraw) */}
+                        {(status !== "closure" || canSeeClosureActions) && (
                         <td className="border-b border-table-rule px-4 py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             {status === "open" && userCanAddApplicant && (
@@ -736,8 +742,8 @@ export function VacancyTable({
                             )}
 
                             {status === "closure" && (
-                              <div className="flex items-center gap-1">
-                                {userIsOps && onWithdrawClosure && (
+                              <div className="flex items-center justify-end gap-1">
+                                {canSeeClosureActions && onWithdrawClosure && (
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -750,34 +756,6 @@ export function VacancyTable({
                                     <RotateCcw className="h-3 w-3" aria-hidden="true" />
                                     <span className="hidden sm:inline">Withdraw</span>
                                   </button>
-                                )}
-                                {userCanReviewClosures && onReviewClosure && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onReviewClosure(row, "Approved");
-                                      }}
-                                      className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition shadow-xs cursor-pointer dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 dark:hover:bg-emerald-500/25"
-                                      title={`Approve closure request for ${row.vcode}`}
-                                    >
-                                      <Check className="h-3 w-3" aria-hidden="true" />
-                                      <span className="hidden sm:inline">Approve</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onReviewClosure(row, "Rejected");
-                                      }}
-                                      className="inline-flex items-center gap-1 rounded border border-danger-border bg-surface-base px-2 py-1 text-xs font-semibold text-danger-text hover:bg-danger-bg transition shadow-xs cursor-pointer"
-                                      title={`Reject closure request for ${row.vcode}`}
-                                    >
-                                      <X className="h-3 w-3" aria-hidden="true" />
-                                      <span className="hidden sm:inline">Reject</span>
-                                    </button>
-                                  </>
                                 )}
                               </div>
                             )}
