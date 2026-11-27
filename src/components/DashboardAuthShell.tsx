@@ -381,10 +381,23 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
     setRetryKey((prev) => prev + 1);
   }, []);
 
-  const handleGoToLogin = useCallback(() => {
+  const handleGoToLogin = useCallback(async () => {
     setIsRedirecting(true);
-    router.replace("/login");
-  }, [router]);
+    try {
+      queryClient.cancelQueries();
+      queryClient.clear();
+      try {
+        localStorage.setItem("ohmployee_theme_mode", "light");
+        window.dispatchEvent(new Event("ohmployee-theme-change"));
+      } catch {}
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Ignore sign-out errors and still redirect to login
+    } finally {
+      router.replace("/login");
+    }
+  }, [queryClient, router]);
 
   if (blockedAccess) {
     return (

@@ -1,5 +1,15 @@
 # AI Handoff
 
+## Execution Report — Fix "Back to Login" Redirect Loop on Access Blocked / Timeout / Error Screens (ohm#fix-back-to-login-signout-loop)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+
+### What Was Done
+1. **Root Cause**: `handleGoToLogin` in `src/components/DashboardAuthShell.tsx` only called `router.replace("/login")` without signing out the active Supabase Auth session. Because `/login` (`src/app/(auth)/login/page.tsx`) redirects authenticated users to `/vacancy`, clicking **Back to Login** from the Access Blocked, Workspace Loading Delayed, or Workspace Connection Error screens caused an immediate redirect loop back to `/vacancy` and back to the blocked screen.
+2. **Fix**: Updated `handleGoToLogin` in `src/components/DashboardAuthShell.tsx` to clear React Query cache, reset theme mode to `"light"`, and `await supabase.auth.signOut()` before `router.replace("/login")`.
+
 ## Execution Report — Fix `log_audit_event` Signature in `approve_new_store_request` (ohm#fix-approve-new-store-log-audit-event-signature)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`)
 
