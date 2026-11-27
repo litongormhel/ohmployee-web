@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Approvals. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/04_approvals_requisitions.md
-source_commit: 08ac81e 2026-11-25T19:31:17+08:00 +uncommitted-changes
+source_commit: c6d3eb2 2026-11-27T13:04:20+08:00
 source_sha256: 9a57b9f08c99c99bad34c386b7bb01c081bf7907903ac602bba96fc748678e99
-synced_at: 2026-11-27T02:09:42.191Z
+synced_at: 2026-11-27T08:16:10.838Z
 -->
 # Approvals & Headcount Requisitions Architecture
 

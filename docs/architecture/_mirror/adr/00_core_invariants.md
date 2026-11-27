@@ -3,7 +3,7 @@ ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Core. Edit in mobile repo, then r
 source: OHMployee/docs/architecture/adr/00_core_invariants.md
 source_commit: 7ed2e40 2026-11-27T09:40:20+08:00
 source_sha256: d47e1ae83ad7b9ef9017b6104ffb5d4afda2c1590239201a86728670f8386cc6
-synced_at: 2026-11-27T02:09:41.220Z
+synced_at: 2026-11-27T08:16:10.115Z
 -->
 # ADR Architecture — Core Cross-Module Invariants
 
