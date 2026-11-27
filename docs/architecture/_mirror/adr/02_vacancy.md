@@ -3,7 +3,7 @@ ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Vacancy. Edit in mobile repo, the
 source: OHMployee/docs/architecture/adr/02_vacancy.md
 source_commit: 08ac81e 2026-11-25T19:31:17+08:00 +uncommitted-changes
 source_sha256: f094c4876f2e20f353a0887544929dddc8b1869d24d610252733b5cd1c671507
-synced_at: 2026-11-27T08:16:10.504Z
+synced_at: 2026-11-27T09:29:31.528Z
 -->
 # Vacancy Module Architecture
 

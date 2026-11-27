@@ -979,8 +979,13 @@ export function PlantillaDetailDrawer({
           accountName={data.accountName}
           currentStoreId={data.storeId}
           currentStoreName={data.primaryStoreName}
+          currentVcode={data.vcode}
           currentProvince={data.province}
           currentIslandGroup={data.islandGroup}
+          deploymentType={data.employmentType}
+          currentScheduleDays={data.scheduleDays}
+          currentScheduleTime={data.scheduleTime}
+          currentDayoff={data.dayoff}
           onSuccess={() => {
             detailQuery.refetch();
           }}

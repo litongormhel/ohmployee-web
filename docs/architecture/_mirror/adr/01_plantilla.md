@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Plantilla. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/01_plantilla.md
-source_commit: bfee3d7 2026-11-26T10:43:44+08:00
-source_sha256: bc1088bb29214670fee8029c5a4af36462da12b02dce62fee771fa4d34059194
-synced_at: 2026-11-27T08:16:10.287Z
+source_commit: a267352 2026-11-27T17:29:27+08:00
+source_sha256: 656a4e4f9ec622b5b779a7972c75d1f732a313ecd6e217d8110a1676dedbd1d3
+synced_at: 2026-11-27T09:29:31.380Z
 -->
 # Plantilla Module Architecture & Headcount Governance
 
@@ -275,5 +275,30 @@ The Plantilla module operates under **Dual Views** driven by a segmented view to
    - The system automatically provisions an initial Open Vacancy (`status = 'Open'`, `required_headcount = 1`) with 1 physical open slot in `plantilla_slots` under the target position selected by Ops.
 6. **Self-Service Withdrawal Guard**: Ops requesters retain the authority to withdraw an ongoing `pending` reactivation request directly from the store action button (`Withdraw Request`), automatically cancelling the pending review in New Store Approvals.
 7. **OM Notification Loop**: Real-time notifications are systematically dispatched to the account's Operations Manager (`om_user_id`) upon request submission, approval, rejection, and withdrawal.
+
+### Plantilla Store Transfer & Atomic Employee Swap Governance (`ohm#plantilla-transfer-slot-gate-and-atomic-swap` — 2026-11-27)
+
+**Status: ACCEPTED & LOCKED.** Codifies the non-negotiable store-transfer slot gate, VCode store-ownership lock, automatic source-store vacancy reopening, and atomic employee swap rules across Web and Mobile:
+
+1. **VCode Belongs Permanently to the Store (Anti-VCode Migration Lock):**
+   - A store's `vcode` is permanently bound to the physical store (`stores.vcode`), never to an individual employee.
+   - Executing `public.plantilla_transfer` or `public.plantilla_swap` MUST ALWAYS rebind `plantilla.vcode` (and `employee_store_allocations.vcode`) to the destination store's `stores.vcode`. Leaving the source store's `vcode` attached to a transferred employee is strictly prohibited.
+2. **Stationary-Only Movement Scope (Roving Isolation Lock):**
+   - Both **Transfer** (`plantilla_transfer`) and **Swap** (`plantilla_swap`) are strictly restricted to **Active Stationary** employees (`status = 'Active'`, `deployment_type <> 'Roving'`, `coverage_group_id IS NULL`) and **Stationary** target stores (stores not belonging to any active `coverage_group_stores` route, not `CG`/`VCAG` coverage codes, and without active fractional roving allocations `0 < filled_hc < 1.0`).
+   - Roving personnel and roving route stores remain governed exclusively by Coverage Group Management (`CGCODE`).
+3. **Strict Slot-Gated Transfer & Zero-Applicant Avail Lock (No Over-Headcount Bypass):**
+   - An employee **CANNOT** be transferred into a store without a genuinely available open slot.
+   - Both the UI destination picker (`Search & Select Destination Store *`) and the server-side `public.plantilla_transfer` RPC MUST strictly filter/enforce that the destination store is active, belongs to the same account, is non-roving, has at least one `plantilla_slots` row in `slot_status = 'open'`, has **zero pending vacancy closures**, and has **zero competing active Pipeline / HR Emploc candidates** consuming its open capacity (`Avail = open_slots - active_applicants - hr_processing > 0`, matching ADR-002 Rule 4).
+   - Over-headcount silent bypasses on transfer are strictly prohibited; the database RPC hard-blocks (`RAISE EXCEPTION`) any transfer targeting a full or applicant-reserved store.
+4. **Automatic Source Store Vacancy Reopen / Provisioning on Transfer:**
+   - Upon a successful `plantilla_transfer`, the source store's occupied `plantilla_slots` row transitions `occupied → open` (`TRANSFER_OUT`) via `fn_set_slot_status` (Core Rule 1).
+   - The system MUST immediately ensure the source store enters **Open Vacancy** (`vacancies.status = 'Open'`, `is_archived = false`, `vacancy_type = 'Replacement'`, `vacant_date = effective_transfer_date`) by reopening an existing `vacancies` row or creating one if the baseline-imported store had no prior vacancy record.
+   - The target store's open slot transitions `open → occupied` (`TRANSFER_IN`) via `fn_set_slot_status`, its `vacancies` row updates to `'Filled'` when 0 open slots remain, and `employee_store_allocations` supersedes the old active row (`is_active = false`, `effective_end = effective_transfer_date`) and inserts the new active stationary allocation (`filled_hc = 1.0000`, carrying over the employee's `schedule_days` and `schedule_time`).
+5. **Atomic Employee Swap (`public.plantilla_swap`):**
+   - To exchange two Active Stationary employees occupying full stores within the same account without creating false vacancies or using Floating workarounds, Operations executes an atomic Swap (`public.plantilla_swap`) directly from the Transfer modal (`[ Transfer to Vacant Store | Swap with Employee ]` toggle, Ops `_can_act_on_plantilla(..., 'reassign')` gated).
+   - In a single deadlock-safe transaction (UUID-ordered row locks), both employees exchange `store_id`, `store_name`, `vcode`, `area`, `employee_store_allocations`, and their occupied `plantilla_slots` occupants via a dedicated `occupied → occupied` `'SWAP'` transition in `fn_set_slot_status` (never transitioning through `'open'` so zero false vacancies are opened).
+   - **Schedule Exchange Rule**: On Swap, both employees also exchange work schedules (`schedule_days`, `schedule_time`, `dayoff`) across both `public.plantilla` and `public.employee_store_allocations` so each employee inherits their new store's assigned schedule.
+6. **Employee Retains Position (Cross-Position Movement Permitted):**
+   - Both Transfer and Swap are permitted across positions within the same account; each employee retains their existing `position_id` / `position` (unless an explicit target position is supplied), and the newly occupied `plantilla_slots.position` snapshot synchronizes to the occupant's position to preserve 1:1 slot-to-occupant consistency.
 
 ---

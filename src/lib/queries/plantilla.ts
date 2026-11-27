@@ -3141,6 +3141,13 @@ export interface TransferPersonnelParams {
   targetPositionId?: string | null;
 }
 
+export interface SwapPersonnelParams {
+  plantillaIdA: string;
+  plantillaIdB: string;
+  reason?: TransferReasonType | string | null;
+  effectiveDate?: string | null; // YYYY-MM-DD
+}
+
 export interface DestinationStoreItem {
   id: string;
   storeName: string;
@@ -3154,6 +3161,26 @@ export interface DestinationStoreItem {
   areaProvince: string | null;
   islandGroup: string | null;
   isActive: boolean;
+  openSlotsCount: number;
+  availSlotsCount: number;
+  totalSlotsCount: number;
+  occupiedSlotsCount: number;
+}
+
+export interface SwapCandidateItem {
+  plantillaId: string;
+  employeeNo: string;
+  employeeName: string;
+  position: string | null;
+  positionId: string | null;
+  storeId: string;
+  storeName: string;
+  vcode: string | null;
+  areaCity: string | null;
+  province: string | null;
+  scheduleDays: string | null;
+  scheduleTime: string | null;
+  dayoff: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -3478,64 +3505,80 @@ export function deriveIslandGroup(provinceOrRegion: string | null | undefined): 
   return null;
 }
 
-export async function fetchDestinationStores(accountId?: string | null): Promise<DestinationStoreItem[]> {
+export async function fetchDestinationStores(
+  accountId?: string | null,
+  excludeStoreId?: string | null,
+): Promise<DestinationStoreItem[]> {
+  if (!accountId) return [];
   const supabase = createClient();
 
-  let query = supabase
-    .from("stores")
-    .select(`
-      id,
-      store_name,
-      vcode,
-      account_id,
-      group_id,
-      area_city,
-      province,
-      area_province,
-      island_group,
-      is_active,
-      accounts (
-        account_name
-      ),
-      groups (
-        group_name
-      )
-    `)
-    .eq("is_active", true)
-    .neq("status", "archived")
-    .or("is_archived.is.null,is_archived.eq.false");
-
-  if (accountId) {
-    query = query.eq("account_id", accountId);
-  }
-
-  const { data, error } = await query.order("store_name", { ascending: true });
+  const { data, error } = await supabase.rpc("get_transfer_eligible_stores", {
+    p_account_id: accountId,
+    p_exclude_store_id: excludeStoreId || null,
+  });
 
   if (error) {
+    console.error("[PostgREST Schema Error] get_transfer_eligible_stores:", error);
     throwPlantillaError(error);
   }
 
   return asArray(data).map((row) => {
     const obj = asObject(row);
-    const accountsObj = asObject(obj.accounts);
-    const groupsObj = asObject(obj.groups);
-
     const prov = asString(obj.province) ?? asString(obj.area_province);
     const derivedIg = asString(obj.island_group) ?? deriveIslandGroup(prov);
 
     return {
-      id: asString(obj.id) ?? "",
+      id: asString(obj.store_id) ?? "",
       storeName: asString(obj.store_name) ?? "Unnamed Store",
       vcode: asString(obj.vcode),
       accountId: asString(obj.account_id),
-      accountName: asString(accountsObj.account_name),
+      accountName: asString(obj.account_name),
       groupId: asString(obj.group_id),
-      groupName: asString(groupsObj.group_name),
+      groupName: asString(obj.group_name),
       areaCity: asString(obj.area_city),
       province: asString(obj.province),
       areaProvince: asString(obj.area_province),
       islandGroup: derivedIg,
       isActive: asBoolean(obj.is_active),
+      openSlotsCount: asNumber(obj.open_slots_count) ?? 0,
+      availSlotsCount: asNumber(obj.avail_slots_count) ?? 0,
+      totalSlotsCount: asNumber(obj.total_slots_count) ?? 0,
+      occupiedSlotsCount: asNumber(obj.occupied_slots_count) ?? 0,
+    };
+  });
+}
+
+export async function fetchSwapCandidates(
+  plantillaId?: string | null,
+): Promise<SwapCandidateItem[]> {
+  if (!plantillaId) return [];
+  const supabase = createClient();
+
+  const { data, error } = await supabase.rpc("get_swap_eligible_employees", {
+    p_plantilla_id: plantillaId,
+  });
+
+  if (error) {
+    console.error("[PostgREST Schema Error] get_swap_eligible_employees:", error);
+    throwPlantillaError(error);
+  }
+
+  return asArray(data).map((row) => {
+    const obj = asObject(row);
+    return {
+      plantillaId: asString(obj.plantilla_id) ?? "",
+      employeeNo: asString(obj.employee_no) ?? "",
+      employeeName: asString(obj.employee_name) ?? "Unnamed Employee",
+      position: asString(obj.position),
+      positionId: asString(obj.position_id),
+      storeId: asString(obj.store_id) ?? "",
+      storeName: asString(obj.store_name) ?? "Unnamed Store",
+      vcode: asString(obj.vcode),
+      areaCity: asString(obj.area_city),
+      province: asString(obj.province),
+      scheduleDays: asString(obj.schedule_days),
+      scheduleTime: asString(obj.schedule_time),
+      dayoff: asString(obj.dayoff),
     };
   });
 }
@@ -3554,6 +3597,7 @@ export async function transferPlantillaPersonnel(params: TransferPersonnelParams
     p_plantilla_id: params.plantillaId,
     p_target_store_id: params.targetStoreId,
     p_remarks: effectiveRemarks || null,
+    p_effective_date: params.effectiveDate || null,
   };
 
   if (params.targetPositionId) {
@@ -3563,6 +3607,32 @@ export async function transferPlantillaPersonnel(params: TransferPersonnelParams
   const { data, error } = await supabase.rpc("plantilla_transfer", rpcParams);
 
   if (error) {
+    console.error("[PostgREST Schema Error] plantilla_transfer:", error);
+    throwPlantillaError(error);
+  }
+
+  return data;
+}
+
+export async function swapPlantillaPersonnel(params: SwapPersonnelParams) {
+  const supabase = createClient();
+
+  const effectiveRemarks = [
+    params.reason ? `Reason: ${params.reason}` : null,
+    params.effectiveDate ? `Effective Date: ${params.effectiveDate}` : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  const { data, error } = await supabase.rpc("plantilla_swap", {
+    p_plantilla_id_a: params.plantillaIdA,
+    p_plantilla_id_b: params.plantillaIdB,
+    p_remarks: effectiveRemarks || null,
+    p_effective_date: params.effectiveDate || null,
+  });
+
+  if (error) {
+    console.error("[PostgREST Schema Error] plantilla_swap:", error);
     throwPlantillaError(error);
   }
 
@@ -3644,6 +3714,19 @@ export function useTransferPersonnel() {
       transferPlantillaPersonnel(params),
     onSuccess: (_, variables) => {
       invalidatePlantillaCaches(queryClient, variables.plantillaId);
+    },
+  });
+}
+
+export function useSwapPersonnel() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: SwapPersonnelParams) =>
+      swapPlantillaPersonnel(params),
+    onSuccess: (_, variables) => {
+      invalidatePlantillaCaches(queryClient, variables.plantillaIdA);
+      invalidatePlantillaCaches(queryClient, variables.plantillaIdB);
     },
   });
 }

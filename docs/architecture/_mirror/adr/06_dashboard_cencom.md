@@ -3,7 +3,7 @@ ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Dashboard-CENCOM. Edit in mobile 
 source: OHMployee/docs/architecture/adr/06_dashboard_cencom.md
 source_commit: 0eb4407 2026-11-23T23:02:59+08:00
 source_sha256: 30a31270a93dcd6b2a21a5330501ad8d9306d9accc3e8b5ab7ddde5e927faa1a
-synced_at: 2026-11-27T08:16:11.240Z
+synced_at: 2026-11-27T09:29:32.143Z
 -->
 # Executive Dashboard & CENCOM Technical Architecture
 

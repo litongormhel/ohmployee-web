@@ -1,5 +1,27 @@
 # AI Handoff
 
+## Execution Report — Plantilla Store Transfer VCode Rebind, Strict Slot Gate & Atomic Employee Swap (ohm#plantilla-transfer-slot-gate-and-atomic-swap)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`), Web + Mobile Parity Complete
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Rule 1 Slot Authority, Rule 2 Hired HC, Rule 3 Lifecycle Sync)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (ADR-002 Invariants 1–4 & new section **Plantilla Store Transfer & Atomic Employee Swap Governance**)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (Rule 4 `Avail > 0` Zero-Applicant Invariant, Closure Lock)
+
+### What Was Done
+1. **Root Cause**: Legacy `public.plantilla_transfer` updated `store_id`/`store_name` without rebinding `plantilla.vcode`, without transitioning `plantilla_slots` via `fn_set_slot_status`, without superseding `employee_store_allocations`, and without checking open slot availability — causing employees (e.g., `2019-14008` Abrogar & `2019-13652` Acibo) to carry their old store VCodes into their new stores.
+2. **ADR Codification & Sync**: Added **Plantilla Store Transfer & Atomic Employee Swap Governance** (`ohm#plantilla-transfer-slot-gate-and-atomic-swap`) to `D:\Projects\OHMployee\docs\architecture\adr\01_plantilla.md` and synced mirror to Web via `npm run sync:adr`.
+3. **Database Migration (`20262701000005_plantilla_transfer_slot_gate_and_atomic_swap.sql` — synced to both repos & pushed to Staging)**:
+   - Seeded `'TRANSFER_IN'` and `'SWAP'` in `public.slot_reason_codes`.
+   - Extended `public.fn_set_slot_status` with atomic `occupied/filled -> occupied` `'SWAP'` transition (never transitions through `'open'`, avoiding false `trg_reopen_vacancy_on_slot_open` triggers).
+   - Created shared RPCs `public.get_transfer_eligible_stores` (returns only active non-roving stationary stores with `open_slots_count > 0 AND avail_slots_count > 0`, zero pending closures, zero competing applicants/HR Emploc) and `public.get_swap_eligible_employees`.
+   - Hardened `public.plantilla_transfer` (stationary-only, strict slot gate + `Avail > 0` lock, VCode rebind, employee keeps position, source slot `TRANSFER_OUT` + automatic source `vacancies` Open reopen/insert, target slot `TRANSFER_IN` + `'Filled'` sync, `employee_store_allocations` supersede).
+   - Created `public.plantilla_swap` (deadlock-safe atomic swap of stores, VCodes, slots via `'SWAP'`, allocations, and work schedules `schedule_days`/`schedule_time`/`dayoff`/`rest_day`, keeping each employee's position and opening zero vacancies).
+   - Idempotently repaired drifted `vcode`, `plantilla_slots`, and `employee_store_allocations` for active stationary employees including `2019-14008` and `2019-13652`.
+4. **Web & Mobile Full Parity**:
+   - Web: `src/lib/queries/plantilla.ts`, `src/components/plantilla/TransferPersonnelModal.tsx` (2-mode `[ Transfer to Vacant Store | Swap with Employee ]`), `src/app/(dashboard)/plantilla/[id]/page.tsx`, `src/components/plantilla/PlantillaDetailDrawer.tsx`.
+   - Mobile: `lib/data/services/plantilla_scope_service.dart` (`fetchTransferEligibleStores`, `fetchSwapEligibleEmployees`, `swapEmployees`, updated `reassignStore`), `lib/features/plantilla/plantilla_screen.dart` (2-mode Transfer/Swap bottom sheet with roving block & open-slot filtering).
+
 ## Execution Report — Exclude `Moved to Plantilla` from For Emploc Queue (ohm#fix-for-emploc-exclude-moved-to-plantilla)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`)
 
@@ -277,6 +299,28 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Plantilla Store Transfer VCode Rebind, Strict Slot Gate & Atomic Employee Swap (ohm#plantilla-transfer-slot-gate-and-atomic-swap)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`), Web + Mobile Parity Complete
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Rule 1 Slot Authority, Rule 2 Hired HC, Rule 3 Lifecycle Sync)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (ADR-002 Invariants 1–4 & new section **Plantilla Store Transfer & Atomic Employee Swap Governance**)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (Rule 4 `Avail > 0` Zero-Applicant Invariant, Closure Lock)
+
+### What Was Done
+1. **Root Cause**: Legacy `public.plantilla_transfer` updated `store_id`/`store_name` without rebinding `plantilla.vcode`, without transitioning `plantilla_slots` via `fn_set_slot_status`, without superseding `employee_store_allocations`, and without checking open slot availability — causing employees (e.g., `2019-14008` Abrogar & `2019-13652` Acibo) to carry their old store VCodes into their new stores.
+2. **ADR Codification & Sync**: Added **Plantilla Store Transfer & Atomic Employee Swap Governance** (`ohm#plantilla-transfer-slot-gate-and-atomic-swap`) to `D:\Projects\OHMployee\docs\architecture\adr\01_plantilla.md` and synced mirror to Web via `npm run sync:adr`.
+3. **Database Migration (`20262701000005_plantilla_transfer_slot_gate_and_atomic_swap.sql` — synced to both repos & pushed to Staging)**:
+   - Seeded `'TRANSFER_IN'` and `'SWAP'` in `public.slot_reason_codes`.
+   - Extended `public.fn_set_slot_status` with atomic `occupied/filled -> occupied` `'SWAP'` transition (never transitions through `'open'`, avoiding false `trg_reopen_vacancy_on_slot_open` triggers).
+   - Created shared RPCs `public.get_transfer_eligible_stores` (returns only active non-roving stationary stores with `open_slots_count > 0 AND avail_slots_count > 0`, zero pending closures, zero competing applicants/HR Emploc) and `public.get_swap_eligible_employees`.
+   - Hardened `public.plantilla_transfer` (stationary-only, strict slot gate + `Avail > 0` lock, VCode rebind, employee keeps position, source slot `TRANSFER_OUT` + automatic source `vacancies` Open reopen/insert, target slot `TRANSFER_IN` + `'Filled'` sync, `employee_store_allocations` supersede).
+   - Created `public.plantilla_swap` (deadlock-safe atomic swap of stores, VCodes, slots via `'SWAP'`, allocations, and work schedules `schedule_days`/`schedule_time`/`dayoff`/`rest_day`, keeping each employee's position and opening zero vacancies).
+   - Idempotently repaired drifted `vcode`, `plantilla_slots`, and `employee_store_allocations` for active stationary employees including `2019-14008` and `2019-13652`.
+4. **Web & Mobile Full Parity**:
+   - Web: `src/lib/queries/plantilla.ts`, `src/components/plantilla/TransferPersonnelModal.tsx` (2-mode `[ Transfer to Vacant Store | Swap with Employee ]`), `src/app/(dashboard)/plantilla/[id]/page.tsx`, `src/components/plantilla/PlantillaDetailDrawer.tsx`.
+   - Mobile: `lib/data/services/plantilla_scope_service.dart` (`fetchTransferEligibleStores`, `fetchSwapEligibleEmployees`, `swapEmployees`, updated `reassignStore`), `lib/features/plantilla/plantilla_screen.dart` (2-mode Transfer/Swap bottom sheet with roving block & open-slot filtering).
 
 ## Execution Report — Exclude `Moved to Plantilla` from For Emploc Queue (ohm#fix-for-emploc-exclude-moved-to-plantilla)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`)

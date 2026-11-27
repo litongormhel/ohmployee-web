@@ -653,22 +653,29 @@ function PlantillaEmployeeDetailContent() {
                       <span>Update Employment Status</span>
                     </button>
 
-                    {/* Secondary: Transfer Employee */}
+                    {/* Secondary: Transfer / Swap Employee */}
                     <button
                       type="button"
                       onClick={() => setIsTransferModalOpen(true)}
-                      disabled={!isAuthorized || isInactive || isDeactivated}
+                      disabled={
+                        !isAuthorized ||
+                        isInactive ||
+                        isDeactivated ||
+                        (data.employmentType ?? "").toLowerCase() === "roving"
+                      }
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted hover:bg-surface-base border border-border-default text-text-primary text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:text-text-muted shadow-2xs"
                       title={
                         isDeactivated
                           ? "Cannot transfer a deactivated employee."
                           : isInactive
                           ? "Cannot transfer an inactive employee."
-                          : undefined
+                          : (data.employmentType ?? "").toLowerCase() === "roving"
+                          ? "Roving employees cannot be transferred or swapped individually. Use Coverage Group Management."
+                          : "Transfer to an open-slot store or swap stores with an active employee"
                       }
                     >
                       <ArrowRightLeft className="w-3.5 h-3.5 text-brand-primary" />
-                      <span>Transfer</span>
+                      <span>Transfer / Swap</span>
                     </button>
 
                     {/* Secondary: Reassign HRCO (Visible only if 2 or more HRCOs available) */}
@@ -1566,8 +1573,13 @@ function PlantillaEmployeeDetailContent() {
           accountName={data.accountName}
           currentStoreId={data.storeId}
           currentStoreName={data.primaryStoreName}
+          currentVcode={data.vcode}
           currentProvince={data.province}
           currentIslandGroup={data.islandGroup}
+          deploymentType={data.employmentType}
+          currentScheduleDays={data.scheduleDays}
+          currentScheduleTime={data.scheduleTime}
+          currentDayoff={data.dayoff}
           onSuccess={() => {
             detailQuery.refetch();
           }}

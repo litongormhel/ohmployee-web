@@ -3,7 +3,7 @@ ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-More. Edit in mobile repo, then r
 source: OHMployee/docs/architecture/adr/05_more_module.md
 source_commit: 0eb4407 2026-11-23T23:02:59+08:00
 source_sha256: 8663e0da06e5db8ce96f34ae8fb90987a7be1e4df59b71d33d427b754be9a2bc
-synced_at: 2026-11-27T08:16:11.078Z
+synced_at: 2026-11-27T09:29:31.993Z
 -->
 # More Module Architecture (Operations Hub & Administrative Governance)
 
