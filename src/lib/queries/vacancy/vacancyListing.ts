@@ -1869,10 +1869,13 @@ export async function listVacancies(params: VacancyListParams) {
           }
         } else {
           // Manual fallback: select accounts then users_profile
-          const { data: rawAccounts } = await supabase
-            .from("accounts")
-            .select("id, account_name, hrco_user_id")
-            .in("account_name", accountNames.length > 0 ? accountNames : ["ACTISERVE"]);
+          const { data: rawAccounts } =
+            accountNames.length > 0
+              ? await supabase
+                  .from("accounts")
+                  .select("id, account_name, hrco_user_id")
+                  .in("account_name", accountNames)
+              : { data: [] };
 
           if (rawAccounts && rawAccounts.length > 0) {
             const hrcoUserIds = Array.from(
@@ -2999,12 +3002,12 @@ export async function getVacancyDetail(vacancyId: string): Promise<VacancyDetail
             vacancyId: asString(directPlantilla?.id) ?? vacancyId,
             vcode,
             accountId: asString(directPlantilla?.account_id),
-            accountName: asString(directPlantilla?.account_name ?? directPlantilla?.account) || "ALTURAS",
+            accountName: asString(directPlantilla?.account_name ?? directPlantilla?.account) ?? null,
             groupId: asString(directPlantilla?.group_id),
             groupName: asString(directPlantilla?.group_name),
             storeId: asString(directPlantilla?.store_id),
             storeName,
-            position_title: asString(directPlantilla?.position_title) ?? "Motorized Collector",
+            position_title: asString(directPlantilla?.position_title) ?? "",
             department: asString(directPlantilla?.department),
             employmentType: asString(directPlantilla?.deployment_type) ?? "Stationary",
             vacancyStatus: "Open",

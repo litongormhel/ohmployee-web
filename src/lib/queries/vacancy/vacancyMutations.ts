@@ -874,7 +874,10 @@ export async function directImportVacancy(params: DirectImportVacancyParams): Pr
 
   const resolvedAccountId = params.accountId || (storeData && storeData[0]?.account_id) || null;
   const areaName = [province, areaCity].filter(Boolean).join(" - ") || null;
-  const position = (params.position || params.positionTitle)?.trim() || "Merchandiser";
+  const position = (params.position || params.positionTitle)?.trim();
+  if (!position) {
+    throw new Error("Position is required to create or update a vacancy.");
+  }
 
   const { error } = await supabase
     .from("vacancies")

@@ -1532,7 +1532,7 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
                 store_id: alloc.store_id,
                 store_name: alloc.store_name,
                 vcode: alloc.vcode,
-                account: accountName || "ALTURAS",
+                account: accountName || "",
                 status: "Active",
                 is_active: true,
               });
@@ -1614,7 +1614,7 @@ export async function listWebPlantillaEmployees(params: PlantillaEmployeeListPar
               plantilla_id: row.id,
               vcode: rowVcode,
               position_title: row.position ?? row.position_title ?? "Store Personnel",
-              account_name: row.account || row.account_name || accountName || "ALTURAS",
+              account_name: row.account || row.account_name || accountName || "",
               primary_store_name: resolvedStoreName,
               store_name: resolvedStoreName,
               is_active,
@@ -4207,21 +4207,21 @@ export async function fetchStoreHistory(
   // 1. Resolve slot IDs for this store
   let slotIds: string[] = [];
   try {
-    let slotQuery = supabase.from("plantilla_slots").select("id");
     const isSyntheticId = Boolean(storeId && (storeId.startsWith("alloc-") || storeId.startsWith("temp-")));
-    if (storeId && !isSyntheticId) {
-      slotQuery = slotQuery.eq("store_id", storeId);
-    } else if (vcode) {
-      slotQuery = slotQuery.eq("legacy_vcode", vcode);
-    } else {
-      slotQuery = slotQuery.eq("id", "00000000-0000-0000-0000-000000000000"); // no match
-    }
+    if ((storeId && !isSyntheticId) || vcode) {
+      let slotQuery = supabase.from("plantilla_slots").select("id");
+      if (storeId && !isSyntheticId) {
+        slotQuery = slotQuery.eq("store_id", storeId);
+      } else if (vcode) {
+        slotQuery = slotQuery.eq("legacy_vcode", vcode);
+      }
 
-    const { data: slotData, error: slotErr } = await slotQuery;
-    if (slotErr) {
-      console.error("[PostgREST Schema Error] fetchStoreHistory slot query failed:", slotErr);
-    } else {
-      slotIds = (slotData ?? []).map((s) => String(s.id));
+      const { data: slotData, error: slotErr } = await slotQuery;
+      if (slotErr) {
+        console.error("[PostgREST Schema Error] fetchStoreHistory slot query failed:", slotErr);
+      } else {
+        slotIds = (slotData ?? []).map((s) => String(s.id));
+      }
     }
   } catch (err) {
     console.error("[PostgREST Schema Error] fetchStoreHistory slot resolution exception:", err);

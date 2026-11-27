@@ -468,8 +468,7 @@ export function StoreDetailsModal({
                 (s) =>
                   s.slotStatus !== "closed" &&
                   s.slotStatus !== "hc_reduced" &&
-                  !s.isRoving &&
-                  !(s.legacyVcode ?? "").startsWith("COM-")
+                  !s.isRoving
               ).length}
               )
             </span>
@@ -615,8 +614,7 @@ export function StoreDetailsModal({
                 (s) =>
                   s.slotStatus !== "closed" &&
                   s.slotStatus !== "hc_reduced" &&
-                  !s.isRoving &&
-                  !(s.legacyVcode ?? "").startsWith("COM-")
+                  !s.isRoving
               ).length === 0 ? (
               <div className="rounded-lg border border-border-default bg-surface-muted p-8 text-center">
                 <Layers className="mx-auto h-8 w-8 text-text-muted" />

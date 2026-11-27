@@ -466,7 +466,7 @@ function PlantillaPageContent() {
       // Handle accounts present in allowedAccountsQuery but absent from v_account_allocation_kpi
       (allowedAccountsQuery.data ?? []).forEach((a) => {
         const accId = String(a.id);
-        if (!processedAccountIds.has(accId) && !a.isPoolAccount && a.name.trim().toLowerCase() !== "moses hq") {
+        if (!processedAccountIds.has(accId) && !a.isPoolAccount) {
           const actual = Math.round(activeEmpMap.get(accId) ?? 0);
           const leave = Math.round(leaveMap.get(accId) ?? 0);
           const openSlots = Math.round(openSlotsMap.get(accId) ?? 0);
@@ -481,7 +481,7 @@ function PlantillaPageContent() {
       // Workforce Pool Account KPI integration (e.g. Moses HQ, is_pool_account: true)
       const poolAccountIds = new Set<string>();
       (allowedAccountsQuery.data ?? []).forEach((a) => {
-        if (a.isPoolAccount || a.name.trim().toLowerCase() === "moses hq") {
+        if (a.isPoolAccount) {
           poolAccountIds.add(String(a.id));
         }
       });
@@ -493,8 +493,7 @@ function PlantillaPageContent() {
         const poolActiveHc = activeEmployees.filter(
           (e) =>
             String(e.account_id) === poolId ||
-            (e.is_pool_employee && String(e.account_id) === poolId) ||
-            String(e.account ?? "").trim().toLowerCase() === "moses hq",
+            (e.is_pool_employee && String(e.account_id) === poolId),
         ).length;
         const vacant = poolSlots.length > 0 ? openPoolSlotsCount : 0;
         const required = poolSlots.length > 0 ? poolSlots.length : poolActiveHc;
@@ -1248,7 +1247,7 @@ function PlantillaPageContent() {
           storeId: storeInfo.id || null,
           storeName: emp.primaryStoreName || null,
           storeLocation: [storeInfo.city, storeInfo.province].filter(Boolean).join(" • ") || null,
-          position_title: emp.positionTitle || "Motorized Collector",
+          position_title: emp.positionTitle || "",
           department: null,
           employmentType: emp.assignmentType || "Stationary",
           vacancyStatus: "Open",
