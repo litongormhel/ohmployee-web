@@ -26,10 +26,11 @@
 - Autonomous Single-Turn Execution Rule (Default Mode):
   - **Single-Turn by Default**: The agent automatically executes and verifies tasks end-to-end in a **single turn** (Plan -> Implement -> Verify -> Test/Lint -> Commit -> Staging Auto-Push) without requiring the user to type "Direct" or "Proceed".
   - **When to STOP and WAIT (Approval / Clarification Gate)**: The agent pauses and waits for user input ONLY if:
-    (1) The user explicitly says "Plan only", "Plan muna", or asks for review/options first, OR uses diagnostic inspection keywords ("Check", "Investigate", "Audit", "Inspect", "Suriin", "Alamin"),
+    (1) The user explicitly says "Plan only", "Plan muna", or asks for review/options first, OR uses diagnostic inspection keywords ("Check", "Investigate", "Audit", "Inspect", "Suriin", "Alamin"), OR sends an **image-only prompt** without explicit execution instructions (treat image-only prompts as **Read-Only Audit / Diagnostic** by default; if intent is unclear, ask what the user wants to do),
     (2) There is genuine ambiguity or uncertainty in business requirements (present 1–3 concrete recommendations and ask),
-    (3) The change directly conflicts with an ADR architecture lock or contract invariant (triggers the ADR-First Hard Lockout: requires ADR revision in mobile repo + sync before implementation), OR
-    (4) Irreversible destructive actions are involved (e.g. dropping production tables or deleting production assets).
+    (3) The task involves **database migrations (`supabase/migrations/`), SQL RPC/view/trigger changes, or Tier 2/Tier 3 changes** (always present blueprint + Regression Risk Assessment and wait for approval),
+    (4) The change directly conflicts with an ADR architecture lock or contract invariant (triggers the ADR-First Hard Lockout: requires ADR revision in mobile repo + sync before implementation), OR
+    (5) Irreversible destructive actions are involved (e.g. dropping production tables or deleting production assets).
 - Diagnostic & Inspection Gate (Check / Investigate / Audit = Read-Only Mode):
   Whenever the user prompt uses diagnostic or investigative phrasing (e.g. **"Check"**, **"Investigate"**, **"Audit"**, **"Inspect"**, **"Suriin"**, **"Alamin"**):
   1. **Strict Read-Only Execution**: The agent is strictly forbidden from writing or modifying code, creating or applying migrations, editing files, or making commits. The turn MUST remain read-only.
