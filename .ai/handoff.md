@@ -1,5 +1,17 @@
 # AI Handoff
 
+## Execution Report — Exclude `Moved to Plantilla` from For Emploc Queue (ohm#fix-for-emploc-exclude-moved-to-plantilla)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`)
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+- `docs/architecture/_mirror/adr/03_hr_emploc.md` (HR Emploc Module Architecture)
+
+### What Was Done
+1. **Root Cause**: `_assign_and_deploy_emploc_core` updates `hr_emploc.status = 'Moved to Plantilla'` while leaving `hr_status = 'For Emploc'` unchanged. Both `list_web_hr_emplocs` and `get_web_hr_emploc_summary` filtered the `for_emploc` queue with `hr_status = 'For Emploc' AND status <> 'Backout'`, causing deployed records to appear in both **Deployed** and **For Emploc** tabs.
+2. **Fix**: Created `supabase/migrations/20262701000003_fix_for_emploc_exclude_moved_to_plantilla.sql` updating `list_web_hr_emplocs` and `get_web_hr_emploc_summary` to filter `status NOT IN ('Backout', 'Moved to Plantilla')`.
+3. **Verification**: `npm run check:sql` passed (`SQL_CONTRACTS_OK`), dry-run and live push via `npm run db:push:staging` succeeded on Staging (`qqiiznmqxfoamqytjica`).
+
 ## Execution Report — Fix Missing `public.fn_format_employee_name_full(text, text, text)` (ohm#fix-missing-fn-format-employee-name-full)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`)
 
@@ -265,6 +277,18 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Exclude `Moved to Plantilla` from For Emploc Queue (ohm#fix-for-emploc-exclude-moved-to-plantilla)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`)
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+- `docs/architecture/_mirror/adr/03_hr_emploc.md` (HR Emploc Module Architecture)
+
+### What Was Done
+1. **Root Cause**: `_assign_and_deploy_emploc_core` updates `hr_emploc.status = 'Moved to Plantilla'` while leaving `hr_status = 'For Emploc'` unchanged. Both `list_web_hr_emplocs` and `get_web_hr_emploc_summary` filtered the `for_emploc` queue with `hr_status = 'For Emploc' AND status <> 'Backout'`, causing deployed records to appear in both **Deployed** and **For Emploc** tabs.
+2. **Fix**: Created `supabase/migrations/20262701000003_fix_for_emploc_exclude_moved_to_plantilla.sql` updating `list_web_hr_emplocs` and `get_web_hr_emploc_summary` to filter `status NOT IN ('Backout', 'Moved to Plantilla')`.
+3. **Verification**: `npm run check:sql` passed (`SQL_CONTRACTS_OK`), dry-run and live push via `npm run db:push:staging` succeeded on Staging (`qqiiznmqxfoamqytjica`).
 
 ## Execution Report — Fix Missing `public.fn_format_employee_name_full(text, text, text)` (ohm#fix-missing-fn-format-employee-name-full)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`)
