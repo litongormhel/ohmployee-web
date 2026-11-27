@@ -499,15 +499,12 @@ export function VacancyDetailDrawer({
           <div className="h-6 w-56 animate-pulse rounded bg-surface-muted" />
         ) : detail ? (
           <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-base font-bold text-text-primary truncate">
+              {detail.storeName ? formatStoreName(detail.storeName) : "Vacancy Detail"}
+            </span>
             <Badge className="font-mono text-xs font-semibold bg-surface-muted text-text-primary border border-border-default py-0.5 px-2">
               {detail.vcode}
             </Badge>
-            <Badge className={`text-[11px] py-0 px-2 font-medium ${statusBadgeStyle}`}>
-              {statusLabel}
-            </Badge>
-            <span className="text-base font-bold text-text-primary truncate">
-              {detail.position_title ? formatPosition(detail.position_title) : "Position Title"}
-            </span>
           </div>
         ) : (
           "Vacancy Detail"
@@ -523,7 +520,7 @@ export function VacancyDetailDrawer({
                   ? formatAccountName(detail.accountName)
                   : null,
                 formatGroupName(detail.groupName, detail.accountName),
-                detail.storeName ? formatStoreName(detail.storeName) : null,
+                detail.position_title ? formatPosition(detail.position_title) : null,
               ]
                 .filter(Boolean)
                 .join(" / ") || "Global Account"}
