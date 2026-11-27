@@ -718,27 +718,27 @@ export function VacancyDetailDrawer({
           {(detail.hasPendingClosure ||
             detail.closureRequestStatus?.toLowerCase() === "pending" ||
             detail.derivedStatus === "For Closure") && (
-            <div className="rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-[#991B1B] flex items-start gap-2.5">
-              <Clock3 className="h-4 w-4 shrink-0 mt-0.5 text-[#DC2626]" />
+            <div className="rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-3 text-[#991B1B] dark:border-red-500/30 dark:bg-red-950/35 dark:text-red-200 flex items-start gap-2.5">
+              <Clock3 className="h-4 w-4 shrink-0 mt-0.5 text-[#DC2626] dark:text-red-400" />
               <div className="text-xs space-y-1 w-full">
-                <div className="font-semibold flex items-center gap-1.5 text-[#991B1B]">
+                <div className="font-semibold flex items-center gap-1.5 text-[#991B1B] dark:text-red-200">
                   <span>Closure Clearance In-Flight</span>
                   {detail.closureRequestStatus && (
-                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-[#991B1B] border border-[#FECACA] shadow-2xs">
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-[#991B1B] border border-[#FECACA] shadow-2xs dark:bg-red-950/60 dark:text-red-200 dark:border-red-500/40">
                       {detail.closureRequestStatus}
                     </span>
                   )}
                 </div>
-                <div className="text-[#7F1D1D] leading-relaxed">
+                <div className="text-[#7F1D1D] dark:text-red-200/90 leading-relaxed">
                   This vacancy slot has an active Store / Vacancy Closure request under review. Sourcing and pipeline transitions are paused pending management clearance.
                 </div>
                 {detail.closureReason && (
-                  <div className="mt-1 font-medium text-[#991B1B]">
+                  <div className="mt-1 font-medium text-[#991B1B] dark:text-red-200">
                     Reason: {detail.closureReason}
                   </div>
                 )}
                 {detail.closureRequestedBy && (
-                  <div className="text-[11px] text-[#991B1B]/80">
+                  <div className="text-[11px] text-[#991B1B]/80 dark:text-red-300/80">
                     Requested by {detail.closureRequestedBy}
                     {detail.closureRequestedAt && ` • ${new Date(detail.closureRequestedAt).toLocaleDateString()}`}
                   </div>
