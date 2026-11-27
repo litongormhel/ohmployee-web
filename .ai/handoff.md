@@ -1,5 +1,17 @@
 # AI Handoff
 
+## Execution Report — Fix Missing `public.fn_format_employee_name_full(text, text, text)` (ohm#fix-missing-fn-format-employee-name-full)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`)
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+- `docs/architecture/_mirror/adr/03_hr_emploc.md` (HR Emploc Module Architecture)
+
+### What Was Done
+1. **Root Cause**: Clicking **Assign & Deploy** in the **Add Emploc Number** modal failed with `function public.fn_format_employee_name_full(text, text, text) does not exist` because `move_to_plantilla` (updated in `20262606000197_fix_emploc_name_and_separation_vacant_date.sql`) calls `public.fn_format_employee_name_full(v_app.last_name, v_app.first_name, v_app.middle_name)`, which was never created in any migration.
+2. **Fix**: Created `supabase/migrations/20262701000002_fix_missing_fn_format_employee_name_full.sql` defining `IMMUTABLE` function `public.fn_format_employee_name_full(p_last_name text, p_first_name text, p_middle_name text DEFAULT NULL)` returning `LASTNAME, FIRSTNAME MIDDLENAME` (uppercase, trimmed).
+3. **Verification**: `npm run check:sql` passed (`SQL_CONTRACTS_OK`), dry-run and live push via `npm run db:push:staging` succeeded on Staging (`qqiiznmqxfoamqytjica`).
+
 ## Execution Report — Make Plantilla Pipeline Tab Read-Only (ohm#plantilla-pipeline-read-only)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean (`npm run lint` 0 errors, `npm test` 276/276 passing)
 
@@ -253,6 +265,18 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Fix Missing `public.fn_format_employee_name_full(text, text, text)` (ohm#fix-missing-fn-format-employee-name-full)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`)
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+- `docs/architecture/_mirror/adr/03_hr_emploc.md` (HR Emploc Module Architecture)
+
+### What Was Done
+1. **Root Cause**: Clicking **Assign & Deploy** in the **Add Emploc Number** modal failed with `function public.fn_format_employee_name_full(text, text, text) does not exist` because `move_to_plantilla` (updated in `20262606000197_fix_emploc_name_and_separation_vacant_date.sql`) calls `public.fn_format_employee_name_full(v_app.last_name, v_app.first_name, v_app.middle_name)`, which was never created in any migration.
+2. **Fix**: Created `supabase/migrations/20262701000002_fix_missing_fn_format_employee_name_full.sql` defining `IMMUTABLE` function `public.fn_format_employee_name_full(p_last_name text, p_first_name text, p_middle_name text DEFAULT NULL)` returning `LASTNAME, FIRSTNAME MIDDLENAME` (uppercase, trimmed).
+3. **Verification**: `npm run check:sql` passed (`SQL_CONTRACTS_OK`), dry-run and live push via `npm run db:push:staging` succeeded on Staging (`qqiiznmqxfoamqytjica`).
 
 ## Execution Report — Make Plantilla Pipeline Tab Read-Only (ohm#plantilla-pipeline-read-only)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean (`npm run lint` 0 errors, `npm test` 276/276 passing)
