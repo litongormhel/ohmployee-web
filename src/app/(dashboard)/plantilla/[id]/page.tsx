@@ -925,20 +925,6 @@ function PlantillaEmployeeDetailContent() {
                         >
                           {displayStores.length} {displayStores.length === 1 ? "Store" : "Stores"}
                         </span>
-                        {data.vcode && (
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(data.vcode!, "vcode")}
-                            className="p-1 rounded hover:bg-surface text-text-muted hover:text-text-primary transition shrink-0 cursor-pointer"
-                            title={`Copy VCODE (${data.vcode})`}
-                          >
-                            {copiedField === "vcode" ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        )}
                       </div>
                     </div>
 
