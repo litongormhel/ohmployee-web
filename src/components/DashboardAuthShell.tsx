@@ -295,6 +295,22 @@ export function DashboardAuthShell({ children }: { children: React.ReactNode }) 
     return () => unsubscribe();
   }, [queryClient]);
 
+  // Redirect to /login if Supabase Auth signs out (e.g. invalid/expired refresh token)
+  useEffect(() => {
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        queryClient.clear();
+        setCurrentUser(null);
+        setIsRedirecting(true);
+        router.replace("/login");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [queryClient, router]);
+
   useEffect(() => {
     let isMounted = true;
     let timerId: ReturnType<typeof setTimeout> | null = null;

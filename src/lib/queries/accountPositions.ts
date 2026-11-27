@@ -49,7 +49,12 @@ export async function fetchAccountPositionsDetailed(
   });
 
   if (error) {
-    console.error("[PostgREST Schema Error] fetchAccountPositionsDetailed:", error);
+    console.error("[PostgREST Schema Error] fetchAccountPositionsDetailed:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
     throw new Error(error.message || "Failed to load account positions.");
   }
 

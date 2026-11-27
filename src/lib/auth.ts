@@ -223,7 +223,12 @@ export async function loadCurrentUserContext(): Promise<{
       await supabase.auth.getSession();
 
     if (sessionError) {
-      console.warn("[auth] Supabase session retrieval error:", sessionError);
+      console.warn("[auth] Supabase session retrieval error:", sessionError.message || sessionError);
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+      } catch {
+        // Ignore local sign-out failure
+      }
       return { currentUser: null, error: sessionError, blockedAccess: null };
     }
 
