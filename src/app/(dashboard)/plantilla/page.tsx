@@ -1644,12 +1644,12 @@ function PlantillaPageContent() {
     });
 
     const storeVacancyCountMap = new Map<string, number>();
-    const seenVacancyKeys = new Set<string>();
+    const seenVacancyIds = new Set<string>();
     allVacancies.forEach((v) => {
-      const dedupeKey = (v.vcode || v.id || "").trim().toUpperCase();
+      const dedupeKey = (v.id || "").trim();
       if (dedupeKey) {
-        if (seenVacancyKeys.has(dedupeKey)) return;
-        seenVacancyKeys.add(dedupeKey);
+        if (seenVacancyIds.has(dedupeKey)) return;
+        seenVacancyIds.add(dedupeKey);
       }
       const key = (v.storeName || "").toLowerCase().trim();
       if (key) {
