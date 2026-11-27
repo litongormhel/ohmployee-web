@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Vacancy. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/02_vacancy.md
-source_commit: 08ac81e 2026-11-25T19:31:17+08:00
-source_sha256: b3aa4f7d0bd1843a9c24ae3231045e5872016e80509122f11ca78e8b5632e258
-synced_at: 2026-11-27T02:09:41.725Z
+source_commit: 08ac81e 2026-11-25T19:31:17+08:00 +uncommitted-changes
+source_sha256: f094c4876f2e20f353a0887544929dddc8b1869d24d610252733b5cd1c671507
+synced_at: 2026-11-27T08:16:10.504Z
 -->
 # Vacancy Module Architecture
 
@@ -23,7 +23,7 @@ synced_at: 2026-11-27T02:09:41.725Z
 > Open tab: visible iff `(hc_needed - hired_count - pipeline_count - hr_processing_count) > 0`, shown with that value. Pipeline tab: visible iff `pipeline_count > 0`, independent of Open. A vacancy may appear in Open, Pipeline, both, or neither.
 
 **Closure Lifecycle & Pending Capacity Retention Invariant:**
-- **Pending Closure Stays Counted in Open Capacity**: While a requisition has a pending closure request (`has_pending_closure = true` / `closure_request_status = 'Pending'`), its authorized capacity remains active. It MUST remain visible in the Open Tab (rendered under Stage badge `Vacancy - Closure`) and continue contributing to unfilled capacity counts until official administrative approval. Endorsement of new applicants while a closure request is pending is hard-locked.
+- **Pending Closure Stays Counted in Open Capacity**: While a requisition has a pending closure request (`has_pending_closure = true` / `closure_request_status = 'Pending'`), its authorized capacity remains active. It MUST remain visible in the Open Tab (rendered under Stage badge `Vacancy - Closure`) and continue contributing to unfilled capacity counts until official administrative approval. Endorsement of new applicants while a closure request is pending is hard-locked. Quota revisions (`Adjust Quota`, `HC Adjustment`) and effective vacancy date edits (`Vacant Since`) are also disabled while a closure request is pending.
 - **Approved Closure Slot Inactivation**: Only upon administrative approval (`handle_closure_approval` / `review_vacancy_closure_request(p_status = 'Approved')`) is the physical slot closed (`slot_status = 'closed'`), the vacancy archived (`is_archived = true`), and the headcount permanently removed from Open capacity. Closed vacancies never show in Open or Pipeline.
 
 #### Operational Capacity Contract (Single-Slot vs. Multi-Slot Behavioral Matrix)

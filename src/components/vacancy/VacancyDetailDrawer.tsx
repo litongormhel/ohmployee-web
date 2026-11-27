@@ -623,7 +623,7 @@ export function VacancyDetailDrawer({
         ) : undefined
       }
       footer={
-        detail && !isHired ? (
+        detail && !isHired && !isPendingClosure ? (
           <div className="w-full flex items-center justify-between gap-2">
             <CapabilityActionBar
               variant="toolbar"
@@ -998,7 +998,7 @@ export function VacancyDetailDrawer({
                               </div>
 
                               {/* Candidate Pipeline Action Buttons */}
-                              {!isCandidateHired && userCanManagePipeline && (
+                              {!isCandidateHired && !isPendingClosure && userCanManagePipeline && (
                                 <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border-subtle/50 flex-wrap">
                                   <button
                                     type="button"
@@ -1058,7 +1058,7 @@ export function VacancyDetailDrawer({
                             </div>
                           );
                         })
-                      ) : detail.applicantName ? (
+                      ) : detail.applicantName && detail.applicantName !== "Candidate" && (detail.activeApplicantCount ?? 0) > 0 ? (
                         /* Fallback Single Candidate Card */
                         (() => {
                           const fbAgingColors = getAgingColorClasses(detail.agingDays);
@@ -1135,7 +1135,7 @@ export function VacancyDetailDrawer({
                                 )}
                               </div>
 
-                              {!isHired && userCanManagePipeline && (
+                              {!isHired && !isPendingClosure && userCanManagePipeline && (
                                 <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border-subtle/50 flex-wrap">
                                   <button
                                     type="button"
@@ -1200,12 +1200,6 @@ export function VacancyDetailDrawer({
                           No active applicants in pipeline.
                         </div>
                       )}
-                    </div>
-
-                    {/* Enhanced PII Guard Notice */}
-                    <div className="rounded-md border border-border-subtle/80 bg-surface-muted/60 px-3 py-2 text-[11px] text-text-secondary flex items-start gap-2">
-                      <Lock className="h-3.5 w-3.5 text-text-muted shrink-0 mt-0.5" />
-                      <span>PII Guard active: Candidate personal contact details subject to operational scope.</span>
                     </div>
                   </div>
                 )}
@@ -1380,7 +1374,7 @@ export function VacancyDetailDrawer({
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-medium text-text-muted block">Vacant Since</span>
-                                {canEditEffectiveVacancyDate && (
+                                {canEditEffectiveVacancyDate && !isPendingClosure && (
                                   <button
                                     type="button"
                                     onClick={() => {
