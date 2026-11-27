@@ -319,9 +319,19 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
   }, [previewRows, rowFilter]);
 
   const filteredHistoryRows = useMemo(() => {
-    if (historyRowFilter === "all") return historyRows;
-    return historyRows.filter((r) => r.validationStatus === historyRowFilter);
-  }, [historyRows, historyRowFilter]);
+    const q = historyRowSearch.trim().toLowerCase();
+    return historyRows.filter((r) => {
+      if (historyRowFilter !== "all" && r.validationStatus !== historyRowFilter) return false;
+      if (!q) return true;
+      return (
+        (r.storeName || "").toLowerCase().includes(q) ||
+        (r.vcode || "").toLowerCase().includes(q) ||
+        (r.employeeName || "").toLowerCase().includes(q) ||
+        (r.employeeNo || "").toLowerCase().includes(q) ||
+        (r.position || "").toLowerCase().includes(q)
+      );
+    });
+  }, [historyRows, historyRowFilter, historyRowSearch]);
 
   // RBAC resolution
   const roleStr = useMemo(() => {
@@ -1780,8 +1790,18 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                       Row Error Breakdown ({historyRows.length} total rows)
                     </h5>
 
-                    {/* Quick Filter Pills */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Quick Filter Pills + Search */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="relative w-full sm:w-56">
+                        <Search className="h-3.5 w-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={historyRowSearch}
+                          onChange={(e) => setHistoryRowSearch(e.target.value)}
+                          placeholder="Search store, vcode, employee..."
+                          className="w-full pl-8 pr-3 py-1 text-xs rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                        />
+                      </div>
                       <span className="text-xs font-semibold text-[var(--text-muted)] mr-1">Filter:</span>
                       <button
                         type="button"
