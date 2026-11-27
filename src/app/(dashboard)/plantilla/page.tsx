@@ -1644,7 +1644,13 @@ function PlantillaPageContent() {
     });
 
     const storeVacancyCountMap = new Map<string, number>();
+    const seenVacancyKeys = new Set<string>();
     allVacancies.forEach((v) => {
+      const dedupeKey = (v.vcode || v.id || "").trim().toUpperCase();
+      if (dedupeKey) {
+        if (seenVacancyKeys.has(dedupeKey)) return;
+        seenVacancyKeys.add(dedupeKey);
+      }
       const key = (v.storeName || "").toLowerCase().trim();
       if (key) {
         const remainingCapacity = getVacancyRemainingCapacity(v);
