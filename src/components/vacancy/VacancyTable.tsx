@@ -62,8 +62,6 @@ function getTableColumns(status: VacancyStatus): string[] {
       "Reason for deletion",
       "Requested by",
       "Aging",
-      "HC",
-      "Actions",
     ];
   }
   if (status === "hired") {
@@ -621,7 +619,23 @@ export function VacancyTable({
                       <>
                         {/* 8. AGING */}
                         <td className="border-b border-table-rule px-4 py-2.5 text-table-text-sub">
-                          {row.agingDays !== null && row.agingDays !== undefined ? (
+                          {status === "closure" ? (
+                            (() => {
+                              if (!row.closureRequestedAt) {
+                                return <span className="text-table-text-muted">—</span>;
+                              }
+                              const requestedMs = new Date(row.closureRequestedAt).getTime();
+                              if (Number.isNaN(requestedMs)) {
+                                return <span className="text-table-text-muted">—</span>;
+                              }
+                              const days = Math.max(0, Math.floor((Date.now() - requestedMs) / (1000 * 60 * 60 * 24)));
+                              return (
+                                <span className="inline-flex items-center rounded-md border border-border-default bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
+                                  {days} {days === 1 ? "day" : "days"}
+                                </span>
+                              );
+                            })()
+                          ) : row.agingDays !== null && row.agingDays !== undefined ? (
                             <span className="inline-flex items-center rounded-md border border-border-default bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
                               {row.agingDays} {row.agingDays === 1 ? "day" : "days"}
                             </span>
@@ -638,8 +652,8 @@ export function VacancyTable({
                           )}
                         </td>
 
-                        {/* 9. HC (Omitted in Pipeline tab where 1 row = 1 candidate) */}
-                        {status !== "pipeline" && (() => {
+                        {/* 9. HC (Omitted in Pipeline and Closure tabs) */}
+                        {status !== "pipeline" && status !== "closure" && (() => {
                           const quota = row.headcount ?? row.hcTotal ?? 1;
                           const hired = row.confirmedOnboardCount ?? row.hcFilled ?? 0;
                           const inProcess =
@@ -665,7 +679,8 @@ export function VacancyTable({
                           );
                         })()}
 
-                        {/* 10. ACTIONS */}
+                        {/* 10. ACTIONS (Omitted in Closure tab; approvals live in Approval Module) */}
+                        {status !== "closure" && (
                         <td className="border-b border-table-rule px-4 py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             {status === "open" && userCanAddApplicant && (
@@ -768,6 +783,7 @@ export function VacancyTable({
                             )}
                           </div>
                         </td>
+                        )}
                       </>
                     )}
                   </tr>

@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, Suspense, type FormEvent } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
@@ -52,7 +51,6 @@ import {
   formatGroupName,
   getVacancySummary,
   listVacancies,
-  useApproveAllClosureRequests,
   useReviewClosureRequest,
   useWithdrawVacancyClosureRequest,
   type VacancyListItem,
@@ -220,7 +218,6 @@ function VacancyPageContent() {
   const { savedViews, saveView, updateView, deleteView } = useVacancySavedViews();
   const [isSavedViewsModalOpen, setIsSavedViewsModalOpen] = useState(false);
 
-  const approveAllClosuresMutation = useApproveAllClosureRequests();
   const reviewClosureMutation = useReviewClosureRequest();
   const withdrawClosureMutation = useWithdrawVacancyClosureRequest();
 
@@ -347,9 +344,6 @@ function VacancyPageContent() {
     statusTabs.find((tab) => tab.value === status)?.label ?? "Open";
 
   const currentUser = useCurrentUser();
-  const canReviewClosures = useMemo(() => {
-    return canReviewVacancyClosures(currentUser);
-  }, [currentUser]);
   const canExport = useMemo(() => {
     return canExportVacancyDataset(currentUser) || isVacancyExportRole(currentUser?.roleKey || currentUser?.roleName);
   }, [currentUser]);
@@ -1025,51 +1019,6 @@ function VacancyPageContent() {
         savedViewsCount={savedViews.length}
         disabled={blocked}
       />
-
-      {status === "closure" && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border-default bg-surface-muted px-4 py-2.5 text-xs text-text-secondary">
-          <div className="flex items-center gap-2">
-            <Archive className="h-4 w-4 text-text-muted shrink-0" />
-            <span>
-              <strong>Closure Queue:</strong> Pending requisitions flagged for cessation or slot cancellation. Historical / approved closures are logged in{" "}
-              <Link
-                href="/approvals?tab=vacancy_closures"
-                className="font-semibold text-brand-600 underline hover:text-brand-500"
-              >
-                Approvals Center &rarr; Vacancy Closures
-              </Link>
-              .
-            </span>
-          </div>
-          {canReviewClosures && (
-            <button
-              type="button"
-              disabled={approveAllClosuresMutation.isPending || rows.length === 0}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    "Are you sure you want to approve all pending vacancy closure requests? This will close matching requisitions.",
-                  )
-                ) {
-                  approveAllClosuresMutation.mutate(undefined, {
-                    onSuccess: () => {
-                      setSuccessToast({
-                        message: "All pending closure requests approved successfully.",
-                      });
-                      retryVacancyReads();
-                    },
-                  });
-                }
-              }}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border-default bg-surface px-3 py-1 font-semibold text-text-secondary hover:bg-surface-hover hover:text-text-primary disabled:opacity-50 transition shadow-xs cursor-pointer"
-            >
-              {approveAllClosuresMutation.isPending
-                ? "Approving..."
-                : "Approve All Pending Closures"}
-            </button>
-          )}
-        </div>
-      )}
 
       <VacancyTable
         errorKind={listErrorKind}
