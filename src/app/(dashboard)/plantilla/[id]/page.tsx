@@ -496,8 +496,13 @@ function PlantillaEmployeeDetailContent() {
     return DAYS.filter((d) => dayCounts[d] > 1);
   }, [displayStores]);
 
+  const isRovingEmployee =
+    data?.employmentType === "Roving" || data?.assignmentType === "Roving";
   const resolvedCgCode =
     data?.cgCode || (data?.vcode?.startsWith("CG-") ? data.vcode : null);
+  const resolvedPlacementCode = isRovingEmployee
+    ? resolvedCgCode || data?.vcode || null
+    : data?.vcode || displayStores[0]?.vcode || null;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-background text-text-primary">
@@ -873,25 +878,25 @@ function PlantillaEmployeeDetailContent() {
 
                   {/* 3-Column Equal-Height Specifications Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
-                    {/* Field 1: Promoted CGCode */}
+                    {/* Field 1: VCode or CGCode */}
                     <div className="p-3.5 rounded-xl bg-surface-muted/50 border border-border-subtle flex flex-col justify-between min-h-[72px]">
                       <span className="text-text-secondary font-medium">
-                        Coverage Group Code (CGCode)
+                        VCode or CGCode
                       </span>
                       <div className="flex items-center justify-between gap-1.5 mt-1">
-                        {resolvedCgCode ? (
+                        {resolvedPlacementCode ? (
                           <>
                             <span
                               className="font-bold text-text-primary text-sm font-mono truncate"
-                              title={resolvedCgCode}
+                              title={resolvedPlacementCode}
                             >
-                              {resolvedCgCode}
+                              {resolvedPlacementCode}
                             </span>
                             <button
                               type="button"
-                              onClick={() => handleCopy(resolvedCgCode, "cgCode")}
+                              onClick={() => handleCopy(resolvedPlacementCode, "cgCode")}
                               className="p-1 rounded hover:bg-surface text-text-muted hover:text-text-primary transition shrink-0 cursor-pointer"
-                              title="Copy CGCode"
+                              title={isRovingEmployee ? "Copy CGCode" : "Copy VCode"}
                             >
                               {copiedField === "cgCode" ? (
                                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
