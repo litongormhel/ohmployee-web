@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users,
@@ -147,8 +147,18 @@ function PlantillaPageContent() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Main view toggle: "employee" vs "store"
-  const [mainView, setMainView] = useState<MainViewToggle>("employee");
+  // Main view toggle: "employee" vs "store" (auto-switches to "store" if view=store or storeId is in URL)
+  const isInitialStoreView = searchParams.get("view") === "store" || Boolean(searchParams.get("storeId"));
+  const [internalMainView, setInternalMainView] = useState<MainViewToggle>(isInitialStoreView ? "store" : "employee");
+  const urlViewParam = searchParams.get("view");
+  const hasStoreIdInUrl = Boolean(searchParams.get("storeId"));
+  const mainView: MainViewToggle =
+    urlViewParam === "store" || hasStoreIdInUrl
+      ? "store"
+      : urlViewParam === "employee"
+      ? "employee"
+      : internalMainView;
+  const setMainView = setInternalMainView;
 
   // 6 Status Sub-Tabs with reactive URL search param synchronization
   const [internalStatusTab, setInternalStatusTab] = useState<StatusSubTab>("active");
@@ -311,16 +321,22 @@ function PlantillaPageContent() {
     enabled: !!currentUser,
   });
 
-  // Derive accountId directly from URL or user single scoped account
+  // Derive accountId directly from URL, account query param, or user single scoped account
   const urlAccountId = searchParams.get("accountId") ?? "";
+  const urlAccountName = searchParams.get("account") ?? searchParams.get("accountName") ?? "";
   const singleScopedId = useMemo(() => {
-    if (hasAllScope) return "";
+    if (urlAccountId) return urlAccountId;
     const accounts = allowedAccountsQuery.data ?? [];
+    if (urlAccountName) {
+      const match = accounts.find((a) => a.name.toLowerCase() === urlAccountName.toLowerCase());
+      if (match) return match.id;
+    }
+    if (hasAllScope) return "";
     if (accounts.length === 1) {
       return accounts[0].id;
     }
     return "";
-  }, [hasAllScope, allowedAccountsQuery.data]);
+  }, [urlAccountId, urlAccountName, hasAllScope, allowedAccountsQuery.data]);
   const accountId = urlAccountId || singleScopedId;
 
   // Navigation to Dedicated Full-Page Employee Profile (/plantilla/[id]) with context preservation
@@ -1894,6 +1910,35 @@ function PlantillaPageContent() {
     });
   }, [storeCapacityRows, search, areaCityFilter, assignmentType]);
 
+  // Auto-open store capacity details modal when storeId or vcode specified in URL (e.g. from Global Search)
+  const urlStoreId = searchParams.get("storeId");
+  const urlVCode = searchParams.get("vcode");
+  const hasAutoOpenedStoreRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!urlStoreId && !urlVCode) return;
+    if (selectedStoreCapacity) return;
+    if (storeCapacityRows.length === 0) return;
+
+    const targetKey = `${urlStoreId ?? ""}:${urlVCode ?? ""}`;
+    if (hasAutoOpenedStoreRef.current === targetKey) return;
+
+    const matchedStore = storeCapacityRows.find(
+      (sc) =>
+        (urlStoreId && (sc.id === urlStoreId || sc.id?.toLowerCase() === urlStoreId.toLowerCase())) ||
+        (urlVCode && sc.code?.toLowerCase() === urlVCode.toLowerCase()) ||
+        (urlStoreId && sc.code?.toLowerCase() === urlStoreId.toLowerCase())
+    );
+
+    if (matchedStore) {
+      hasAutoOpenedStoreRef.current = targetKey;
+      const timer = setTimeout(() => {
+        setSelectedStoreCapacity(matchedStore);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [urlStoreId, urlVCode, storeCapacityRows, selectedStoreCapacity]);
+
   const storesWithAvailableSlots = useMemo<StoreWithAvailableSlots[]>(() => {
     const rawStores = storesUnderAccountQuery.data ?? [];
     const capacityMap = new Map<string, StoreCapacityRow>();
@@ -2963,6 +3008,7 @@ function PlantillaPageContent() {
             isOpen={Boolean(positionManagerAccount)}
             onClose={() => setPositionManagerAccount(null)}
             initialAccountId={positionManagerAccount?.id}
+            initialAccountName={positionManagerAccount?.name}
           />
         </>
       )}

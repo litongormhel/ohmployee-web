@@ -159,6 +159,12 @@ export function getNavigationUrl(result: GlobalSearchResultItem): string {
     }
     case "applicant":
       return `/vacancy?tab=pipeline&search=${searchParam}&vcode=${searchParam}`;
+    case "store": {
+      const vcode = encodeURIComponent(result.navigationId || result.primaryLabel);
+      const storeIdParam = result.recordId ? `&storeId=${encodeURIComponent(result.recordId)}` : "";
+      const accountParam = result.accountName ? `&account=${encodeURIComponent(result.accountName)}` : "";
+      return `/plantilla?view=store&search=${vcode}${storeIdParam}${accountParam}`;
+    }
     case "cencom":
       return `/cencom?search=${searchParam}`;
     default:

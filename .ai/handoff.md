@@ -1,5 +1,59 @@
 # AI Handoff
 
+## Execution Report — Streamline Account Position Manager Modal (ohm#streamline-account-position-modal)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, All 276 Tests Passing, 0 Lint Warnings, Next.js 16.2.4 TypeScript & Build Clean
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (ADR-001 Plantilla Baseline & Slot Authority)
+- `docs/architecture/_mirror/adr/05_more_module.md` (ADR-005 Governance & Account Scoping)
+
+### What Was Done
+1. **Contextual Account Isolation (Eliminated Redundant Account Dropdown)**:
+   - When opened inside an account context (e.g. `/plantilla` toolbar with ACTISERVE selected, passing `initialAccountId` and `initialAccountName`), the redundant `<select>` dropdown is hidden.
+   - Replaced with a clear, prominent account pill badge (`Building2` + `ACTISERVE`) in the modal header with subtitle: `"Configure job positions available for ACTISERVE"`.
+   - Maintained global governance mode for `/more?tab=data_control&subtab=operations&tool=account_positions` where no account is preselected.
+2. **Simplified Unified Single-Screen Architecture ("Add lang ng Position")**:
+   - Replaced the confusing two-tab structure ("Assigned Roles" vs "+ Add / Register Role") and internal database jargon ("Option A: Link Existing Role from Master Catalog" vs "Option B: Register Brand New Company Position") with a single streamlined view.
+   - Unified Add Position Input: Users simply enter or pick a position from searchable catalog suggestions or type any custom position name, then click `+ Add Position`.
+   - Automatic Title Case & uppercase acronym formatting preview via `formatPosition` (`public.fn_format_position_title`).
+   - Integrated with `public.manage_account_position` RPC: automatically routes to `link` or `create_and_link` seamlessly.
+   - Client-side duplicate guard prevents adding positions already assigned to the account.
+   - Clean position removal with safety lock for positions currently in use by active employees or open vacancies.
+   - Removed database technical constraint jargon (`uq_account_positions_account_position`) from footer, replacing it with an operational lock indicator.
+3. **Verification**:
+   - Tests: 276/276 passing (`npm test`).
+   - Lint: 0 errors, 0 warnings (`npx eslint`).
+   - TypeScript: Clean compile with 0 errors (`npx tsc --noEmit`).
+
+## Execution Report — Universal Global Search Lifecycle De-duplication and Direct Store Navigation (ohm#global-search-dedup-and-store-nav)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging, All 275 Tests Passing, 0 Lint Warnings, Next.js 16.2.4 Build Clean
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants — `Rule 8 — Universal Global Search Lifecycle De-duplication & Direct Target Navigation Contract`, `source_commit: 7ed2e40`)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (ADR-001 Plantilla Baseline & Slot Authority)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (ADR-002 Store Identity & Vacancy Capacity Matrix)
+
+### What Was Done
+1. **ADR Codification in Mobile Repo & Mirror Sync**:
+   - Codified `### Rule 8 — Universal Global Search Lifecycle De-duplication & Direct Target Navigation Contract` in `D:\Projects\OHMployee\docs\architecture\adr/00_core_invariants.md`.
+   - Committed in mobile repo (`7ed2e40`: `docs(adr): codify Rule 8 Universal Global Search De-duplication and Direct Navigation Contract`).
+   - Synced to web mirror via `npm run sync:adr` (`ADR_MIRROR_STATUS: FRESH`).
+2. **Forensic Database Migration (`20262606000212_dedup_global_search_and_direct_store_nav.sql`)**:
+   - Created and applied migration to Staging (`qqiiznmqxfoamqytjica`) and mirrored to Mobile repo:
+     - **Store Search & Direct Navigation**: Added `store_match` CTE searching `public.stores` by `store_name`, `vcode`, and `area_city` / `area_province` (`result_type = 'store'`, `navigation_target = 'store'`).
+     - **Deterministic Person De-duplication Key**: Added `dedup_key = 'person::' || COALESCE(NULLIF(employee_no, ''), NULLIF(emploc_no, ''), account || '::' || employee_name)` across all person results.
+     - **Authoritative Stage Hierarchy**: Enforced `SELECT DISTINCT ON (c.dedup_key) ... ORDER BY c.dedup_key, c.priority ASC, c.created_at DESC NULLS LAST`, prioritizing active/on-leave personnel (priority 1) > inactive personnel (priority 2) > HR Emploc onboarding (priority 3) > Applicants (priority 4), and selecting the newest record (`created_at DESC`) among historical import batches.
+     - Live Staging verification: Querying `'alexa'` was reduced from 9 duplicate rows down to 5 distinct individuals (`SEQUINTIN` Active, `EVANGELISTA` Active, `CANILA` Inactive, `SOLUTIN` Inactive, `Alexa B Mae` Withdrawn applicant).
+3. **Web Client Query & Command Palette Integration**:
+   - `src/lib/queries/globalSearch.ts`: Added `case "store"` in `getNavigationUrl` constructing `/plantilla?view=store&search=${vcode}&storeId=${recordId}&account=${accountName}`.
+   - `src/components/global-search/GlobalSearchModal.tsx`: Added `"store"` to `CategoryFilter` (`Stores` filter button) and configured Store badge styling.
+   - `src/app/(dashboard)/plantilla/page.tsx`: Handled URL deep-linking parameters `view=store`, `storeId`, and `account`: automatically initializes `mainView` to `"store"`, resolves `accountId` from account name, filters to the store, and auto-opens `StoreDetailsModal`.
+4. **Verification**:
+   - Unit Tests: All 275 tests passed (`npm test`), including new contract test `GS-NAV-05` in `src/lib/queries/__tests__/global_search_navigation.test.mjs`.
+   - SQL Contracts: Passed 28 physical tables & 19 cross-module RPC contracts (`npm run check:sql`).
+   - Lint & Build: 0 ESLint errors/warnings (`npm run lint`), Turbopack production build clean (`npm run build`).
+
 ## Execution Report — Normalize Demographics, Civil Status, Deployment Type, and Store/Location Names (ohm#normalize-demographics-and-stores)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging, All 275 Tests Passing, 0 Lint Warnings, Next.js 16.2.4 Build Clean
 

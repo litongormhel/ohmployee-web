@@ -34,7 +34,7 @@ export interface GlobalSearchModalProps {
   onOpenOhmni?: () => void;
 }
 
-type CategoryFilter = "all" | "vacancy" | "plantilla" | "hr_emploc" | "applicant";
+type CategoryFilter = "all" | "vacancy" | "plantilla" | "hr_emploc" | "applicant" | "store";
 
 export function GlobalSearchModal({
   isOpen,
@@ -95,6 +95,7 @@ export function GlobalSearchModal({
       plantilla: 0,
       hr_emploc: 0,
       applicant: 0,
+      store: 0,
     };
     for (const r of results) {
       const t = r.resultType.toLowerCase();
@@ -281,6 +282,17 @@ export function GlobalSearchModal({
               }`}
             >
               Applicants ({categoryCounts.applicant || 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedCategory("store")}
+              className={`px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                selectedCategory === "store"
+                  ? "bg-brand-500 text-white font-semibold"
+                  : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--soft)]"
+              }`}
+            >
+              Stores ({categoryCounts.store || 0})
             </button>
           </div>
         )}

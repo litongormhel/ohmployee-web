@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Core. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/00_core_invariants.md
-source_commit: 08ac81e 2026-11-25T19:31:17+08:00
-source_sha256: a3b8d8c347a17625520187eacff3b8da6fa4e90d63c828d9fa40e9b2b5398487
-synced_at: 2026-11-26T05:01:03.802Z
+source_commit: 7ed2e40 2026-11-27T09:40:20+08:00
+source_sha256: d47e1ae83ad7b9ef9017b6104ffb5d4afda2c1590239201a86728670f8386cc6
+synced_at: 2026-11-27T01:40:30.101Z
 -->
 # ADR Architecture — Core Cross-Module Invariants
 
@@ -95,6 +95,25 @@ User Management (`public.user_scopes` joined to `public.users_profile` with `rol
 4. **HR Emploc Inheritance**: New candidate deployments inherit their `hrco_name` and `hrco_user_id_snapshot` directly from the account/vacancy HRCO.
 5. **Active Filter Contract**: Only active, non-archived user profiles (`users_profile.is_active = TRUE AND users_profile.archived_at IS NULL`) are recognized and projected as HRCOs. Soft-archived or suspended profiles are strictly suppressed and will render as `Unassigned` on requisitions until an active HRCO is assigned or the profile is reactivated.
 6. **Self-Healing Reactivation Contract**: When an Administrator modifies a user's role/scopes (`public.upsert_user_profile_and_scopes`) or activates a user (`public.set_user_active`), the database automatically restores `is_active = TRUE`, clears `archived_at = NULL` and `archived_by = NULL`, and dispatches `public.fn_reevaluate_hrco_auto_tags` across all affected account scopes.
+
+### Rule 8 — Universal Global Search Lifecycle De-duplication & Direct Target Navigation Contract
+
+**Module scope:** Cross-module (Plantilla, Vacancy, HR Emploc, Onboarding, Stores, Accounts).
+
+Universal Global Search (`public.search_global_index`) and command palette navigation across Web and Mobile enforce strict workforce lifecycle deduplication and direct contextual target routing:
+
+1. **Current State Single-Occurrence Invariant (Zero-Duplicate Identity Lock):**
+   - Every individual workforce member or candidate across recruitment, onboarding, deployment, and separation must appear **strictly once** in global search results, reflecting their single authoritative **current operational state**.
+   - Lifecycle precedence strictly governs result resolution: **Plantilla Active/On-Leave/Floating/Deactivation > Plantilla Inactive > HR Emploc > Pipeline Applicants**.
+   - Duplicate records resulting from multi-batch baseline imports, historical separation logs, multi-store roving allocations, or multi-stage progression are deterministically coalesced on human identity key (`dedup_key = 'person::' || COALESCE(employee_no, emploc_no, account || '::' || employee_name)`). When multiple records share the same identity at the same lifecycle stage, the most recent record (`created_at DESC`) is projected. Stale or duplicate entries are permanently suppressed.
+2. **Direct Contextual Target Routing Contract (Employee vs. Store):**
+   - **Employee Navigation**: Selecting an employee record routes **directly to that individual's profile or active processing record**:
+     - Plantilla personnel navigate directly to the dedicated full-page Employee Profile (`/plantilla/[id]` on Web; `EmployeeProfileScreen` on Mobile).
+     - HR Emploc candidates navigate directly to their queue record with modal detail auto-selected (`/hr-emploc?id=[id]`).
+     - Pipeline applicants navigate directly to the vacancy pipeline workspace (`/vacancy?tab=pipeline&search=[vcode]`).
+   - **Store Navigation**: Selecting a store location (matched by store name, branch, or VCode) routes **directly to that Store**:
+     - On Web, routes directly to Plantilla Store View with the target store capacity detail modal automatically opened (`/plantilla?view=store&search=[vcode]&storeId=[id]`), allowing instant inspection of store authorized headcount, active personnel, open vacancies, and operational duty schedules.
+     - On Mobile, routes directly to Plantilla Store View filtered to the selected store location.
 
 ### Validation
 

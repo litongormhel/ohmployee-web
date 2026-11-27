@@ -37,6 +37,12 @@ function getNavigationUrl(result) {
     }
     case "applicant":
       return `/vacancy?tab=pipeline&search=${searchParam}&vcode=${searchParam}`;
+    case "store": {
+      const vcode = encodeURIComponent(result.navigationId || result.primaryLabel);
+      const storeIdParam = result.recordId ? `&storeId=${encodeURIComponent(result.recordId)}` : "";
+      const accountParam = result.accountName ? `&account=${encodeURIComponent(result.accountName)}` : "";
+      return `/plantilla?view=store&search=${vcode}${storeIdParam}${accountParam}`;
+    }
     case "cencom":
       return `/cencom?search=${searchParam}`;
     default:
@@ -106,4 +112,21 @@ test("GS-NAV-04: HR Emploc result deep links with emploc id and queue", () => {
 
   const url = getNavigationUrl(item);
   assert.equal(url, "/hr-emploc?search=emploc-uuid-456&id=emploc-uuid-456&queue=for_compliance");
+});
+
+test("GS-NAV-05: Store result deep links to /plantilla with view=store, storeId, and account", () => {
+  const item = {
+    resultType: "store",
+    recordId: "store-uuid-789",
+    primaryLabel: "SM CITY CEBU",
+    secondaryLabel: "ZEBRA · VCEB_0001",
+    status: "Active",
+    matchedField: "store_name",
+    navigationTarget: "store",
+    navigationId: "VCEB_0001",
+    accountName: "ZEBRA",
+  };
+
+  const url = getNavigationUrl(item);
+  assert.equal(url, "/plantilla?view=store&search=VCEB_0001&storeId=store-uuid-789&account=ZEBRA");
 });

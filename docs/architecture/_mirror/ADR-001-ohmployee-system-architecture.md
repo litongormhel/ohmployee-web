@@ -3,7 +3,7 @@ ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-001-Full. Edit in mobile repo, th
 source: OHMployee/.ai/architecture_locks/ADR-001-ohmployee-system-architecture.md
 source_commit: 08ac81e 2026-11-25T19:31:17+08:00
 source_sha256: c01612a7fef31bf1cfd3bd322c6b61146b2dddda58f529e8165e71b0f4f3907c
-synced_at: 2026-11-26T05:01:03.645Z
+synced_at: 2026-11-27T01:40:29.823Z
 -->
 # ADR-001: OHMployee System Architecture
 

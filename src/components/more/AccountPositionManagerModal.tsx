@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   X,
   Briefcase,
@@ -10,10 +10,9 @@ import {
   Search,
   Building2,
   Users,
-  Layers,
-  Sparkles,
   Loader2,
   Lock,
+  ChevronDown,
 } from "lucide-react";
 import { formatPosition } from "@/lib/utils/displayText";
 import { useScopeAccounts } from "@/lib/queries/more";
@@ -22,50 +21,56 @@ import {
   useMasterPositionsQuery,
   useManageAccountPositionMutation,
   type DetailedAccountPosition,
+  type MasterPositionItem,
 } from "@/lib/queries/accountPositions";
 
 interface AccountPositionManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialAccountId?: string | null;
+  initialAccountName?: string | null;
 }
 
 export function AccountPositionManagerModal({
   isOpen,
   onClose,
   initialAccountId,
+  initialAccountName,
 }: AccountPositionManagerModalProps) {
-  // Accounts query
+  const isFixedAccount = Boolean(initialAccountId);
+
+  // Accounts query (used for name lookup and fallback when no account is preselected)
   const { data: accounts = [], isLoading: isLoadingAccounts } = useScopeAccounts();
 
-  // Selected account state (supports manual override, prop fallback, or first account default)
+  // Selected account state for global mode (e.g. from /more)
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
 
   const effectiveAccountId = useMemo(() => {
-    if (selectedAccountId) return selectedAccountId;
     if (initialAccountId) return initialAccountId;
+    if (selectedAccountId) return selectedAccountId;
     return accounts.length > 0 ? accounts[0].id : "";
-  }, [selectedAccountId, initialAccountId, accounts]);
+  }, [initialAccountId, selectedAccountId, accounts]);
 
-  // Active sub-tab: 'assigned' | 'add'
-  const [activeTab, setActiveTab] = useState<"assigned" | "add">("assigned");
+  // Selected account object
+  const currentAccount = useMemo(() => {
+    return accounts.find((a) => a.id === effectiveAccountId);
+  }, [accounts, effectiveAccountId]);
 
-  // Filter/search in assigned roles
+  const accountDisplayName = useMemo(() => {
+    if (initialAccountName && isFixedAccount) return initialAccountName;
+    return currentAccount?.accountName || "Account";
+  }, [initialAccountName, isFixedAccount, currentAccount]);
+
+  // Input & dropdown states
+  const [positionInput, setPositionInput] = useState("");
+  const [selectedCatalogPosition, setSelectedCatalogPosition] = useState<MasterPositionItem | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
-  // Add existing position state
-  const [selectedExistingPosId, setSelectedExistingPosId] = useState("");
-
-  // Create new position state
-  const [newPositionName, setNewPositionName] = useState("");
-
-  // Inline Unlink Confirmation
   const [unlinkingPos, setUnlinkingPos] = useState<DetailedAccountPosition | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  // Status feedback
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(
-    null
-  );
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Queries for the selected account
   const {
@@ -74,15 +79,27 @@ export function AccountPositionManagerModal({
     isRefetching: isRefetchingPositions,
   } = useAccountPositionsDetailedQuery(effectiveAccountId);
 
-  const { data: masterPositions = [], isLoading: isLoadingMaster } = useMasterPositionsQuery();
+  const { data: masterPositions = [] } = useMasterPositionsQuery();
 
   const manageMutation = useManageAccountPositionMutation(effectiveAccountId);
 
   // Filter master positions not yet assigned to the current account
   const unassignedMasterPositions = useMemo(() => {
     const assignedIds = new Set(assignedPositions.map((p) => p.positionId));
-    return masterPositions.filter((p) => !assignedIds.has(p.id));
+    const assignedNames = new Set(assignedPositions.map((p) => p.positionName.trim().toLowerCase()));
+    return masterPositions.filter(
+      (p) => !assignedIds.has(p.id) && !assignedNames.has(p.positionName.trim().toLowerCase())
+    );
   }, [masterPositions, assignedPositions]);
+
+  // Filter unassigned master positions by the input query
+  const matchingCatalogPositions = useMemo(() => {
+    const q = positionInput.trim().toLowerCase();
+    if (!q) return unassignedMasterPositions.slice(0, 8);
+    return unassignedMasterPositions
+      .filter((p) => p.positionName.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [unassignedMasterPositions, positionInput]);
 
   // Filter assigned positions by search query
   const filteredAssignedPositions = useMemo(() => {
@@ -95,74 +112,101 @@ export function AccountPositionManagerModal({
     );
   }, [assignedPositions, searchQuery]);
 
-  // Selected account object
-  const currentAccount = useMemo(() => {
-    return accounts.find((a) => a.id === effectiveAccountId);
-  }, [accounts, effectiveAccountId]);
+  // Dynamic formatting preview
+  const formattedPreview = useMemo(() => {
+    if (!positionInput.trim()) return "";
+    return formatPosition(positionInput.trim());
+  }, [positionInput]);
 
-  // Auto-format preview for new position
-  const formattedNewPositionPreview = useMemo(() => {
-    if (!newPositionName.trim()) return "";
-    return formatPosition(newPositionName.trim());
-  }, [newPositionName]);
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  // Reset local form states on account change or close
-  const handleAccountChange = (newAccId: string) => {
-    setSelectedAccountId(newAccId);
+  const resetForm = () => {
+    setPositionInput("");
+    setSelectedCatalogPosition(null);
+    setIsDropdownOpen(false);
     setSearchQuery("");
-    setSelectedExistingPosId("");
-    setNewPositionName("");
     setUnlinkingPos(null);
     setFeedback(null);
   };
 
-  // Action: Link existing position
-  const handleLinkExisting = async (e: React.FormEvent) => {
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  // Handle Account Change in global mode
+  const handleAccountChange = (newAccId: string) => {
+    setSelectedAccountId(newAccId);
+    resetForm();
+  };
+
+  // Add Position Action (Unified simple add)
+  const handleAddPosition = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!effectiveAccountId || !selectedExistingPosId) return;
+    const trimmed = positionInput.trim();
+    if (!effectiveAccountId || trimmed.length < 2) return;
+
+    // Check if already assigned
+    const alreadyAssigned = assignedPositions.some(
+      (p) => p.positionName.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (alreadyAssigned) {
+      setFeedback({
+        type: "error",
+        message: `Position "${formatPosition(trimmed)}" is already added to this account.`,
+      });
+      return;
+    }
 
     setFeedback(null);
+    setIsDropdownOpen(false);
+
     try {
-      const res = await manageMutation.mutateAsync({
-        action: "link",
-        accountId: effectiveAccountId,
-        positionId: selectedExistingPosId,
+      const matchedPos =
+        selectedCatalogPosition ||
+        unassignedMasterPositions.find(
+          (p) => p.positionName.trim().toLowerCase() === trimmed.toLowerCase()
+        );
+
+      let res;
+      if (matchedPos) {
+        res = await manageMutation.mutateAsync({
+          action: "link",
+          accountId: effectiveAccountId,
+          positionId: matchedPos.id,
+        });
+      } else {
+        res = await manageMutation.mutateAsync({
+          action: "create_and_link",
+          accountId: effectiveAccountId,
+          positionName: trimmed,
+        });
+      }
+
+      setPositionInput("");
+      setSelectedCatalogPosition(null);
+      setFeedback({
+        type: "success",
+        message: res.message || `Position "${formatPosition(trimmed)}" added to ${accountDisplayName}.`,
       });
-      setSelectedExistingPosId("");
-      setFeedback({ type: "success", message: res.message });
-      setActiveTab("assigned");
     } catch (err) {
       setFeedback({
         type: "error",
-        message: err instanceof Error ? err.message : "Failed to link position.",
+        message: err instanceof Error ? err.message : "Failed to add position.",
       });
     }
   };
 
-  // Action: Create and link new position
-  const handleCreateAndLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!effectiveAccountId || !newPositionName.trim()) return;
-
-    setFeedback(null);
-    try {
-      const res = await manageMutation.mutateAsync({
-        action: "create_and_link",
-        accountId: effectiveAccountId,
-        positionName: newPositionName.trim(),
-      });
-      setNewPositionName("");
-      setFeedback({ type: "success", message: res.message });
-      setActiveTab("assigned");
-    } catch (err) {
-      setFeedback({
-        type: "error",
-        message: err instanceof Error ? err.message : "Failed to create position.",
-      });
-    }
-  };
-
-  // Action: Unlink position
+  // Remove Position Action
   const handleConfirmUnlink = async () => {
     if (!effectiveAccountId || !unlinkingPos) return;
 
@@ -174,11 +218,14 @@ export function AccountPositionManagerModal({
         positionId: unlinkingPos.positionId,
       });
       setUnlinkingPos(null);
-      setFeedback({ type: "success", message: res.message });
+      setFeedback({
+        type: "success",
+        message: res.message || "Position removed from account.",
+      });
     } catch (err) {
       setFeedback({
         type: "error",
-        message: err instanceof Error ? err.message : "Failed to unlink position.",
+        message: err instanceof Error ? err.message : "Failed to remove position.",
       });
       setUnlinkingPos(null);
     }
@@ -188,119 +235,78 @@ export function AccountPositionManagerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="relative flex flex-col w-full max-w-3xl max-h-[90vh] bg-surface-primary border border-border-default rounded-xl shadow-2xl overflow-hidden">
+      <div className="relative flex flex-col w-full max-w-2xl max-h-[90vh] bg-surface-primary border border-border-default rounded-xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle bg-surface-base">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-brand-subtle text-brand-primary">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-lg bg-brand-subtle text-brand-primary shrink-0">
               <Briefcase className="w-5 h-5 text-brand-600" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base font-bold text-text-primary">
-                  Account Position Management
+                  Manage Positions
                 </h2>
+                {isFixedAccount && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-brand-subtle text-brand-primary text-xs font-semibold border border-brand-border">
+                    <Building2 className="w-3.5 h-3.5" />
+                    <span>{accountDisplayName}</span>
+                  </span>
+                )}
                 <span className="px-2 py-0.5 text-3xs font-bold uppercase rounded-md bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                   Data Team
                 </span>
               </div>
-              <p className="text-xs text-text-muted mt-0.5">
-                Govern available job roles per account or register new positions into the company catalog.
+              <p className="text-xs text-text-muted mt-0.5 truncate">
+                Configure job positions available for {accountDisplayName}
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={onClose}
-            className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-hover rounded-lg transition"
+            onClick={handleClose}
+            className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-hover rounded-lg transition shrink-0 cursor-pointer"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Account Selector Bar */}
-        <div className="px-6 py-3.5 border-b border-border-subtle bg-surface-subtle/50 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 flex-1 min-w-[260px]">
-            <Building2 className="w-4 h-4 text-text-muted shrink-0" />
-            <span className="text-xs font-semibold text-text-secondary whitespace-nowrap">
-              Select Account:
-            </span>
-            <select
-              value={effectiveAccountId}
-              onChange={(e) => handleAccountChange(e.target.value)}
-              disabled={isLoadingAccounts || manageMutation.isPending}
-              className="flex-1 max-w-sm h-8 px-3 text-xs font-medium rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-hidden focus:ring-2 focus:ring-brand-500 transition cursor-pointer disabled:opacity-50"
-            >
-              {isLoadingAccounts ? (
-                <option value="">Loading accounts...</option>
-              ) : accounts.length === 0 ? (
-                <option value="">No accounts found</option>
-              ) : (
-                accounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.accountName}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
+        {/* Global Account Selector Bar: ONLY rendered when not locked to a specific account */}
+        {!isFixedAccount && (
+          <div className="px-6 py-3 border-b border-border-subtle bg-surface-subtle/40 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 flex-1 min-w-[240px]">
+              <Building2 className="w-4 h-4 text-text-muted shrink-0" />
+              <span className="text-xs font-semibold text-text-secondary whitespace-nowrap">
+                Select Account:
+              </span>
+              <select
+                value={effectiveAccountId}
+                onChange={(e) => handleAccountChange(e.target.value)}
+                disabled={isLoadingAccounts || manageMutation.isPending}
+                className="flex-1 max-w-sm h-8 px-3 text-xs font-medium rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-hidden focus:ring-2 focus:ring-brand-500 transition cursor-pointer disabled:opacity-50"
+              >
+                {isLoadingAccounts ? (
+                  <option value="">Loading accounts...</option>
+                ) : accounts.length === 0 ? (
+                  <option value="">No accounts found</option>
+                ) : (
+                  accounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.accountName}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
 
-          {currentAccount && (
-            <div className="flex items-center gap-2 text-xs text-text-muted">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-primary border border-border-default font-medium text-text-secondary">
-                <Layers className="w-3.5 h-3.5 text-brand-600" />
-                <span>
-                  {assignedPositions.length}{" "}
-                  {assignedPositions.length === 1 ? "Role Assigned" : "Roles Assigned"}
-                </span>
+            <div className="flex items-center gap-1.5 text-xs text-text-muted">
+              <span className="px-2 py-0.5 rounded-md bg-surface-primary border border-border-default font-medium text-text-secondary text-3xs">
+                {assignedPositions.length} {assignedPositions.length === 1 ? "Position" : "Positions"}
               </span>
             </div>
-          )}
-        </div>
-
-        {/* Tab Controls */}
-        <div className="flex items-center gap-2 px-6 pt-3 border-b border-border-subtle bg-surface-primary">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("assigned");
-              setFeedback(null);
-            }}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold border-b-2 transition cursor-pointer ${
-              activeTab === "assigned"
-                ? "border-brand-600 text-brand-600"
-                : "border-transparent text-text-muted hover:text-text-primary"
-            }`}
-          >
-            <span>Assigned Roles</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-3xs font-bold ${
-                activeTab === "assigned"
-                  ? "bg-brand-subtle text-brand-primary"
-                  : "bg-surface-subtle text-text-muted"
-              }`}
-            >
-              {assignedPositions.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("add");
-              setFeedback(null);
-            }}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold border-b-2 transition cursor-pointer ${
-              activeTab === "add"
-                ? "border-brand-600 text-brand-600"
-                : "border-transparent text-text-muted hover:text-text-primary"
-            }`}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add / Register Role</span>
-          </button>
-        </div>
+          </div>
+        )}
 
         {/* Alert Feedback Banner */}
         {feedback && (
@@ -320,7 +326,7 @@ export function AccountPositionManagerModal({
             <button
               type="button"
               onClick={() => setFeedback(null)}
-              className="text-text-muted hover:text-text-primary p-0.5"
+              className="text-text-muted hover:text-text-primary p-0.5 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -328,302 +334,266 @@ export function AccountPositionManagerModal({
         )}
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-[340px]">
-          {activeTab === "assigned" ? (
-            /* Tab 1: Assigned Roles */
-            <div className="space-y-4">
-              {/* Search Bar */}
-              <div className="flex items-center justify-between gap-3">
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Section 1: Simple Add Position Input */}
+          <div
+            ref={containerRef}
+            className="p-4 rounded-xl border border-border-default bg-surface-subtle/40 space-y-2.5"
+          >
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="position-add-input"
+                className="text-xs font-bold text-text-primary flex items-center gap-1.5"
+              >
+                <span>Add Position</span>
+              </label>
+              {formattedPreview && formattedPreview.toLowerCase() !== positionInput.trim().toLowerCase() && (
+                <span className="text-3xs text-text-muted">
+                  Auto-formatted: <strong className="text-brand-600">{formattedPreview}</strong>
+                </span>
+              )}
+            </div>
+
+            <form onSubmit={handleAddPosition} className="space-y-2">
+              <div className="relative flex items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    id="position-add-input"
+                    ref={inputRef}
+                    type="text"
+                    value={positionInput}
+                    onChange={(e) => {
+                      setPositionInput(e.target.value);
+                      setSelectedCatalogPosition(null);
+                      setIsDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsDropdownOpen(true)}
+                    placeholder="Type or select position (e.g. Barista, Cashier, FSR)..."
+                    className="w-full h-9 pl-3 pr-8 text-xs font-medium rounded-lg border border-border-default bg-surface-primary text-text-primary placeholder:text-text-muted focus:outline-hidden focus:ring-2 focus:ring-brand-500 transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsDropdownOpen((prev) => !prev)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-1 cursor-pointer"
+                    title="Toggle catalog suggestions"
+                    tabIndex={-1}
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Autocomplete / Catalog Suggestions Dropdown */}
+                  {isDropdownOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-lg border border-border-default bg-surface-primary shadow-lg z-20 py-1">
+                      <div className="px-3 py-1 text-3xs font-semibold text-text-muted uppercase tracking-wider bg-surface-subtle border-b border-border-subtle">
+                        {matchingCatalogPositions.length > 0
+                          ? "Suggested Catalog Positions"
+                          : "No matching catalog positions"}
+                      </div>
+                      {matchingCatalogPositions.map((pos) => (
+                        <button
+                          key={pos.id}
+                          type="button"
+                          onClick={() => {
+                            setPositionInput(pos.positionName);
+                            setSelectedCatalogPosition(pos);
+                            setIsDropdownOpen(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-xs hover:bg-surface-hover flex items-center justify-between text-text-primary transition cursor-pointer"
+                        >
+                          <span className="font-medium">{formatPosition(pos.positionName)}</span>
+                          {pos.positionCode && (
+                            <span className="text-3xs font-mono text-text-muted bg-surface-subtle px-1.5 py-0.2 rounded border border-border-subtle">
+                              {pos.positionCode}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                      {positionInput.trim().length >= 2 &&
+                        !matchingCatalogPositions.some(
+                          (p) => p.positionName.trim().toLowerCase() === positionInput.trim().toLowerCase()
+                        ) && (
+                          <div className="px-3 py-1.5 text-3xs text-brand-600 bg-brand-subtle/40 border-t border-border-subtle flex items-center gap-1">
+                            <Plus className="w-3 h-3" />
+                            <span>Will create new catalog position &quot;{formattedPreview}&quot;</span>
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={positionInput.trim().length < 2 || manageMutation.isPending}
+                  className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-brand-button hover:bg-brand-button-hover disabled:opacity-50 text-white text-xs font-semibold shadow-2xs transition cursor-pointer shrink-0"
+                >
+                  {manageMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Adding...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Position</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Section 2: Current Positions List */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-bold text-text-primary">
+                  Assigned Positions
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-3xs font-bold bg-surface-subtle text-text-secondary border border-border-default">
+                  {assignedPositions.length}
+                </span>
+              </div>
+
+              {assignedPositions.length > 0 && (
+                <div className="relative w-full sm:w-56">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search assigned roles..."
-                    className="w-full h-8 pl-8 pr-3 text-xs rounded-lg border border-border-default bg-surface-primary text-text-primary placeholder:text-text-muted focus:outline-hidden focus:ring-2 focus:ring-brand-500"
+                    className="w-full h-8 pl-8 pr-3 text-xs rounded-lg border border-border-default bg-surface-primary text-text-primary placeholder:text-text-muted focus:outline-hidden focus:ring-1 focus:ring-brand-500"
                   />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("add")}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-brand-button hover:bg-brand-button-hover text-white text-xs font-semibold shadow-2xs transition cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Role</span>
-                </button>
-              </div>
-
-              {/* Roles List */}
-              {isLoadingPositions || isRefetchingPositions ? (
-                <div className="flex flex-col items-center justify-center py-16 text-text-muted">
-                  <Loader2 className="w-6 h-6 animate-spin text-brand-600 mb-2" />
-                  <p className="text-xs">Loading positions for {currentAccount?.accountName}...</p>
-                </div>
-              ) : filteredAssignedPositions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-border-default rounded-xl bg-surface-subtle/40">
-                  <Briefcase className="w-8 h-8 text-text-muted mb-2 opacity-50" />
-                  <p className="text-xs font-semibold text-text-secondary">
-                    {searchQuery ? "No matching roles found" : "No roles assigned to this account"}
-                  </p>
-                  <p className="text-3xs text-text-muted max-w-xs mt-1">
-                    {searchQuery
-                      ? "Try searching for another keyword or clear the filter."
-                      : "Click 'Add / Register Role' above to assign or create roles for this account."}
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                  {filteredAssignedPositions.map((pos) => {
-                    const inUse = pos.activeEmployeeCount > 0 || pos.openVacancyCount > 0;
-                    const isConfirmingThis = unlinkingPos?.positionId === pos.positionId;
-
-                    return (
-                      <div
-                        key={pos.positionId}
-                        className={`p-3 rounded-xl border transition flex flex-col justify-between gap-2.5 ${
-                          isConfirmingThis
-                            ? "border-rose-300 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-950/20"
-                            : "border-border-default bg-surface-base hover:border-border-strong"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold text-text-primary">
-                                {formatPosition(pos.positionName)}
-                              </span>
-                              {pos.positionCode && (
-                                <span className="px-1.5 py-0.2 rounded text-3xs font-mono font-semibold bg-surface-subtle text-text-muted border border-border-default">
-                                  {pos.positionCode}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 mt-1.5">
-                              <span
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-3xs font-semibold ${
-                                  pos.activeEmployeeCount > 0
-                                    ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                                    : "bg-surface-subtle text-text-muted border border-border-subtle"
-                                }`}
-                              >
-                                <Users className="w-3 h-3" />
-                                <span>{pos.activeEmployeeCount} active</span>
-                              </span>
-
-                              <span
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-3xs font-semibold ${
-                                  pos.openVacancyCount > 0
-                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
-                                    : "bg-surface-subtle text-text-muted border border-border-subtle"
-                                }`}
-                              >
-                                <Briefcase className="w-3 h-3" />
-                                <span>{pos.openVacancyCount} open vac</span>
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Unlink Action */}
-                          {inUse ? (
-                            <div
-                              title={`Cannot unlink: in use by ${pos.activeEmployeeCount} employee(s) and ${pos.openVacancyCount} open vacancy(ies).`}
-                              className="p-1.5 text-text-muted/40 cursor-not-allowed"
-                            >
-                              <Lock className="w-4 h-4" />
-                            </div>
-                          ) : isConfirmingThis ? (
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => setUnlinkingPos(null)}
-                                className="px-2 py-1 rounded-md text-3xs font-medium text-text-secondary hover:bg-surface-hover border border-border-default transition cursor-pointer"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleConfirmUnlink}
-                                disabled={manageMutation.isPending}
-                                className="px-2 py-1 rounded-md text-3xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-2xs transition cursor-pointer"
-                              >
-                                {manageMutation.isPending ? "Unlinking..." : "Confirm"}
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setUnlinkingPos(pos)}
-                              title="Unlink role from this account"
-                              className="p-1.5 text-text-muted hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               )}
             </div>
-          ) : (
-            /* Tab 2: Add / Register Role */
-            <div className="space-y-6">
-              {/* Option A: Link Existing Master Position */}
-              <div className="p-4 rounded-xl border border-border-default bg-surface-base space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-600">
-                    <Layers className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-text-primary">
-                      Option A: Link Existing Role from Master Catalog
-                    </h3>
-                    <p className="text-3xs text-text-muted">
-                      Select a role that already exists in the company directory and enable it for{" "}
-                      <span className="font-semibold text-text-secondary">
-                        {currentAccount?.accountName}
-                      </span>
-                      .
-                    </p>
-                  </div>
-                </div>
 
-                <form onSubmit={handleLinkExisting} className="flex flex-wrap items-center gap-3 pt-1">
-                  <select
-                    value={selectedExistingPosId}
-                    onChange={(e) => setSelectedExistingPosId(e.target.value)}
-                    disabled={isLoadingMaster || unassignedMasterPositions.length === 0}
-                    className="flex-1 min-w-[240px] h-9 px-3 text-xs font-medium rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-hidden focus:ring-2 focus:ring-brand-500 transition cursor-pointer"
-                  >
-                    <option value="">
-                      {isLoadingMaster
-                        ? "Loading catalog positions..."
-                        : unassignedMasterPositions.length === 0
-                        ? "-- All catalog positions are already linked --"
-                        : "-- Select a role to link --"}
-                    </option>
-                    {unassignedMasterPositions.map((pos) => (
-                      <option key={pos.id} value={pos.id}>
-                        {formatPosition(pos.positionName)}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    type="submit"
-                    disabled={!selectedExistingPosId || manageMutation.isPending}
-                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-brand-button hover:bg-brand-button-hover disabled:opacity-50 text-white text-xs font-semibold shadow-2xs transition cursor-pointer shrink-0"
-                  >
-                    {manageMutation.isPending && manageMutation.variables?.action === "link" ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Linking...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Link to {currentAccount?.accountName}</span>
-                      </>
-                    )}
-                  </button>
-                </form>
+            {/* Content states */}
+            {isLoadingPositions || isRefetchingPositions ? (
+              <div className="flex flex-col items-center justify-center py-12 text-text-muted">
+                <Loader2 className="w-6 h-6 animate-spin text-brand-600 mb-2" />
+                <p className="text-xs">Loading positions for {accountDisplayName}...</p>
               </div>
+            ) : filteredAssignedPositions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-border-default rounded-xl bg-surface-subtle/30 px-4">
+                <Briefcase className="w-8 h-8 text-text-muted mb-2 opacity-50" />
+                <p className="text-xs font-semibold text-text-secondary">
+                  {searchQuery ? "No matching positions found" : "No positions assigned yet"}
+                </p>
+                <p className="text-3xs text-text-muted max-w-sm mt-1">
+                  {searchQuery
+                    ? "Try adjusting your search keyword."
+                    : `Type or select a position in the input above and click "Add Position" to enable roles for ${accountDisplayName}.`}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {filteredAssignedPositions.map((pos) => {
+                  const inUse = pos.activeEmployeeCount > 0 || pos.openVacancyCount > 0;
+                  const isConfirmingThis = unlinkingPos?.positionId === pos.positionId;
 
-              {/* Option B: Register Brand New Role */}
-              <div className="p-4 rounded-xl border border-border-default bg-surface-base space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-600">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-text-primary">
-                      Option B: Register Brand New Company Position
-                    </h3>
-                    <p className="text-3xs text-text-muted">
-                      Add a completely new position to the company catalog and automatically link it
-                      to{" "}
-                      <span className="font-semibold text-text-secondary">
-                        {currentAccount?.accountName}
-                      </span>
-                      .
-                    </p>
-                  </div>
-                </div>
-
-                <form onSubmit={handleCreateAndLink} className="space-y-3 pt-1">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <input
-                      type="text"
-                      value={newPositionName}
-                      onChange={(e) => setNewPositionName(e.target.value)}
-                      placeholder="e.g. Barista, Inventory Lead, FSR Lead"
-                      className="flex-1 min-w-[240px] h-9 px-3 text-xs font-medium rounded-lg border border-border-default bg-surface-primary text-text-primary placeholder:text-text-muted focus:outline-hidden focus:ring-2 focus:ring-brand-500 transition"
-                    />
-
-                    <button
-                      type="submit"
-                      disabled={
-                        newPositionName.trim().length < 2 || manageMutation.isPending
-                      }
-                      className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-semibold shadow-2xs transition cursor-pointer shrink-0"
+                  return (
+                    <div
+                      key={pos.positionId}
+                      className={`p-3 rounded-xl border transition flex items-center justify-between gap-2.5 ${
+                        isConfirmingThis
+                          ? "border-rose-300 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-950/20"
+                          : "border-border-default bg-surface-base hover:border-border-strong"
+                      }`}
                     >
-                      {manageMutation.isPending &&
-                      manageMutation.variables?.action === "create_and_link" ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Creating...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>Create & Link</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold text-text-primary truncate">
+                            {formatPosition(pos.positionName)}
+                          </span>
+                          {pos.positionCode && (
+                            <span className="px-1.5 py-0.2 rounded text-3xs font-mono font-semibold bg-surface-subtle text-text-muted border border-border-default">
+                              {pos.positionCode}
+                            </span>
+                          )}
+                        </div>
 
-                  {/* Dynamic Formatting Preview */}
-                  {formattedNewPositionPreview && (
-                    <div className="p-2.5 rounded-lg bg-surface-subtle border border-border-subtle flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="text-3xs font-semibold text-text-muted">
-                          Auto-formatted Preview:
-                        </span>
-                        <span className="px-2 py-0.5 rounded font-bold bg-brand-subtle text-brand-primary border border-brand-border">
-                          {formattedNewPositionPreview}
-                        </span>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-medium ${
+                              pos.activeEmployeeCount > 0
+                                ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-semibold"
+                                : "bg-surface-subtle text-text-muted"
+                            }`}
+                          >
+                            <Users className="w-3 h-3" />
+                            <span>{pos.activeEmployeeCount} active</span>
+                          </span>
+
+                          <span
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-medium ${
+                              pos.openVacancyCount > 0
+                                ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-semibold"
+                                : "bg-surface-subtle text-text-muted"
+                            }`}
+                          >
+                            <Briefcase className="w-3 h-3" />
+                            <span>{pos.openVacancyCount} open vac</span>
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-3xs text-text-muted">
-                        Proper Case • 2–3 letter uppercase rule applied
-                      </span>
-                    </div>
-                  )}
 
-                  <p className="text-3xs text-text-muted italic">
-                    Note: Names are standardized automatically. Acronyms with 2 to 3 letters
-                    (e.g., FSR, SMP, QA, HR, TL, OM) will be converted to uppercase.
-                  </p>
-                </form>
+                      {/* Remove / Lock Action */}
+                      <div className="shrink-0">
+                        {inUse ? (
+                          <div
+                            title={`Locked: In use by ${pos.activeEmployeeCount} employee(s) and ${pos.openVacancyCount} open vacancy(ies).`}
+                            className="p-1.5 text-text-muted/40 cursor-not-allowed"
+                          >
+                            <Lock className="w-4 h-4" />
+                          </div>
+                        ) : isConfirmingThis ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setUnlinkingPos(null)}
+                              className="px-2 py-1 rounded text-3xs font-medium text-text-secondary hover:bg-surface-hover border border-border-default transition cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleConfirmUnlink}
+                              disabled={manageMutation.isPending}
+                              className="px-2 py-1 rounded text-3xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition cursor-pointer"
+                            >
+                              {manageMutation.isPending ? "..." : "Remove"}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setUnlinkingPos(pos)}
+                            title="Remove position from this account"
+                            className="p-1.5 text-text-muted hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Footer */}
         <div className="px-6 py-3.5 border-t border-border-subtle bg-surface-base flex items-center justify-between">
-          <span className="text-3xs text-text-muted">
-            Enforced by unique index{" "}
-            <code className="px-1 py-0.5 rounded bg-surface-subtle font-mono text-text-secondary">
-              uq_account_positions_account_position
-            </code>
+          <span className="text-3xs text-text-muted flex items-center gap-1.5">
+            <Lock className="w-3 h-3 text-text-muted/70" />
+            <span>Positions with active staff or open vacancies cannot be removed.</span>
           </span>
           <button
             type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold rounded-lg border border-border-default bg-surface-primary text-text-primary hover:bg-surface-hover transition cursor-pointer"
+            onClick={handleClose}
+            className="px-4 py-1.5 text-xs font-semibold rounded-lg border border-border-default bg-surface-primary text-text-primary hover:bg-surface-hover transition cursor-pointer"
           >
             Done
           </button>

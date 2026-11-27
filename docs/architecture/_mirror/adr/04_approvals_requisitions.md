@@ -3,7 +3,7 @@ ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Approvals. Edit in mobile repo, t
 source: OHMployee/docs/architecture/adr/04_approvals_requisitions.md
 source_commit: 08ac81e 2026-11-25T19:31:17+08:00
 source_sha256: 6c887659938127abd1bd2dff631975da760546993daafa300e913c71b1ec677f
-synced_at: 2026-11-26T05:01:04.433Z
+synced_at: 2026-11-27T01:40:31.645Z
 -->
 # Approvals & Headcount Requisitions Architecture
 
