@@ -170,7 +170,7 @@ BEGIN
       he.date_requested::timestamptz,
       'hr_emploc'::text,
       he.id::text,
-      2::int,
+      3::int,
       'person::' || COALESCE(
         NULLIF(upper(trim(he.emploc_no)), ''),
         upper(trim(COALESCE(he.account,''))) || '::' || upper(trim(he.applicant_name))
@@ -179,12 +179,6 @@ BEGIN
     WHERE upper(COALESCE(he.emploc_no,'')) = upper(v_query_clean)
       AND (v_has_full_access OR he.account = ANY(v_allowed_accts))
       AND he.status != 'Moved to Plantilla'
-      AND NOT EXISTS (
-        SELECT 1 FROM plantilla p 
-        WHERE p.hr_emploc_id = he.id 
-           OR (he.emploc_no IS NOT NULL AND p.emploc_no = he.emploc_no)
-           OR (he.applicant_name IS NOT NULL AND upper(trim(p.employee_name)) = upper(trim(he.applicant_name)))
-      )
   ),
 
   -- Priority 3: Current Plantilla employees (Active, On-Leave, Floating, Deactivation)
@@ -287,12 +281,6 @@ BEGIN
       AND upper(COALESCE(he.emploc_no,'')) != upper(v_query_clean)
       AND (v_has_full_access OR he.account = ANY(v_allowed_accts))
       AND he.status != 'Moved to Plantilla'
-      AND NOT EXISTS (
-        SELECT 1 FROM plantilla p 
-        WHERE p.hr_emploc_id = he.id 
-           OR (he.emploc_no IS NOT NULL AND p.emploc_no = he.emploc_no)
-           OR (he.applicant_name IS NOT NULL AND upper(trim(p.employee_name)) = upper(trim(he.applicant_name)))
-      )
   ),
 
   -- Priority 6: Vacancy VCODE partial match
@@ -346,16 +334,9 @@ BEGIN
         ',', ' '
       )) ILIKE v_pattern
       AND (v_has_full_access OR v.account = ANY(v_allowed_accts))
+      AND a.linked_plantilla_id IS NULL
       AND NOT EXISTS (
         SELECT 1 FROM hr_emploc he WHERE he.applicant_id = a.id
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM plantilla p 
-        WHERE p.id = a.linked_plantilla_id
-           OR p.hr_emploc_id IN (SELECT he2.id FROM hr_emploc he2 WHERE he2.applicant_id = a.id)
-           OR upper(trim(p.employee_name)) = upper(trim(COALESCE(a.first_name,'') || ' ' || COALESCE(a.middle_name,'') || ' ' || COALESCE(a.last_name,'')))
-           OR upper(trim(p.employee_name)) = upper(trim(COALESCE(a.last_name,'') || ', ' || COALESCE(a.first_name,'') || ' ' || COALESCE(a.middle_name,'')))
-           OR upper(trim(p.employee_name)) = upper(trim(COALESCE(a.last_name,'') || ', ' || COALESCE(a.first_name,'')))
       )
   ),
 
