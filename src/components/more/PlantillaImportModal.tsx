@@ -13,6 +13,7 @@ import {
   Loader2,
   RefreshCw,
   RotateCcw,
+  Search,
   Send,
   ShieldAlert,
   ShieldCheck,
@@ -287,6 +288,7 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
 
   // Rollback Governance & History state
   const [historySelectedBatch, setHistorySelectedBatch] = useState<PlantillaImportBatch | null>(null);
+  const [historyRowSearch, setHistoryRowSearch] = useState("");
   const [isRequestRollbackOpen, setIsRequestRollbackOpen] = useState(false);
   const [selectedRollbackReason, setSelectedRollbackReason] = useState<string>("wrong_batch");
   const [rollbackRemarks, setRollbackRemarks] = useState("");
@@ -2048,10 +2050,20 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
 
                   {/* Headcount Rows Preview */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <h5 className="text-sm font-bold text-[var(--foreground)]">
                         Headcount Rows Preview ({historyRows.length})
                       </h5>
+                      <div className="relative w-full sm:w-64">
+                        <Search className="h-3.5 w-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={historyRowSearch}
+                          onChange={(e) => setHistoryRowSearch(e.target.value)}
+                          placeholder="Search store, vcode, employee..."
+                          className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                        />
+                      </div>
                     </div>
                     {isLoadingHistoryRows ? (
                       <div className="p-4 text-center text-sm text-[var(--text-muted)] border border-[var(--border-subtle)] rounded-xl">
@@ -2074,7 +2086,19 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-[var(--border-subtle)]">
-                            {historyRows.map((r) => {
+                            {historyRows
+                              .filter((r) => {
+                                const q = historyRowSearch.trim().toLowerCase();
+                                if (!q) return true;
+                                return (
+                                  (r.storeName || "").toLowerCase().includes(q) ||
+                                  (r.vcode || "").toLowerCase().includes(q) ||
+                                  (r.employeeName || "").toLowerCase().includes(q) ||
+                                  (r.employeeNo || "").toLowerCase().includes(q) ||
+                                  (r.position || "").toLowerCase().includes(q)
+                                );
+                              })
+                              .map((r) => {
                               const fullName = r.employeeName || "";
                               return (
                                 <tr key={r.rowNumber} className="hover:bg-[var(--surface-muted)]/50">
@@ -2165,14 +2189,18 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
 
                   {/* Actions Bar */}
                   <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[var(--border-subtle)]">
-                    <button
-                      type="button"
-                      onClick={() => setIsRollbackHistoryOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)] transition cursor-pointer"
-                    >
-                      <History className="h-4 w-4 text-[var(--text-muted)]" />
-                      View Rollback History
-                    </button>
+                    {historySelectedBatch.rollbackAllowed &&
+                      historySelectedBatch.rollbackStatus &&
+                      historySelectedBatch.rollbackStatus !== "none" && (
+                        <button
+                          type="button"
+                          onClick={() => setIsRollbackHistoryOpen(true)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-muted)] transition cursor-pointer"
+                        >
+                          <History className="h-4 w-4 text-[var(--text-muted)]" />
+                          View Rollback History
+                        </button>
+                      )}
 
                     {/* Step 1: Request Rollback Button */}
                     {canRequestRollback &&
