@@ -542,10 +542,8 @@ export function StoreVacancyTable({
 
 export function EmployeePipelineTable({
   rows,
-  onRowClick,
 }: {
   rows: PipelineCandidateItem[];
-  onRowClick?: (id: string) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border-default bg-surface-base shadow-xs flex-1 min-h-0 flex flex-col">
@@ -591,10 +589,6 @@ export function EmployeePipelineTable({
                 <tr
                   key={row.id}
                   className="transition-colors hover:bg-table-row-hover"
-                  onClick={() => onRowClick?.(row.id)}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`Candidate ${displayName}`}
                 >
                   <td className="px-3.5 py-2">
                     <div className="flex items-center gap-2.5">

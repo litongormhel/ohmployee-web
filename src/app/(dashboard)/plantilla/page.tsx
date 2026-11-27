@@ -2692,9 +2692,6 @@ function PlantillaPageContent() {
                 ) : displayView === "table" ? (
                   <EmployeePipelineTable
                     rows={paginatedRows as PipelineCandidateItem[]}
-                    onRowClick={(id) => {
-                      router.push(`/recruitment?candidateId=${id}`);
-                    }}
                   />
                 ) : (
                   <div className="flex-1 min-h-0 overflow-y-auto pr-1">
@@ -2703,9 +2700,6 @@ function PlantillaPageContent() {
                         <PipelineCard
                           key={row.id}
                           row={row}
-                          onSelect={() => {
-                            router.push(`/recruitment?candidateId=${row.id}`);
-                          }}
                         />
                       ))}
                     </div>

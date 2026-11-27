@@ -1,5 +1,17 @@
 # AI Handoff
 
+## Execution Report — Make Plantilla Pipeline Tab Read-Only (ohm#plantilla-pipeline-read-only)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean (`npm run lint` 0 errors, `npm test` 276/276 passing)
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (Plantilla Module Architecture & Headcount Governance)
+
+### What Was Done
+1. **Root Cause**: `EmployeePipelineTable` and `PipelineCard` in `/plantilla` (Pipeline tab) had `onClick` handlers navigating to `/recruitment?candidateId=${id}`, a route that does not exist (`src/app/(dashboard)/recruitment` absent), causing a 404 error and breaking tab interactions on browser Back.
+2. **Fix**: Removed `onRowClick` / `onSelect` props and interactive attributes (`onClick`, `role="button"`, `tabIndex={0}`, `cursor-pointer`) from `EmployeePipelineTable` (`src/components/plantilla/directory/PlantillaTableViews.tsx`), `PipelineCard` (`src/components/plantilla/directory/PlantillaCardViews.tsx`), and `src/app/(dashboard)/plantilla/page.tsx`.
+3. **Verification**: `npm run lint` (0 errors/warnings) and `npm test` (276/276 passing).
+
 ## Execution Report — Fix "Back to Login" Redirect Loop on Access Blocked / Timeout / Error Screens (ohm#fix-back-to-login-signout-loop)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean
 
@@ -241,6 +253,18 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Make Plantilla Pipeline Tab Read-Only (ohm#plantilla-pipeline-read-only)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean (`npm run lint` 0 errors, `npm test` 276/276 passing)
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (Plantilla Module Architecture & Headcount Governance)
+
+### What Was Done
+1. **Root Cause**: `EmployeePipelineTable` and `PipelineCard` in `/plantilla` (Pipeline tab) had `onClick` handlers navigating to `/recruitment?candidateId=${id}`, a route that does not exist (`src/app/(dashboard)/recruitment` absent), causing a 404 error and breaking tab interactions on browser Back.
+2. **Fix**: Removed `onRowClick` / `onSelect` props and interactive attributes (`onClick`, `role="button"`, `tabIndex={0}`, `cursor-pointer`) from `EmployeePipelineTable` (`src/components/plantilla/directory/PlantillaTableViews.tsx`), `PipelineCard` (`src/components/plantilla/directory/PlantillaCardViews.tsx`), and `src/app/(dashboard)/plantilla/page.tsx`.
+3. **Verification**: `npm run lint` (0 errors/warnings) and `npm test` (276/276 passing).
 
 ## Execution Report — Codify Diagnostic & Inspection Gate (Check, Investigate, Audit = Strict Read-Only Mode) (ohm#codify-diagnostic-read-only-gate)
 **Date:** 2026-11-26 | **Branch:** `main` | **Status:** Verified Clean, Codified across AGENTS.md & briefing.md

@@ -421,10 +421,8 @@ export function VacancyCard({
 
 export function PipelineCard({
   row,
-  onSelect,
 }: {
   row: PipelineCandidateItem;
-  onSelect?: () => void;
 }) {
   const displayName = formatPersonName(row.applicant_name) || "—";
   const initials = getInitials(null, null, row.applicant_name);
@@ -434,10 +432,7 @@ export function PipelineCard({
 
   return (
     <div
-      onClick={onSelect}
-      role="button"
-      tabIndex={0}
-      className="group relative flex flex-col justify-between rounded-xl border border-border-default bg-surface-base p-3.5 shadow-xs transition hover:border-border-hover hover:bg-surface-hover hover:shadow-sm cursor-pointer"
+      className="group relative flex flex-col justify-between rounded-xl border border-border-default bg-surface-base p-3.5 shadow-xs transition hover:border-border-hover hover:bg-surface-hover hover:shadow-sm"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
