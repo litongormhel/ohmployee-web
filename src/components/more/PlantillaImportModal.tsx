@@ -2046,6 +2046,91 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                     </div>
                   </div>
 
+                  {/* Headcount Rows Preview */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-sm font-bold text-[var(--foreground)]">
+                        Headcount Rows Preview ({historyRows.length})
+                      </h5>
+                    </div>
+                    {isLoadingHistoryRows ? (
+                      <div className="p-4 text-center text-sm text-[var(--text-muted)] border border-[var(--border-subtle)] rounded-xl">
+                        Loading batch rows...
+                      </div>
+                    ) : historyRows.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-[var(--text-muted)] border border-[var(--border-subtle)] rounded-xl">
+                        No headcount rows found for this batch.
+                      </div>
+                    ) : (
+                      <div className="border border-[var(--border-subtle)] rounded-xl overflow-x-auto max-h-72 overflow-y-auto">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead className="sticky top-0 z-10 bg-[var(--surface-sunken)] border-b border-[var(--border-subtle)] text-[var(--text-muted)] uppercase">
+                            <tr>
+                              <th className="py-2 px-2.5 font-semibold w-12">Row</th>
+                              <th className="py-2 px-2.5 font-semibold">Store / VCode</th>
+                              <th className="py-2 px-2.5 font-semibold">Employee</th>
+                              <th className="py-2 px-2.5 font-semibold">Position / Type</th>
+                              <th className="py-2 px-2.5 font-semibold">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[var(--border-subtle)]">
+                            {historyRows.map((r) => {
+                              const fullName = r.employeeName || "";
+                              return (
+                                <tr key={r.rowNumber} className="hover:bg-[var(--surface-muted)]/50">
+                                  <td className="py-2 px-2.5 font-mono text-[var(--text-muted)]">#{r.rowNumber}</td>
+                                  <td className="py-2 px-2.5">
+                                    <div className="font-semibold text-[var(--foreground)] leading-tight">
+                                      {r.storeName || "—"}
+                                    </div>
+                                    <div className="font-mono text-[11px] text-[var(--text-muted)] mt-0.5 leading-tight">
+                                      {r.vcode || "—"}
+                                    </div>
+                                  </td>
+                                  <td className="py-2 px-2.5">
+                                    {fullName ? (
+                                      <div>
+                                        <div className="font-medium text-[var(--foreground)] leading-tight">
+                                          {fullName}
+                                        </div>
+                                        {r.employeeNo && (
+                                          <div className="font-mono text-[11px] text-[var(--text-muted)] mt-0.5 leading-tight">
+                                            {r.employeeNo}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)] whitespace-nowrap leading-none">
+                                        (Vacant Slot)
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-2 px-2.5 text-[var(--text-muted)]">
+                                    <div className="font-medium text-[var(--foreground)] leading-tight">
+                                      {r.position || "—"}
+                                    </div>
+                                    {r.employmentType && (
+                                      <div className="mt-0.5 leading-tight">
+                                        <span className="rounded px-1.5 py-0.5 text-[11px] font-bold whitespace-nowrap leading-none bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)]">
+                                          {r.employmentType}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="py-2 px-2.5">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-[var(--surface-sunken)] text-[var(--foreground)] border border-[var(--border-subtle)] whitespace-nowrap leading-none">
+                                      {r.validationStatus || "valid"}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Block / Notice Warnings */}
                   {historySelectedBatch.rollbackBlockReason && (
                     <div className="rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] p-3 text-sm text-[var(--danger)] flex items-start gap-2 font-medium">
