@@ -147,9 +147,6 @@ export function getRoleLevel(userOrRole?: RoleIdentifiable | string | null): num
     if (typeof userOrRole.role_level === "number" && userOrRole.role_level > 0) {
       return userOrRole.role_level;
     }
-    if (userOrRole.email?.toLowerCase().trim() === "ohmpayatt@proton.me") {
-      return 100;
-    }
   }
 
   return 0;
@@ -166,9 +163,6 @@ export function isOwner(userOrRole?: RoleIdentifiable | string | null): boolean 
       return true;
     }
     if (typeof userOrRole.role_level === "number" && userOrRole.role_level >= 100) {
-      return true;
-    }
-    if (userOrRole.email?.toLowerCase().trim() === "ohmpayatt@proton.me") {
       return true;
     }
   }

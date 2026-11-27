@@ -378,9 +378,7 @@ export async function loadCurrentUserContext(): Promise<{
 
     const isSuperAdminUser =
       !isExplicitLowerRole &&
-      (rpcRow.email?.toLowerCase().trim() === "ohmpayatt@proton.me" ||
-       user.email?.toLowerCase().trim() === "ohmpayatt@proton.me" ||
-       isOwner(rawRole));
+      (isOwner(rawRole) || (typeof rpcRow.role_level === "number" && rpcRow.role_level >= 100));
 
     const derivedRoleLevel = isSuperAdminUser
       ? 100
