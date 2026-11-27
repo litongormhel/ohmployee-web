@@ -8,10 +8,10 @@ import assert from "node:assert/strict";
 
 function validateOperationalJustification(reason) {
   const trimmed = (reason || "").trim();
-  if (trimmed.length < 20) {
+  if (trimmed.length < 10) {
     return {
       valid: false,
-      error: "Operational justification is mandatory (minimum 20 characters).",
+      error: "Operational justification is mandatory (minimum 10 characters).",
     };
   }
   return { valid: true };
@@ -129,10 +129,11 @@ function buildHeadcountPayload({
   return payload;
 }
 
-test("ADR-003: Operational Justification mandatory minimum 20 characters", () => {
+test("ADR-003: Operational Justification mandatory minimum 10 characters", () => {
   assert.equal(validateOperationalJustification("").valid, false);
-  assert.equal(validateOperationalJustification("Short note").valid, false);
-  assert.equal(validateOperationalJustification("   Only 14 chars  ").valid, false);
+  assert.equal(validateOperationalJustification("Short").valid, false);
+  assert.equal(validateOperationalJustification("   9 chars ").valid, false);
+  assert.equal(validateOperationalJustification("Short note").valid, true);
   assert.equal(
     validateOperationalJustification("Valid business demand for expansion").valid,
     true

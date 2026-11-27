@@ -463,9 +463,9 @@ function RequestHeadcountModalDialog({
       }
     }
 
-    // Mandatory Operational Justification (ADR-003: minimum 20 characters for all requests)
-    if (reason.trim().length < 20) {
-      setValidationError("Operational justification is mandatory (minimum 20 characters).");
+    // Mandatory Operational Justification (minimum 10 characters for all requests)
+    if (reason.trim().length < 10) {
+      setValidationError("Operational justification is mandatory (minimum 10 characters).");
       return;
     }
 
@@ -1188,19 +1188,19 @@ function RequestHeadcountModalDialog({
                     {reason.length}/500 chars{" "}
                     <span
                       className={
-                        reason.trim().length >= 20
+                        reason.trim().length >= 10
                           ? "text-text-success font-semibold"
                           : "text-text-danger font-semibold"
                       }
                     >
-                      ({reason.trim().length}/20 chars min)
+                      ({reason.trim().length}/10 chars min)
                     </span>
                   </span>
                 </div>
                 <textarea
                   rows={3}
                   maxLength={500}
-                  placeholder="Detail the operational justification, store coverage, expansion rationale, or business demand (minimum 20 characters required)..."
+                  placeholder="Detail the operational justification, store coverage, expansion rationale, or business demand (minimum 10 characters required)..."
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   className="w-full rounded-md border border-border-default bg-surface-base p-3 text-sm text-text-primary outline-none focus:border-brand-500 transition-colors resize-none shadow-xs"
