@@ -1012,13 +1012,13 @@ export async function fetchHeadcountModalMasterData(
 
   const supabase = createClient();
 
-  // 1. Fetch stores (hardened with multi-column archive guard)
+  // 1. Fetch stores (hardened with strict 3-way active + non-archived guard)
   const storesQuery = supabase
     .from("stores")
     .select("id, store_name, area_city, area_province, province, island_group, is_active, account_id, status, is_archived")
     .eq("account_id", accountId)
     .eq("is_active", true)
-    .neq("status", "archived")
+    .eq("status", "active")
     .or("is_archived.is.null,is_archived.eq.false")
     .order("store_name");
 

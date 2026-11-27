@@ -610,8 +610,11 @@ function NewStoreRequestModalDialog({
               </div>
               <div className="flex justify-between">
                 <span className="text-text-muted font-medium">Request Reference:</span>
-                <span className="font-mono text-[11px] text-text-secondary">
-                  {submittedInfo.requestId}
+                <span
+                  className="font-mono text-[11px] font-semibold text-text-secondary tracking-wider"
+                  title={submittedInfo.requestId}
+                >
+                  {submittedInfo.requestId.replace(/-/g, "").slice(0, 8).toUpperCase()}
                 </span>
               </div>
             </div>

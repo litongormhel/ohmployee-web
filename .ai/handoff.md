@@ -1,5 +1,29 @@
 # AI Handoff
 
+## Execution Report — New Store Approval Slot Collision, Account KPI Parity, Roving Store Active Filter & Table UI (ohm#fix-new-store-approval-slot-collision-and-kpi-parity)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`), 276/276 Tests Passing, 0 Lint Warnings, Next.js 16.2.4 Build Clean
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (Core Cross-Module Invariants)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (ADR-001/ADR-002 Slot & Account KPI Parity)
+- `docs/architecture/_mirror/adr/04_approvals_requisitions.md` (ADR-003 & Request Roving HC Strict Active-Store Filter)
+
+### What Was Done
+1. **ADR Update & Mirror Sync**:
+   - Updated `D:\Projects\OHMployee\docs\architecture\adr\04_approvals_requisitions.md` to explicitly codify the 3-way active-store filter (`stores.is_active = TRUE AND stores.status = 'active' AND COALESCE(stores.is_archived, false) = false`) for `+ Request Roving HC` store dropdowns, and synced to Web via `npm run sync:adr`.
+2. **Database Migration (`supabase/migrations/20262606000213_fix_new_store_approval_and_account_kpi_parity.sql`)**:
+   - **New Store Approval Slot Collision**: Updated `public.approve_new_store_request(uuid)` to guard `plantilla_slots` inserts against `fn_trg_auto_create_vacancy_slot` (which auto-creates `slot_ordinal = 1..required_headcount` on `INSERT INTO public.vacancies`), eliminating `duplicate key value violates unique constraint "uq_plantilla_slots_legacy_vcode_ordinal"`.
+   - **Account Card `HC 0/0` Parity**: Backfilled missing active `employee_store_allocations` rows for active stationary `plantilla` personnel (e.g., `BACKYARD` `AS100002`), and hardened `public.v_account_allocation_kpi` (preserving all 19 columns) with an `active_unallocated_plantilla` fallback CTE.
+3. **Web UI & Query Fixes**:
+   - `src/lib/queries/requests.ts` (`fetchHeadcountModalMasterData`): Enforced `.eq("status", "active")` alongside `.eq("is_active", true)` and `.or("is_archived.is.null,is_archived.eq.false")`.
+   - `src/components/modals/NewStoreRequestModal.tsx`: Formatted `Request Reference` as 8-character uppercase alphanumeric (`requestId.replace(/-/g, "").slice(0, 8).toUpperCase()`) with full UUID tooltip.
+   - `src/components/approvals/NewStoreDataTable.tsx`: Removed `Pending Review` badge below Store Name, removed `Forward` action button & modal, added dedicated `Date and Time` column next to `Requested by`, and renamed headers (`Group / code` → `Group`, `Store name` → `Store Name`, `Initial headcount` → `HC`).
+4. **Verification**:
+   - Pushed cleanly to Staging (`qqiiznmqxfoamqytjica`).
+   - Tests: 276/276 passing (`npm test`).
+   - Lint: 0 errors, 0 warnings (`npm run lint`).
+   - Build: Clean Next.js 16.2.4 Turbopack production build (`npm run build`).
+
 ## Execution Report — Streamline Account Position Manager Modal (ohm#streamline-account-position-modal)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, All 276 Tests Passing, 0 Lint Warnings, Next.js 16.2.4 TypeScript & Build Clean
 

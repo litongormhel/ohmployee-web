@@ -1,9 +1,9 @@
 <!--
 ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Approvals. Edit in mobile repo, then run `npm run sync:adr`.
 source: OHMployee/docs/architecture/adr/04_approvals_requisitions.md
-source_commit: 08ac81e 2026-11-25T19:31:17+08:00
-source_sha256: 6c887659938127abd1bd2dff631975da760546993daafa300e913c71b1ec677f
-synced_at: 2026-11-27T01:40:31.645Z
+source_commit: 08ac81e 2026-11-25T19:31:17+08:00 +uncommitted-changes
+source_sha256: 9a57b9f08c99c99bad34c386b7bb01c081bf7907903ac602bba96fc748678e99
+synced_at: 2026-11-27T02:09:42.191Z
 -->
 # Approvals & Headcount Requisitions Architecture
 
@@ -75,7 +75,7 @@ synced_at: 2026-11-27T01:40:31.645Z
 3. **Account vs. Store Reconciliation Parity (Web + Mobile)**: Account, Dashboard, and CENCOM HC ALWAYS count distinct people (`3` people, never summing rounded `0.33` fractions). Store View (`StoreCapacityTable` on Web and Store View on Mobile) computes `Active Deployed = SUM(filled_hc)` and `Open Vacancy = SUM(stationary open slots + 1/N per roving open slot)` from the shared Supabase DB so Web and Mobile display identical `1.50` / `1.33` values.
 4. **Request Headcount vs. Request New Store Entry-Point Architecture (Web + Mobile)**:
    - **Plantilla → Store View (per-row `Request HC`)**: Pre-locked Stationary HC request for that existing store (all request types: Additional, Replacement, Reliever, Commando, HC Reduction; zero New Store detour).
-   - **Plantilla Header (`+ Request Roving HC`)**: Existing stores only (2–20 stores, same Island Group).
+   - **Plantilla Header (`+ Request Roving HC`)**: Existing active, non-archived stores only (strictly filtered by `stores.is_active = TRUE AND stores.status = 'active' AND COALESCE(stores.is_archived, false) = false`; 2–20 stores, same Island Group). Inactive, archived, or closed stores must never appear in the store selection dropdown.
    - **Plantilla Header (`+ Request New Store`)**: Independent entry point for all unlisted/opening stores — Stationary mode (1 new store + initial HC >= 1 so approved stores immediately receive an Open Vacancy and appear in Store View) and Roving mode (2–20 new/mixed stores per ADR-003 atomic provisioning → `/approvals?tab=new_stores`).
    - **Vacancy Detail Drawer**: Retains Admin `Adjust Headcount Quota` and Ops `Request HC Adjustment` for quick existing-VCode adjustments.
 

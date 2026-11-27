@@ -8,7 +8,6 @@ import {
   Layers,
   MapPin,
   RefreshCw,
-  Send,
   X,
   XCircle,
 } from "lucide-react";
@@ -16,7 +15,6 @@ import { Modal } from "@/components/shared/Modal";
 import { TablePagination } from "@/components/shared/TablePagination";
 import {
   useApproveNewStoreRequest,
-  useForwardNewStoreRequest,
   useRejectNewStoreRequest,
   useApproveHeadcountRequest,
   useRejectHeadcountRequest,
@@ -74,9 +72,6 @@ export function NewStoreDataTable({
     useState<NewStoreRequestItem | null>(null);
   const [selectedRejectRequest, setSelectedRejectRequest] =
     useState<NewStoreRequestItem | null>(null);
-  const [selectedForwardRequest, setSelectedForwardRequest] =
-    useState<NewStoreRequestItem | null>(null);
-  const [forwardNotes, setForwardNotes] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectReasonError, setRejectReasonError] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -95,7 +90,6 @@ export function NewStoreDataTable({
 
   const approveMutation = useApproveNewStoreRequest();
   const rejectMutation = useRejectNewStoreRequest();
-  const forwardMutation = useForwardNewStoreRequest();
   const approveHcMutation = useApproveHeadcountRequest();
   const rejectHcMutation = useRejectHeadcountRequest();
 
@@ -198,30 +192,6 @@ export function NewStoreDataTable({
         err instanceof Error
           ? err.message
           : "Failed to reject new store request."
-      );
-    }
-  };
-
-  const handleOpenForward = (req: NewStoreRequestItem) => {
-    setActionError(null);
-    setForwardNotes("");
-    setSelectedForwardRequest(req);
-  };
-
-  const handleConfirmForward = async () => {
-    if (!selectedForwardRequest) return;
-    setActionError(null);
-    try {
-      await forwardMutation.mutateAsync({
-        requestId: selectedForwardRequest.id,
-        notes: forwardNotes.trim() || undefined,
-      });
-      setSelectedForwardRequest(null);
-    } catch (err: unknown) {
-      setActionError(
-        err instanceof Error
-          ? err.message
-          : "Failed to forward new store request."
       );
     }
   };
@@ -334,7 +304,6 @@ export function NewStoreDataTable({
   const isBusy =
     approveMutation.isPending ||
     rejectMutation.isPending ||
-    forwardMutation.isPending ||
     approveHcMutation.isPending ||
     rejectHcMutation.isPending ||
     isBulkProcessing;
@@ -442,22 +411,25 @@ export function NewStoreDataTable({
                   </th>
                 )}
                 <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
-                  Group / code
+                  Group
                 </th>
                 <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
                   Account
                 </th>
                 <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
-                  Store name
+                  Store Name
                 </th>
                 <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
                   Location
                 </th>
                 <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
-                  Initial headcount
+                  HC
                 </th>
                 <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
                   Requested by
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-semibold whitespace-nowrap">
+                  Date and Time
                 </th>
                 <th
                   scope="col"
@@ -550,11 +522,6 @@ export function NewStoreDataTable({
                             <span className="h-1.5 w-1.5 rounded-full bg-purple-600" />
                             Pending Super Admin Sign-off
                           </span>
-                        ) : request.status === "pending" ? (
-                          <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-semibold text-amber-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
-                            Pending Review
-                          </span>
                         ) : null}
                       </div>
                     </td>
@@ -567,21 +534,23 @@ export function NewStoreDataTable({
                       </span>
                     </td>
 
-                    {/* INITIAL HEADCOUNT */}
+                    {/* HC */}
                     <td className="px-4 py-2.5 font-mono text-sm text-text-primary whitespace-nowrap align-middle">
                       {request.requestedHc ?? 1}
                     </td>
 
                     {/* REQUESTED BY */}
                     <td className="px-4 py-2.5 whitespace-nowrap align-middle">
-                      <div className="flex flex-col">
-                        <span className="text-sm text-text-primary">
-                          {request.requestedByName || "Unknown"}
-                        </span>
-                        <span className="text-xs text-text-muted font-mono">
-                          {formatDate(request.createdAt)}
-                        </span>
-                      </div>
+                      <span className="text-sm text-text-primary">
+                        {request.requestedByName || "Unknown"}
+                      </span>
+                    </td>
+
+                    {/* DATE AND TIME */}
+                    <td className="px-4 py-2.5 whitespace-nowrap align-middle">
+                      <span className="text-xs text-text-muted font-mono">
+                        {formatDate(request.createdAt)}
+                      </span>
                     </td>
 
                     {/* ACTION / REJECTED REASON */}
@@ -652,15 +621,6 @@ export function NewStoreDataTable({
                                 className="inline-flex h-7 items-center justify-center rounded-lg border border-border-danger bg-transparent px-2 text-xs font-medium text-text-danger hover:bg-danger-subtle disabled:opacity-50 transition cursor-pointer"
                               >
                                 <span>Reject</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenForward(request)}
-                                disabled={isBusy}
-                                className="inline-flex h-7 items-center justify-center rounded-lg border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-700 px-2.5 text-xs font-medium shadow-2xs disabled:opacity-50 transition cursor-pointer"
-                              >
-                                <Send className="h-3 w-3 mr-1" />
-                                <span>Forward</span>
                               </button>
                               <button
                                 type="button"
@@ -1011,95 +971,6 @@ export function NewStoreDataTable({
                   <>
                     <XCircle className="h-3.5 w-3.5" />
                     <span>Confirm Bulk Reject</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── Single Forward to Super Admin Dialog ──────────────────────────────── */}
-      {selectedForwardRequest && (
-        <Modal
-          isOpen={Boolean(selectedForwardRequest)}
-          onClose={() => setSelectedForwardRequest(null)}
-          title="Approve & Forward to Super Admin"
-          subtitle={`Validate masterlist details for ${selectedForwardRequest.storeName} and route to Super Admin for final sign-off`}
-          icon={Send}
-          isSubmitting={forwardMutation.isPending}
-          disableBackdropClick={forwardMutation.isPending}
-          maxWidthClass="max-w-md"
-        >
-          <div className="space-y-4">
-            <div className="rounded-lg border border-border-default bg-surface-subtle p-3 text-xs space-y-1.5">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Store Name:</span>
-                <span className="font-semibold text-text-primary">
-                  {selectedForwardRequest.storeName}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Account:</span>
-                <span className="font-medium text-text-primary">
-                  {selectedForwardRequest.accountName || "—"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Location:</span>
-                <span className="font-medium text-text-primary">
-                  {[selectedForwardRequest.city, selectedForwardRequest.province]
-                    .filter(Boolean)
-                    .join(", ") || "—"}
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor={`forward-notes-table-${selectedForwardRequest.id}`}
-                className="block text-xs font-medium text-text-primary mb-1"
-              >
-                Data Team Validation Notes (Optional)
-              </label>
-              <textarea
-                id={`forward-notes-table-${selectedForwardRequest.id}`}
-                rows={3}
-                placeholder="Confirm masterlist verification, geographical tags, or operational notes for Super Admin..."
-                value={forwardNotes}
-                onChange={(e) => setForwardNotes(e.target.value)}
-                className="w-full rounded-md border border-border-default bg-surface p-2.5 text-xs text-text-primary placeholder:text-text-muted focus:border-brand-500 focus:outline-hidden"
-              />
-            </div>
-
-            <p className="text-2xs text-text-muted">
-              This request will be marked as &quot;Pending Super Admin Sign-off&quot; and routed to executive review with your validation notes.
-            </p>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-border-default">
-              <button
-                type="button"
-                onClick={() => setSelectedForwardRequest(null)}
-                disabled={forwardMutation.isPending}
-                className="rounded-md border border-border-default bg-surface px-3.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-hover transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmForward}
-                disabled={forwardMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-purple-600 hover:bg-purple-700 px-4 py-1.5 text-xs font-medium text-white shadow-2xs disabled:opacity-50 transition cursor-pointer"
-              >
-                {forwardMutation.isPending ? (
-                  <>
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>Forwarding...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-3.5 w-3.5" />
-                    <span>Approve &amp; Forward</span>
                   </>
                 )}
               </button>

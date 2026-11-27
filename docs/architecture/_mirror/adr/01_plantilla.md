@@ -3,7 +3,7 @@ ADR-MIRROR: DO NOT EDIT. Read-only copy of ADR-Plantilla. Edit in mobile repo, t
 source: OHMployee/docs/architecture/adr/01_plantilla.md
 source_commit: bfee3d7 2026-11-26T10:43:44+08:00
 source_sha256: bc1088bb29214670fee8029c5a4af36462da12b02dce62fee771fa4d34059194
-synced_at: 2026-11-27T01:40:30.393Z
+synced_at: 2026-11-27T02:09:41.476Z
 -->
 # Plantilla Module Architecture & Headcount Governance
 

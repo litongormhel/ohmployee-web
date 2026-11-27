@@ -207,6 +207,18 @@ When pagination parameters are provided, queries apply `.range((page - 1) * limi
 - **Role-Gated & Session-Guarded Category Counters**:
   - `useRequestCategoryCounts` in `Sidebar.tsx`, `DashboardPage`, and `ApprovalsPage` is gated by `enabled: Boolean(currentUser && (hasFullAccess(currentUser) || canViewApprovalsHub(currentUser)))`, and `fetchRequestCategoryCounts` checks `supabase.auth.getSession()` before dispatching count queries.
 
+---
+
+## 14. New Store Approval Table & Request Reference Standardization (`ohm#fix-new-store-approval-slot-collision-and-kpi-parity`)
+- **New Store Table (`src/components/approvals/NewStoreDataTable.tsx`)**:
+  - Column headers: `Group`, `Account`, `Store Name`, `Location`, `HC`, `Requested by`, `Date and Time`, `Action` (or `Rejected reason`).
+  - Removed redundant `Pending Review` status badge below `Store Name` and removed the `Forward` button/modal from `Action` (retaining `Reject` and `Approve`).
+- **8-Char Alphanumeric Request Reference (`src/components/modals/NewStoreRequestModal.tsx`)**:
+  - `Request Reference` displays an 8-character uppercase alphanumeric code derived from the request UUID (`requestId.replace(/-/g, "").slice(0, 8).toUpperCase()`) with full UUID preserved in the tooltip.
+- **Slot Idempotency & Roving Store Filter**:
+  - `approve_new_store_request` guards `plantilla_slots` inserts against `fn_trg_auto_create_vacancy_slot` so `uq_plantilla_slots_legacy_vcode_ordinal` never collides.
+  - `fetchHeadcountModalMasterData` (`src/lib/queries/requests.ts`) enforces strict 3-way active-store filtering (`is_active = true`, `status = 'active'`, `is_archived IS NULL OR false`).
+
 
 
 
