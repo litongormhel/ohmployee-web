@@ -579,7 +579,7 @@ export function UpdateScheduleModal({
                     className={`px-3 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer select-none ${
                       isSelected
                         ? "bg-[#1d4ed8] text-white shadow-xs"
-                        : "bg-white dark:bg-slate-800 text-[#3a4150] dark:text-slate-300 border border-[#cfd4dc] dark:border-slate-700 hover:bg-[#f1f2f5]"
+                        : "bg-white dark:bg-slate-800 text-[#3a4150] dark:text-slate-300 border border-[#cfd4dc] dark:border-slate-700 hover:bg-[#f1f2f5] dark:hover:bg-slate-700"
                     }`}
                   >
                     {day}
