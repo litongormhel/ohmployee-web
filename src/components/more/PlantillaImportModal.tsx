@@ -1785,24 +1785,15 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
 
                 {/* Row Inspection in History */}
                 <div className="space-y-3 pt-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <h5 className="text-sm font-bold text-[var(--foreground)]">
-                      Row Error Breakdown ({historyRows.length} total rows)
-                    </h5>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <h5 className="text-sm font-bold text-[var(--foreground)]">
+                        Row Error Breakdown ({historyRows.length} total rows)
+                      </h5>
 
-                    {/* Quick Filter Pills + Search */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="relative w-full sm:w-56">
-                        <Search className="h-3.5 w-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        <input
-                          type="text"
-                          value={historyRowSearch}
-                          onChange={(e) => setHistoryRowSearch(e.target.value)}
-                          placeholder="Search store, vcode, employee..."
-                          className="w-full pl-8 pr-3 py-1 text-xs rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
-                        />
-                      </div>
-                      <span className="text-xs font-semibold text-[var(--text-muted)] mr-1">Filter:</span>
+                      {/* Quick Filter Pills */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-semibold text-[var(--text-muted)] mr-1">Filter:</span>
                       <button
                         type="button"
                         onClick={() => setHistoryRowFilter("all")}
@@ -1847,6 +1838,17 @@ export function PlantillaImportModal({ isOpen = true, onClose }: PlantillaImport
                       >
                         Valid ({historyRows.filter((r) => r.validationStatus === "valid").length})
                       </button>
+                    </div>
+                  </div>
+                    <div className="relative w-full sm:w-72">
+                      <Search className="h-3.5 w-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={historyRowSearch}
+                        onChange={(e) => setHistoryRowSearch(e.target.value)}
+                        placeholder="Search store, vcode, employee..."
+                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[var(--border-subtle)] bg-[var(--card)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                      />
                     </div>
                   </div>
 
