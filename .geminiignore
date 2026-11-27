@@ -1,0 +1,15 @@
+node_modules/
+.next/
+build/
+dist/
+.dart_tool/
+.gradle/
+ios/Pods/
+__pycache__/
+.venv/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+pubspec.lock
+*.log
+.env*
