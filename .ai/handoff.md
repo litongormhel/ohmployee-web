@@ -1,5 +1,22 @@
 # AI Handoff
 
+## Execution Report — Fix Existing Store Additional HC Quota Drop, Trigger Double-Slot Race & `vacancy_requirements` Parity (ohm#fix-hc-request-existing-store-quota-and-slot-sync)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`), Synced to Mobile
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (`7ed2e40` — Rule 1 Slot Authority & Slot-Level Position Independence, Rule 2 Hired HC Source, Slot-Creation Traceability)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (`a267352` — ADR-002 Invariant 1 1:1 Slot Parity & Invariant 2 Headcount Expansion on Existing Stores)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (`08ac81e` — Rule 4 Open Visibility & Capacity Formula)
+- `docs/architecture/_mirror/adr/04_approvals_requisitions.md` (`c6d3eb2` — Decision #20 Existing Store HC Expansion)
+
+### What Was Done
+1. **Root Cause (`TEST002` — Super 2, BANKO)**: Approving `+1 Financial Advisor` (request `f2fdafda-11fe-45c8-b25f-32df6169443d`) on baseline-imported store `Super 2` (`TEST002`, 1 occupied `Merchandiser` slot, no prior `vacancies` row) caused `public.create_plantilla_slot_from_request` to insert `vacancies.required_headcount = 1` instead of `2`. `vw_vacancy_list` therefore evaluated `hc_filled (1) >= hc_total (1)` → `derived_status = 'Hired'` (`1/1`), hiding the new open slot from Vacancy tabs and leaving Store View at `REQUIRED: 1`, `VACANCY: 0`. Also identified companion defects: `fn_trg_auto_create_vacancy_slot()` racing with `fn_create_slots_from_hc_request()` (creating duplicate wrong-position slots on `VCCG1_0007` and `VCCG1_0008`), `vacancies_vcode_key` collision risk on archived/closed standby stores, and missing pre-existing store position rows in `vacancy_requirements`.
+2. **Database Migration (`supabase/migrations/20262701000008_fix_hc_request_existing_store_quota_and_slot_sync.sql`, mirrored to `D:\Projects\OHMployee\supabase\migrations\`)**:
+   - Surgically added transaction-local `current_setting('ohm.skip_auto_vacancy_slot', true) = 'on'` guard to `public.fn_trg_auto_create_vacancy_slot()` (preserving trigger behavior for direct admin/import writes).
+   - Surgically updated `public.create_plantilla_slot_from_request(uuid)` (from `20262606000193` base): computes `v_existing_active_slots` before mutating `vacancies`, reactivates archived/closed vacancies in-place without colliding on `vacancies_vcode_key`, sets `required_headcount = v_existing_active_slots + v_count` (or `GREATEST(existing, v_existing_active_slots) + v_count`), suppresses the auto-slot trigger around stationary `vacancies` writes so `fn_create_slots_from_hc_request` creates exact requested slots, and seeds pre-existing active store positions into `vacancy_requirements` (linking active `plantilla.vacancy_requirement_id`).
+   - Idempotently repaired `TEST002` (`required_headcount = 2`, `Merchandiser` `1/1` Full, `Financial Advisor` `0/1` Open) and cleaned the 2 trigger-duplicated orphan open slots + backfilled initial `vacancy_requirements` on `VCCG1_0007` and `VCCG1_0008`.
+3. **Verification**: Live `pg_get_functiondef` verified for both functions; `fn_adr001_smoke()` 6/6 PASS (`A1`–`A6-synthetic`); live `TEST002` verified in `vw_vacancy_list` (`1/2`, `derived_status = 'Open'`), `vw_slot_derived_vacancy_shadow` (`open_count = 1`, `vacancy_tab = 'Open'`), and `vw_vacancy_requirements`; `npm run check:sql`, `npm test`, and `npm run lint` clean.
+
 ## Execution Report — Plantilla Store Transfer VCode Rebind, Strict Slot Gate & Atomic Employee Swap (ohm#plantilla-transfer-slot-gate-and-atomic-swap)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`), Web + Mobile Parity Complete
 
@@ -299,6 +316,23 @@
 ---
 
 # AI Handoff
+
+## Execution Report — Fix Existing Store Additional HC Quota Drop, Trigger Double-Slot Race & `vacancy_requirements` Parity (ohm#fix-hc-request-existing-store-quota-and-slot-sync)
+**Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`), Synced to Mobile
+
+### ADR Basis
+- `docs/architecture/_mirror/adr/00_core_invariants.md` (`7ed2e40` — Rule 1 Slot Authority & Slot-Level Position Independence, Rule 2 Hired HC Source, Slot-Creation Traceability)
+- `docs/architecture/_mirror/adr/01_plantilla.md` (`a267352` — ADR-002 Invariant 1 1:1 Slot Parity & Invariant 2 Headcount Expansion on Existing Stores)
+- `docs/architecture/_mirror/adr/02_vacancy.md` (`08ac81e` — Rule 4 Open Visibility & Capacity Formula)
+- `docs/architecture/_mirror/adr/04_approvals_requisitions.md` (`c6d3eb2` — Decision #20 Existing Store HC Expansion)
+
+### What Was Done
+1. **Root Cause (`TEST002` — Super 2, BANKO)**: Approving `+1 Financial Advisor` (request `f2fdafda-11fe-45c8-b25f-32df6169443d`) on baseline-imported store `Super 2` (`TEST002`, 1 occupied `Merchandiser` slot, no prior `vacancies` row) caused `public.create_plantilla_slot_from_request` to insert `vacancies.required_headcount = 1` instead of `2`. `vw_vacancy_list` therefore evaluated `hc_filled (1) >= hc_total (1)` → `derived_status = 'Hired'` (`1/1`), hiding the new open slot from Vacancy tabs and leaving Store View at `REQUIRED: 1`, `VACANCY: 0`. Also identified companion defects: `fn_trg_auto_create_vacancy_slot()` racing with `fn_create_slots_from_hc_request()` (creating duplicate wrong-position slots on `VCCG1_0007` and `VCCG1_0008`), `vacancies_vcode_key` collision risk on archived/closed standby stores, and missing pre-existing store position rows in `vacancy_requirements`.
+2. **Database Migration (`supabase/migrations/20262701000008_fix_hc_request_existing_store_quota_and_slot_sync.sql`, mirrored to `D:\Projects\OHMployee\supabase\migrations\`)**:
+   - Surgically added transaction-local `current_setting('ohm.skip_auto_vacancy_slot', true) = 'on'` guard to `public.fn_trg_auto_create_vacancy_slot()` (preserving trigger behavior for direct admin/import writes).
+   - Surgically updated `public.create_plantilla_slot_from_request(uuid)` (from `20262606000193` base): computes `v_existing_active_slots` before mutating `vacancies`, reactivates archived/closed vacancies in-place without colliding on `vacancies_vcode_key`, sets `required_headcount = v_existing_active_slots + v_count` (or `GREATEST(existing, v_existing_active_slots) + v_count`), suppresses the auto-slot trigger around stationary `vacancies` writes so `fn_create_slots_from_hc_request` creates exact requested slots, and seeds pre-existing active store positions into `vacancy_requirements` (linking active `plantilla.vacancy_requirement_id`).
+   - Idempotently repaired `TEST002` (`required_headcount = 2`, `Merchandiser` `1/1` Full, `Financial Advisor` `0/1` Open) and cleaned the 2 trigger-duplicated orphan open slots + backfilled initial `vacancy_requirements` on `VCCG1_0007` and `VCCG1_0008`.
+3. **Verification**: Live `pg_get_functiondef` verified for both functions; `fn_adr001_smoke()` 6/6 PASS (`A1`–`A6-synthetic`); live `TEST002` verified in `vw_vacancy_list` (`1/2`, `derived_status = 'Open'`), `vw_slot_derived_vacancy_shadow` (`open_count = 1`, `vacancy_tab = 'Open'`), and `vw_vacancy_requirements`; `npm run check:sql`, `npm test`, and `npm run lint` clean.
 
 ## Execution Report — Plantilla Store Transfer VCode Rebind, Strict Slot Gate & Atomic Employee Swap (ohm#plantilla-transfer-slot-gate-and-atomic-swap)
 **Date:** 2026-11-27 | **Branch:** `main` | **Status:** Verified Clean, Live on Staging (`qqiiznmqxfoamqytjica`), Web + Mobile Parity Complete
